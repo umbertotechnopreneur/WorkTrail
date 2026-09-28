@@ -10,7 +10,7 @@ These instructions apply to every change in this repository.
 
 ## Product and documentation
 
-- Follow the [MeUp style guide](docs/assets/meup/README.md). Keep a common README structure and author signature across MailMeUp, PromptMeUp, and WorkTrail while giving each a distinct accent and concrete benefit.
+- Follow the [MeUp style guide](docs/assets/meup/README.md). Keep a common README structure and author signature across AgentInbox, PromptMeUp, and WorkTrail while giving each a distinct accent and concrete benefit.
 - Lead README and original project copy with what WorkTrail does for the reader. Use plain English, short sentences, concrete actions, useful examples, and "you"; use "I", "me", and "my" for the solo maintainer, never company-style "we".
 - Avoid filler, hype, vague promises, corporate language, and AI-sounding prose. Never promise unlimited capacity or untested compatibility. Preserve exact commands, UI labels, privacy facts, limitations, contributor credits, and the distinction between implemented, tested, and planned behavior.
 - Preserve third-party quotations, licenses, attribution, and historical records. Keep UI strings separate from business logic and detailed validation procedures out of the product README.
