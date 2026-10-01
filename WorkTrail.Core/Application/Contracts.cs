@@ -870,6 +870,9 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Gets safe AI status.</summary>
     Task<OperationResult<AiStatus>> GetAiStatusAsync(CancellationToken cancellationToken);
 
+    /// <summary>Gets the configured AI key for the credential editor without logging or persisting the value.</summary>
+    Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken);
+
     /// <summary>Gets simplified cached OpenAI pricing plus daily and month-to-date local usage cost.</summary>
     Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken);
 

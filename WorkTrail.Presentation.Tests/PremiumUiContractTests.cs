@@ -41,17 +41,18 @@ public sealed class PremiumUiContractTests
             Assert.Equal("MenuFlyout", document.Descendants().Single(element => Name(element) == name).Parent!.Name.LocalName);
     }
 
-    /// <summary>The celestial menu shares the main menu geometry and uses a colored icon on every action.</summary>
+    /// <summary>The shared celestial menu keeps its navigation styling and the add-clock badge.</summary>
     [Fact]
-    public void WorldClocks_UseColoredMenuIconsAndAnAddButtonBadge()
+    public void WorldClocks_UseSharedColoredNavigationMenuAndAnAddButtonBadge()
     {
-        var window = XDocument.Load(PathFor("WorkTrail", "WorldClockWindow.xaml"));
-        var menu = window.Descendants().Single(element => Name(element) == "WorldMapButton").Descendants().Single(element => element.Name.LocalName == "MenuFlyout");
-        var setters = menu.Descendants().Where(element => element.Name.LocalName == "Setter").ToArray();
-        Assert.Contains(setters, element => element.Attribute("Property")?.Value == "MinWidth" && element.Attribute("Value")?.Value == "320");
-        Assert.Contains(setters, element => element.Attribute("Property")?.Value == "CornerRadius" && element.Attribute("Value")?.Value == "12");
-        foreach (var item in menu.Descendants().Where(element => element.Name.LocalName == "MenuFlyoutItem"))
-            Assert.Contains(item.Descendants(), element => element.Name.LocalName == "FontIcon" && element.Attribute("Foreground") is not null);
+        var windowSource = File.ReadAllText(PathFor("WorkTrail", "WorldClockWindow.xaml.cs"));
+        var menuSource = File.ReadAllText(PathFor("WorkTrail", "Controls", "AstronomyWindowMenu.cs"));
+        Assert.Contains("WorldMapButton.Flyout = AstronomyWindowMenu.Create", windowSource, StringComparison.Ordinal);
+        Assert.Contains("new Setter(FrameworkElement.MinWidthProperty, 320d)", menuSource, StringComparison.Ordinal);
+        Assert.Contains("new Setter(Control.CornerRadiusProperty, new CornerRadius(12))", menuSource, StringComparison.Ordinal);
+        Assert.Contains("icon.Foreground = new SolidColorBrush(foreground)", menuSource, StringComparison.Ordinal);
+        Assert.Equal(4, menuSource.Split("Color.FromArgb(", StringSplitOptions.None).Length - 1);
+        Assert.Contains("AddItem(\"Window.Close\"", menuSource, StringComparison.Ordinal);
         var options = XDocument.Load(PathFor("WorkTrail", "Controls", "WorldClockOptionsControl.xaml"));
         var add = options.Descendants().Single(element => Name(element) == "AddClockButton");
         Assert.Contains(add.Parent!.Elements(), element => Name(element) == "AddClockPremiumBadge");

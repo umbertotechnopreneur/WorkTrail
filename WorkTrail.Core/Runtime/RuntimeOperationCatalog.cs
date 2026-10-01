@@ -102,6 +102,8 @@ internal enum RuntimeOperation
     NotificationsDrain,
     [RuntimeOperationWireName("ai.status")]
     AiStatus,
+    [RuntimeOperationWireName("ai.key.get")]
+    AiKeyGet,
     [RuntimeOperationWireName("ai.pricing.overview")]
     AiPricingOverview,
     [RuntimeOperationWireName("ai.connection.test")]

@@ -330,35 +330,6 @@
                         Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                         Tag="WorldClock.Map.Open"
                         ToolTipService.ToolTip="Open world day and night map in a new window">
-                        <Button.Resources>
-                            <Style TargetType="MenuFlyoutItem" BasedOn="{StaticResource DefaultMenuFlyoutItemStyle}">
-                                <Setter Property="MinWidth" Value="320" />
-                            </Style>
-                        </Button.Resources>
-                        <Button.Flyout>
-                            <MenuFlyout ShouldConstrainToRootBounds="False">
-                                <MenuFlyout.SystemBackdrop><DesktopAcrylicBackdrop /></MenuFlyout.SystemBackdrop>
-                                <MenuFlyout.MenuFlyoutPresenterStyle>
-                                    <Style TargetType="MenuFlyoutPresenter">
-                                        <Setter Property="MinWidth" Value="320" />
-                                        <Setter Property="CornerRadius" Value="12" />
-                                    </Style>
-                                </MenuFlyout.MenuFlyoutPresenterStyle>
-                                <MenuFlyoutItem x:Name="LocalSkyMenuItem" Click="LocalSkyMenuItem_Click">
-                                    <MenuFlyoutItem.Icon><FontIcon Foreground="#FFAD7CF5" Glyph="&#xE9CE;" /></MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Name="AstronomyAgendaMenuItem" Click="AstronomyAgendaMenuItem_Click">
-                                    <MenuFlyoutItem.Icon><FontIcon Foreground="#FF7D9FF8" Glyph="&#xE787;" /></MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem x:Name="CelestialMapMenuItem" Click="CelestialMapMenuItem_Click">
-                                    <MenuFlyoutItem.Icon><FontIcon Foreground="#FFDB8D72" Glyph="&#xE774;" /></MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutSeparator />
-                                <MenuFlyoutItem x:Name="WorldMapMenuItem" Click="WorldMapButton_Click">
-                                    <MenuFlyoutItem.Icon><FontIcon Foreground="#FF71CBB7" Glyph="&#xE707;" /></MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </Button.Flyout>
                         <FontIcon
                             AutomationProperties.AccessibilityView="Raw"
                             FontFamily="Segoe Fluent Icons"

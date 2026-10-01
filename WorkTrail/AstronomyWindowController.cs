@@ -78,7 +78,7 @@ internal sealed class AstronomyWindowController
             interactiveElements ?? (() => []),
             overlayContent: true);
         _placement = new WindowPlacementService(
-            application, window, _appWindow, windowKey, defaultWidth, defaultHeight, 24);
+            application, window, _appWindow, windowKey, defaultWidth, defaultHeight, 0);
         _refreshTimer = window.DispatcherQueue.CreateTimer();
         _refreshTimer.IsRepeating = false;
         _refreshTimer.Tick += RefreshTimer_Tick;

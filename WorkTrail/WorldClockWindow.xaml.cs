@@ -22,7 +22,7 @@ public sealed partial class WorldClockWindow : Window
 {
     private const int LogicalWindowWidth = 1120;
     private const int LogicalWindowHeight = 720;
-    private const int LogicalScreenMargin = 24;
+    private const int LogicalScreenMargin = 0;
     private readonly IWorkTrailApplication _application;
     private readonly MicaDialogService _dialogs;
     private readonly AppWindow _appWindow;
@@ -86,6 +86,7 @@ public sealed partial class WorldClockWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
         _settings = settings;
         InitializeComponent();
+        WorldMapButton.Flyout = AstronomyWindowMenu.Create(() => _strings, OpenAstronomyWindow);
 
         SystemBackdrop = new GlassBackdrop();
         _appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)));
@@ -149,10 +150,6 @@ public sealed partial class WorldClockWindow : Window
         UiLocalization.SetAccessibleLabel(OptionsButton, T("WorldClock.Options.Open"));
         UiLocalization.SetAccessibleLabel(HeaderBackButton, T("WorldClock.Options.Back"));
         UiLocalization.SetAccessibleLabel(WorldMapButton, T("Celestial.Windows"));
-        LocalSkyMenuItem.Text = T("Celestial.Sky.Title");
-        AstronomyAgendaMenuItem.Text = T("Celestial.Agenda.Title");
-        CelestialMapMenuItem.Text = T("Celestial.Map.Title");
-        WorldMapMenuItem.Text = T("WorldClock.Map.MenuLabel");
         UiLocalization.SetAccessibleLabel(LunarPhaseButton, T("WorldClock.MoonPhase.Open"));
         ReferenceCityComboBox.Header = T("WorldClock.ReferenceCity");
         ReferenceDatePicker.Header = T("WorldClock.ReferenceDate");
@@ -197,13 +194,17 @@ public sealed partial class WorldClockWindow : Window
         await ShowClocksSurfaceAsync();
     }
 
-    private void WorldMapButton_Click(object sender, RoutedEventArgs e) => WorldMapRequested?.Invoke(this, EventArgs.Empty);
-
-    private void LocalSkyMenuItem_Click(object sender, RoutedEventArgs e) => CelestialWindowRequested?.Invoke(WindowStateKeys.LocalSky);
-
-    private void AstronomyAgendaMenuItem_Click(object sender, RoutedEventArgs e) => CelestialWindowRequested?.Invoke(WindowStateKeys.AstronomyAgenda);
-
-    private void CelestialMapMenuItem_Click(object sender, RoutedEventArgs e) => CelestialWindowRequested?.Invoke(WindowStateKeys.CelestialMap);
+    private void OpenAstronomyWindow(string windowKey)
+    {
+        if (windowKey == WindowStateKeys.WorldMap)
+        {
+            WorldMapRequested?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            CelestialWindowRequested?.Invoke(windowKey);
+        }
+    }
 
     private void LunarPhaseButton_Click(object sender, RoutedEventArgs e) => LunarPhaseRequested?.Invoke(this, EventArgs.Empty);
 

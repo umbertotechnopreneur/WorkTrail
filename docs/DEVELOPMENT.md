@@ -178,6 +178,6 @@ and matching publisher in `Cert:\CurrentUser\My`. Test certificates are for
 local sideloading; distribution requires appropriate signing. See Microsoft's
 [certificate requirements](https://learn.microsoft.com/en-us/windows/msix/package/create-certificate-package-signing).
 
-Package creation does not install or launch WorkTrail. Perform those steps only for an intended runtime/deployment validation and record them separately using [docs/VALIDATION.md](VALIDATION.md). For documentation-only contributions, review the commands and links without installing or launching the app.
+Package creation does not install or launch WorkTrail. Perform those steps only for an intended runtime/deployment validation and record the results separately. For documentation-only contributions, review the commands and links without installing or launching the app.
 
 When reporting failures, include the stage, sanitized error, commit, and tool versions. Keep credentials, tokens, personal activity data, and private machine paths out of issue bodies and attached logs.

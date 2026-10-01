@@ -64,5 +64,18 @@ public sealed record ReportSummaryRequest(
     bool IncludeOcr = false,
     bool IncludeWindowTitles = false);
 
+/// <summary>Selects the dedicated OpenAI model for text-only export summaries.</summary>
+public static class ReportSummaryModelPolicy
+{
+    /// <summary>The lowest-priced GPT-6 model for OpenAI text requests.</summary>
+    public const string OpenAiModel = "gpt-6-luna";
+
+    /// <summary>Keeps non-OpenAI providers on their configured model.</summary>
+    public static string Resolve(string provider, string configuredModel) =>
+        string.Equals(provider, "openai", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(provider, "open-ai", StringComparison.OrdinalIgnoreCase)
+            ? OpenAiModel : configuredModel;
+}
+
 /// <summary>Returns editable generated text without persisting it as historical activity.</summary>
 public sealed record ReportSummaryResult(string Text, int SourceCount, string Provider, string Model);

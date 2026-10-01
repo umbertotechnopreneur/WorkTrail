@@ -1514,6 +1514,14 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     }
 
     /// <inheritdoc />
+    public Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var key = _store.LoadApiKey(_settingsSnapshot.Value.AiApiKeyName) ?? string.Empty;
+        return Task.FromResult(OperationResult<string>.Success("ai.key.loaded", "AiKeyLoaded", key));
+    }
+
+    /// <inheritdoc />
     public async Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

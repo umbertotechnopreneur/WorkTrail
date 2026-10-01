@@ -191,6 +191,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.SettingsApplied += ApplyWorldClockWindowSettings;
             _window.SettingsApplied += ApplyTitleBarSettings;
             _window.QuickSetupRequested += MainWindow_QuickSetupRequested;
+#if DEBUG
+            _window.DebugOobeResetRequested += MainWindow_DebugOobeResetRequested;
+#endif
             _window.WorldClocksRequested += MainWindow_WorldClocksRequested;
             _window.SensorsRequested += MainWindow_SensorsRequested;
             _window.SearchRequested += MainWindow_SearchRequested;
@@ -377,6 +380,31 @@ public partial class App : Microsoft.UI.Xaml.Application
         ShowQuickSetupWindow(application, result.Value, firstRun: false);
     }
 
+#if DEBUG
+    private async void MainWindow_DebugOobeResetRequested(object? sender, EventArgs eventArgs)
+    {
+        var application = StartOrConnectRuntime();
+        var result = await application.GetSettingsAsync(CancellationToken.None);
+        if (!result.Succeeded || result.Value is null)
+        {
+            if (_window is not null)
+            {
+                var strings = new LocalizationService("system");
+                await _dialogs.ShowInformativeAsync(
+                    _window,
+                    DialogRequest.Informative(
+                        strings.Translate("QuickSetup.Unavailable.Title"),
+                        strings.Translate("QuickSetup.Unavailable.Message"),
+                        strings.Translate("Dialog.Ok")));
+            }
+
+            return;
+        }
+
+        ShowQuickSetupWindow(application, result.Value, firstRun: true);
+    }
+#endif
+
     private void ShowQuickSetupWindow(IWorkTrailApplication application, AppSettings settings, bool firstRun)
     {
         if (_quickSetupWindow is not null)
@@ -544,6 +572,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _worldClockWindow.ProjectionChanged += WorldClockWindow_ProjectionChanged;
             _worldClockWindow.SettingsSaved += ApplyAstronomyWindowSettings;
             _worldClockWindow.Closed += WorldClockWindow_Closed;
+            AttachAstronomyContextMenu(_worldClockWindow);
             _worldClockWindow.Activate();
         }
         catch (Exception exception)
@@ -623,6 +652,26 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private async void WorldClockWindow_CelestialWindowRequested(string key) => await ShowCelestialWindowAsync(key);
 
+    private void AttachAstronomyContextMenu(Window window)
+    {
+        window.Content.ContextFlyout = AstronomyWindowMenu.Create(
+            () => new LocalizationService(_uiLanguage),
+            OpenAstronomyWindowFromMenu,
+            window.Close);
+    }
+
+    private async void OpenAstronomyWindowFromMenu(string key)
+    {
+        if (key == WindowStateKeys.WorldMap)
+        {
+            await ShowAstronomyWindowAsync(isLunarPhase: false);
+        }
+        else
+        {
+            await ShowCelestialWindowAsync(key);
+        }
+    }
+
     private async Task ShowCelestialWindowAsync(string key)
     {
         if (!_celestialWindowsOpening.Add(key)) return;
@@ -642,6 +691,11 @@ public partial class App : Microsoft.UI.Xaml.Application
                 throw new InvalidOperationException($"Celestial window settings are unavailable ({settings.Code}).");
 
             created = new CelestialWindow(application, _dialogs, settings.Value, key);
+            if (key is WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap)
+            {
+                AttachAstronomyContextMenu(created);
+            }
+
             _celestialWindows.Add(key, created);
             created.Closed += (sender, _) =>
             {
@@ -702,6 +756,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             {
                 _lunarPhaseWindow = new LunarPhaseWindow(application, _dialogs, settings.Value);
                 createdWindow = _lunarPhaseWindow;
+                AttachAstronomyContextMenu(_lunarPhaseWindow);
                 _lunarPhaseWindow.Closed += (sender, _) =>
                 {
                     if (ReferenceEquals(_lunarPhaseWindow, sender)) _lunarPhaseWindow = null;
@@ -717,6 +772,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             {
                 _worldMapWindow = new WorldMapWindow(application, _dialogs, settings.Value);
                 createdWindow = _worldMapWindow;
+                AttachAstronomyContextMenu(_worldMapWindow);
                 _worldMapWindow.Closed += (sender, _) =>
                 {
                     if (ReferenceEquals(_worldMapWindow, sender)) _worldMapWindow = null;
@@ -902,6 +958,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.SettingsApplied -= ApplyWorldClockWindowSettings;
             _window.SettingsApplied -= ApplyTitleBarSettings;
             _window.QuickSetupRequested -= MainWindow_QuickSetupRequested;
+#if DEBUG
+            _window.DebugOobeResetRequested -= MainWindow_DebugOobeResetRequested;
+#endif
             _window.WorldClocksRequested -= MainWindow_WorldClocksRequested;
             _window.SensorsRequested -= MainWindow_SensorsRequested;
             _window.SearchRequested -= MainWindow_SearchRequested;

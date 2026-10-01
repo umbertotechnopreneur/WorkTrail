@@ -380,6 +380,8 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public Task<OperationResult<AiStatus>> GetAiStatusAsync(CancellationToken cancellationToken) => SendAsync<AiStatus>(RuntimeOperation.AiStatus, null, cancellationToken);
     /// <inheritdoc />
+    public Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken) => SendAsync<string>(RuntimeOperation.AiKeyGet, null, cancellationToken);
+    /// <inheritdoc />
     public Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken) => SendAsync<AiPricingOverview>(RuntimeOperation.AiPricingOverview, null, cancellationToken, ReportQueryTimeout);
     /// <inheritdoc />
     public Task<OperationResult<AiConnectionTestResult>> TestAiConnectionAsync(CancellationToken cancellationToken) => SendAsync<AiConnectionTestResult>(RuntimeOperation.AiConnectionTest, null, cancellationToken, TimeSpan.FromSeconds(35));

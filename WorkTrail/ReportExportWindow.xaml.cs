@@ -318,7 +318,8 @@ internal sealed partial class ReportExportWindow : Window
     {
         var status = await _application.GetAiStatusAsync(token);
         if (!status.Succeeded || status.Value is null) { ShowStatus(status.MessageKey, InfoBarSeverity.Error); return; }
-        ProviderText.Text = status.Value.Provider + " · " + status.Value.Model;
+        ProviderText.Text = status.Value.Provider + " · "
+            + ReportSummaryModelPolicy.Resolve(status.Value.Provider, status.Value.Model);
         var request = new ReportSummaryRequest(CollectOptions(), (ReportSummaryGrouping)GroupingCombo.SelectedIndex,
             DetailedCheck.IsChecked == true, SummaryExcerptCheck.IsChecked == true, SummaryFullDescriptionCheck.IsChecked == true,
             SummaryOcrCheck.IsChecked == true, SummaryTitlesCheck.IsChecked == true);
@@ -336,6 +337,7 @@ internal sealed partial class ReportExportWindow : Window
             return;
         }
         SummaryText.Text = result.Value.Text;
+        ProviderText.Text = result.Value.Provider + " · " + result.Value.Model;
         IncludeSummaryCheck.IsChecked = true;
         ShowStatus("Export.SummaryReady", InfoBarSeverity.Success);
     });

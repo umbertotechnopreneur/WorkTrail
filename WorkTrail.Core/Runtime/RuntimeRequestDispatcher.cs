@@ -104,6 +104,7 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.ScreenshotOpenFolder => ToResponse(request, await DispatchOpenScreenshotFolderAsync(request, cancellationToken)),
                 RuntimeOperation.NotificationsDrain => ToResponse(request, await _application.DrainApplicationNotificationsAsync(cancellationToken)),
                 RuntimeOperation.AiStatus => ToResponse(request, await _application.GetAiStatusAsync(cancellationToken)),
+                RuntimeOperation.AiKeyGet => ToResponse(request, await _application.GetAiKeyAsync(cancellationToken)),
                 RuntimeOperation.AiPricingOverview => ToResponse(request, await _application.GetAiPricingOverviewAsync(cancellationToken)),
                 RuntimeOperation.AiConnectionTest => ToResponse(request, await _application.TestAiConnectionAsync(cancellationToken)),
                 RuntimeOperation.AiScreenshotReprocessPreviewV1 => await DispatchAiScreenshotReprocessPreviewAsync(request, cancellationToken),

@@ -498,13 +498,18 @@
                         x:Name="ApiSetupButton"
                         Grid.Column="1"
                         Tag="ProviderSetup.ApiButton"
+                        Width="180"
+                        Height="42"
+                        Padding="12,6"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Content="OpenAI API"
                         Click="ApiSetupButton_Click" />
                     <Button
                         x:Name="PrimaryButton"
                         Grid.Column="2"
-                        MinWidth="110"
-                        MinHeight="42"
+                        Width="180"
+                        Height="42"
                         Click="PrimaryButton_Click"
                         Content="Start"
                         Style="{StaticResource QuickSetupPrimaryButtonStyle}" />

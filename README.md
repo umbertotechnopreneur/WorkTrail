@@ -289,7 +289,7 @@ pwsh -NoProfile -File .\scripts\WorkTrail.ps1
 pwsh -NoProfile -File .\scripts\WorkTrail.ps1 -Action Test -Platform x64 -WarnAsError
 ~~~
 
-Want to help? Start with [the contributor guide](CONTRIBUTING.md). The [Windows setup guide](docs/DEVELOPMENT.md) walks you through getting a fresh copy, installing what you need, building and testing on x64, and fixing common setup problems. Use the [manual checks](docs/VALIDATION.md) to check how your changes look and behave.
+Want to help? Start with [the contributor guide](CONTRIBUTING.md). The [Windows setup guide](docs/DEVELOPMENT.md) walks you through getting a fresh copy, installing what you need, building and testing on x64, and fixing common setup problems.
 
 
 ## More about the project
@@ -299,10 +299,8 @@ Want to help? Start with [the contributor guide](CONTRIBUTING.md). The [Windows 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Windows contributor setup and troubleshooting](docs/DEVELOPMENT.md)
 - [Practical CLI examples](docs/CLI_EXAMPLES.md)
-- [Manual validation guide](docs/VALIDATION.md)
 - [How project decisions are made](GOVERNANCE.md)
 - [Changelog](CHANGELOG.md)
-- [CLI implementation plan](docs/CLI_IMPLEMENTATION_PLAN.md)
 - [Security policy](SECURITY.md)
 - [Support](SUPPORT.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)

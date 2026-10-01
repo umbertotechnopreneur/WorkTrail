@@ -49,7 +49,8 @@ public sealed partial class WorkTrailApplication
                     throw new ReportExportValidationException("Export.AiNotReady");
                 if (!BuildCostGate(validated).Allowed) throw new ReportExportValidationException("Export.AiDailyLimit");
                 return await new ReportSummaryService(_store).GenerateAsync(request, validated,
-                    usage => MutateVisualStateAsync(() =>
+                    // Live analysis already holds the visual gate. Re-entering it here deadlocks the summary window.
+                    usage => MutateAsync(() =>
                     {
                         _store.AppendAiUsage(usage);
                         return Task.FromResult(OperationResult<bool>.Success("export.usage.saved", "Export.Completed", true));

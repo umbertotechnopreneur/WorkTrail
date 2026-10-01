@@ -40,16 +40,22 @@
                     <StackPanel Spacing="12">
                         <TextBlock x:Name="ExplanationText" TextWrapping="Wrap" />
                         <PasswordBox x:Name="KeyBox" PasswordRevealMode="Hidden" PasswordChanged="KeyBox_PasswordChanged" />
-                        <ToggleButton x:Name="ShowKeyButton" Tag="ProviderSetup.ShowKey" Content="Show key"
-                                      HorizontalAlignment="Left" Click="ShowKeyButton_Click" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ToggleButton x:Name="ShowKeyButton" Tag="ProviderSetup.ShowKey" Content="Show key"
+                                          Click="ShowKeyButton_Click" />
+                            <Button x:Name="PasteKeyButton" Tag="ProviderSetup.Paste" Content="Paste"
+                                    Click="PasteKeyButton_Click" />
+                        </StackPanel>
                         <TextBlock x:Name="ExampleText" FontFamily="Consolas" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock Tag="ProviderSetup.PasteHint" Text="Paste your complete key, not the masked example." TextWrapping="Wrap" />
                         <TextBlock x:Name="ExistingKeyText" Tag="ProviderSetup.ExistingKey" Visibility="Collapsed" TextWrapping="Wrap" />
-                        <InfoBar x:Name="CostBar" IsOpen="True" IsClosable="False" Severity="Warning" />
                         <Button x:Name="VerifyButton" Tag="ProviderSetup.Verify" Content="Test connection" Click="VerifyButton_Click"
-                                Style="{StaticResource AccentButtonStyle}" />
+                                HorizontalAlignment="Left" />
                         <ProgressRing x:Name="Progress" Width="24" Height="24" HorizontalAlignment="Left" Visibility="Collapsed" />
-                        <InfoBar x:Name="ResultBar" IsOpen="True" IsClosable="False" Severity="Informational"
+                        <TextBlock x:Name="ErrorText" Visibility="Collapsed" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
+                        <InfoBar x:Name="CostBar" IsOpen="True" Visibility="Collapsed" IsClosable="False" Severity="Warning" />
+                        <InfoBar x:Name="ResultBar" IsOpen="True" Visibility="Collapsed" IsClosable="False" Severity="Success"
                                  AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                     <StackPanel x:Name="HelpPanel" Grid.Column="1" Spacing="12">
@@ -69,10 +75,12 @@
             </StackPanel>
         </ScrollViewer>
         <Grid Grid.Row="1" ColumnSpacing="12">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <HyperlinkButton x:Name="WithoutAiButton" Tag="ProviderSetup.WithoutAi" Content="Choose a profile without AI"
                              HorizontalAlignment="Left" Click="WithoutAiButton_Click" />
-            <Button x:Name="DismissButton" Grid.Column="1" MinWidth="110" Content="Close" Click="DismissButton_Click" />
+            <Button x:Name="CloseButton" Grid.Column="1" Tag="About.Close" MinWidth="110" Content="Close" Click="CloseButton_Click" />
+            <Button x:Name="ContinueButton" Grid.Column="2" Tag="ProviderSetup.Continue" MinWidth="110" Content="Continue" IsEnabled="False"
+                    Style="{StaticResource AccentButtonStyle}" Click="ContinueButton_Click" />
         </Grid>
     </Grid>
 </UserControl>
