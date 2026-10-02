@@ -104,6 +104,10 @@ public static class ReportSummaryModelPolicy
 /// <summary>Returns editable generated text without persisting it as historical activity.</summary>
 public sealed record ReportSummaryResult(string Text, int SourceCount, string Provider, string Model);
 
-/// <summary>Creates and opens a temporary Excel sample, with at most ten records per worksheet.</summary>
+/// <summary>Identifies an explicit action on a temporary Excel preview.</summary>
+public enum ReportFilePreviewAction { Generate, Open, CopyPath }
+
+/// <summary>Generates a ten-record sample or acts on an already generated temporary workbook.</summary>
 public sealed record ReportFilePreviewRequest(ReportExportOptions Options, string? Summary = null,
-    TimesheetOptions? Timesheet = null, Guid? TimesheetJobId = null);
+    TimesheetOptions? Timesheet = null, Guid? TimesheetJobId = null,
+    ReportFilePreviewAction Action = ReportFilePreviewAction.Generate, string? PreviewPath = null);

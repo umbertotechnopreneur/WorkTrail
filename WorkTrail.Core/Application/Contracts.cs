@@ -777,7 +777,7 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <param name="cancellationToken">Cancels local work without cancelling an already submitted cloud batch.</param>
     Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken);
 
-    /// <summary>Opens a temporary Excel sample with at most ten data records per worksheet, without sending AI requests.</summary>
+    /// <summary>Generates, opens, or copies the path of a temporary ten-record Excel sample without sending AI requests.</summary>
     Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken);
 
     /// <summary>Captures a current system snapshot.</summary>

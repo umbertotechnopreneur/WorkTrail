@@ -24,6 +24,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- Excel preview generation now shows progress and the completed file path below the card, with separate commands to open the workbook or copy its absolute path.
 - Debug builds preserve diagnostic data by disabling scheduled retention; manual cleanup remains available.
 - Data retention now uses calendar months: up to one month for Free and three months for Premium, with monthly cleanup scheduled from the installation date after the app is ready.
 - Screenshot storage, local OCR, and saved hardware settings are grouped with data retention.

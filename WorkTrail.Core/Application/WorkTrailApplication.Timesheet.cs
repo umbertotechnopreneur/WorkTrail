@@ -13,12 +13,26 @@ public sealed partial class WorkTrailApplication
 
     /// <inheritdoc />
     public Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken) =>
-        RunCancellableLiveWorkAsync(token => ExportOperationAsync(() => Task.Run(() =>
+        RunCancellableLiveWorkAsync(token => ExportOperationAsync(() => Task.Run(async () =>
         {
-            var result = ReportFilePreviewService.Create(_store, request, token);
+            ArgumentNullException.ThrowIfNull(request);
+            if (request.Action == ReportFilePreviewAction.Generate)
+                return ReportFilePreviewService.Create(_store, request, token);
+
             token.ThrowIfCancellationRequested();
-            ReportFilePreviewService.Open(result.Path);
-            return result;
+            var path = ReportFilePreviewService.ValidatePath(request.PreviewPath);
+            switch (request.Action)
+            {
+                case ReportFilePreviewAction.Open:
+                    ReportFilePreviewService.Open(path);
+                    break;
+                case ReportFilePreviewAction.CopyPath:
+                    await ReportFilePreviewService.CopyPathAsync(path, token).ConfigureAwait(false);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(request.Action));
+            }
+            return new ReportExportResult(path, new FileInfo(path).Length, 0);
         }, token), token), cancellationToken);
 
     /// <inheritdoc />

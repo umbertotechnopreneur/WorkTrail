@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using WorkTrail.Application;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace WorkTrail.Services;
 
@@ -45,4 +46,49 @@ internal static class ReportFilePreviewService
 
     // path is the completed temporary workbook created by this service, never an arbitrary shell command.
     internal static void Open(string path) => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+
+    // path comes from a previous preview result; only files owned by this feature can reach the shell or clipboard.
+    internal static string ValidatePath(string? path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var directory = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "WorkTrail", "report-previews"));
+        if (!Path.IsPathFullyQualified(path))
+            throw new ArgumentException("The preview path must be absolute.", nameof(path));
+        var fullPath = Path.GetFullPath(path);
+        if (!string.Equals(Path.GetDirectoryName(fullPath), directory, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(Path.GetExtension(fullPath), ".xlsx", StringComparison.OrdinalIgnoreCase)
+            || !Guid.TryParseExact(Path.GetFileNameWithoutExtension(fullPath), "N", out _))
+            throw new ArgumentException("The file is not a WorkTrail preview.", nameof(path));
+        if (!File.Exists(fullPath)) throw new FileNotFoundException("The preview file no longer exists.", fullPath);
+        if ((File.GetAttributes(fullPath) & FileAttributes.ReparsePoint) != 0
+            || (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+            throw new IOException("Preview links cannot be opened or copied.");
+        return fullPath;
+    }
+
+    // path is the validated absolute workbook path, copied as text rather than file contents.
+    // token cancels before the clipboard is changed; an already completed copy is not rolled back.
+    internal static Task CopyPathAsync(string path, CancellationToken token)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        // Windows clipboard calls need an STA; the runtime's worker threads do not own a UI apartment.
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                var content = new DataPackage();
+                content.SetText(path);
+                Clipboard.SetContent(content);
+                Clipboard.Flush();
+                completion.TrySetResult();
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { completion.TrySetCanceled(token); }
+            catch (Exception exception) { completion.TrySetException(exception); }
+        })
+        { IsBackground = true };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        return completion.Task;
+    }
 }

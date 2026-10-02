@@ -4,6 +4,17 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-02
 
+### Explicit Excel preview actions
+
+- Replaced the faint preview action with a filled generation button and an inline
+  generation status beneath the card. Completed previews expose a selectable absolute
+  path, an explicit open command, and an accessible copy-path icon.
+- Kept workbook creation, validated file opening, and clipboard access behind the runtime
+  facade. Changing report options hides stale preview results; opening or copying reuses
+  the existing file without regenerating it or submitting AI work.
+- Updated all shipped languages and the UI automation register. Source review and C#
+  formatting verification passed; tests, a new build, and live interaction remain unverified.
+
 ### Localized UI automation selectors
 
 - Registered stable selectors and localized accessible names for the main window,

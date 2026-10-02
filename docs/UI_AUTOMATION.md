@@ -11,7 +11,7 @@ live inspection of the installed app's automation tree.
 | UI module | Converted source | Coverage | Runtime verification |
 | --- | --- | --- | --- |
 | Main window | `MainWindow.xaml` | 33 commands, including unopened menus; tracking and visibility names retain their state updates | Pending |
-| Report export | `ReportExportWindow.xaml` | 55 selectors for navigation, dates, content, summaries, batch reports and export commands | Pending |
+| Report export | `ReportExportWindow.xaml` | 58 selectors for navigation, dates, content, summaries, batch reports, temporary preview generation, opening and copying the file path | Pending |
 | Main settings | `Controls/OptionsControl.xaml` | 40 controls, including screenshot notifications; labels follow the selected language | Pending |
 | Data retention | `Controls/RetentionOperationsControl.xaml` | 18 controls; premium labels retain the existing premium suffix | Pending |
 | Screenshot gallery | Header, details and timeline controls | 17 static commands, expanders and date/list selectors; existing per-image names remain dynamic | Pending |

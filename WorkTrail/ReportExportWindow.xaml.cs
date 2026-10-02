@@ -45,6 +45,8 @@ internal sealed partial class ReportExportWindow : Window
         Title = T("Export.Title");
         RootGrid.RequestedTheme = theme;
         UiLocalization.Apply(RootGrid, strings);
+        UiLocalization.SetAccessibleLabel(ExcelPreviewCopyButton, T("Timesheet.CopyPreviewPath"));
+        ToolTipService.SetToolTip(ExcelPreviewCopyButton, T("Timesheet.CopyPreviewPath"));
         GroupingInfoLink.Content = T("Export.MoreInformation");
         UiLocalization.SetAccessibleLabel(GroupingInfoLink, T("Export.MoreInformation"));
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -184,6 +186,7 @@ internal sealed partial class ReportExportWindow : Window
 
     private void ResetSummary()
     {
+        ResetExcelPreview();
         _summary = "";
         IncludeSummaryCheck.IsChecked = false;
     }
@@ -191,6 +194,7 @@ internal sealed partial class ReportExportWindow : Window
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (ExportPage is null) return;
+        ResetExcelPreview();
         ExportPage.Visibility = ReferenceEquals(args.SelectedItem, ExportTab) ? Visibility.Visible : Visibility.Collapsed;
         ContentsPage.Visibility = ReferenceEquals(args.SelectedItem, ContentsTab) ? Visibility.Visible : Visibility.Collapsed;
         var summary = ReferenceEquals(args.SelectedItem, SummaryTab);
@@ -268,6 +272,7 @@ internal sealed partial class ReportExportWindow : Window
             return;
         }
         _summary = result.Value.Text;
+        ResetExcelPreview();
         ProviderText.Text = result.Value.Provider + " · " + result.Value.Model;
         IncludeSummaryCheck.IsChecked = true;
         ShowStatus("Export.SummaryReady", InfoBarSeverity.Success);
@@ -304,6 +309,9 @@ internal sealed partial class ReportExportWindow : Window
         if (_busy || _closed || _setup is null) return;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _operation = cancellation; _busy = true;
+        ExcelPreviewGenerateButton.IsEnabled = false;
+        ExcelPreviewOpenButton.IsEnabled = false;
+        ExcelPreviewCopyButton.IsEnabled = false;
         Navigation.IsEnabled = false; ExportButton.IsEnabled = false; SaveButton.IsEnabled = false;
         CancelButton.Visibility = Visibility.Visible; BusyBar.Visibility = Visibility.Visible; StatusBar.IsOpen = false;
         try { await action(cancellation.Token); }
@@ -315,6 +323,9 @@ internal sealed partial class ReportExportWindow : Window
             if (!_closed)
             {
                 Navigation.IsEnabled = true; ExportButton.IsEnabled = true; SaveButton.IsEnabled = true;
+                ExcelPreviewGenerateButton.IsEnabled = true;
+                ExcelPreviewOpenButton.IsEnabled = _excelPreviewPath is not null;
+                ExcelPreviewCopyButton.IsEnabled = _excelPreviewPath is not null;
                 CancelButton.Visibility = Visibility.Collapsed; BusyBar.Visibility = Visibility.Collapsed;
                 if (_closeAfterCancel) Close();
             }
