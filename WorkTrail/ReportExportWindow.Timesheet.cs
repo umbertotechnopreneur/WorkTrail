@@ -11,8 +11,19 @@ internal sealed partial class ReportExportWindow
 {
     private TimesheetBatchView? _timesheetView;
     private bool _applyingTimesheet;
+    private bool _refreshingTimesheet;
     private DispatcherTimer? _timesheetTimer;
     private string? _excelPreviewPath;
+
+    private void UpdateTimesheetPanels()
+    {
+        if (TimesheetEmptyInfo is null) return;
+        var timesheet = ReferenceEquals(Navigation.SelectedItem, TimesheetTab);
+        var hasJobs = _timesheetView is { } view
+            && (view.Jobs.Count > 0 || view.HasPreviousPage || view.HasNextPage);
+        TimesheetJobsPanel.Visibility = timesheet && hasJobs ? Visibility.Visible : Visibility.Collapsed;
+        TimesheetEmptyInfo.Visibility = timesheet && _timesheetView is not null && !hasJobs ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void ResetExcelPreview()
     {
@@ -105,13 +116,14 @@ internal sealed partial class ReportExportWindow
         ShowStatus(message, result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error);
     });
 
-    // sender and args identify the local grouping explanation; it never opens a website.
+    // sender identifies the grouping help link.
+    // args describes the local explanation request; it never opens a website.
     private async void GroupingInfo_Click(object sender, RoutedEventArgs args)
     {
         try
         {
             await _messages.ShowInformativeAsync(this,
-                DialogRequest.Informative(T("Export.Grouping"), T("Timesheet.GroupingInfo"), T("Dialog.Ok")));
+                DialogRequest.Informative(T("Export.Grouping.Header"), T("Timesheet.GroupingInfo"), T("Dialog.Ok")));
         }
         catch (Exception) { ShowStatus("Export.Failed", InfoBarSeverity.Error); }
     }
@@ -136,12 +148,33 @@ internal sealed partial class ReportExportWindow
         _timesheetTimer.Start();
     }
 
-    // sender and args identify a metadata refresh; the runtime independently retrieves cloud results.
+    // sender is the periodic UI timer; the runtime independently retrieves cloud results.
+    // args describes the tick, which must not disable controls or disturb a newer selection.
     private async void TimesheetTimer_Tick(object? sender, object args)
     {
-        if (_busy || _closed || !ReferenceEquals(Navigation.SelectedItem, TimesheetTab)
-            || _timesheetView?.Selected is not { } selected) return;
-        await RunTimesheetAsync(new(TimesheetBatchAction.List, JobId: selected.Id, Page: _timesheetView.Page));
+        var previous = _timesheetView;
+        if (_busy || _closed || _refreshingTimesheet || TimesheetJobs.IsDropDownOpen
+            || !ReferenceEquals(Navigation.SelectedItem, TimesheetTab)
+            || previous?.Selected is not { } selected) return;
+
+        _refreshingTimesheet = true;
+        try
+        {
+            var result = await _application.ManageTimesheetBatchAsync(
+                new(TimesheetBatchAction.List, JobId: selected.Id, Page: previous.Page), _lifetime.Token);
+            // A user action wins over an older poll, even if both complete on the UI thread.
+            if (_closed || _busy || TimesheetJobs.IsDropDownOpen || !ReferenceEquals(_timesheetView, previous)
+                || !ReferenceEquals(Navigation.SelectedItem, TimesheetTab)) return;
+            if (result.Succeeded && result.Value is { } view)
+            {
+                RenderTimesheet(view);
+                if (view.WarningKey is { } warning) ShowStatus(warning, InfoBarSeverity.Warning);
+            }
+            else ShowStatus(result.MessageKey, InfoBarSeverity.Warning);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception) { ShowStatus("Export.Failed", InfoBarSeverity.Warning); }
+        finally { _refreshingTimesheet = false; }
     }
 
     // command contains user choices; the facade owns persistence, credentials and networking.
@@ -165,10 +198,15 @@ internal sealed partial class ReportExportWindow
     // view contains only bounded UI rows and job metadata; the complete data stays in Core.
     private void RenderTimesheet(TimesheetBatchView view)
     {
-        if (_timesheetView?.Selected?.Id != view.Selected?.Id) ResetExcelPreview();
+        if (ReferenceEquals(Navigation.SelectedItem, TimesheetTab)
+            && (_timesheetView?.Selected?.Id != view.Selected?.Id
+                || _timesheetView?.Selected?.ResultsSaved != view.Selected?.ResultsSaved)) ResetExcelPreview();
         _timesheetView = view;
+        UpdateTimesheetPanels();
         _applyingTimesheet = true;
-        TimesheetJobs.ItemsSource = view.Jobs.Select(job => $"{job.From:d} — {job.ToInclusive:d} · {job.CreatedAt.ToLocalTime():g} · {T("Timesheet.State." + job.State)}").ToArray();
+        var jobLabels = view.Jobs.Select(job => $"{job.From:d} — {job.ToInclusive:d} · {job.CreatedAt.ToLocalTime():g} · {T("Timesheet.State." + job.State)}").ToArray();
+        if (TimesheetJobs.ItemsSource is not IEnumerable<string> previousLabels || !previousLabels.SequenceEqual(jobLabels))
+            TimesheetJobs.ItemsSource = jobLabels;
         TimesheetJobs.SelectedIndex = view.Selected is { } selected ? view.Jobs.ToList().FindIndex(job => job.Id == selected.Id) : -1;
         _applyingTimesheet = false;
         var current = view.Selected;
@@ -177,7 +215,8 @@ internal sealed partial class ReportExportWindow
         TimesheetCancelButton.IsEnabled = current is not null && !terminal && current.State != "prepared";
         TimesheetPreviousButton.IsEnabled = view.HasPreviousPage;
         TimesheetNextButton.IsEnabled = view.HasNextPage;
-        TimesheetStatus.Text = current is null ? T("Timesheet.Empty")
+        TimesheetPaginationPanel.Visibility = view.HasPreviousPage || view.HasNextPage ? Visibility.Visible : Visibility.Collapsed;
+        TimesheetStatus.Text = current is null ? T("Timesheet.NewJob")
             : _strings.Format("Timesheet.Progress", T("Timesheet.State." + current.State), current.CompletedCount, current.RowCount, current.FailedCount)
                 + $"\n{current.From:d} — {current.ToInclusive:d}"
                 + (terminal && !current.ResultsSaved ? "\n" + T("Timesheet.ResultsPending") : "")
@@ -226,7 +265,7 @@ internal sealed partial class ReportExportWindow
         picker.FileTypeChoices.Add(T("Timesheet.Title"), [".xlsx"]);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WindowHandle);
         var destination = await picker.PickSaveFileAsync();
-        if (destination is null) return;
+        if (destination is null || token.IsCancellationRequested) return;
         var result = await _application.ManageTimesheetBatchAsync(new(TimesheetBatchAction.Export, JobId: selected.Id,
             DestinationPath: destination.Path, Overwrite: true, Page: _timesheetView!.Page), token);
         if (result.Succeeded && result.Value is { } view)

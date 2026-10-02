@@ -24,6 +24,8 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- Export screens use compact option grids, explain the four report tabs, and provide a collapsible Excel preview card with artwork for light and dark themes.
+- AI summaries remain visible in an editable text area, and ordinary file-format or column changes preserve the draft.
 - Excel preview generation now shows progress and the completed file path below the card, with separate commands to open the workbook or copy its absolute path.
 - Debug builds preserve diagnostic data by disabling scheduled retention; manual cleanup remains available.
 - Data retention now uses calendar months: up to one month for Free and three months for Premium, with monthly cleanup scheduled from the installation date after the app is ready.
@@ -35,6 +37,9 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Fixed
 
+- Switching between ordinary export tabs preserves the generated preview, while changing report type or source data invalidates it.
+- Automatic batch metadata refreshes no longer disable the export wizard or overwrite a newer job selection.
+- Export grouping help uses its localized title, and saved batch lists no longer report an empty archive when no job is selected.
 - Cleanup progress windows keep their title bar and close button visible; Close and Cancel stop remaining work before dismissing the dialog.
 - Interrupted screenshot publication and deletion recovery no longer prevent startup, and incomplete capture provenance is reported without blocking the rest of a gallery day.
 - Retention cleanup reuses a single screenshot inventory and supports cancellation during SQLite deletion.

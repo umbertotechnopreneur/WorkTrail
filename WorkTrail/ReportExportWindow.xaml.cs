@@ -169,18 +169,32 @@ internal sealed partial class ReportExportWindow : Window
         };
     }
 
+    // sender identifies a range, device or file-content control.
+    // e describes the change; file formatting must not discard a paid AI draft.
     private void OptionsChanged(object sender, RoutedEventArgs e)
     {
         if (_applying || _closed || _setup is null || _busy) return;
-        ResetSummary();
+        var sourcesChanged = ReferenceEquals(sender, FromPicker) || ReferenceEquals(sender, ToPicker)
+            || ReferenceEquals(sender, DevicesCombo) || ReferenceEquals(sender, this);
+        if (sourcesChanged)
+        {
+            ResetSummary();
+            ResetTimesheetSelection();
+        }
+        else ResetExcelPreview();
         UpdateFormatHelp();
-        ResetTimesheetSelection();
     }
 
     private void DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) => OptionsChanged(sender, new RoutedEventArgs());
 
-    private void UpdateFormatHelp() => FormatHelp.Text = T(FormatCombo.SelectedIndex switch
-    { 1 => "Export.CsvHelp", 2 => "Export.JsonHelp", _ => "Export.ExcelHelp" });
+    private void UpdateFormatHelp()
+    {
+        FormatHelp.Text = T(FormatCombo.SelectedIndex switch
+        { 1 => "Export.CsvHelp", 2 => "Export.JsonHelp", _ => "Export.ExcelHelp" });
+        SeparatorCombo.Visibility = FormatCombo.SelectedIndex == (int)ReportExportFormat.Csv
+            ? Visibility.Visible : Visibility.Collapsed;
+        DescriptionCombo.IsEnabled = DescriptionsCheck.IsChecked == true;
+    }
 
     private void SummaryOptionsChanged(object sender, RoutedEventArgs e) { if (!_applying) ResetSummary(); }
 
@@ -188,30 +202,68 @@ internal sealed partial class ReportExportWindow : Window
     {
         ResetExcelPreview();
         _summary = "";
+        SummaryTextBox.Text = "";
         IncludeSummaryCheck.IsChecked = false;
     }
 
+    // sender is the editable draft that will be passed to export.
+    // args describes a text change; edits invalidate an existing workbook sample without sending AI requests.
+    private void SummaryTextBox_TextChanged(object sender, TextChangedEventArgs args)
+    {
+        if (_closed || sender is not TextBox editor) return;
+        _summary = editor.Text;
+        ResetExcelPreview();
+    }
+
+    // sender is the wizard navigation control.
+    // args identifies the destination; only switching report types invalidates the workbook sample.
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (ExportPage is null) return;
-        ResetExcelPreview();
+        if (ExportPage is null || TimesheetPage is null) return;
         ExportPage.Visibility = ReferenceEquals(args.SelectedItem, ExportTab) ? Visibility.Visible : Visibility.Collapsed;
         ContentsPage.Visibility = ReferenceEquals(args.SelectedItem, ContentsTab) ? Visibility.Visible : Visibility.Collapsed;
         var summary = ReferenceEquals(args.SelectedItem, SummaryTab);
         var timesheet = ReferenceEquals(args.SelectedItem, TimesheetTab);
+        if (timesheet != (TimesheetPage.Visibility == Visibility.Visible))
+            ResetExcelPreview();
+        if (SummaryEditorPanel is not null)
+        {
+            SummaryEditorPanel.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
+            ExcelPreviewExpander.Visibility = summary ? Visibility.Collapsed : Visibility.Visible;
+            ReportWelcomePanel.Visibility = ReferenceEquals(args.SelectedItem, ExportTab) ? Visibility.Visible : Visibility.Collapsed;
+            ReportTabHelpPanel.Visibility = ReportWelcomePanel.Visibility;
+            ContentsDetailsPage.Visibility = ReferenceEquals(args.SelectedItem, ContentsTab) ? Visibility.Visible : Visibility.Collapsed;
+            ExcelPreviewStatusPanel.Visibility = !summary && _excelPreviewPath is not null
+                ? Visibility.Visible : Visibility.Collapsed;
+            UpdateReportColumns(BodyGrid.ActualWidth);
+        }
         TimesheetPage.Visibility = timesheet ? Visibility.Visible : Visibility.Collapsed;
-        TimesheetJobsPanel.Visibility = timesheet ? Visibility.Visible : Visibility.Collapsed;
+        UpdateTimesheetPanels();
         ExportButton.Visibility = timesheet ? Visibility.Collapsed : Visibility.Visible;
         SaveButton.Visibility = timesheet ? Visibility.Collapsed : Visibility.Visible;
         if (timesheet) TimesheetRange.Text = $"{FromPicker.Date:d} — {ToPicker.Date:d} · {TimeZoneText.Text}";
         SummaryPage.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void BodyGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void BodyGrid_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateReportColumns(e.NewSize.Width);
+
+    // width is the available report width; narrow windows stack content while summaries reserve more space for editing.
+    private void UpdateReportColumns(double width)
     {
-        var stacked = e.NewSize.Width < 740;
-        PreviewColumn.Width = new GridLength(stacked ? 0 : 3, stacked ? GridUnitType.Pixel : GridUnitType.Star);
+        if (ResultsPanel is null) return;
+        var stacked = width < 740;
+        var summary = ReferenceEquals(Navigation.SelectedItem, SummaryTab);
+        EditorColumn.Width = new GridLength(summary && !stacked ? 2 : 1, GridUnitType.Star);
+        PreviewColumn.Width = new GridLength(stacked ? 0 : summary ? 3 : 1, stacked ? GridUnitType.Pixel : GridUnitType.Star);
         Grid.SetColumn(ResultsPanel, stacked ? 0 : 1); Grid.SetRow(ResultsPanel, stacked ? 1 : 0);
+    }
+
+    // sender is the scrolling report surface beneath the fixed title bar.
+    // args provides the visible height so the draft fills the page without expanding to fit all its text.
+    private void BodyScrollViewer_SizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        if (SummaryEditorPanel is not null)
+            SummaryEditorPanel.Height = Math.Max(420, args.NewSize.Height - 40);
     }
 
     private void SetPeriod(DateOnly from, DateOnly to)
@@ -259,6 +311,7 @@ internal sealed partial class ReportExportWindow : Window
             DetailedCheck.IsChecked == true, SummaryExcerptCheck.IsChecked == true, SummaryFullDescriptionCheck.IsChecked == true,
             SummaryOcrCheck.IsChecked == true, SummaryTitlesCheck.IsChecked == true);
         var result = await _application.GenerateReportSummaryAsync(request, token);
+        if (_closed) return;
         if (!result.Succeeded || result.Value is null)
         {
             var size = result.Issues.FirstOrDefault(issue => issue.Code == "export.summary_too_large");
@@ -272,6 +325,9 @@ internal sealed partial class ReportExportWindow : Window
             return;
         }
         _summary = result.Value.Text;
+        SummaryTextBox.Text = _summary;
+        SummaryTextBox.SelectionStart = 0;
+        SummaryTextBox.SelectionLength = 0;
         ResetExcelPreview();
         ProviderText.Text = result.Value.Provider + " · " + result.Value.Model;
         IncludeSummaryCheck.IsChecked = true;
