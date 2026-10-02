@@ -58,14 +58,14 @@ public sealed class PremiumUiContractTests
         Assert.Contains(add.Parent!.Elements(), element => Name(element) == "AddClockPremiumBadge");
     }
 
-    /// <summary>Only the existing separator remains around the OCR/AI settings action.</summary>
+    /// <summary>The OCR/AI action uses the same navigation control as the surrounding settings links.</summary>
     [Fact]
     public void OcrSettings_HaveNoDecorativeHeadingOrDuplicateBorder()
     {
         var document = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
         Assert.DoesNotContain(document.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.Ai");
         var action = document.Descendants().Single(element => Name(element) == "OcrAiSettingsButton");
-        Assert.Equal("0", action.Attribute("BorderThickness")?.Value);
+        Assert.Equal("HyperlinkButton", action.Name.LocalName);
         Assert.DoesNotContain("OptionsPanoramaVioletBrush", document.ToString(), StringComparison.Ordinal);
     }
 

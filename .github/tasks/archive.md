@@ -11,6 +11,8 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 - Removed taskbar widget settings and activation paths from v1, rejected its withdrawn
   catalog keys, and disabled saved visibility when loading settings.
 - Renamed the main-window position control consistently in every shipped UI language.
+- Removed the redundant separators above data tools and startup options, and unified
+  OCR/AI navigation with the existing settings links for consistent pointer feedback.
 
 ### Calendar-month retention refinement
 

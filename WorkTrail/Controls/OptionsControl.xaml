@@ -264,18 +264,15 @@
                         Visibility="Collapsed" />
 
                     <StackPanel x:Name="OptionsSecondaryPanel" Grid.Row="2" Grid.Column="0" Spacing="0">
-                    <Button
+                    <HyperlinkButton
                         x:Name="OcrAiSettingsButton"
+                        MinHeight="36"
                         Margin="0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch"
                         AutomationProperties.Name="Open OCR and AI settings"
-                        Background="Transparent"
-                        BorderBrush="Transparent"
-                        BorderThickness="0"
                         Click="OcrAiSettingsButton_Click"
-                        CornerRadius="0"
-                        Padding="0,10"
+                        Padding="0,8"
                         Tag="Options.AiConfiguration.Title">
                         <Grid ColumnSpacing="10">
                             <Grid.ColumnDefinitions>
@@ -306,12 +303,7 @@
                                 FontSize="12"
                                 Glyph="&#xE76C;" />
                         </Grid>
-                    </Button>
-
-                    <Border
-                        Height="1"
-                        Margin="0,18,0,0"
-                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                    </HyperlinkButton>
                     <StackPanel Margin="0,14,0,0" Spacing="2">
                         <TextBlock
                             Tag="Options.Operations.Section"
@@ -521,8 +513,6 @@
                     </Button>
 
                     <StackPanel x:Name="GeneralAdvancedPanel" Margin="0,8,0,0" Spacing="10" Visibility="Collapsed">
-                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                        <Border Height="1" Margin="0,4,0,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
                         <StackPanel Spacing="2">
                             <TextBlock Tag="Options.Section.Startup" Style="{StaticResource BodyStrongTextBlockStyle}" Text="Startup" />
                             <TextBlock
