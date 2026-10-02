@@ -31,14 +31,15 @@ public static class HardwareSnapshotProjection
         var rows = new List<HardwareSummaryRow>();
         foreach (var category in new[] { "Cpu", "Gpu", "Memory", "Storage", "Battery", "Network" })
         {
-            var devices = snapshot?.Devices.Where(device => IsCategory(device.Kind, category)).ToArray() ?? [];
+            var devices = snapshot?.Devices.Where(device => IsCategory(device.Kind, category))
+                .Where(device => category != "Memory" || device.Id != "/vram" && device.Name != "Virtual Memory")
+                .ToArray() ?? [];
             if (!devices.Any(device => device.Sensors.Any(sensor => sensor.Value.HasValue)))
             {
                 continue;
             }
 
-            var missing = translate("Common.NotAvailable");
-            var values = devices.Select(device => $"{device.Name}: {Summarize(device, culture, missing)}");
+            var values = devices.Select(device => $"{device.Name.TrimEnd(':')}: {Summarize(device, culture, translate)}");
             rows.Add(new HardwareSummaryRow(
                 translate("Hardware.Category." + category),
                 string.Join("\n", values)));
@@ -85,16 +86,91 @@ public static class HardwareSnapshotProjection
         ? kind is "GpuNvidia" or "GpuAmd" or "GpuIntel"
         : string.Equals(kind, category, StringComparison.Ordinal);
 
-    private static string Summarize(HardwareDeviceSnapshot device, CultureInfo culture, string missing)
+    // device supplies the original captured measurements for one component.
+    // culture formats the compact display values.
+    // translate supplies existing localized capacity and transfer labels.
+    private static string Summarize(HardwareDeviceSnapshot device, CultureInfo culture, Func<string, string> translate)
     {
-        var preferredKinds = device.Kind switch
+        var missing = translate("Common.NotAvailable");
+        var readings = device.Sensors.Where(sensor => sensor.Value.HasValue).ToArray();
+        var values = new List<string>();
+        switch (device.Kind)
         {
-            "Battery" => new[] { "Level", "Power", "Energy", "TimeSpan", "Temperature" },
-            "Memory" => ["Load", "Data", "SmallData"],
-            "Storage" => ["Temperature", "Load", "Throughput", "Level"],
-            "Network" => ["Throughput", "Load"],
-            _ => ["Load", "Temperature", "Clock", "Power"]
+            case "Cpu":
+                // Per-core peaks and package power are not substitutes for total CPU utilization.
+                return Pick(readings, "Load", "CPU Total") is { } cpu ? FormatSummary(cpu, culture) : missing;
+            case "GpuNvidia" or "GpuAmd" or "GpuIntel":
+                if (HardwareUsageProjection.SelectGpuUtilization(readings) is { } gpu)
+                    values.Add(FormatSummary(gpu, culture));
+                var temperature = Pick(readings, "Temperature", "GPU Core")
+                    ?? readings.Where(sensor => sensor.Kind == "Temperature"
+                        && sensor.Name is not ("Warning Temperature" or "Critical Temperature"))
+                        .OrderByDescending(sensor => sensor.Value).ThenBy(sensor => sensor.Id, StringComparer.Ordinal).FirstOrDefault();
+                if (temperature is not null) values.Add(FormatSummary(temperature, culture));
+                break;
+            case "Memory":
+                var used = Pick(readings, "Data", "Memory Used");
+                var available = Pick(readings, "Data", "Memory Available");
+                if (used is { Value: >= 0 } && available is { Value: >= 0 } && used.Unit == available.Unit)
+                {
+                    // Physical used plus available memory gives the captured total; virtual memory stays in details.
+                    var total = used with { Value = used.Value + available.Value };
+                    values.Add($"{used.Value.Value.ToString("0.#", culture)} / {FormatSummary(total, culture)}");
+                }
+                else if (used is not null) values.Add($"{translate("Sensors.MemoryUsed")} {FormatSummary(used, culture)}");
+                break;
+            case "Storage":
+                var space = Pick(readings, "Data", "Total Space");
+                var free = Pick(readings, "Data", "Free Space");
+                var totalText = space is { Value: > 0 } ? FormatSummary(space, culture) : missing;
+                var freeText = free is { Value: >= 0 } && (space is null || free.Unit == space.Unit && free.Value <= space.Value)
+                    ? FormatSummary(free, culture) : missing;
+                values.Add(string.Format(culture, translate("Sensors.SpaceSummary"), freeText, totalText));
+                if (Pick(readings, "Throughput", "Read Rate") is { } read)
+                    values.Add($"{translate("Sensors.ReadRate")} {FormatSummary(read, culture)}");
+                if (Pick(readings, "Throughput", "Write Rate") is { } write)
+                    values.Add($"{translate("Sensors.WriteRate")} {FormatSummary(write, culture)}");
+                break;
+            case "Network":
+                if (Pick(readings, "Throughput", "Download Speed") is { } download)
+                    values.Add($"↓ {FormatSummary(download, culture)}");
+                if (Pick(readings, "Throughput", "Upload Speed") is { } upload)
+                    values.Add($"↑ {FormatSummary(upload, culture)}");
+                break;
+            default:
+                return SummarizeBattery(device, culture, missing);
+        }
+        return values.Count == 0 ? missing : string.Join(" · ", values);
+    }
+
+    // readings contains available captured values, including valid zero readings.
+    // kind identifies the measurement type.
+    // name identifies the representative driver sensor.
+    private static HardwareSensorSnapshot? Pick(IEnumerable<HardwareSensorSnapshot> readings, string kind, string name) =>
+        readings.FirstOrDefault(sensor => sensor.Kind == kind && sensor.Name == name);
+
+    // sensor supplies an available value without modifying the stored measurement.
+    // culture supplies decimal and grouping conventions.
+    private static string FormatSummary(HardwareSensorSnapshot sensor, CultureInfo culture)
+    {
+        var value = sensor.Value!.Value;
+        var (number, unit) = sensor.Unit switch
+        {
+            "B/s" when Math.Abs(value) >= 1073741824 => (value / 1073741824, "GiB/s"),
+            "B/s" when Math.Abs(value) >= 1048576 => (value / 1048576, "MiB/s"),
+            "B/s" when Math.Abs(value) >= 1024 => (value / 1024, "KiB/s"),
+            _ => (value, sensor.Unit)
         };
+        var format = unit is "%" or "°C" or "B/s" ? "0" : "0.#";
+        return $"{number.ToString(format, culture)} {unit}".TrimEnd();
+    }
+
+    // device supplies battery measurements whose power and energy units remain distinct.
+    // culture formats the existing battery display.
+    // missing labels absent values without estimating them.
+    private static string SummarizeBattery(HardwareDeviceSnapshot device, CultureInfo culture, string missing)
+    {
+        string[] preferredKinds = ["Level", "Power", "Energy", "TimeSpan", "Temperature"];
         var sensors = preferredKinds.SelectMany(kind => device.Sensors
             .Where(sensor => sensor.Kind == kind && sensor.Value.HasValue)
             .OrderByDescending(sensor => sensor.Name is "CPU Total" or "GPU Core" or "Remaining Capacity" ? 3

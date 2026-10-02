@@ -64,6 +64,9 @@ internal sealed partial class ReportExportWindow : Window
         FromPicker.Header = T("Export.From"); ToPicker.Header = T("Export.To");
         UiLocalization.SetAccessibleLabel(FromPicker, T("Export.From"));
         UiLocalization.SetAccessibleLabel(ToPicker, T("Export.To"));
+        UiLocalization.SetAccessibleLabel(TodayButton, T("Export.Today"));
+        UiLocalization.SetAccessibleLabel(WeekButton, T("Export.Week"));
+        UiLocalization.SetAccessibleLabel(MonthButton, T("Export.Month"));
         FormatCombo.ItemsSource = new[] { "Excel .xlsx", "CSV .zip", "JSON .json" };
         DescriptionCombo.ItemsSource = new[] { T("Export.Brief"), T("Export.CompleteText"), T("Export.Both") };
         SeparatorCombo.ItemsSource = new[] { ";", "," };

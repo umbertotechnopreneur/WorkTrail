@@ -72,8 +72,68 @@ public sealed class HardwareSnapshotProjectionTests
         var result = HardwareSnapshotProjection.Create(snapshot, strings.Culture, strings.Translate);
 
         Assert.Equal(strings.Translate("Hardware.Status.Stale"), result.Status);
-        Assert.Contains("CPU Package 20 W", result.Summary[0].Value, StringComparison.Ordinal);
+        Assert.Contains(strings.Translate("Common.NotAvailable"), result.Summary[0].Value, StringComparison.Ordinal);
         Assert.DoesNotContain("35 W", result.Summary[0].Value, StringComparison.Ordinal);
+        Assert.Contains(result.Details, line => line.Contains("CPU Package", StringComparison.Ordinal));
         Assert.Contains(result.Details, line => line.Contains("CPU Cores", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Projection_ShowsEssentialRoundedMeasurementsAndKeepsRawDetails()
+    {
+        var timestamp = new DateTimeOffset(2026, 10, 2, 10, 0, 0, TimeSpan.Zero);
+        var strings = new LocalizationService("en-US");
+        var snapshot = new SystemSnapshot(timestamp, "ready",
+        [
+            new("/cpu", "CPU", "Cpu", timestamp,
+                [new("/cpu/core", "CPU Core #1", "Load", "%", 99.26), new("/cpu/total", "CPU Total", "Load", "%", 16.46)]),
+            new("/gpu", "GPU", "GpuNvidia", timestamp,
+                [new("/gpu/load", "GPU Core", "Load", "%", 33.12), new("/gpu/temp", "GPU Core", "Temperature", "°C", 51.2),
+                 new("/gpu/clock", "GPU Core", "Clock", "MHz", 210)]),
+            new("/vram", "Virtual Memory", "Memory", timestamp,
+                [new("/vram/used", "Memory Used", "Data", "GiB", 25.4)]),
+            new("/ram", "Total Memory", "Memory", timestamp,
+                [new("/ram/used", "Memory Used", "Data", "GiB", 21.43), new("/ram/free", "Memory Available", "Data", "GiB", 10.5)]),
+            new("/disk", "C:", "Storage", timestamp,
+                [new("/disk/free", "Free Space", "Data", "GiB", 192.32), new("/disk/total", "Total Space", "Data", "GiB", 418.21),
+                 new("/disk/read", "Read Rate", "Throughput", "B/s", 0), new("/disk/write", "Write Rate", "Throughput", "B/s", 15930)]),
+            new("/net", "Ethernet", "Network", timestamp,
+                [new("/net/up", "Upload Speed", "Throughput", "B/s", 4397.17), new("/net/down", "Download Speed", "Throughput", "B/s", 18886.8),
+                 new("/net/load", "Network Utilization", "Load", "%", 0.19)])
+        ]);
+
+        var result = HardwareSnapshotProjection.Create(snapshot, strings.Culture, strings.Translate);
+
+        Assert.Equal("CPU: 16 %", Assert.Single(result.Summary, row => row.Label == "CPU").Value);
+        Assert.Equal("GPU: 33 % · 51 °C", Assert.Single(result.Summary, row => row.Label == "GPU").Value);
+        Assert.Equal("Total Memory: 21.4 / 31.9 GiB", Assert.Single(result.Summary, row => row.Label == "Memory").Value);
+        Assert.Equal("C: 192.3 GiB free / 418.2 GiB total · Read 0 B/s · Write 15.6 KiB/s",
+            Assert.Single(result.Summary, row => row.Label == "Storage").Value);
+        Assert.Equal("Ethernet: ↓ 18.4 KiB/s · ↑ 4.3 KiB/s", Assert.Single(result.Summary, row => row.Label == "Network").Value);
+        Assert.Contains(result.Details, line => line.Contains("Virtual Memory", StringComparison.Ordinal));
+        Assert.Contains(result.Details, line => line.Contains("99.26 %", StringComparison.Ordinal));
+        Assert.Contains(result.Details, line => line.Contains("210 MHz", StringComparison.Ordinal));
+        Assert.Contains(result.Details, line => line.Contains("0.19 %", StringComparison.Ordinal));
+        Assert.Equal(16.46, snapshot.Devices[0].Sensors[1].Value);
+    }
+
+    [Fact]
+    public void Projection_KeepsZeroTotalsAndDoesNotInventMissingPhysicalMemoryOrCpuTotals()
+    {
+        var timestamp = new DateTimeOffset(2026, 10, 2, 10, 0, 0, TimeSpan.Zero);
+        var strings = new LocalizationService("it-IT");
+        var snapshot = new SystemSnapshot(timestamp, "partial",
+        [
+            new("/cpu/0", "Zero CPU", "Cpu", timestamp, [new("/cpu/0/total", "CPU Total", "Load", "%", 0)]),
+            new("/cpu/1", "Core-only CPU", "Cpu", timestamp, [new("/cpu/1/core", "CPU Core #1", "Load", "%", 90)]),
+            new("/vram", "Virtual Memory", "Memory", timestamp, [new("/vram/load", "Memory", "Load", "%", 74.88)])
+        ]);
+
+        var result = HardwareSnapshotProjection.Create(snapshot, strings.Culture, strings.Translate);
+
+        var cpu = Assert.Single(result.Summary);
+        Assert.Contains("Zero CPU: 0 %", cpu.Value, StringComparison.Ordinal);
+        Assert.Contains("Core-only CPU: " + strings.Translate("Common.NotAvailable"), cpu.Value, StringComparison.Ordinal);
+        Assert.Contains(result.Details, line => line.Contains("74,88 %", StringComparison.Ordinal));
     }
 }

@@ -15,6 +15,11 @@ This is a compact historical index of durable WorkTrail milestones. It intention
   OCR/AI navigation with the existing settings links for consistent pointer feedback.
 - Centered the labels editor on its owner at each opening while retaining saved size,
   and kept its title bar visible independently of the global auto-hide setting.
+- Reduced captured hardware summaries to CPU total, GPU load and temperature, physical
+  RAM capacity, disk space and transfers, and network throughput with compact units.
+  Retained unmodified sensor readings in the complete details and persisted snapshots.
+- Added colored day, week, and month icons to export-period shortcuts, preserving
+  localized labels and accessible names with high-contrast theme support.
 
 ### Calendar-month retention refinement
 

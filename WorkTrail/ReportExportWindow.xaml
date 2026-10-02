@@ -10,16 +10,19 @@
                     <ResourceDictionary x:Key="Light">
                         <SolidColorBrush x:Key="SummaryActionIconBrush" Color="#7040A0" />
                         <SolidColorBrush x:Key="SaveActionIconBrush" Color="#26765B" />
+                        <SolidColorBrush x:Key="WeekActionIconBrush" Color="#315EA3" />
                         <SolidColorBrush x:Key="ExportActionIconBrush" Color="#6C3318" />
                     </ResourceDictionary>
                     <ResourceDictionary x:Key="Default">
                         <SolidColorBrush x:Key="SummaryActionIconBrush" Color="#C7A0FF" />
                         <SolidColorBrush x:Key="SaveActionIconBrush" Color="#6ED1B3" />
+                        <SolidColorBrush x:Key="WeekActionIconBrush" Color="#91B8FF" />
                         <SolidColorBrush x:Key="ExportActionIconBrush" Color="#6C3318" />
                     </ResourceDictionary>
                     <ResourceDictionary x:Key="HighContrast">
                         <StaticResource x:Key="SummaryActionIconBrush" ResourceKey="SystemColorButtonTextColorBrush" />
                         <StaticResource x:Key="SaveActionIconBrush" ResourceKey="SystemColorButtonTextColorBrush" />
+                        <StaticResource x:Key="WeekActionIconBrush" ResourceKey="SystemColorButtonTextColorBrush" />
                         <StaticResource x:Key="ExportActionIconBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
                     </ResourceDictionary>
                 </ResourceDictionary.ThemeDictionaries>
@@ -50,7 +53,27 @@
                             <TextBlock Tag="Export.Title" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
                             <TextBlock Tag="Export.Intro" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Button Tag="Export.Today" Content="Today" Click="Today_Click" /><Button Tag="Export.Week" Content="7 days" Click="Week_Click" /><Button Tag="Export.Month" Content="This month" Click="Month_Click" />
+                                <Button x:Name="TodayButton" Tag="Export.Today" Click="Today_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8BF;" FontSize="16"
+                                                  Foreground="{ThemeResource SaveActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
+                                        <TextBlock Tag="Export.Today" Text="Today" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="WeekButton" Tag="Export.Week" Click="Week_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8C0;" FontSize="16"
+                                                  Foreground="{ThemeResource WeekActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
+                                        <TextBlock Tag="Export.Week" Text="7 days" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="MonthButton" Tag="Export.Month" Click="Month_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE787;" FontSize="16"
+                                                  Foreground="{ThemeResource SummaryActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
+                                        <TextBlock Tag="Export.Month" Text="This month" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                             <CalendarDatePicker x:Name="FromPicker" HorizontalAlignment="Stretch" DateChanged="DateChanged" />
                             <CalendarDatePicker x:Name="ToPicker" HorizontalAlignment="Stretch" DateChanged="DateChanged" />
