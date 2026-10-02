@@ -57,6 +57,9 @@ public sealed class ReportExportTests : IDisposable
         var request = new ReportExportRequest(Options, destination);
         var direct = await application.ExportReportAsync(request, CancellationToken.None);
         Assert.Equal("feature.premium_required", direct.Code);
+        var timesheet = await application.ManageTimesheetBatchAsync(new(TimesheetBatchAction.Start, new(new(Options))), CancellationToken.None);
+        Assert.False(timesheet.Succeeded);
+        Assert.Equal("Premium.Required", timesheet.MessageKey);
         var dispatcher = new RuntimeRequestDispatcher(application, NullLogger.Instance);
         var wire = await dispatcher.DispatchAsync(new(RuntimeProtocol.ProtocolVersion, Guid.NewGuid(), "report.export.write.v1",
             JsonSerializer.SerializeToElement(request, RuntimeProtocol.SerializerOptions), "en-US", null), CancellationToken.None);

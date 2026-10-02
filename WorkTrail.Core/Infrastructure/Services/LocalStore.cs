@@ -506,6 +506,13 @@ public sealed class LocalStore
     /// <summary>Persists one sanitized standalone AI request-usage record in SQLite.</summary>
     internal void AppendAiUsage(AiRequestUsageRecord usage) => _activity.AppendStandaloneAiRequest(usage);
 
+    // usage identifies a single reserved or completed timesheet request; repeated retrieval updates it atomically.
+    internal void SaveTimesheetUsage(AiRequestUsageRecord usage) => _activity.SaveTimesheetUsage(usage);
+
+    // fromUtc and toUtc bound the retained samples; visitor receives each overlap and token cancels the scan.
+    internal void VisitTimesheetSamples(DateTimeOffset fromUtc, DateTimeOffset toUtc,
+        Action<ActivitySample> visitor, CancellationToken token) => _activity.VisitOverlapping(fromUtc, toUtc, visitor, token);
+
     /// <summary>Replaces the cached AI pricing rows for one provider.</summary>
     internal void ReplaceAiModelPricing(string provider, IReadOnlyList<AiModelPricing> prices) =>
         _activity.ReplaceAiModelPricing(provider, prices);

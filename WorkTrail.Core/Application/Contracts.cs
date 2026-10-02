@@ -768,6 +768,14 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Explicitly sends selected saved text to the configured AI provider and returns an editable summary.</summary>
     Task<OperationResult<ReportSummaryResult>> GenerateReportSummaryAsync(ReportSummaryRequest request, CancellationToken cancellationToken);
 
+    /// <summary>Previews, submits, resumes, cancels or exports a durable OpenAI Batch timesheet.</summary>
+    /// <param name="command">The explicit operation and its selected local report inputs.</param>
+    /// <param name="cancellationToken">Cancels local work without cancelling an already submitted cloud batch.</param>
+    Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken);
+
+    /// <summary>Opens a temporary Excel sample with at most ten data records per worksheet, without sending AI requests.</summary>
+    Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken);
+
     /// <summary>Captures a current system snapshot.</summary>
     Task<OperationResult<SystemSnapshot>> CaptureSystemSnapshotAsync(CancellationToken cancellationToken);
 

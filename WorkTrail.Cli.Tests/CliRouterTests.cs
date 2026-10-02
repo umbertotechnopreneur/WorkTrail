@@ -434,6 +434,10 @@ public sealed class CliRouterTests
         public Task<OperationResult<ReportExportResult>> ExportReportAsync(ReportExportRequest request, CancellationToken cancellationToken) => Unsupported<ReportExportResult>();
         /// <inheritdoc />
         public Task<OperationResult<ReportSummaryResult>> GenerateReportSummaryAsync(ReportSummaryRequest request, CancellationToken cancellationToken) => Unsupported<ReportSummaryResult>();
+
+        public Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken) => Unsupported<TimesheetBatchView>();
+
+        public Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken) => Unsupported<ReportExportResult>();
         public Task<OperationResult<SystemSnapshot>> CaptureHardwareSnapshotAsync(CancellationToken cancellationToken) => CaptureSystemSnapshotAsync(cancellationToken);
 
         public Task<OperationResult<SystemSnapshot>> CaptureSystemSnapshotAsync(CancellationToken cancellationToken) => Unsupported<SystemSnapshot>();

@@ -9,6 +9,11 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Visually accept the export title bar, grouping help dialog, and temporary Excel
+  previews at supported Windows scaling levels and themes. Confirm worksheet layout
+  in Excel. A live paid Batch submission, interruption/recovery, and cloud cancellation
+  require separate owner authorization; automated validation uses simulated responses.
+
 - [ ] Visually accept monthly retention at Windows scaling levels in light, dark, and high
   contrast themes, including Free/Premium choices, a missed monthly cleanup after startup,
   and shutdown while the shared progress dialog is active. Package installation remains

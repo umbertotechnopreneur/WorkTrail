@@ -149,7 +149,9 @@ internal sealed partial class ReportExportService(LocalStore store)
                 () => report.AiUsage.ByProvider.Select(usage => new object?[] { usage.Label, usage.RequestCount, usage.InputTokens, usage.OutputTokens, usage.ActualCostUsd, usage.EstimatedCostUsd }), report.AiUsage.ByProvider.Count));
         if (!string.IsNullOrWhiteSpace(document.Summary))
             tables.Add(new("AI summary", ["text"], () => [new object?[] { document.Summary }], 1));
-        return tables;
+        return document.RowLimit is { } limit
+            ? tables.Select(table => table with { Rows = () => table.Rows().Take(limit), RowCount = Math.Min(table.RowCount, limit) }).ToArray()
+            : tables;
     }
 
     private static IEnumerable<object?[]> CaptureRows(ExportDocument document)
@@ -196,7 +198,7 @@ internal sealed partial class ReportExportService(LocalStore store)
     private sealed record ExportPreferences(int Version, ReportExportOptions Options);
 }
 
-internal sealed record ExportDocument(ReportExportOptions Options, ReportSnapshot Report, IReadOnlyList<ScreenshotGalleryItem> Captures, string? Summary);
+internal sealed record ExportDocument(ReportExportOptions Options, ReportSnapshot Report, IReadOnlyList<ScreenshotGalleryItem> Captures, string? Summary, int? RowLimit = null);
 internal sealed record ExportTable(string Name, IReadOnlyList<string> Columns, Func<IEnumerable<object?[]>> Rows, int RowCount);
 internal sealed class ReportExportValidationException(string messageKey, int? actualLength = null, int? limit = null) : ArgumentException(messageKey)
 {

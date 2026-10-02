@@ -1943,7 +1943,7 @@ internal sealed class SqliteActivityStore
             FROM ai_request_usage
             WHERE occurred_utc_ticks >= $from
               AND occurred_utc_ticks < $to
-              AND request_kind IN ('screen_analysis', 'ocr_refinement', 'report_summary');
+              AND request_kind IN ('screen_analysis', 'ocr_refinement', 'report_summary', 'report_timesheet_batch');
             """;
         command.Parameters.AddWithValue("$from", fromUtc.UtcDateTime.Ticks);
         command.Parameters.AddWithValue("$to", toUtc.UtcDateTime.Ticks);
@@ -2989,6 +2989,21 @@ internal sealed class SqliteActivityStore
         Add(command, "$success", request.Success ? 1 : 0);
         Add(command, "$failureCode", request.FailureCode);
         command.ExecuteNonQuery();
+    }
+
+    // request carries a stable batch/row identity, allowing crash-safe reservation and reconciliation.
+    internal void SaveTimesheetUsage(AiRequestUsageRecord request)
+    {
+        if (request.RequestKind != "report_timesheet_batch") throw new ArgumentException("A timesheet usage record is required.");
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "DELETE FROM ai_request_usage WHERE attempt_id = $id AND request_kind = 'report_timesheet_batch';";
+        command.Parameters.AddWithValue("$id", request.AttemptId);
+        command.ExecuteNonQuery();
+        InsertAiRequest(connection, transaction, request);
+        transaction.Commit();
     }
 
     private static void InsertAiAnalysisResult(SqliteConnection connection, SqliteTransaction transaction, AiRequestUsageRecord request, AiAnalysis analysis)

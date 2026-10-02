@@ -79,3 +79,7 @@ public static class ReportSummaryModelPolicy
 
 /// <summary>Returns editable generated text without persisting it as historical activity.</summary>
 public sealed record ReportSummaryResult(string Text, int SourceCount, string Provider, string Model);
+
+/// <summary>Creates and opens a temporary Excel sample, with at most ten records per worksheet.</summary>
+public sealed record ReportFilePreviewRequest(ReportExportOptions Options, string? Summary = null,
+    TimesheetOptions? Timesheet = null, Guid? TimesheetJobId = null);

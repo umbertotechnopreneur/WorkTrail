@@ -132,6 +132,7 @@ internal static class ReportExportWriter
             WriteSheet(zip, index + 1, tables[index], overflow, cancellationToken);
         if (overflow.Count > 0)
         {
+            if (document.RowLimit is { } limit) overflow = overflow.Take(limit).ToList();
             // Excel limits cell text to 32,767 characters. Preserve complete source text in ordered parts.
             tables.Add(new("Text parts", ["sheet", "row", "column", "part", "text"], () => overflow, overflow.Count));
             WriteSheet(zip, tables.Count, tables[^1], [], cancellationToken);
@@ -254,7 +255,7 @@ internal static class ReportExportWriter
         xml.WriteEndElement();
     }
 
-    private static string ExcelText(string text)
+    internal static string ExcelText(string text)
     {
         // SpreadsheetML escapes XML control characters and literal escape sequences without losing source text.
         var result = new StringBuilder(text.Length);
@@ -269,7 +270,7 @@ internal static class ReportExportWriter
         return result.ToString();
     }
 
-    private static string ColumnName(int number)
+    internal static string ColumnName(int number)
     {
         var result = "";
         while (number > 0) { number--; result = (char)('A' + number % 26) + result; number /= 26; }
@@ -304,14 +305,14 @@ internal static class ReportExportWriter
         xml.WriteEndElement();
     });
 
-    private static void WriteXml(ZipArchive zip, string name, Action<XmlWriter> write)
+    internal static void WriteXml(ZipArchive zip, string name, Action<XmlWriter> write)
     {
         using var stream = zip.CreateEntry(name).Open();
         using var xml = XmlWriter.Create(stream, new XmlWriterSettings { Encoding = new UTF8Encoding(false), CloseOutput = false });
         xml.WriteStartDocument(); write(xml); xml.WriteEndDocument();
     }
 
-    private static void Element(XmlWriter xml, string name, string ns, params (string Name, string Value)[] attributes)
+    internal static void Element(XmlWriter xml, string name, string ns, params (string Name, string Value)[] attributes)
     {
         xml.WriteStartElement(name, ns);
         foreach (var (key, value) in attributes) xml.WriteAttributeString(key, value);

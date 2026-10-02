@@ -4,6 +4,21 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-02
 
+### Batch timesheets and Excel previews
+
+- Added a resumable OpenAI Batch timesheet report with measured day/project durations,
+  optional morning/afternoon rows, monthly sheets, billing fields, and source details.
+- Persisted job identities and partial results independently of the export window;
+  uncertain submissions are reconciled before another paid batch can be created.
+  Raw request prompts and API credentials are excluded from persisted job snapshots.
+- Replaced embedded export previews with a generated Excel-themed card that opens a
+  temporary workbook limited to ten records per sheet without calling AI.
+- Kept the export title bar and native close button visible, and added a localized
+  in-app explanation of daily, application, and whole-period summary grouping.
+- Validated batch transport and recovery with simulated responses, workbook structure,
+  measured interval projection, entitlement, and localization contracts.
+
+
 ### Consolidated storage settings and v1 surface cleanup
 
 - Collected screenshot capture preferences, local OCR choices, and saved hardware metadata

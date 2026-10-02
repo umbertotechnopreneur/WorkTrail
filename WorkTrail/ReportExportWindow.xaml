@@ -43,6 +43,7 @@
                 <NavigationViewItem x:Name="ExportTab" Icon="Save" Tag="Export.Tab" />
                 <NavigationViewItem x:Name="ContentsTab" Icon="Bullets" Tag="Export.Contents" />
                 <NavigationViewItem x:Name="SummaryTab" Icon="Edit" Tag="Export.AiSummary" />
+                <NavigationViewItem x:Name="TimesheetTab" Icon="Calendar" Tag="Timesheet.Title" />
             </NavigationView.MenuItems>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <Grid x:Name="BodyGrid" Margin="24,8,24,24" ColumnSpacing="28" RowSpacing="24" SizeChanged="BodyGrid_SizeChanged">
@@ -81,7 +82,6 @@
                             <ComboBox x:Name="DevicesCombo" Tag="Export.Devices" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
                             <ComboBox x:Name="FormatCombo" Tag="Export.Format" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
                             <TextBlock x:Name="FormatHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <Button Tag="Export.Refresh" Content="Refresh preview" Click="Refresh_Click" />
                         </StackPanel>
                         <StackPanel x:Name="ContentsPage" Visibility="Collapsed" Spacing="10">
                             <TextBlock Tag="Export.Contents" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" Margin="0,0,0,10" />
@@ -104,9 +104,11 @@
                         </StackPanel>
                         <StackPanel x:Name="SummaryPage" Visibility="Collapsed" Spacing="14">
                             <TextBlock Tag="Export.AiSummary" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
-                            <TextBlock Tag="Export.SummaryIntro" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Tag="Timesheet.SummaryIntro" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             <ComboBox x:Name="GroupingCombo" Tag="Export.Grouping" HorizontalAlignment="Stretch" SelectionChanged="SummaryOptionsChanged" />
+                            <HyperlinkButton x:Name="GroupingInfoLink" Tag="Export.MoreInformation" Content="More information" Click="GroupingInfo_Click" Padding="0" />
                             <CheckBox x:Name="DetailedCheck" Tag="Export.Detailed" Click="SummaryOptionsChanged" />
+                            <CheckBox x:Name="IncludeSummaryCheck" Tag="Export.IncludeSummary" />
                             <TextBlock Tag="Export.SavedDescriptions" TextWrapping="Wrap" />
                             <CheckBox x:Name="SummaryExcerptCheck" Tag="Export.Brief" IsChecked="True" Margin="16,0,0,0" Click="SummaryOptionsChanged" />
                             <CheckBox x:Name="SummaryFullDescriptionCheck" Tag="Export.CompleteText" Margin="16,0,0,0" Click="SummaryOptionsChanged" />
@@ -125,23 +127,45 @@
                                 </Button>
                             </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                    <StackPanel x:Name="PreviewPanel" Grid.Column="1" Spacing="14">
-                        <TextBlock x:Name="PreviewTitle" Tag="Export.Preview" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                        <StackPanel x:Name="TablePreview" Spacing="14">
-                            <TextBlock x:Name="FileNameText" TextWrapping="Wrap" FontWeight="SemiBold" />
-                            <TextBlock x:Name="MetricsText" TextWrapping="Wrap" />
-                            <ComboBox x:Name="SheetsCombo" Tag="Export.Sheets" HorizontalAlignment="Stretch" SelectionChanged="Sheets_SelectionChanged" />
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled">
-                                <StackPanel x:Name="PreviewRows" Spacing="0" />
-                            </ScrollViewer>
-                            <TextBlock x:Name="RowsText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock Tag="Export.ScopeHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <StackPanel x:Name="TimesheetPage" Visibility="Collapsed" Spacing="14">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Tag="Timesheet.Title" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                <controls:PremiumBadge x:Name="TimesheetPremiumBadge" />
+                            </StackPanel>
+                            <TextBlock Tag="Timesheet.Intro" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="TimesheetRange" TextWrapping="Wrap" />
+                            <CheckBox x:Name="TimesheetMergeCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Merge" IsChecked="True" />
+                            <TextBlock Tag="Timesheet.GroupingHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <CheckBox x:Name="TimesheetMonthsCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Months" />
+                            <TextBox x:Name="TimesheetConsultant" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Consultant" MaxLength="120" />
+                            <TextBox x:Name="TimesheetClient" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Client" MaxLength="120" />
+                            <CheckBox x:Name="TimesheetBillingCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Billing" />
+                            <NumberBox x:Name="TimesheetRate" Tag="Timesheet.Rate" Value="0" Minimum="0" Maximum="1000000" SpinButtonPlacementMode="Compact" />
+                            <TextBox x:Name="TimesheetCurrency" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Currency" Text="EUR" MaxLength="3" />
+                            <TextBlock Tag="Timesheet.Sources" FontWeight="SemiBold" />
+                            <CheckBox x:Name="TimesheetDescriptions" Click="TimesheetOptionsChanged" Tag="Export.SavedDescriptions" IsChecked="True" />
+                            <CheckBox x:Name="TimesheetOcr" Click="TimesheetOptionsChanged" Tag="Export.Ocr" />
+                            <CheckBox x:Name="TimesheetTitles" Click="TimesheetOptionsChanged" Tag="Export.Titles" />
+                            <TextBlock Tag="Timesheet.Notice" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Button Tag="Timesheet.Submit" Content="Submit batch" Click="TimesheetStart_Click" />
                         </StackPanel>
-                        <StackPanel x:Name="SummaryPreview" Visibility="Collapsed" Spacing="14">
-                            <TextBox x:Name="SummaryText" Tag="Export.Editable" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="300" TextChanged="SummaryText_TextChanged" />
-                            <TextBlock Tag="Export.ReviewSummary" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <CheckBox x:Name="IncludeSummaryCheck" Tag="Export.IncludeSummary" />
+                    </StackPanel>
+                    <StackPanel x:Name="ResultsPanel" Grid.Column="1" Spacing="14">
+                        <Border CornerRadius="12" MinHeight="250" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                            <Border.Background><ImageBrush ImageSource="ms-appx:///Assets/WorkTrailExcelPreview.png" Stretch="UniformToFill" /></Border.Background>
+                            <StackPanel Margin="22" Spacing="12" MaxWidth="245" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <TextBlock Tag="Timesheet.PreviewTitle" FontSize="23" FontWeight="SemiBold" Foreground="#173C2D" TextWrapping="Wrap" />
+                                <TextBlock Tag="Timesheet.PreviewHelp" Foreground="#173C2D" TextWrapping="Wrap" />
+                                <Button Tag="Timesheet.OpenPreview" Content="Open Excel preview" Click="ExcelPreview_Click" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel x:Name="TimesheetJobsPanel" Visibility="Collapsed" Spacing="14">
+                            <ComboBox x:Name="TimesheetJobs" Tag="Timesheet.Jobs" HorizontalAlignment="Stretch" SelectionChanged="TimesheetJobs_SelectionChanged" />
+                            <TextBlock x:Name="TimesheetStatus" TextWrapping="Wrap" FontWeight="SemiBold" />
+                            <Button Tag="Timesheet.Refresh" Content="Refresh status" Click="TimesheetRefresh_Click" />
+                            <Button x:Name="TimesheetCancelButton" Tag="Timesheet.Cancel" Content="Cancel cloud batch" Click="TimesheetCancel_Click" IsEnabled="False" />
+                            <TextBlock Tag="Timesheet.ReviewNote" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Button x:Name="TimesheetExportButton" Tag="Timesheet.Export" Content="Save Excel" Click="TimesheetExport_Click" IsEnabled="False" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>
