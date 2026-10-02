@@ -440,7 +440,7 @@ public static class QuickSetupProfileIds
 public sealed record QuickSetupProfileRequest(string ProfileId, bool StartWithWindows);
 
 /// <summary>Requests a retention preview or confirmed cleanup.</summary>
-public sealed record RetentionRequest(bool Execute, bool Confirmed);
+public sealed record RetentionRequest(bool Execute, bool Confirmed, bool Scheduled = false, Guid OperationId = default);
 
 /// <summary>Describes the runtime reachable through the local IPC host.</summary>
 public sealed record RuntimeHealth(
@@ -473,10 +473,16 @@ public sealed record PrivacyRule(string Id, string Type, string Value);
 public sealed record PluginInfo(string Id, string Name, bool Enabled, string Description);
 
 /// <summary>Describes a retention candidate without deleting it.</summary>
-public sealed record RetentionPreview(int FileCount, long TotalBytes, IReadOnlyList<string> Paths);
+public sealed record RetentionPreview(int FileCount, long TotalBytes, IReadOnlyList<string> Paths,
+    int RecordCount = 0, int ScreenshotCount = 0, long ActivityBytes = 0, long ScreenshotBytes = 0);
+
+/// <summary>Reports progress for one serialized retention cleanup without exposing private paths.</summary>
+public sealed record RetentionCleanupProgress(Guid OperationId, long CompletedItems, long TotalItems, string Phase);
 
 /// <summary>Describes the configured data-retention policy.</summary>
-public sealed record RetentionStatus(int DataRetentionDays, int ScreenshotRetentionDays, string ScreenshotDirectory);
+public sealed record RetentionStatus(int DataRetentionDays, int ScreenshotRetentionDays, string ScreenshotDirectory,
+    int MaximumMonths = 1, DateOnly? FirstActivationDate = null, DateOnly? LastCleanupDate = null,
+    DateOnly? NextCleanupDate = null, bool IsCleanupDue = false, RetentionCleanupProgress? Progress = null);
 
 /// <summary>Requires both destructive confirmations before an atomic application reset can be prepared.</summary>
 public sealed record AtomicResetRequest(bool FirstConfirmation, bool FinalConfirmation);

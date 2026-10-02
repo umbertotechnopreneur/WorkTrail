@@ -141,7 +141,8 @@ public sealed record AppSettings(
     bool WorldMapWindowShowInTaskbar = true,
     bool LunarPhaseWindowShowInTaskbar = true,
     bool WindowSnappingEnabled = true,
-    IReadOnlyList<WorkTrail.Application.ActivityLabelDefinition>? ActivityLabels = null);
+    IReadOnlyList<WorkTrail.Application.ActivityLabelDefinition>? ActivityLabels = null,
+    DateTimeOffset? LastRetentionCleanupAt = null);
 
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,

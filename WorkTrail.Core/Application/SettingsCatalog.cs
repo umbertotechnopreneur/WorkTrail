@@ -295,8 +295,8 @@ public static class SettingsCatalog
                 case "activity.label.select" when (current.ActivityLabels ?? []).FirstOrDefault(label => label.Id == value) is { } selectedLabel: current = current with { SpanLabel = selectedLabel.Name }; break;
                 case "startup.enabled" when TryBoolean(value, out var startup): current = current with { StartWithWindows = startup }; break;
                 case "tracking.start_on_launch" when TryBoolean(value, out var startOnLaunch): current = current with { StartTrackingOnLaunch = startOnLaunch }; break;
-                case "retention.screenshots_days" when TryInteger(value, 0, 3650, out var screenshotDays): current = current with { ScreenshotRetentionDays = screenshotDays }; break;
-                case "retention.data_days" when TryInteger(value, 0, 3650, out var dataDays): current = current with { DataRetentionDays = dataDays }; break;
+                case "retention.screenshots_days" when TryInteger(value, 30, 90, out var screenshotDays) && screenshotDays is 30 or 60 or 90: current = current with { ScreenshotRetentionDays = screenshotDays }; break;
+                case "retention.data_days" when TryInteger(value, 30, 90, out var dataDays) && dataDays is 30 or 60 or 90: current = current with { DataRetentionDays = dataDays }; break;
                 case "plugins.word.enabled" when TryBoolean(value, out var word): current = current with { EnableWordDetailPlugin = word }; break;
                 case "plugins.excel.enabled" when TryBoolean(value, out var excel): current = current with { EnableExcelDetailPlugin = excel }; break;
                 case "plugins.vscode.enabled" when TryBoolean(value, out var vscode): current = current with { EnableVsCodeDetailPlugin = vscode }; break;
@@ -361,8 +361,9 @@ public static class SettingsCatalog
             WorldClockWindowOpacityPercent = Math.Clamp(settings.WorldClockWindowOpacityPercent, 25, 100),
             TaskbarWidgetPosition = Canonical(TaskbarAnchors, settings.TaskbarWidgetPosition) ?? TaskbarWidgetPositions.Left,
             SpanLabel = settings.SpanLabel is { Length: <= 20 } ? settings.SpanLabel.Trim() : string.Empty,
-            DataRetentionDays = Math.Clamp(settings.DataRetentionDays, 0, 3650),
-            ScreenshotRetentionDays = Math.Clamp(settings.ScreenshotRetentionDays, 0, 3650),
+            // Existing day settings now represent fixed month choices; cleanup uses AddMonths, never AddDays.
+            DataRetentionDays = RetentionPolicy.NormalizeDays(settings.DataRetentionDays),
+            ScreenshotRetentionDays = RetentionPolicy.NormalizeDays(settings.ScreenshotRetentionDays),
             OpenAiDailyLimit = Math.Clamp(settings.OpenAiDailyLimit, MinimumAiDailyLimit, MaximumAiDailyLimit),
             OpenAiDailyCostUsd = Math.Max(0m, settings.OpenAiDailyCostUsd),
             EstimatedCostPerAnalysisUsd = Math.Clamp(settings.EstimatedCostPerAnalysisUsd, 0m, 1_000m),

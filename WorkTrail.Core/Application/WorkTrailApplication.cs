@@ -105,6 +105,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
 {
     private readonly AiConnectionVerification _aiConnectionVerification = new();
     private readonly WindowSnappingService _windowSnapping = new();
+    private RetentionCleanupProgress? _retentionCleanupProgress;
 
     /// <inheritdoc />
     public IWindowSnappingRegistration RegisterWindowSnapping(long windowHandle, Action<Exception> reportFailure) =>
@@ -1972,33 +1973,53 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     }
 
     /// <inheritdoc />
-    public Task<OperationResult<RetentionStatus>> GetRetentionStatusAsync(CancellationToken cancellationToken)
+    public async Task<OperationResult<RetentionStatus>> GetRetentionStatusAsync(CancellationToken cancellationToken) =>
+        OperationResult<RetentionStatus>.Success("retention.status.loaded", "RetentionStatusLoaded",
+            await Task.Run(() => BuildRetentionStatus(DateTimeOffset.Now), cancellationToken).ConfigureAwait(false));
+
+    private RetentionStatus BuildRetentionStatus(DateTimeOffset now)
     {
-        cancellationToken.ThrowIfCancellationRequested();
         var settings = _settingsSnapshot.Value;
-        return Task.FromResult(OperationResult<RetentionStatus>.Success("retention.status.loaded", "RetentionStatusLoaded", new RetentionStatus(settings.DataRetentionDays, settings.ScreenshotRetentionDays, settings.ScreenshotDirectory)));
+        var tier = _featureAccess.Snapshot.Tier;
+        var installation = _store.GetInstallationProfile(settings.InstallationId)
+            ?? throw new InvalidOperationException("The current installation has no durable activation profile.");
+        var first = DateOnly.FromDateTime(installation.FirstSeenAt.LocalDateTime);
+        var last = settings.LastRetentionCleanupAt is { } completed
+            ? DateOnly.FromDateTime(completed.LocalDateTime) : (DateOnly?)null;
+        var next = RetentionPolicy.NextCleanupDate(first, last);
+        return new RetentionStatus(
+            RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier) * 30,
+            RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier) * 30,
+            settings.ScreenshotDirectory, RetentionPolicy.MaximumMonths(tier), first, last, next,
+            DateOnly.FromDateTime(now.LocalDateTime) >= next, Volatile.Read(ref _retentionCleanupProgress));
     }
 
     /// <inheritdoc />
-    public Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(OperationResult<RetentionPreview>.Success(
+    public async Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken) =>
+        OperationResult<RetentionPreview>.Success(
             "retention.preview.loaded",
             "RetentionPreviewLoaded",
-            BuildRetentionPreview(cancellationToken)));
-    }
+            await Task.Run(() => BuildRetentionPreview(cancellationToken), cancellationToken).ConfigureAwait(false));
 
     /// <inheritdoc />
-    public Task<OperationResult<RetentionPreview>> RunRetentionAsync(RetentionRequest request, CancellationToken cancellationToken) => MutateVisualStateAsync(async () =>
+    public Task<OperationResult<RetentionPreview>> RunRetentionAsync(RetentionRequest request, CancellationToken cancellationToken) => MutateVisualStateAsync(() => Task.Run(async () =>
     {
-        if (!request.Execute || !request.Confirmed)
+        if (!request.Execute || (!request.Confirmed && !request.Scheduled))
         {
             return OperationResult<RetentionPreview>.Failure("retention.confirmation.required", "RetentionConfirmationRequired", new ValidationIssue("confirmation", "required", "RetentionConfirmationRequired"));
         }
 
+        var now = DateTimeOffset.Now;
+        if (request.Scheduled && !BuildRetentionStatus(now).IsCleanupDue)
+            return OperationResult<RetentionPreview>.Success("retention.not_due", "RetentionCompleted", new RetentionPreview(0, 0, []));
+
         await RecoverScreenshotDeletionsAsync(cancellationToken).ConfigureAwait(false);
-        var preview = BuildRetentionPreview(cancellationToken);
+        var preview = BuildRetentionPreview(cancellationToken, now);
+        var operationId = request.OperationId == Guid.Empty ? Guid.NewGuid() : request.OperationId;
+        long completedItems = 0;
+        void Report(string phase) => Volatile.Write(ref _retentionCleanupProgress,
+            new RetentionCleanupProgress(operationId, completedItems, preview.FileCount, phase));
+        Report("Screenshots");
         var deletions = new List<ScreenshotDeletionJournal.Plan>();
         foreach (var path in preview.Paths.Where(ScreenCaptureService.IsOwnedArtifact))
         {
@@ -2007,19 +2028,28 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             if (deletion is null) continue;
             _screenshotDeletions.Execute(deletion);
             deletions.Add(deletion);
+            completedItems++;
+            Report("Screenshots");
         }
 
         var settings = _settingsSnapshot.Value;
-        var now = DateTimeOffset.Now;
-        _store.ApplyRetention(now.AddDays(-settings.DataRetentionDays));
-        var screenshotCutoff = now.AddDays(-settings.ScreenshotRetentionDays);
+        var tier = _featureAccess.Snapshot.Tier;
+        cancellationToken.ThrowIfCancellationRequested();
+        Report("Records");
+        _store.ApplyRetention(now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier)));
+        completedItems += preview.RecordCount;
+        Report("Search");
+        var screenshotCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
         _store.PruneTerminalAiReprocessJobs(screenshotCutoff);
         _store.PruneOrphanedScreenshotCaptures(screenshotCutoff);
 
         await _search.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         foreach (var deletion in deletions) _screenshotDeletions.Complete(deletion);
+        // Advance the monthly schedule only after deletion and derived-index synchronization succeed.
+        PersistSettings(_settingsSnapshot.Value with { LastRetentionCleanupAt = now });
+        Report("Completed");
         return OperationResult<RetentionPreview>.Success("retention.completed", "RetentionCompleted", preview);
-    }, cancellationToken);
+    }, cancellationToken), cancellationToken);
 
     /// <inheritdoc />
     public Task<OperationResult<AtomicResetPlan>> PrepareAtomicResetAsync(
@@ -3087,11 +3117,13 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         });
     }
 
-    private RetentionPreview BuildRetentionPreview(CancellationToken cancellationToken)
+    private RetentionPreview BuildRetentionPreview(CancellationToken cancellationToken, DateTimeOffset? referenceTime = null)
     {
         var settings = _settingsSnapshot.Value;
-        var screenshotCutoff = DateTimeOffset.Now.AddDays(-settings.ScreenshotRetentionDays);
-        var dataCutoff = DateTimeOffset.Now.AddDays(-settings.DataRetentionDays);
+        var now = referenceTime ?? DateTimeOffset.Now;
+        var tier = _featureAccess.Snapshot.Tier;
+        var screenshotCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
+        var dataCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier));
         var retainedScreenshotPaths = Directory.Exists(settings.ScreenshotDirectory)
             ? ScreenshotStorageLayout.EnumerateOwnedArtifacts(settings.ScreenshotDirectory).ToArray()
             : [];
@@ -3111,7 +3143,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         var dataPreview = _store.GetRetentionPreview(dataCutoff);
         var paths = screenshotPaths.Concat(dataPreview.Paths).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var screenshotBytes = screenshotPaths.Sum(path => new FileInfo(path).Length);
-        return new RetentionPreview(screenshotPaths.Length + dataPreview.RecordCount, screenshotBytes + dataPreview.TotalBytes, paths);
+        return new RetentionPreview(screenshotPaths.Length + dataPreview.RecordCount, screenshotBytes + dataPreview.TotalBytes, paths,
+            dataPreview.RecordCount, screenshotPaths.Length, dataPreview.TotalBytes, screenshotBytes);
     }
 
     private static IReadOnlyList<PluginInfo> BuildPlugins(AppSettings settings) =>

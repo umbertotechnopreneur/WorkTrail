@@ -565,8 +565,8 @@ public sealed class SettingsAndRetentionSafetyTests
         Assert.Equal("auto", normalized.AiReasoningEffort);
         Assert.Equal(400, normalized.OpenAiDailyLimit);
         Assert.Equal(1440, normalized.ScreenshotIntervalMinutes);
-        Assert.Equal(0, normalized.DataRetentionDays);
-        Assert.Equal(3650, normalized.ScreenshotRetentionDays);
+        Assert.Equal(30, normalized.DataRetentionDays);
+        Assert.Equal(90, normalized.ScreenshotRetentionDays);
     }
 
     [Fact]
