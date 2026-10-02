@@ -13,6 +13,8 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 - Renamed the main-window position control consistently in every shipped UI language.
 - Removed the redundant separators above data tools and startup options, and unified
   OCR/AI navigation with the existing settings links for consistent pointer feedback.
+- Centered the labels editor on its owner at each opening while retaining saved size,
+  and kept its title bar visible independently of the global auto-hide setting.
 
 ### Calendar-month retention refinement
 

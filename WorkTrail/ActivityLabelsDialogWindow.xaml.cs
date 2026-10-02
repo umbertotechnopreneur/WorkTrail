@@ -40,7 +40,7 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
         var appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WindowHandle));
         _titleBar = new CustomTitleBarController(
             this, appWindow, RootGrid, TitleDragRegion, TitleBarLeftInsetColumn, TitleBarRightInsetColumn,
-            static () => Array.Empty<FrameworkElement>(), useTallTitleBar: false);
+            static () => Array.Empty<FrameworkElement>(), useTallTitleBar: false, allowAutoHide: false);
         _placement = new WindowPlacementService(application, this, appWindow, WindowStateKeys.ActivityLabels, 560, 460, 24, ownerAppWindow.Id);
         WindowInteropService.SetOwner(WindowHandle, ownerHandle);
         if (appWindow.Presenter is OverlappedPresenter presenter)
@@ -48,7 +48,7 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
             presenter.IsResizable = true;
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
-            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: false);
+            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: true);
         }
 
         LabelsFeatureGate.UiLanguage = settings.UiLanguage;
@@ -85,7 +85,7 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         _placement.ApplyDefaultBounds(RootGrid);
-        await _placement.RestoreOrCenterAsync(RootGrid, CancellationToken.None);
+        await _placement.RestoreAndCenterOnOwnerAsync(RootGrid, CancellationToken.None);
         if (LabelsFeatureGate.Access is { } access && FeatureCatalog.IsAllowed(ProductFeature.ActivityLabels, access))
             LabelsEditor.FocusEditor();
         else

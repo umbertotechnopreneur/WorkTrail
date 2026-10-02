@@ -35,6 +35,7 @@ internal sealed class CustomTitleBarController : IDisposable
     private readonly Func<IEnumerable<FrameworkElement>> _interactiveElements;
     private readonly Grid _rootGrid;
     private readonly bool _supportsContentOverlay;
+    private readonly bool _allowAutoHide;
     private TitleBarOverlayLayout? _overlayLayout;
     private bool _overlayContentEnabled;
     private readonly Border _revealSurface;
@@ -57,6 +58,16 @@ internal sealed class CustomTitleBarController : IDisposable
     private bool _layoutUpdateQueued;
     private bool _disposed;
 
+    // window hosts the custom caption.
+    // appWindow supplies the native caption and pointer regions.
+    // root contains the title bar and window content.
+    // dragRegion defines the visible title bar and native drag area.
+    // leftInsetColumn reserves the native left caption inset.
+    // rightInsetColumn reserves space for native caption buttons.
+    // interactiveElements identifies title-bar controls that receive pointer input.
+    // useTallTitleBar selects the native caption height.
+    // overlayContent allows the caption to float above content when hidden automatically.
+    // allowAutoHide lets this window follow the global auto-hide preference.
     internal CustomTitleBarController(
         Window window,
         AppWindow appWindow,
@@ -66,7 +77,8 @@ internal sealed class CustomTitleBarController : IDisposable
         ColumnDefinition rightInsetColumn,
         Func<IEnumerable<FrameworkElement>> interactiveElements,
         bool useTallTitleBar = true,
-        bool overlayContent = false)
+        bool overlayContent = false,
+        bool allowAutoHide = true)
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
         _appWindow = appWindow ?? throw new ArgumentNullException(nameof(appWindow));
@@ -79,6 +91,7 @@ internal sealed class CustomTitleBarController : IDisposable
             ?? throw new ArgumentException("Shared title bars require a grid window root.", nameof(root));
         _overlayContentEnabled = overlayContent;
         _supportsContentOverlay = overlayContent;
+        _allowAutoHide = allowAutoHide;
         _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
         _visibleOpacity = _dragRegion.Opacity;
         _visibleHitTesting = _dragRegion.IsHitTestVisible;
@@ -153,7 +166,9 @@ internal sealed class CustomTitleBarController : IDisposable
 
     /// <summary>Gets the vertical space consumed by docked chrome, excluding a floating overlay.</summary>
     internal double ReservedHeight => _overlayLayout?.ReservedHeight
-        ?? (_supportsContentOverlay && _overlayContentEnabled && _autoHideEnabled ? 0d : _dragRegion.ActualHeight);
+        ?? (_supportsContentOverlay && _overlayContentEnabled && AutoHideEnabled ? 0d : _dragRegion.ActualHeight);
+
+    private bool AutoHideEnabled => _allowAutoHide && _autoHideEnabled;
 
     /// <summary>Temporarily docks the title bar when a widget displays interactive settings.</summary>
     internal void SetOverlayContentEnabled(bool enabled)
@@ -177,7 +192,7 @@ internal sealed class CustomTitleBarController : IDisposable
         // WinUI does not attach XAML parents during window construction. Capture the original
         // rows only after Loaded, when the header belongs to its live visual tree.
         _overlayLayout ??= new TitleBarOverlayLayout(_rootGrid, _dragRegion);
-        var overlay = _overlayContentEnabled && _autoHideEnabled;
+        var overlay = _overlayContentEnabled && AutoHideEnabled;
         _overlayLayout.SetEnabled(overlay);
         // Span the content only for layout; the shield's fixed height limits input to the floating caption.
         Grid.SetRowSpan(_revealSurface, overlay ? Math.Max(1, _rootGrid.RowDefinitions.Count) : 1);
@@ -476,10 +491,10 @@ internal sealed class CustomTitleBarController : IDisposable
             || (_xamlRoot is not null && VisualTreeHelper.GetOpenPopupsForXamlRoot(_xamlRoot).Count > 0);
         _visibility.SetInteractionProtection(protectedInteraction);
         // A contact that began on hidden chrome must finish before any delayed or settings-driven reveal.
-        var desiredVisible = !_visibility.IsRevealContactPending
-            && (!_autoHideEnabled || _visibility.ShouldShowChrome(_chromeVisible));
+        var desiredVisible = !_allowAutoHide
+            || (!_visibility.IsRevealContactPending && (!_autoHideEnabled || _visibility.ShouldShowChrome(_chromeVisible)));
         var visible = _transition.Update(desiredVisible, Stopwatch.GetElapsedTime(_transitionOrigin),
-            immediate: immediate || protectedInteraction || !_autoHideEnabled);
+            immediate: immediate || protectedInteraction || !AutoHideEnabled);
         _transitionTimer.Stop();
         if (_transition.HasPendingTransition && _root.IsLoaded && _appWindow.IsVisible)
         {
