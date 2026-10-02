@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "Client",
   "Timesheet.Rate.Header": "Hourly rate",
   "Timesheet.Currency.Header": "Currency (ISO code)",
-  "Timesheet.Jobs.Header": "Saved batch reports"
+  "Timesheet.Jobs.Header": "Saved batch reports",
+  "Timesheet.PreviousPage": "Previous jobs",
+  "Timesheet.NextPage": "Next jobs",
+  "Timesheet.ResultsPending": "The batch has finished. Its results still need to be saved on this PC.",
+  "Timesheet.CleanupPending": "The report is saved. Cleanup is still pending; choose Refresh to retry.",
+  "Options.ScreenshotNotifications.Header": "Screenshot notifications",
+  "Options.ScreenshotNotifications.Description": "Show a Windows notification with the captured image. You can also turn these notices off from a notification.",
+  "Notification.ScreenshotCaptured.Title": "Screenshot captured",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail captured this screen.",
+  "Notification.ScreenshotCaptured.Disable": "Turn off these notifications",
+  "Notification.ScreenshotCaptured.DisableFailed": "Could not turn off screenshot notifications. Please try again in Options."
 }

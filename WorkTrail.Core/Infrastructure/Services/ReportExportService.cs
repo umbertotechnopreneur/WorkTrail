@@ -39,14 +39,6 @@ internal sealed partial class ReportExportService(LocalStore store)
         ReportExportWriter.AtomicWrite(PreferencesPath, true, stream => JsonSerializer.Serialize(stream, preferences, Json), cancellationToken);
     }
 
-    internal static string Extension(ReportExportFormat format) => format switch
-    {
-        ReportExportFormat.Excel => ".xlsx",
-        ReportExportFormat.Csv => ".zip",
-        ReportExportFormat.Json => ".json",
-        _ => throw new ArgumentOutOfRangeException(nameof(format))
-    };
-
     internal void Validate(ReportExportOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -112,8 +104,8 @@ internal sealed partial class ReportExportService(LocalStore store)
             }).ToArray()).ToArray();
             return new ReportExportTablePreview(table.Name, table.Columns, rows, table.RowCount);
         }).ToArray();
-        return new($"WorkTrail_{document.Options.From:yyyy-MM-dd}_{document.Options.ToInclusive:yyyy-MM-dd}",
-            Extension(document.Options.Format), document.Report.Totals.ActiveSeconds, document.Captures.Count,
+        return new(ReportExportFileNames.SuggestedFileName(document.Options),
+            ReportExportFileNames.Extension(document.Options.Format), document.Report.Totals.ActiveSeconds, document.Captures.Count,
             document.Captures.Count(item => !string.IsNullOrWhiteSpace(item.AiDescriptionMarkdown)), document.Report.Quality.CoverageRatio, tables);
     }
 

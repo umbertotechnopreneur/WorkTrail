@@ -40,10 +40,10 @@
                         PaneDisplayMode="Auto" OpenPaneLength="192" ExpandedModeThresholdWidth="1050" CompactModeThresholdWidth="720"
                         SelectionChanged="Navigation_SelectionChanged">
             <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="ExportTab" Icon="Save" Tag="Export.Tab" />
-                <NavigationViewItem x:Name="ContentsTab" Icon="Bullets" Tag="Export.Contents" />
-                <NavigationViewItem x:Name="SummaryTab" Icon="Edit" Tag="Export.AiSummary" />
-                <NavigationViewItem x:Name="TimesheetTab" Icon="Calendar" Tag="Timesheet.Title" />
+                <NavigationViewItem AutomationProperties.AutomationId="Report.ExportTab" x:Name="ExportTab" Icon="Save" Tag="Export.Tab" />
+                <NavigationViewItem AutomationProperties.AutomationId="Report.ContentsTab" x:Name="ContentsTab" Icon="Bullets" Tag="Export.Contents" />
+                <NavigationViewItem AutomationProperties.AutomationId="Report.SummaryTab" x:Name="SummaryTab" Icon="Edit" Tag="Export.AiSummary" />
+                <NavigationViewItem AutomationProperties.AutomationId="Report.TimesheetTab" x:Name="TimesheetTab" Icon="Calendar" Tag="Timesheet.Title" />
             </NavigationView.MenuItems>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <Grid x:Name="BodyGrid" Margin="24,8,24,24" ColumnSpacing="28" RowSpacing="24" SizeChanged="BodyGrid_SizeChanged">
@@ -54,21 +54,21 @@
                             <TextBlock Tag="Export.Title" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
                             <TextBlock Tag="Export.Intro" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Button x:Name="TodayButton" Tag="Export.Today" Click="Today_Click">
+                                <Button AutomationProperties.AutomationId="Report.TodayButton" x:Name="TodayButton" Tag="Export.Today" Click="Today_Click">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8BF;" FontSize="16"
                                                   Foreground="{ThemeResource SaveActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
                                         <TextBlock Tag="Export.Today" Text="Today" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <Button x:Name="WeekButton" Tag="Export.Week" Click="Week_Click">
+                                <Button AutomationProperties.AutomationId="Report.WeekButton" x:Name="WeekButton" Tag="Export.Week" Click="Week_Click">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8C0;" FontSize="16"
                                                   Foreground="{ThemeResource WeekActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
                                         <TextBlock Tag="Export.Week" Text="7 days" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <Button x:Name="MonthButton" Tag="Export.Month" Click="Month_Click">
+                                <Button AutomationProperties.AutomationId="Report.MonthButton" x:Name="MonthButton" Tag="Export.Month" Click="Month_Click">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE787;" FontSize="16"
                                                   Foreground="{ThemeResource SummaryActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
@@ -76,49 +76,49 @@
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
-                            <CalendarDatePicker x:Name="FromPicker" HorizontalAlignment="Stretch" DateChanged="DateChanged" />
-                            <CalendarDatePicker x:Name="ToPicker" HorizontalAlignment="Stretch" DateChanged="DateChanged" />
+                            <CalendarDatePicker AutomationProperties.AutomationId="Report.FromPicker" x:Name="FromPicker" HorizontalAlignment="Stretch" DateChanged="DateChanged" />
+                            <CalendarDatePicker AutomationProperties.AutomationId="Report.ToPicker" x:Name="ToPicker" HorizontalAlignment="Stretch" DateChanged="DateChanged" />
                             <TextBlock x:Name="TimeZoneText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                            <ComboBox x:Name="DevicesCombo" Tag="Export.Devices" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
-                            <ComboBox x:Name="FormatCombo" Tag="Export.Format" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
+                            <ComboBox AutomationProperties.AutomationId="Report.DevicesCombo" x:Name="DevicesCombo" Tag="Export.Devices" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
+                            <ComboBox AutomationProperties.AutomationId="Report.FormatCombo" x:Name="FormatCombo" Tag="Export.Format" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
                             <TextBlock x:Name="FormatHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel x:Name="ContentsPage" Visibility="Collapsed" Spacing="10">
                             <TextBlock Tag="Export.Contents" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" Margin="0,0,0,10" />
-                            <CheckBox x:Name="DaysCheck" Tag="Export.Days" Click="OptionsChanged" />
-                            <CheckBox x:Name="ApplicationsCheck" Tag="Export.Applications" Click="OptionsChanged" />
-                            <CheckBox x:Name="CapturesCheck" Tag="Export.Captures" Click="OptionsChanged" />
-                            <CheckBox x:Name="TelemetryCheck" Tag="Export.Telemetry" Click="OptionsChanged" />
-                            <CheckBox x:Name="UsageCheck" Tag="Export.AiUsage" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.DaysCheck" x:Name="DaysCheck" Tag="Export.Days" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.ApplicationsCheck" x:Name="ApplicationsCheck" Tag="Export.Applications" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.CapturesCheck" x:Name="CapturesCheck" Tag="Export.Captures" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TelemetryCheck" x:Name="TelemetryCheck" Tag="Export.Telemetry" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.UsageCheck" x:Name="UsageCheck" Tag="Export.AiUsage" Click="OptionsChanged" />
                             <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
-                            <CheckBox x:Name="DescriptionsCheck" Tag="Export.SavedDescriptions" Click="OptionsChanged" />
-                            <ComboBox x:Name="DescriptionCombo" Tag="Export.DescriptionMode" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.DescriptionsCheck" x:Name="DescriptionsCheck" Tag="Export.SavedDescriptions" Click="OptionsChanged" />
+                            <ComboBox AutomationProperties.AutomationId="Report.DescriptionCombo" x:Name="DescriptionCombo" Tag="Export.DescriptionMode" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
                             <TextBlock Tag="Export.ExcerptHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <CheckBox x:Name="OcrCheck" Tag="Export.Ocr" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.OcrCheck" x:Name="OcrCheck" Tag="Export.Ocr" Click="OptionsChanged" />
                             <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8" />
-                            <CheckBox x:Name="TitlesCheck" Tag="Export.Titles" Click="OptionsChanged" />
-                            <CheckBox x:Name="DevicesCheck" Tag="Export.DeviceNames" Click="OptionsChanged" />
-                            <CheckBox x:Name="PathsCheck" Tag="Export.Paths" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TitlesCheck" x:Name="TitlesCheck" Tag="Export.Titles" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.DevicesCheck" x:Name="DevicesCheck" Tag="Export.DeviceNames" Click="OptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.PathsCheck" x:Name="PathsCheck" Tag="Export.Paths" Click="OptionsChanged" />
                             <TextBlock Tag="Export.PrivacyHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <ComboBox x:Name="SeparatorCombo" Tag="Export.Separator" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
+                            <ComboBox AutomationProperties.AutomationId="Report.SeparatorCombo" x:Name="SeparatorCombo" Tag="Export.Separator" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
                         </StackPanel>
                         <StackPanel x:Name="SummaryPage" Visibility="Collapsed" Spacing="14">
                             <TextBlock Tag="Export.AiSummary" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
                             <TextBlock Tag="Timesheet.SummaryIntro" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <ComboBox x:Name="GroupingCombo" Tag="Export.Grouping" HorizontalAlignment="Stretch" SelectionChanged="SummaryOptionsChanged" />
-                            <HyperlinkButton x:Name="GroupingInfoLink" Tag="Export.MoreInformation" Content="More information" Click="GroupingInfo_Click" Padding="0" />
-                            <CheckBox x:Name="DetailedCheck" Tag="Export.Detailed" Click="SummaryOptionsChanged" />
-                            <CheckBox x:Name="IncludeSummaryCheck" Tag="Export.IncludeSummary" />
+                            <ComboBox AutomationProperties.AutomationId="Report.GroupingCombo" x:Name="GroupingCombo" Tag="Export.Grouping" HorizontalAlignment="Stretch" SelectionChanged="SummaryOptionsChanged" />
+                            <HyperlinkButton AutomationProperties.AutomationId="Report.GroupingInfoLink" x:Name="GroupingInfoLink" Tag="Export.MoreInformation" Content="More information" Click="GroupingInfo_Click" Padding="0" />
+                            <CheckBox AutomationProperties.AutomationId="Report.DetailedCheck" x:Name="DetailedCheck" Tag="Export.Detailed" Click="SummaryOptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.IncludeSummaryCheck" x:Name="IncludeSummaryCheck" Tag="Export.IncludeSummary" />
                             <TextBlock Tag="Export.SavedDescriptions" TextWrapping="Wrap" />
-                            <CheckBox x:Name="SummaryExcerptCheck" Tag="Export.Brief" IsChecked="True" Margin="16,0,0,0" Click="SummaryOptionsChanged" />
-                            <CheckBox x:Name="SummaryFullDescriptionCheck" Tag="Export.CompleteText" Margin="16,0,0,0" Click="SummaryOptionsChanged" />
-                            <CheckBox x:Name="SummaryOcrCheck" Tag="Export.Ocr" Click="SummaryOptionsChanged" />
-                            <CheckBox x:Name="SummaryTitlesCheck" Tag="Export.Titles" Click="SummaryOptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.SummaryExcerptCheck" x:Name="SummaryExcerptCheck" Tag="Export.Brief" IsChecked="True" Margin="16,0,0,0" Click="SummaryOptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.SummaryFullDescriptionCheck" x:Name="SummaryFullDescriptionCheck" Tag="Export.CompleteText" Margin="16,0,0,0" Click="SummaryOptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.SummaryOcrCheck" x:Name="SummaryOcrCheck" Tag="Export.Ocr" Click="SummaryOptionsChanged" />
+                            <CheckBox AutomationProperties.AutomationId="Report.SummaryTitlesCheck" x:Name="SummaryTitlesCheck" Tag="Export.Titles" Click="SummaryOptionsChanged" />
                             <TextBlock x:Name="ProviderText" TextWrapping="Wrap" />
                             <TextBlock Tag="Export.AiNotice" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Tag="Export.MoreInformation" Content="More information" Click="SummaryInfo_Click" />
-                                <Button x:Name="GenerateButton" Tag="Export.Generate" Click="Generate_Click">
+                                <Button AutomationProperties.AutomationId="Report.MoreInformation" Tag="Export.MoreInformation" Content="More information" Click="SummaryInfo_Click" />
+                                <Button AutomationProperties.AutomationId="Report.GenerateButton" x:Name="GenerateButton" Tag="Export.Generate" Click="Generate_Click">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                         <FontIcon Glyph="&#xE70F;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{ThemeResource SummaryActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
@@ -134,20 +134,20 @@
                             </StackPanel>
                             <TextBlock Tag="Timesheet.Intro" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             <TextBlock x:Name="TimesheetRange" TextWrapping="Wrap" />
-                            <CheckBox x:Name="TimesheetMergeCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Merge" IsChecked="True" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TimesheetMergeCheck" x:Name="TimesheetMergeCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Merge" IsChecked="True" />
                             <TextBlock Tag="Timesheet.GroupingHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <CheckBox x:Name="TimesheetMonthsCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Months" />
-                            <TextBox x:Name="TimesheetConsultant" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Consultant" MaxLength="120" />
-                            <TextBox x:Name="TimesheetClient" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Client" MaxLength="120" />
-                            <CheckBox x:Name="TimesheetBillingCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Billing" />
-                            <NumberBox x:Name="TimesheetRate" Tag="Timesheet.Rate" Value="0" Minimum="0" Maximum="1000000" SpinButtonPlacementMode="Compact" />
-                            <TextBox x:Name="TimesheetCurrency" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Currency" Text="EUR" MaxLength="3" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TimesheetMonthsCheck" x:Name="TimesheetMonthsCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Months" />
+                            <TextBox AutomationProperties.AutomationId="Report.TimesheetConsultant" x:Name="TimesheetConsultant" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Consultant" MaxLength="120" />
+                            <TextBox AutomationProperties.AutomationId="Report.TimesheetClient" x:Name="TimesheetClient" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Client" MaxLength="120" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TimesheetBillingCheck" x:Name="TimesheetBillingCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Billing" />
+                            <NumberBox AutomationProperties.AutomationId="Report.TimesheetRate" x:Name="TimesheetRate" Tag="Timesheet.Rate" Value="0" Minimum="0" Maximum="1000000" SpinButtonPlacementMode="Compact" />
+                            <TextBox AutomationProperties.AutomationId="Report.TimesheetCurrency" x:Name="TimesheetCurrency" TextChanged="TimesheetOptionsChanged" Tag="Timesheet.Currency" Text="EUR" MaxLength="3" />
                             <TextBlock Tag="Timesheet.Sources" FontWeight="SemiBold" />
-                            <CheckBox x:Name="TimesheetDescriptions" Click="TimesheetOptionsChanged" Tag="Export.SavedDescriptions" IsChecked="True" />
-                            <CheckBox x:Name="TimesheetOcr" Click="TimesheetOptionsChanged" Tag="Export.Ocr" />
-                            <CheckBox x:Name="TimesheetTitles" Click="TimesheetOptionsChanged" Tag="Export.Titles" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TimesheetDescriptions" x:Name="TimesheetDescriptions" Click="TimesheetOptionsChanged" Tag="Export.SavedDescriptions" IsChecked="True" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TimesheetOcr" x:Name="TimesheetOcr" Click="TimesheetOptionsChanged" Tag="Export.Ocr" />
+                            <CheckBox AutomationProperties.AutomationId="Report.TimesheetTitles" x:Name="TimesheetTitles" Click="TimesheetOptionsChanged" Tag="Export.Titles" />
                             <TextBlock Tag="Timesheet.Notice" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <Button Tag="Timesheet.Submit" Content="Submit batch" Click="TimesheetStart_Click" />
+                            <Button AutomationProperties.AutomationId="Report.Timesheet_Submit" Tag="Timesheet.Submit" Content="Submit batch" Click="TimesheetStart_Click" />
                         </StackPanel>
                     </StackPanel>
                     <StackPanel x:Name="ResultsPanel" Grid.Column="1" Spacing="14">
@@ -156,16 +156,20 @@
                             <StackPanel Margin="22" Spacing="12" MaxWidth="245" HorizontalAlignment="Left" VerticalAlignment="Center">
                                 <TextBlock Tag="Timesheet.PreviewTitle" FontSize="23" FontWeight="SemiBold" Foreground="#173C2D" TextWrapping="Wrap" />
                                 <TextBlock Tag="Timesheet.PreviewHelp" Foreground="#173C2D" TextWrapping="Wrap" />
-                                <Button Tag="Timesheet.OpenPreview" Content="Open Excel preview" Click="ExcelPreview_Click" />
+                                <Button AutomationProperties.AutomationId="Report.Timesheet_OpenPreview" Tag="Timesheet.OpenPreview" Content="Open Excel preview" Click="ExcelPreview_Click" />
                             </StackPanel>
                         </Border>
                         <StackPanel x:Name="TimesheetJobsPanel" Visibility="Collapsed" Spacing="14">
-                            <ComboBox x:Name="TimesheetJobs" Tag="Timesheet.Jobs" HorizontalAlignment="Stretch" SelectionChanged="TimesheetJobs_SelectionChanged" />
+                            <ComboBox AutomationProperties.AutomationId="Report.TimesheetJobs" x:Name="TimesheetJobs" Tag="Timesheet.Jobs" HorizontalAlignment="Stretch" SelectionChanged="TimesheetJobs_SelectionChanged" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button AutomationProperties.AutomationId="Report.TimesheetPreviousButton" x:Name="TimesheetPreviousButton" Tag="Timesheet.PreviousPage" Content="Previous" Click="TimesheetPrevious_Click" IsEnabled="False" />
+                                <Button AutomationProperties.AutomationId="Report.TimesheetNextButton" x:Name="TimesheetNextButton" Tag="Timesheet.NextPage" Content="Next" Click="TimesheetNext_Click" IsEnabled="False" />
+                            </StackPanel>
                             <TextBlock x:Name="TimesheetStatus" TextWrapping="Wrap" FontWeight="SemiBold" />
-                            <Button Tag="Timesheet.Refresh" Content="Refresh status" Click="TimesheetRefresh_Click" />
-                            <Button x:Name="TimesheetCancelButton" Tag="Timesheet.Cancel" Content="Cancel cloud batch" Click="TimesheetCancel_Click" IsEnabled="False" />
+                            <Button AutomationProperties.AutomationId="Report.Timesheet_Refresh" Tag="Timesheet.Refresh" Content="Refresh status" Click="TimesheetRefresh_Click" />
+                            <Button AutomationProperties.AutomationId="Report.TimesheetCancelButton" x:Name="TimesheetCancelButton" Tag="Timesheet.Cancel" Content="Cancel cloud batch" Click="TimesheetCancel_Click" IsEnabled="False" />
                             <TextBlock Tag="Timesheet.ReviewNote" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <Button x:Name="TimesheetExportButton" Tag="Timesheet.Export" Content="Save Excel" Click="TimesheetExport_Click" IsEnabled="False" />
+                            <Button AutomationProperties.AutomationId="Report.TimesheetExportButton" x:Name="TimesheetExportButton" Tag="Timesheet.Export" Content="Save Excel" Click="TimesheetExport_Click" IsEnabled="False" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -179,17 +183,17 @@
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <StackPanel x:Name="PreferenceActions" Orientation="Horizontal" Spacing="8">
-                <Button x:Name="SaveButton" Tag="Export.SavePreset" Click="Save_Click">
+                <Button AutomationProperties.AutomationId="Report.SaveButton" x:Name="SaveButton" Tag="Export.SavePreset" Click="Save_Click">
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                         <FontIcon Glyph="&#xE74E;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{ThemeResource SaveActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />
                         <TextBlock Grid.Column="1" Tag="Export.SavePreset" Text="Save preferences" TextWrapping="Wrap" />
                     </Grid>
                 </Button>
-                <Button x:Name="CancelButton" Tag="Export.Cancel" Content="Cancel" Visibility="Collapsed" Click="Cancel_Click" />
+                <Button AutomationProperties.AutomationId="Report.CancelButton" x:Name="CancelButton" Tag="Export.Cancel" Content="Cancel" Visibility="Collapsed" Click="Cancel_Click" />
             </StackPanel>
-            <Button Grid.Column="1" x:Name="CloseButton" Tag="About.Close" Content="Close" Click="Close_Click" />
-            <Button Grid.Column="2" x:Name="ExportButton" Tag="Export.Action" Style="{StaticResource AccentButtonStyle}" Click="Export_Click" MinWidth="110">
+            <Button AutomationProperties.AutomationId="Report.Close" Grid.Column="1" x:Name="CloseButton" Tag="About.Close" Content="Close" Click="Close_Click" />
+            <Button AutomationProperties.AutomationId="Report.Export" Grid.Column="2" x:Name="ExportButton" Tag="Export.Action" Style="{StaticResource AccentButtonStyle}" Click="Export_Click" MinWidth="110">
                 <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <FontIcon Glyph="&#xE898;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{ThemeResource ExportActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />

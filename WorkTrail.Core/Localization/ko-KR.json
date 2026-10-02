@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "고객",
   "Timesheet.Rate.Header": "시간당 요율",
   "Timesheet.Currency.Header": "통화 (ISO 코드)",
-  "Timesheet.Jobs.Header": "저장된 배치 보고서"
+  "Timesheet.Jobs.Header": "저장된 배치 보고서",
+  "Timesheet.PreviousPage": "이전 작업",
+  "Timesheet.NextPage": "다음 작업",
+  "Timesheet.ResultsPending": "배치가 완료되었습니다. 결과를 이 PC에 저장해야 합니다.",
+  "Timesheet.CleanupPending": "보고서가 저장되었습니다. 정리가 아직 대기 중입니다. 새로 고침을 선택하여 다시 시도하세요.",
+  "Options.ScreenshotNotifications.Header": "스크린샷 알림",
+  "Options.ScreenshotNotifications.Description": "캡처한 이미지가 포함된 Windows 알림을 표시합니다. 알림에서도 이 안내를 끌 수 있습니다.",
+  "Notification.ScreenshotCaptured.Title": "스크린샷 캡처 완료",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail이 이 화면을 캡처했습니다.",
+  "Notification.ScreenshotCaptured.Disable": "이 알림 끄기",
+  "Notification.ScreenshotCaptured.DisableFailed": "스크린샷 알림을 끄지 못했습니다. 옵션에서 다시 시도하세요."
 }

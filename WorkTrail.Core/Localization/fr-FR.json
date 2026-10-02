@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "Client",
   "Timesheet.Rate.Header": "Tarif horaire",
   "Timesheet.Currency.Header": "Devise (code ISO)",
-  "Timesheet.Jobs.Header": "Rapports batch enregistrés"
+  "Timesheet.Jobs.Header": "Rapports batch enregistrés",
+  "Timesheet.PreviousPage": "Précédents",
+  "Timesheet.NextPage": "Suivants",
+  "Timesheet.ResultsPending": "Le lot est terminé. Ses résultats doivent encore être enregistrés sur ce PC.",
+  "Timesheet.CleanupPending": "Le rapport est enregistré. Le nettoyage reste en attente ; choisissez Actualiser pour réessayer.",
+  "Options.ScreenshotNotifications.Header": "Notifications de capture d’écran",
+  "Options.ScreenshotNotifications.Description": "Afficher une notification Windows avec l’image capturée. Vous pouvez aussi désactiver ces alertes depuis une notification.",
+  "Notification.ScreenshotCaptured.Title": "Capture d’écran effectuée",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail a capturé cet écran.",
+  "Notification.ScreenshotCaptured.Disable": "Désactiver ces notifications",
+  "Notification.ScreenshotCaptured.DisableFailed": "Impossible de désactiver les notifications de capture. Réessayez dans les options."
 }

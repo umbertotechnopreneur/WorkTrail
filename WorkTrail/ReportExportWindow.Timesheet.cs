@@ -16,7 +16,7 @@ internal sealed partial class ReportExportWindow
     private void ResetTimesheetSelection()
     {
         if (_applyingTimesheet || _timesheetView is null) return;
-        _timesheetView = _timesheetView with { Selected = null, Rows = [] };
+        _timesheetView = _timesheetView with { Selected = null };
         _applyingTimesheet = true;
         TimesheetJobs.SelectedIndex = -1;
         _applyingTimesheet = false;
@@ -32,7 +32,7 @@ internal sealed partial class ReportExportWindow
     private async void ExcelPreview_Click(object sender, RoutedEventArgs args) => await RunAsync(async token =>
     {
         var timesheet = ReferenceEquals(Navigation.SelectedItem, TimesheetTab);
-        var id = timesheet && _timesheetView?.Selected is { State: not "preview" } selected ? selected.Id : (Guid?)null;
+        var id = timesheet && _timesheetView?.Selected is { } selected ? selected.Id : (Guid?)null;
         var result = await _application.OpenReportFilePreviewAsync(new(CollectOptions(),
             IncludeSummaryCheck.IsChecked == true ? _summary : null, timesheet && id is null ? CollectTimesheetOptions() : null, id), token);
         ShowStatus(result.Succeeded ? "Timesheet.PreviewOpened" : result.MessageKey,
@@ -70,12 +70,12 @@ internal sealed partial class ReportExportWindow
         _timesheetTimer.Start();
     }
 
-    // sender and args identify a passive poll; new paid work is never scheduled here.
+    // sender and args identify a metadata refresh; the runtime independently retrieves cloud results.
     private async void TimesheetTimer_Tick(object? sender, object args)
     {
         if (_busy || _closed || !ReferenceEquals(Navigation.SelectedItem, TimesheetTab)
-            || _timesheetView?.Selected is not { State: "validating" or "in_progress" or "finalizing" or "cancelling" } selected) return;
-        await RunTimesheetAsync(new(TimesheetBatchAction.Refresh, JobId: selected.Id));
+            || _timesheetView?.Selected is not { } selected) return;
+        await RunTimesheetAsync(new(TimesheetBatchAction.List, JobId: selected.Id, Page: _timesheetView.Page));
     }
 
     // command contains user choices; the facade owns persistence, credentials and networking.
@@ -85,6 +85,7 @@ internal sealed partial class ReportExportWindow
         if (result.Succeeded && result.Value is { } view)
         {
             RenderTimesheet(view);
+            if (view.WarningKey is { } warning) ShowStatus(warning, InfoBarSeverity.Warning);
             if (view.ExportedPath is { } path)
             {
                 StatusBar.Message = _strings.Format("Export.SavedTo", path);
@@ -105,18 +106,22 @@ internal sealed partial class ReportExportWindow
         _applyingTimesheet = false;
         var current = view.Selected;
         var terminal = current?.State is "completed" or "failed" or "expired" or "cancelled";
-        TimesheetExportButton.IsEnabled = terminal;
-        TimesheetCancelButton.IsEnabled = current is not null && !terminal && current.State is not ("preview" or "prepared");
+        TimesheetExportButton.IsEnabled = current?.ResultsSaved == true;
+        TimesheetCancelButton.IsEnabled = current is not null && !terminal && current.State != "prepared";
+        TimesheetPreviousButton.IsEnabled = view.HasPreviousPage;
+        TimesheetNextButton.IsEnabled = view.HasNextPage;
         TimesheetStatus.Text = current is null ? T("Timesheet.Empty")
             : _strings.Format("Timesheet.Progress", T("Timesheet.State." + current.State), current.CompletedCount, current.RowCount, current.FailedCount)
-                + $"\n{current.From:d} — {current.ToInclusive:d}";
+                + $"\n{current.From:d} — {current.ToInclusive:d}"
+                + (terminal && !current.ResultsSaved ? "\n" + T("Timesheet.ResultsPending") : "")
+                + (current.ResultsSaved && current.CleanupPending ? "\n" + T("Timesheet.CleanupPending") : "");
     }
 
     // sender and args identify the explicit paid batch submission.
     private async void TimesheetStart_Click(object sender, RoutedEventArgs args) =>
         await RunTimesheetOptionsAsync(TimesheetBatchAction.Start);
 
-    // action is Preview or Start; collecting invalid numeric input is reported instead of escaping async void.
+    // action selects the explicit submission; invalid numeric input is reported instead of escaping async void.
     private async Task RunTimesheetOptionsAsync(TimesheetBatchAction action)
     {
         try { await RunTimesheetAsync(new(action, CollectTimesheetOptions())); }
@@ -125,21 +130,21 @@ internal sealed partial class ReportExportWindow
 
     // sender and args identify an explicit status refresh, including recovery after a lost create response.
     private async void TimesheetRefresh_Click(object sender, RoutedEventArgs args) =>
-        await RunTimesheetAsync(new(_timesheetView?.Selected is { State: not "preview" } ? TimesheetBatchAction.Refresh : TimesheetBatchAction.List,
-            JobId: _timesheetView?.Selected is { State: not "preview" } selected ? selected.Id : null));
+        await RunTimesheetAsync(new(_timesheetView?.Selected is not null ? TimesheetBatchAction.Refresh : TimesheetBatchAction.List,
+            JobId: _timesheetView?.Selected?.Id, Page: _timesheetView?.Page ?? 0));
 
     // sender and args identify explicit cloud cancellation; closing the window does not use this action.
     private async void TimesheetCancel_Click(object sender, RoutedEventArgs args)
     {
         if (_timesheetView?.Selected is { } selected)
-            await RunTimesheetAsync(new(TimesheetBatchAction.Cancel, JobId: selected.Id));
+            await RunTimesheetAsync(new(TimesheetBatchAction.Cancel, JobId: selected.Id, Page: _timesheetView!.Page));
     }
 
     // sender and args identify the selected durable job; changing jobs does not generate summaries.
     private async void TimesheetJobs_SelectionChanged(object sender, SelectionChangedEventArgs args)
     {
         if (_applyingTimesheet || _busy || _timesheetView is null || TimesheetJobs.SelectedIndex < 0) return;
-        await RunTimesheetAsync(new(TimesheetBatchAction.List, JobId: _timesheetView.Jobs[TimesheetJobs.SelectedIndex].Id));
+        await RunTimesheetAsync(new(TimesheetBatchAction.List, JobId: _timesheetView.Jobs[TimesheetJobs.SelectedIndex].Id, Page: _timesheetView.Page));
     }
 
     // sender and args identify the explicit destination picker for the saved result snapshot.
@@ -156,7 +161,7 @@ internal sealed partial class ReportExportWindow
         var destination = await picker.PickSaveFileAsync();
         if (destination is null) return;
         var result = await _application.ManageTimesheetBatchAsync(new(TimesheetBatchAction.Export, JobId: selected.Id,
-            DestinationPath: destination.Path, Overwrite: true), token);
+            DestinationPath: destination.Path, Overwrite: true, Page: _timesheetView!.Page), token);
         if (result.Succeeded && result.Value is { } view)
         {
             RenderTimesheet(view);
@@ -166,4 +171,18 @@ internal sealed partial class ReportExportWindow
         else if (result.MessageKey == "Premium.Required") await ShowUpgradeAsync();
         else ShowStatus(result.MessageKey, InfoBarSeverity.Error);
     });
+    // sender and args identify an explicit archive-page change; no cloud request is submitted.
+    private async void TimesheetPrevious_Click(object sender, RoutedEventArgs args)
+    {
+        if (_timesheetView is { HasPreviousPage: true } view)
+            await RunTimesheetAsync(new(TimesheetBatchAction.List, Page: view.Page - 1));
+    }
+
+    // sender and args identify the next bounded page of saved jobs.
+    private async void TimesheetNext_Click(object sender, RoutedEventArgs args)
+    {
+        if (_timesheetView is { HasNextPage: true } view)
+            await RunTimesheetAsync(new(TimesheetBatchAction.List, Page: view.Page + 1));
+    }
+
 }

@@ -11,8 +11,6 @@ namespace WorkTrail.Services;
 internal static class TimesheetExcelWriter
 {
     private const string Ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-    private const string Rel = "http://schemas.openxmlformats.org/package/2006/relationships";
-    private const string OfficeRel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
     // job is the immutable report snapshot selected for export.
     // destination is the fully qualified path chosen by the user.
@@ -37,7 +35,7 @@ internal static class TimesheetExcelWriter
             for (var index = 0; index < sheets.Count; index++)
                 WriteSheet(zip, index + 1, rowLimit is { } limit ? sheets[index].Rows.Take(limit).ToArray() : sheets[index].Rows,
                     sheets[index].Details, job.Options, strings, rowLimit.HasValue, token);
-            Package(zip, sheets.Select(sheet => sheet.Name).ToArray());
+            ReportExportWriter.WriteWorkbookPackage(zip, sheets.Select(sheet => sheet.Name).ToArray(), recalculateOnOpen: true);
             Styles(zip);
         }, token);
         return path;
@@ -86,7 +84,7 @@ internal static class TimesheetExcelWriter
             {
                 Cell(xml, "A7", active, 9, !details && rows.Length > 0 ? $"SUM(C{first}:C{last})" : null);
                 Cell(xml, "D7", rows.Sum(row => row.IdleSeconds) / 86400d, 9);
-                Cell(xml, "F7", active * 3, 6);
+                Cell(xml, "F7", active * 3, 6, "A7*3");
             });
             Row(xml, 9, 40, () => Cell(xml, "A9", T("ReviewNote")));
             Row(xml, 10, 30, () =>
@@ -144,48 +142,6 @@ internal static class TimesheetExcelWriter
             options.Sources.IncludeOcr ? "OCR" : null,
             options.Sources.IncludeWindowTitles ? strings.Translate("Export.Titles") : null
         }.OfType<string>());
-
-    // zip contains the completed worksheets; names preserves their stable order.
-    private static void Package(ZipArchive zip, string[] names)
-    {
-        ReportExportWriter.WriteXml(zip, "[Content_Types].xml", xml =>
-        {
-            const string ns = "http://schemas.openxmlformats.org/package/2006/content-types";
-            xml.WriteStartElement("Types", ns);
-            ReportExportWriter.Element(xml, "Default", ns, ("Extension", "rels"), ("ContentType", "application/vnd.openxmlformats-package.relationships+xml"));
-            ReportExportWriter.Element(xml, "Default", ns, ("Extension", "xml"), ("ContentType", "application/xml"));
-            foreach (var part in new[] { ("workbook.xml", "sheet.main"), ("styles.xml", "styles") }
-                .Concat(Enumerable.Range(1, names.Length).Select(i => ($"worksheets/sheet{i}.xml", "worksheet"))))
-                ReportExportWriter.Element(xml, "Override", ns, ("PartName", "/xl/" + part.Item1),
-                    ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml." + part.Item2 + "+xml"));
-            xml.WriteEndElement();
-        });
-        ReportExportWriter.WriteXml(zip, "_rels/.rels", xml =>
-        {
-            xml.WriteStartElement("Relationships", Rel);
-            ReportExportWriter.Element(xml, "Relationship", Rel, ("Id", "rId1"), ("Type", OfficeRel + "/officeDocument"), ("Target", "xl/workbook.xml"));
-            xml.WriteEndElement();
-        });
-        ReportExportWriter.WriteXml(zip, "xl/_rels/workbook.xml.rels", xml =>
-        {
-            xml.WriteStartElement("Relationships", Rel);
-            for (var i = 1; i <= names.Length; i++)
-                ReportExportWriter.Element(xml, "Relationship", Rel, ("Id", "rId" + I(i)), ("Type", OfficeRel + "/worksheet"), ("Target", $"worksheets/sheet{i}.xml"));
-            ReportExportWriter.Element(xml, "Relationship", Rel, ("Id", "styles"), ("Type", OfficeRel + "/styles"), ("Target", "styles.xml"));
-            xml.WriteEndElement();
-        });
-        ReportExportWriter.WriteXml(zip, "xl/workbook.xml", xml =>
-        {
-            xml.WriteStartElement("workbook", Ns); xml.WriteAttributeString("xmlns", "r", null, OfficeRel);
-            xml.WriteStartElement("sheets", Ns);
-            for (var i = 0; i < names.Length; i++)
-            {
-                xml.WriteStartElement("sheet", Ns); xml.WriteAttributeString("name", names[i]); xml.WriteAttributeString("sheetId", I(i + 1));
-                xml.WriteAttributeString("r", "id", OfficeRel, "rId" + I(i + 1)); xml.WriteEndElement();
-            }
-            xml.WriteEndElement(); E(xml, "calcPr", ("calcId", "191029"), ("fullCalcOnLoad", "1")); xml.WriteEndElement();
-        });
-    }
 
     // zip receives a compact style palette with genuine numeric date/time/currency formats.
     private static void Styles(ZipArchive zip) => ReportExportWriter.WriteXml(zip, "xl/styles.xml", xml =>

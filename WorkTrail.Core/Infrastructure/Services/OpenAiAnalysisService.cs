@@ -63,6 +63,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
     private readonly IScreenCaptureService _capture;
     private readonly IAIDecoder? _decoder;
     private readonly ILogger<OpenAiAnalysisService> _logger;
+    private readonly ScreenshotPublicationJournal _screenshotPublications;
 
     /// <summary>
     /// Creates a new AI analysis service.
@@ -81,6 +82,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         _capture = capture;
         _decoder = decoder;
         _logger = logger ?? NullLogger<OpenAiAnalysisService>.Instance;
+        _screenshotPublications = new ScreenshotPublicationJournal(store);
     }
 
     /// <summary>
@@ -103,11 +105,12 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         cancellationToken.ThrowIfCancellationRequested();
         var settings = _store.LoadSettings();
         var apiKey = LoadRequiredApiKey(settings);
+        var captureRoot = settings.KeepScreenshots ? settings.ScreenshotDirectory : _screenshotPublications.TransientRoot;
 
         // Keep analysis possible even when screenshots are disabled. In that case, run with empty image context.
         var captureResult = allowCapture && settings.ScreenshotsEnabled
             ? _capture.CaptureByMode(
-                settings.ScreenshotDirectory,
+                captureRoot,
                 settings.ScreenshotCaptureMode,
                 captureOrigin: origin == "snapshot.scheduled" ? ScreenshotCaptureOrigins.Scheduled : ScreenshotCaptureOrigins.Manual,
                 authorizeCapture: context => TrackingDomainService.EvaluateScreenshotCapture(settings, context))
@@ -117,15 +120,35 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 Array.Empty<string>(),
                 origin == "snapshot.scheduled" ? ScreenshotCaptureOrigins.Scheduled : ScreenshotCaptureOrigins.Manual);
 
-        return await AnalyzeCapturedScreenCoreAsync(
-            settings,
-            apiKey,
-            activity,
-            captureResult,
-            settings.KeepScreenshots,
-            origin,
-            includeCurrentSystemContext: true,
-            cancellationToken);
+        var published = false;
+        try
+        {
+            _screenshotPublications.Publish(captureResult, captureRoot, settings.InstallationId, settings.KeepScreenshots);
+            published = true;
+            return await AnalyzeCapturedScreenCoreAsync(
+                settings,
+                apiKey,
+                activity,
+                captureResult,
+                settings.KeepScreenshots,
+                origin,
+                includeCurrentSystemContext: true,
+                cancellationToken);
+        }
+        finally
+        {
+            if (captureResult.AllScreenshotPaths.Count > 0 && (!settings.KeepScreenshots || !published))
+            {
+                try
+                {
+                    _screenshotPublications.Discard(captureResult.CaptureId);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogWarning("Screenshot publication cleanup deferred. ExceptionType={ExceptionType}", exception.GetType().Name);
+                }
+            }
+        }
     }
 
     /// <summary>

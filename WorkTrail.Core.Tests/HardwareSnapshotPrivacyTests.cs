@@ -173,8 +173,10 @@ public sealed class HardwareSnapshotPrivacyTests
             if (decision != ScreenshotCaptureDecision.Allowed) throw new ScreenshotCapturePreconditionException(decision);
             var captureId = Guid.NewGuid().ToString("N");
             var capturedAt = DateTimeOffset.UtcNow;
-            var path = Path.Combine(directory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
-            File.WriteAllBytes(path, [1, 2, 3]);
+            var day = ScreenshotStorageLayout.GetDayDirectory(directory, capturedAt);
+            Directory.CreateDirectory(day);
+            var path = Path.Combine(day, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
+            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(path), [1, 2, 3]);
             return new ScreenshotCaptureResult(captureId, [path], [path], captureOrigin, CapturedAt: capturedAt);
         }
     }

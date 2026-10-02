@@ -142,4 +142,12 @@ internal static class ScreenshotStorageLayout
 
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootDirectory));
     }
+
+    // path must not traverse a junction or symbolic link when writing or deleting owned artifacts.
+    internal static void RejectLinks(string path)
+    {
+        for (var current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
+            if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("Screenshot storage does not follow filesystem links.");
+    }
 }

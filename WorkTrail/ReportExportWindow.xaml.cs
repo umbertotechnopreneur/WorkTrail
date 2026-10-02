@@ -279,10 +279,12 @@ internal sealed partial class ReportExportWindow : Window
         if (!access.Succeeded || access.Value is null) { ShowStatus("Premium.Error", InfoBarSeverity.Error); return; }
         if (!FeatureCatalog.IsAllowed(ProductFeature.ReportExport, access.Value)) { await ShowUpgradeAsync(); return; }
         var options = CollectOptions();
-        var preview = await _application.PreviewReportExportAsync(options, token);
-        if (!preview.Succeeded || preview.Value is null) { ShowStatus(preview.MessageKey, InfoBarSeverity.Error); return; }
-        var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary, SuggestedFileName = preview.Value.SuggestedFileName };
-        picker.FileTypeChoices.Add(T("Export.Title"), [preview.Value.Extension]);
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            SuggestedFileName = ReportExportFileNames.SuggestedFileName(options)
+        };
+        picker.FileTypeChoices.Add(T("Export.Title"), [ReportExportFileNames.Extension(options.Format)]);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WindowHandle);
         var destination = await picker.PickSaveFileAsync();
         if (destination is null || token.IsCancellationRequested) return;

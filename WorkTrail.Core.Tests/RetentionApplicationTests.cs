@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -88,6 +89,92 @@ public sealed class RetentionApplicationTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => fixture.Application.RunRetentionAsync(
             new RetentionRequest(true, true), cancellation.Token));
         Assert.True(File.Exists(screenshot));
+        Assert.Null(fixture.Store.LoadSettings().LastRetentionCleanupAt);
+    }
+
+    /// <summary>One shared inventory covers multiple monitor variants and cleanup progress counts every physical artifact.</summary>
+    [Fact]
+    public async Task Cleanup_MultiMonitorVariantsCompleteWithAccurateProgress()
+    {
+        await using var fixture = new Fixture(ProductTier.Free);
+        var original = fixture.AddHistory(DateTimeOffset.Now.AddMonths(-4), "expired");
+        var paths = new[]
+        {
+            original,
+            original.Replace("monitor-1.webp", "monitor-1-raw.webp", StringComparison.Ordinal),
+            original.Replace("monitor-1.webp", "monitor-2.webp", StringComparison.Ordinal),
+            original.Replace("monitor-1.webp", "monitor-2-raw.webp", StringComparison.Ordinal)
+        };
+        foreach (var path in paths.Skip(1)) File.WriteAllBytes(path, [1, 2, 3]);
+
+        var result = await fixture.Application.RunRetentionAsync(new RetentionRequest(true, true), CancellationToken.None);
+        var status = await fixture.Application.GetRetentionStatusAsync(CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(4, result.Value!.ScreenshotCount);
+        Assert.All(paths, path => Assert.False(File.Exists(path)));
+        Assert.Equal(5, status.Value!.Progress!.CompletedItems);
+        Assert.Equal(status.Value.Progress.TotalItems, status.Value.Progress.CompletedItems);
+    }
+
+    /// <summary>Cancellation after a completed DELETE still rolls back the entire pending retention transaction.</summary>
+    [Fact]
+    public async Task Cleanup_CancellationAfterRecordDeletionRollsBackTheTransaction()
+    {
+        await using var fixture = new Fixture(ProductTier.Free);
+        var expiredAt = DateTimeOffset.Now.AddMonths(-4);
+        fixture.AddHistory(expiredAt, "first");
+        fixture.AddHistory(expiredAt.AddMinutes(1), "second");
+        var cutoff = DateTimeOffset.Now.AddMonths(-1);
+        using var cancellation = new CancellationTokenSource();
+        var pendingDeletes = 0;
+
+        Assert.ThrowsAny<OperationCanceledException>(() => fixture.Store.ApplyRetention(cutoff, removed =>
+        {
+            pendingDeletes = removed;
+            if (removed > 0) cancellation.Cancel();
+        }, cancellation.Token));
+
+        Assert.Equal(2, pendingDeletes);
+        Assert.Equal(2, fixture.Store.GetRetentionPreview(cutoff).RecordCount);
+        Assert.Null(fixture.Store.LoadSettings().LastRetentionCleanupAt);
+    }
+
+    /// <summary>Native interruption stops an active synthetic DELETE instead of waiting for its query to finish.</summary>
+    [Fact]
+    public async Task Cleanup_CancellationInterruptsAnActiveSqliteStatement()
+    {
+        await using var fixture = new Fixture(ProductTier.Free);
+        fixture.AddHistory(DateTimeOffset.Now.AddMonths(-4), "expired");
+        using (var connection = new SqliteConnection($"Data Source={fixture.Store.ActivityDatabasePath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            // A synthetic long-running trigger makes cancellation occur inside the native DELETE statement.
+            command.CommandText = """
+                CREATE TRIGGER retention_interrupt_probe BEFORE DELETE ON activity_samples BEGIN
+                    SELECT sum(value) FROM (
+                        WITH RECURSIVE probe(value) AS (
+                            SELECT 1 UNION ALL SELECT value + 1 FROM probe WHERE value < 50000000)
+                        SELECT value FROM probe);
+                END;
+                """;
+            command.ExecuteNonQuery();
+        }
+        using var cancellation = new CancellationTokenSource();
+        var cancellationScheduled = false;
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        var cutoff = DateTimeOffset.Now.AddMonths(-1);
+
+        Assert.ThrowsAny<OperationCanceledException>(() => fixture.Store.ApplyRetention(cutoff, _ =>
+        {
+            if (cancellationScheduled) return;
+            cancellationScheduled = true;
+            cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
+        }, cancellation.Token));
+
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(5), "Cancellation must interrupt the active statement, not wait for the trigger to finish.");
+        Assert.Equal(1, fixture.Store.GetRetentionPreview(cutoff).RecordCount);
         Assert.Null(fixture.Store.LoadSettings().LastRetentionCleanupAt);
     }
 

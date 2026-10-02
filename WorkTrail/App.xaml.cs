@@ -45,6 +45,12 @@ public partial class App : Microsoft.UI.Xaml.Application
     private IWorkTrailApplication? _applicationFacade;
     private DispatcherQueueTimer? _retentionTimer;
     private bool _retentionCheckInProgress;
+    private bool _retentionDeferredForSession;
+#if DEBUG
+    private static readonly bool AutomaticRetentionEnabled = false;
+#else
+    private static readonly bool AutomaticRetentionEnabled = true;
+#endif
     private DashboardRefreshCoordinator? _dashboardRefreshCoordinator;
     private bool _searchWindowOpening;
     private bool _worldClockWindowOpening;
@@ -79,6 +85,16 @@ public partial class App : Microsoft.UI.Xaml.Application
         try
         {
             var activationKind = ReadActivationKind();
+            if (activationKind == ExtendedActivationKind.Protocol)
+            {
+                var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+                if (activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol)
+                {
+                    HandleScreenshotNotificationProtocol(protocol.Uri.AbsoluteUri, closeAfterAction: true);
+                    return;
+                }
+                throw new ArgumentException("Protocol activation has no URI payload.", nameof(args));
+            }
             var options = StartupActivationPolicy.Apply(
                 LaunchOptions.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray()),
                 activationKind);
@@ -138,6 +154,11 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private void HandleRedirectedActivationOnUiThread(RedirectedActivationRequest activation)
     {
+        if (activation.Kind == ExtendedActivationKind.Protocol)
+        {
+            HandleScreenshotNotificationProtocol(activation.ProtocolUri, closeAfterAction: false);
+            return;
+        }
         var options = activation.Options;
         _logger.LogInformation("Redirected activation received. Mode={Mode} ActivationKind={ActivationKind}", options.Mode, activation.Kind);
         switch (options.Mode)
@@ -152,6 +173,55 @@ public partial class App : Microsoft.UI.Xaml.Application
             default:
                 // Short-lived CLI modes are never redirected by Program and cannot execute inside the runtime owner.
                 throw new ArgumentException("Unsupported redirected WorkTrail launch mode.", nameof(activation));
+        }
+    }
+
+    // uri is an untrusted Windows activation value; only the two fixed notification actions are allowed.
+    // closeAfterAction identifies an action-only cold launch, which must not open the main window.
+    private async void HandleScreenshotNotificationProtocol(string? uri, bool closeAfterAction)
+    {
+        if (!ScreenshotNotificationActivation.IsSupported(uri))
+        {
+            _logger.LogWarning("Unsupported screenshot notification activation was rejected.");
+            if (closeAfterAction) Exit();
+            return;
+        }
+        if (uri == ScreenshotNotificationActivation.Open)
+        {
+            StartUi(LaunchOptions.Parse([]));
+            return;
+        }
+        try
+        {
+            var application = StartOrConnectRuntime();
+            var result = await application.PatchSettingsAsync(
+                new SettingsPatch(new Dictionary<string, string?> { ["screenshots.notifications"] = "false" }),
+                CancellationToken.None);
+            if (!result.Succeeded)
+                throw new InvalidOperationException("Screenshot notification preference could not be saved.");
+            _logger.LogInformation("Screenshot notifications were disabled from a Windows notification.");
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Screenshot notification preference could not be updated.");
+            _windowsNotifications.TryShow("WorkTrail", new LocalizationService(_uiLanguage).Translate("Notification.ScreenshotCaptured.DisableFailed"));
+        }
+        finally
+        {
+            // A normal launch redirected during this write owns the newly requested UI and its runtime.
+            if (closeAfterAction && _window is null && !_uiStarting)
+            {
+                try
+                {
+                    await ShutdownRuntimeAsync();
+                    await LoggingBootstrapper.ShutdownAsync(_services);
+                }
+                catch (Exception exception)
+                {
+                    System.Diagnostics.Debug.WriteLine($"WorkTrail notification-action shutdown failed: {exception.GetType().Name}");
+                }
+                finally { Exit(); }
+            }
         }
     }
 
@@ -1118,6 +1188,12 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private void StartRetentionMaintenance()
     {
+        if (!AutomaticRetentionEnabled)
+        {
+            // Development packages keep real diagnostic data; manual retention remains available.
+            _logger.LogInformation("Automatic retention is disabled in Debug builds.");
+            return;
+        }
         if (_retentionTimer is not null || Volatile.Read(ref _shutdownStarted) != 0) return;
         _retentionTimer = _dispatcherQueue.CreateTimer();
         _retentionTimer.Interval = TimeSpan.FromHours(1);
@@ -1134,7 +1210,8 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private async Task CheckScheduledRetentionAsync()
     {
-        if (_retentionCheckInProgress || _window is null || _applicationFacade is null || Volatile.Read(ref _shutdownStarted) != 0) return;
+        if (!AutomaticRetentionEnabled || _retentionDeferredForSession || _retentionCheckInProgress
+            || _window is null || _applicationFacade is null || Volatile.Read(ref _shutdownStarted) != 0) return;
         _retentionCheckInProgress = true;
         try
         {
@@ -1157,7 +1234,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
         catch (OperationCanceledException)
         {
-            // Closing the owner cancels cleanup; the durable monthly checkpoint is not advanced.
+            // Respect cancellation for this session without claiming a completed monthly cleanup.
+            _retentionDeferredForSession = true;
         }
         catch (Exception exception)
         {

@@ -73,6 +73,8 @@ public static class WorkTrailApplicationFactory
             localSearch,
             pricingRefresh,
             settingsSnapshot: settingsSnapshot,
+            screenshotNotifications: new ScreenshotNotificationService(settingsSnapshot,
+                loggerFactory?.CreateLogger<ScreenshotNotificationService>() ?? NullLogger<ScreenshotNotificationService>.Instance),
             worldClockService: new WorldClockService(
                 logger: loggerFactory?.CreateLogger<WorldClockService>()));
     }
@@ -119,6 +121,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private readonly UtilityService _utilities;
     private readonly TrackingDomainService _tracking;
     private readonly IScreenCaptureService _capture;
+    private readonly IScreenshotNotificationService? _screenshotNotifications;
     private readonly IHardwareTelemetryService _snapshot;
     private readonly DeviceContextService _deviceContext;
     private readonly IAiAnalysisService _analysis;
@@ -203,15 +206,18 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         SettingsSnapshot? settingsSnapshot = null,
         WorldClockService? worldClockService = null,
         bool startScheduledSnapshotTimer = true,
-        IFeatureLicenseSource? featureLicenseSource = null)
+        IFeatureLicenseSource? featureLicenseSource = null,
+        IScreenshotNotificationService? screenshotNotifications = null)
     {
         _store = store;
+        _timesheetService = new TimesheetBatchService(store);
         _settingsSnapshot = settingsSnapshot ?? new SettingsSnapshot(store.LoadSettings());
         _featureAccess = new FeatureAccessPolicy(featureLicenseSource);
         _ = _featureAccess.Snapshot;
         _utilities = utilities;
         _tracking = tracking;
         _capture = capture;
+        _screenshotNotifications = screenshotNotifications;
         _snapshot = snapshot;
         // Restore saved advanced-sensor access once when the driver is already installed; Core owns Windows consent.
         _snapshot.ConfigureAsync(HardwareConfiguration(_settingsSnapshot.Value), CancellationToken.None).GetAwaiter().GetResult();
@@ -220,6 +226,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _applicationLogs = applicationLogs ?? new ApplicationLogService();
         _windowState = windowState ?? new WindowStateService(store);
         _analysis = analysis;
+        _logger = logger ?? NullLogger<WorkTrailApplication>.Instance;
         _ocrRefinement = ocrRefinement ?? new OpenAiOcrRefinementService(store);
         _textExtraction = new ScreenshotTextExtractionCoordinator(
             store,
@@ -231,6 +238,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             _settingsSnapshot,
             logger);
         _screenshotDeletions = new ScreenshotDeletionJournal(store);
+        _screenshotPublications = new ScreenshotPublicationJournal(store);
+        RecoverScreenshotPublications();
         RecoverScreenshotDeletionsAsync(CancellationToken.None).GetAwaiter().GetResult();
         _startup = startup;
         _buildInformation = buildInformation;
@@ -239,7 +248,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _atomicReset = atomicResetService ?? new AtomicResetService();
         _pricingRefresh = pricingRefresh;
         _pricingRefresh?.Start();
-        _logger = logger ?? NullLogger<WorkTrailApplication>.Instance;
         _screenshotReprocessing = new AiScreenshotReprocessingService(
             store,
             analysis,
@@ -261,6 +269,9 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         ConfigureScheduledSnapshots(_settingsSnapshot.Value, restartCountdown: true);
         _runtimeTimerTask = startScheduledSnapshotTimer
             ? RunRuntimeTimerLoopAsync(_runtimeTimerCancellation.Token)
+            : Task.CompletedTask;
+        _timesheetRecoveryTask = startScheduledSnapshotTimer
+            ? Task.Run(() => RunTimesheetRecoveryLoopAsync(_runtimeTimerCancellation.Token))
             : Task.CompletedTask;
         _search.Start();
         _logger.LogInformation("Application facade initialized.");
@@ -437,7 +448,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
 
         // Capture happens only after the privacy and enabled-state gates above have succeeded.
-        if (TryGetScreenshotStorageWarning(settings.ScreenshotDirectory))
+        var captureRoot = request.Keep ? settings.ScreenshotDirectory : _screenshotPublications.TransientRoot;
+        if (TryGetScreenshotStorageWarning(captureRoot))
         {
             return OperationResult<ScreenshotCaptureResult>.Failure("screenshot.storage.low", "ScreenshotStorageLow");
         }
@@ -454,7 +466,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         {
             result = await RunCaptureWorkAsync(
                 () => _capture.CaptureByMode(
-                    settings.ScreenshotDirectory,
+                    captureRoot,
                     mode,
                     request.CaptureOrigin,
                     EvaluateCaptureDecision),
@@ -477,6 +489,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         long persistenceStartedTimestamp = Stopwatch.GetTimestamp();
         try
         {
+            _screenshotPublications.Publish(result, captureRoot, settings.InstallationId, request.Keep);
             if (request.Keep)
             {
                 PersistScreenshotIntervalTelemetry(result, telemetryIntervalStartedAt, DateTimeOffset.UtcNow);
@@ -511,6 +524,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return OperationResult<ScreenshotCaptureResult>.Failure("screenshot.capture.failed", "ScreenshotCaptureFailed");
         }
         long ocrElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(ocrStartedTimestamp).TotalMilliseconds;
+        await NotifyScreenshotCaptureAsync(result, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Local screenshot pipeline completed. Origin={Origin} Mode={Mode} Artifacts={ArtifactCount} TelemetryMs={TelemetryMilliseconds} CaptureMs={CaptureMilliseconds} PersistenceMs={PersistenceMilliseconds} OcrMs={OcrMilliseconds} TotalMs={TotalMilliseconds}",
             request.CaptureOrigin,
@@ -658,6 +672,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 if (deletion is null) continue;
                 deletions.Add(deletion);
             }
+            _screenshotNotifications?.Clear();
             foreach (var deletion in deletions) _screenshotDeletions.Execute(deletion);
         }
         catch (IOException)
@@ -886,6 +901,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
 
         try
         {
+            _screenshotNotifications?.Clear();
             _screenshotDeletions.Execute(deletion);
         }
         catch (IOException)
@@ -948,6 +964,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             var gallery = await Task.Run(
                 () => _store.GetScreenshotGallery(date, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
+            ReportIncompleteScreenshotGallery(gallery);
             return OperationResult<ScreenshotGallery>.Success(
                 "screenshot.gallery.loaded",
                 "ScreenshotGalleryLoaded",
@@ -979,6 +996,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             var gallery = await Task.Run(
                 () => _store.GetLatestScreenshotGallery(cancellationToken),
                 cancellationToken).ConfigureAwait(false);
+            ReportIncompleteScreenshotGallery(gallery);
             return OperationResult<ScreenshotGallery>.Success(
                 "screenshot.gallery.latest.loaded",
                 "LatestScreenshotGalleryLoaded",
@@ -1793,7 +1811,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 AiAnalysis result;
                 if (request.AllowCapture && settings.ScreenshotsEnabled)
                 {
-                    if (TryGetScreenshotStorageWarning(settings.ScreenshotDirectory))
+                    var captureRoot = settings.KeepScreenshots ? settings.ScreenshotDirectory : _screenshotPublications.TransientRoot;
+                    if (TryGetScreenshotStorageWarning(captureRoot))
                     {
                         return OperationResult<AiAnalysis>.Failure("screenshot.storage.low", "ScreenshotStorageLow");
                     }
@@ -1805,7 +1824,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     {
                         capture = await RunCaptureWorkAsync(
                             () => _capture.CaptureByMode(
-                                settings.ScreenshotDirectory,
+                                captureRoot,
                                 settings.ScreenshotCaptureMode,
                                 captureOrigin: string.Equals(origin, "snapshot.scheduled", StringComparison.Ordinal)
                                     ? ScreenshotCaptureOrigins.Scheduled
@@ -1824,21 +1843,21 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                         return OperationResult<AiAnalysis>.Failure("screenshot.capture.failed", "ScreenshotCaptureFailed");
                     }
                     capture = capture with { HardwareSnapshot = hardwareSnapshot };
-                    if (settings.KeepScreenshots)
+                    try
                     {
-                        try
-                        {
+                        _screenshotPublications.Publish(capture, captureRoot, settings.InstallationId, settings.KeepScreenshots);
+                        if (settings.KeepScreenshots)
                             PersistScreenshotIntervalTelemetry(capture, telemetryIntervalStartedAt, DateTimeOffset.UtcNow);
-                        }
-                        catch
-                        {
-                            // A rolled-back capture must not leave unregistered retained images in the gallery.
-                            CleanupAbandonedCapture(capture);
-                            throw;
-                        }
+                    }
+                    catch
+                    {
+                        // Persist rollback even when publication failed between individual monitor images.
+                        CleanupAbandonedCapture(capture);
+                        throw;
                     }
 
                     capture = await _textExtraction.AttachAsync(capture, cancellationToken);
+                    await NotifyScreenshotCaptureAsync(capture, cancellationToken).ConfigureAwait(false);
                     var pipeline = await AnalyzeLiveCaptureWithOptionalRefinementAsync(
                         capture,
                         settings.KeepScreenshots,
@@ -2022,7 +2041,14 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         await RecoverScreenshotDeletionsAsync(cancellationToken).ConfigureAwait(false);
         var settings = _settingsSnapshot.Value;
         var tier = _featureAccess.Snapshot.Tier;
-        var preview = BuildRetentionPreview(cancellationToken, now, tier);
+        _screenshotPublications.CleanupUnclaimedStages(settings.ScreenshotDirectory,
+            now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier)), cancellationToken);
+        _screenshotPublications.CleanupUnclaimedStages(_screenshotPublications.TransientRoot, now.AddDays(-1), cancellationToken);
+        var deletionBatch = new ScreenshotDeletionJournal.Batch();
+        var ownedArtifacts = deletionBatch.Inventory(ScreenshotStorageLayout.NormalizeRoot(settings.ScreenshotDirectory), cancellationToken)
+            .Values.SelectMany(paths => paths).ToArray();
+        var preview = BuildRetentionPreview(cancellationToken, now, tier, ownedArtifacts);
+        if (preview.Paths.Any(ScreenCaptureService.IsOwnedArtifact)) _screenshotNotifications?.Clear();
         var operationId = request.OperationId == Guid.Empty ? Guid.NewGuid() : request.OperationId;
         long completedItems = 0;
         // phase identifies the current cleanup step for the passive progress surface.
@@ -2030,28 +2056,40 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             new RetentionCleanupProgress(operationId, completedItems, preview.FileCount, phase));
         Report("Screenshots");
         var deletions = new List<ScreenshotDeletionJournal.Plan>();
+        var completedArtifacts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in preview.Paths.Where(ScreenCaptureService.IsOwnedArtifact))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var deletion = _screenshotDeletions.Begin(path, deleteAnalysis: false);
+            // A plan removes both stored and analysis variants; do not replay it for the next preview path.
+            if (completedArtifacts.Contains(path)) continue;
+            var deletion = _screenshotDeletions.Begin(path, deleteAnalysis: false, deletionBatch, cancellationToken);
             if (deletion is null) continue;
-            _screenshotDeletions.Execute(deletion);
+            _screenshotDeletions.Execute(deletion, deletionBatch, cancellationToken);
             deletions.Add(deletion);
-            completedItems++;
+            completedArtifacts.UnionWith(deletion.Artifacts);
+            completedItems += deletion.Artifacts.Length;
             Report("Screenshots");
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         Report("Records");
-        _store.ApplyRetention(now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier)));
-        completedItems += preview.RecordCount;
+        var deletedScreenshots = completedItems;
+        _store.ApplyRetention(now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier)),
+            removedRecords =>
+            {
+                completedItems = deletedScreenshots + Math.Min(removedRecords, preview.RecordCount);
+                Report("Records");
+            }, cancellationToken);
+        completedItems = deletedScreenshots + preview.RecordCount;
         Report("Search");
         var screenshotCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
-        _store.PruneTerminalAiReprocessJobs(screenshotCutoff);
-        _store.PruneOrphanedScreenshotCaptures(screenshotCutoff);
+        _store.PruneTerminalAiReprocessJobs(screenshotCutoff, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        _store.PruneOrphanedScreenshotCaptures(screenshotCutoff, cancellationToken);
 
         await _search.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         foreach (var deletion in deletions) _screenshotDeletions.Complete(deletion);
+        cancellationToken.ThrowIfCancellationRequested();
         // Advance the monthly schedule only after deletion and derived-index synchronization succeed.
         PersistSettings(_settingsSnapshot.Value with { LastRetentionCleanupAt = now });
         Report("Completed");
@@ -2315,6 +2353,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
 
         var current = validation.Value;
+        if (patch.Values.Count == 1 && patch.Values.ContainsKey("screenshots.notifications"))
+        {
+            // Turning capture notices off must work even when unrelated AI or startup configuration is unavailable.
+            PersistSettings(current);
+            return OperationResult<AppSettings>.Success("settings.saved", "SettingsSaved", current);
+        }
         if (_featureAccess.DeniedSettingsChange(settings, current) is { } quotaIssue)
             return OperationResult<AppSettings>.Failure("feature." + quotaIssue.Code, quotaIssue.MessageKey, quotaIssue);
         if (!TryValidateOpenAiConfiguration(current, requireImageInput: false, out var validatedSettings, out var validationIssue))
@@ -2430,6 +2474,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         var (state, settings) = _windowState.Save(windowKey, windowHandle);
         // Publish the committed settings before another serialized mutation can overwrite the saved placement.
         _settingsSnapshot.Replace(settings);
+        if (!settings.ScreenshotNotificationsEnabled) _screenshotNotifications?.Clear();
         await Task.CompletedTask;
         return OperationResult<WindowState>.Success("window.state.saved", "WindowStateSaved", state);
     }, cancellationToken);
@@ -2589,13 +2634,27 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             AiProviderTelemetry.SafeToken(exception.Failure.ProviderRequestId, 80));
     }
 
-    private void CleanupCaptureArtifacts(ScreenshotCaptureResult capture, bool keepStoredArtifacts)
+    // capture carries the owned worker destinations whose lifecycle this operation controls.
+    // keepStoredArtifacts preserves retained images while removing analysis-only variants.
+    private bool CleanupCaptureArtifacts(ScreenshotCaptureResult capture, bool keepStoredArtifacts)
     {
+        if (!keepStoredArtifacts)
+        {
+            try { _screenshotPublications.Discard(capture.CaptureId); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning("Transient screenshot cleanup remains pending. ExceptionType={ExceptionType}", exception.GetType().Name);
+                // The durable rollback disposition must exist before any further file or metadata removal.
+                return false;
+            }
+        }
         var storedPaths = capture.StoredScreenshotPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var cleanupPaths = keepStoredArtifacts
             ? capture.AnalysisScreenshotPaths.Where(path => !storedPaths.Contains(path))
             : capture.AllScreenshotPaths;
-        foreach (var path in cleanupPaths.Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists))
+        var removedAll = true;
+        foreach (var path in cleanupPaths.SelectMany(path => new[] { path, ScreenshotPublicationJournal.StagingPath(path) })
+                     .Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists))
         {
             try
             {
@@ -2605,13 +2664,17 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             {
                 // Image cleanup is best effort; OCR and provider failures remain the primary operation outcome.
                 _logger.LogWarning("Screenshot cleanup failed. ExceptionType={ExceptionType}", exception.GetType().Name);
+                removedAll = false;
             }
         }
+        return removedAll;
     }
 
+    // capture is abandoned only after its files have been removed or assigned a durable rollback intent.
     private void CleanupAbandonedCapture(ScreenshotCaptureResult capture)
     {
-        CleanupCaptureArtifacts(capture, keepStoredArtifacts: false);
+        _screenshotNotifications?.Clear();
+        if (!CleanupCaptureArtifacts(capture, keepStoredArtifacts: false)) return;
         try
         {
             foreach (var sourcePath in (capture.TextSnapshots ?? Array.Empty<ScreenshotTextSnapshot>())
@@ -3124,19 +3187,21 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         });
     }
 
-    // cancellationToken stops the read-only file and database preview.
-    // referenceTime keeps preview and deletion on the same calendar-month cutoff.
-    // effectiveTier keeps a running cleanup consistent if licensing changes concurrently.
-    private RetentionPreview BuildRetentionPreview(CancellationToken cancellationToken, DateTimeOffset? referenceTime = null, ProductTier? effectiveTier = null)
+    // cancellationToken stops the preview's filesystem and database projection.
+    // referenceTime fixes the cutoff for one cleanup operation.
+    // effectiveTier fixes the commercial retention limit for the same operation.
+    // screenshotArtifacts reuses the bulk deletion inventory instead of scanning the root again.
+    private RetentionPreview BuildRetentionPreview(CancellationToken cancellationToken, DateTimeOffset? referenceTime = null,
+        ProductTier? effectiveTier = null, IReadOnlyList<string>? screenshotArtifacts = null)
     {
         var settings = _settingsSnapshot.Value;
         var now = referenceTime ?? DateTimeOffset.Now;
         var tier = effectiveTier ?? _featureAccess.Snapshot.Tier;
         var screenshotCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
         var dataCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier));
-        var retainedScreenshotPaths = Directory.Exists(settings.ScreenshotDirectory)
+        var retainedScreenshotPaths = screenshotArtifacts?.ToArray() ?? (Directory.Exists(settings.ScreenshotDirectory)
             ? ScreenshotStorageLayout.EnumerateOwnedArtifacts(settings.ScreenshotDirectory).ToArray()
-            : [];
+            : []);
         var capturedAtByPath = _store.LoadScreenshotCaptureTimes(retainedScreenshotPaths, cancellationToken);
         var screenshotPaths = retainedScreenshotPaths
             .Where(path =>

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+using Microsoft.Extensions.Logging;
 using WorkTrail.Services;
 
 namespace WorkTrail.Application;
@@ -7,6 +8,8 @@ namespace WorkTrail.Application;
 public sealed partial class WorkTrailApplication
 {
     private readonly SemaphoreSlim _timesheetGate = new(1, 1);
+    private readonly TimesheetBatchService _timesheetService;
+    private readonly Task _timesheetRecoveryTask;
 
     /// <inheritdoc />
     public Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken) =>
@@ -30,7 +33,7 @@ public sealed partial class WorkTrailApplication
                     && !FeatureCatalog.IsAllowed(ProductFeature.ReportExport, _featureAccess.Snapshot))
                     throw new ReportExportValidationException("Premium.Required");
                 // The dedicated job gate serializes files; HTTP never holds the global mutation or visual-analysis gate.
-                return await Task.Run(() => new TimesheetBatchService(_store).ExecuteAsync(command, _settingsSnapshot.Value,
+                return await Task.Run(() => _timesheetService.ExecuteAsync(command, _settingsSnapshot.Value,
                     ReserveTimesheetUsageAsync, ReconcileTimesheetUsageAsync, token), token).ConfigureAwait(false);
             }
             finally { _timesheetGate.Release(); }
@@ -51,8 +54,8 @@ public sealed partial class WorkTrailApplication
             if (!BuildCostGate(settings).Allowed
                 || (settings.OpenAiDailyLimit > 0 && (long)_store.GetTodayAnalysisCount() + count > settings.OpenAiDailyLimit))
                 throw new ReportExportValidationException("Export.AiDailyLimit");
-            foreach (var row in job.Rows.Where(row => row.Row.State != "no_sources"))
-                _store.SaveTimesheetUsage(TimesheetUsage(job, row));
+            _store.SaveTimesheetUsage(job.Rows.Where(row => row.Row.State != "no_sources")
+                .Select(row => TimesheetUsage(job, row)).ToArray(), token);
             return Task.FromResult(OperationResult<bool>.Success("timesheet.reserved", "Export.Completed", true));
         }, token).ConfigureAwait(false);
     }
@@ -63,8 +66,11 @@ public sealed partial class WorkTrailApplication
     {
         await MutateAsync(() =>
         {
-            foreach (var row in job.Rows.Where(row => row.Row.State != "no_sources"))
-                _store.SaveTimesheetUsage(TimesheetUsage(job, row));
+            if (job.BatchId is null)
+                _store.ReleaseTimesheetReservations(job.Rows.Select(row => $"{job.Id:N}.{row.Row.Id}").ToArray(), token);
+            else
+                _store.SaveTimesheetUsage(job.Rows.Where(row => row.Row.State != "no_sources")
+                    .Select(row => TimesheetUsage(job, row)).ToArray(), token);
             return Task.FromResult(OperationResult<bool>.Success("timesheet.usage.saved", "Export.Completed", true));
         }, token).ConfigureAwait(false);
     }
@@ -77,4 +83,45 @@ public sealed partial class WorkTrailApplication
         ReportSummaryModelPolicy.OpenAiModel, row.ResponseId, null, row.Row.State == "completed" ? 200 : null,
         null, null, 0, row.Prompt?.Length ?? 0, 1_000, row.Usage ?? new AiUsageMetrics(),
         job.ResultsSaved ? row.Row.State : null, row.Row.State == "completed", row.Row.State == "completed" ? null : "batch_" + row.Row.State);
+
+    // token stops the worker on shutdown or atomic reset; this loop only retrieves already submitted jobs.
+    private async Task RunTimesheetRecoveryLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        try
+        {
+            do
+            {
+                try
+                {
+                    IReadOnlyList<Guid> candidates;
+                    await _timesheetGate.WaitAsync(token).ConfigureAwait(false);
+                    try { candidates = _timesheetService.RecoveryCandidates(token); }
+                    finally { _timesheetGate.Release(); }
+                    foreach (var id in candidates)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        if (_disposed) return;
+                        using var attempt = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        attempt.CancelAfter(TimeSpan.FromMinutes(2));
+                        try
+                        {
+                            // A separate lease per job keeps a large backlog from monopolizing interactive batch commands.
+                            await ManageTimesheetBatchAsync(new(TimesheetBatchAction.Refresh, JobId: id), attempt.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (!token.IsCancellationRequested) { /* Retry with the next scheduled pass. */ }
+                    }
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
+                catch (ObjectDisposedException) when (_disposed) { return; }
+                catch (Exception exception)
+                {
+                    // Neither source text nor provider responses belong in background diagnostics.
+                    _logger.LogWarning("Timesheet recovery interrupted. ExceptionType={ExceptionType}", exception.GetType().Name);
+                }
+            }
+            while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
 }

@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "Cliente",
   "Timesheet.Rate.Header": "Tarifa por hora",
   "Timesheet.Currency.Header": "Moneda (código ISO)",
-  "Timesheet.Jobs.Header": "Informes por lotes guardados"
+  "Timesheet.Jobs.Header": "Informes por lotes guardados",
+  "Timesheet.PreviousPage": "Anteriores",
+  "Timesheet.NextPage": "Siguientes",
+  "Timesheet.ResultsPending": "El lote ha terminado. Sus resultados aún deben guardarse en este PC.",
+  "Timesheet.CleanupPending": "El informe está guardado. La limpieza sigue pendiente; elige Actualizar para reintentarlo.",
+  "Options.ScreenshotNotifications.Header": "Notificaciones de capturas",
+  "Options.ScreenshotNotifications.Description": "Muestra una notificación de Windows con la imagen capturada. También puedes desactivar estos avisos desde una notificación.",
+  "Notification.ScreenshotCaptured.Title": "Captura realizada",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail ha capturado esta pantalla.",
+  "Notification.ScreenshotCaptured.Disable": "Desactivar estas notificaciones",
+  "Notification.ScreenshotCaptured.DisableFailed": "No se pudieron desactivar las notificaciones de capturas. Inténtalo de nuevo en Opciones."
 }

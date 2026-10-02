@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "Kunde",
   "Timesheet.Rate.Header": "Stundensatz",
   "Timesheet.Currency.Header": "Währung (ISO-Code)",
-  "Timesheet.Jobs.Header": "Gespeicherte Batch-Berichte"
+  "Timesheet.Jobs.Header": "Gespeicherte Batch-Berichte",
+  "Timesheet.PreviousPage": "Vorherige Aufträge",
+  "Timesheet.NextPage": "Weitere Aufträge",
+  "Timesheet.ResultsPending": "Der Batch ist beendet. Die Ergebnisse müssen noch auf diesem PC gespeichert werden.",
+  "Timesheet.CleanupPending": "Der Bericht ist gespeichert. Die Bereinigung steht noch aus; wählen Sie Aktualisieren, um es erneut zu versuchen.",
+  "Options.ScreenshotNotifications.Header": "Screenshot-Benachrichtigungen",
+  "Options.ScreenshotNotifications.Description": "Eine Windows-Benachrichtigung mit dem aufgenommenen Bild anzeigen. Diese Hinweise lassen sich auch direkt in einer Benachrichtigung ausschalten.",
+  "Notification.ScreenshotCaptured.Title": "Screenshot aufgenommen",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail hat diesen Bildschirm aufgenommen.",
+  "Notification.ScreenshotCaptured.Disable": "Diese Benachrichtigungen ausschalten",
+  "Notification.ScreenshotCaptured.DisableFailed": "Screenshot-Benachrichtigungen konnten nicht ausgeschaltet werden. Versuchen Sie es erneut in den Optionen."
 }

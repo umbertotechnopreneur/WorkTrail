@@ -10,6 +10,9 @@ namespace WorkTrail.Services;
 internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transport = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private const int PageSize = 30;
+    private readonly Dictionary<Guid, (DateTime LastWrite, long Length, TimesheetJobInfo Info)> _catalog = [];
+    private readonly Dictionary<Guid, DateTimeOffset> _recoveryAttempts = [];
     private string DirectoryPath => Path.Combine(store.DataDirectory, "timesheet-batches");
 
     // command selects one explicit operation.
@@ -21,8 +24,9 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         Func<TimesheetJob, CancellationToken, Task> reserve,
         Func<TimesheetJob, CancellationToken, Task> saveUsage, CancellationToken token)
     {
-        if (!Enum.IsDefined(command.Action)) throw new ArgumentException("Unknown timesheet action.");
-        if (command.Action is TimesheetBatchAction.Preview or TimesheetBatchAction.Start)
+        if (!Enum.IsDefined(command.Action) || command.Page < 0 || command.Page > int.MaxValue / PageSize)
+            throw new ArgumentException("Invalid timesheet command.");
+        if (command.Action == TimesheetBatchAction.Start)
         {
             var options = command.Options ?? throw new ArgumentException("Timesheet options are required.");
             var job = new TimesheetJob
@@ -33,12 +37,11 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
                 Rows = TimesheetProjection.Build(store, options, token),
                 ApiKeyName = settings.AiApiKeyName
             };
-            if (command.Action == TimesheetBatchAction.Preview) return View(job, "preview");
             if (!job.Rows.Any(row => row.Prompt is not null)) throw new ReportExportValidationException("Export.NoSources");
             ValidateProvider(settings, requireEnabled: true);
             var client = Client(job);
             // An unresolved submission must be reconciled before another paid batch can be sent.
-            if (List().Any(item => item.State == "submitting")) throw new ReportExportValidationException("Timesheet.Unconfirmed");
+            if (List(token).Any(item => item.State == "submitting")) throw new ReportExportValidationException("Timesheet.Unconfirmed");
             Save(job);
             try
             {
@@ -54,9 +57,9 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
                 job.Rows.ForEach(row => row.Prompt = null);
                 Save(job);
             }
-            catch
+            catch (Exception exception)
             {
-                if (job.State == "prepared")
+                if (job.State == "prepared" || exception is TimesheetSubmissionRejectedException)
                 {
                     job.State = "failed";
                     job.Rows.ForEach(row => row.Row = row.Row with { State = row.Row.State == "pending" ? "failed" : row.Row.State });
@@ -64,27 +67,42 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
                 }
                 job.Rows.ForEach(row => row.Prompt = null);
                 Save(job);
+                if (job.ResultsSaved)
+                {
+                    // Release only known-unsubmitted reservations before the user can retry. No remote work is retried here.
+                    await saveUsage(job, CancellationToken.None).ConfigureAwait(false);
+                    job.UsageSaved = true;
+                    Save(job);
+                }
+                if (exception is TimesheetSubmissionRejectedException rejected)
+                    throw new ReportExportValidationException(rejected.MessageKey);
                 throw;
             }
-            return View(job);
+            return View(Info(job), 0, token);
         }
         if (command.Action == TimesheetBatchAction.List)
         {
-            var jobs = List();
-            return View(command.JobId is { } selected ? Load(selected) : jobs.Count > 0 ? Load(jobs[0].Id) : null);
+            var jobs = List(token);
+            var page = Math.Min(command.Page, jobs.Count == 0 ? 0 : (jobs.Count - 1) / PageSize);
+            var offset = page * PageSize;
+            var selected = command.JobId is { } id
+                ? jobs.SingleOrDefault(job => job.Id == id) ?? throw new ArgumentException("The saved timesheet job does not exist.")
+                : offset < jobs.Count ? jobs[offset] : null;
+            return View(selected, page, token);
         }
         var current = Load(command.JobId ?? throw new ArgumentException("A saved timesheet job is required."));
         if (command.Action == TimesheetBatchAction.Export)
         {
             if (!current.ResultsSaved) throw new ReportExportValidationException("Timesheet.NotReady");
             var path = TimesheetExcelWriter.Write(current, command.DestinationPath ?? "", command.Overwrite, token);
-            return View(current) with { ExportedPath = path };
+            return View(Info(current), command.Page, token) with { ExportedPath = path };
         }
-        ValidateProvider(settings, requireEnabled: false);
-        var api = Client(current);
+        // Saved jobs belong to their original OpenAI connection, even after the selected provider changes.
+        OpenAiTimesheetBatchClient? api = null;
+        OpenAiTimesheetBatchClient Api() => api ??= Client(current);
         if (current.State == "submitting" && current.BatchId is null)
         {
-            using var recovered = await api.FindAsync(current.Id, token).ConfigureAwait(false);
+            using var recovered = await Api().FindAsync(current.Id, token).ConfigureAwait(false);
             if (recovered is null) throw new ReportExportValidationException("Timesheet.Unconfirmed");
             ApplyRemote(current, recovered.RootElement);
             Save(current);
@@ -99,14 +117,14 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         else if (!current.ResultsSaved)
         {
             using var response = command.Action == TimesheetBatchAction.Cancel && !Terminal(current.State)
-                ? await api.CancelAsync(current.BatchId, token).ConfigureAwait(false)
-                : await api.GetAsync(current.BatchId, token).ConfigureAwait(false);
+                ? await Api().CancelAsync(current.BatchId, token).ConfigureAwait(false)
+                : await Api().GetAsync(current.BatchId, token).ConfigureAwait(false);
             ApplyRemote(current, response.RootElement);
             Save(current);
             if (Terminal(current.State))
             {
-                var output = current.OutputFile is null ? "" : await api.DownloadAsync(current.OutputFile, token).ConfigureAwait(false);
-                var errors = current.ErrorFile is null ? "" : await api.DownloadAsync(current.ErrorFile, token).ConfigureAwait(false);
+                var output = current.OutputFile is null ? "" : await Api().DownloadAsync(current.OutputFile, token).ConfigureAwait(false);
+                var errors = current.ErrorFile is null ? "" : await Api().DownloadAsync(current.ErrorFile, token).ConfigureAwait(false);
                 ReadResults(current, output, errors);
                 current.ResultsSaved = true;
                 Save(current);
@@ -114,18 +132,31 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         }
         if (current.ResultsSaved)
         {
-            // Stable telemetry IDs make replay after a crash safe, including a crash before this callback.
-            if (current.Reserved) await saveUsage(current, token).ConfigureAwait(false);
-            foreach (var file in new[] { current.InputFile, current.OutputFile, current.ErrorFile }.OfType<string>().Distinct())
+            try
             {
-                if (current.DeletedFiles.Contains(file)) continue;
-                // Record each successful deletion; failed cleanup remains visible and retryable.
-                await api.DeleteAsync(file, token).ConfigureAwait(false);
-                current.DeletedFiles.Add(file);
-                Save(current);
+                // Stable telemetry IDs make replay after a crash safe, including a crash before this callback.
+                if (!current.UsageSaved)
+                {
+                    await saveUsage(current, token).ConfigureAwait(false);
+                    current.UsageSaved = true;
+                    Save(current);
+                }
+                foreach (var file in new[] { current.InputFile, current.OutputFile, current.ErrorFile }.OfType<string>().Distinct())
+                {
+                    if (current.DeletedFiles.Contains(file)) continue;
+                    // Record each successful deletion; failed cleanup remains visible and retryable.
+                    await Api().DeleteAsync(file, token).ConfigureAwait(false);
+                    current.DeletedFiles.Add(file);
+                    Save(current);
+                }
+            }
+            catch (ReportExportValidationException exception)
+            {
+                // Durable results remain exportable while cloud cleanup is visibly pending and retryable.
+                return View(Info(current), command.Page, token) with { WarningKey = exception.MessageKey };
             }
         }
-        return View(current);
+        return View(Info(current), command.Page, token);
     }
 
     // settings determines whether this connection is an actual OpenAI API connection.
@@ -209,15 +240,34 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
             row.Row = row.Row with { State = "failed", Description = "" };
     }
 
-    // job is the saved or local-preview snapshot; state optionally labels a non-persisted preview.
-    private TimesheetBatchView View(TimesheetJob? job, string? state = null) =>
-        new(List().Take(30).ToArray(), job is null ? null : Info(job) with { State = state ?? job.State },
-            job?.Rows.Take(30).Select(row => row.Row).ToArray() ?? []);
+    // selected is cached safe metadata, independent of which archive page is displayed.
+    // page selects thirty metadata entries without putting report rows on IPC.
+    // token cancels catalog enumeration before returning a page.
+    private TimesheetBatchView View(TimesheetJobInfo? selected, int page, CancellationToken token)
+    {
+        var jobs = List(token);
+        var lastPage = jobs.Count == 0 ? 0 : (jobs.Count - 1) / PageSize;
+        page = Math.Min(page, lastPage);
+        return new(jobs.Skip(page * PageSize).Take(PageSize).ToArray(), selected,
+            Page: page, HasPreviousPage: page > 0, HasNextPage: page < lastPage);
+    }
+
+    // token cancels a bounded recovery selection; oldest attempted jobs rotate fairly after errors.
+    internal IReadOnlyList<Guid> RecoveryCandidates(CancellationToken token)
+    {
+        var selected = List(token).Where(job => !job.ResultsSaved || job.CleanupPending)
+            .OrderBy(job => _recoveryAttempts.GetValueOrDefault(job.Id))
+            .ThenBy(job => job.CreatedAt).Take(8).Select(job => job.Id).ToArray();
+        foreach (var id in selected) _recoveryAttempts[id] = DateTimeOffset.UtcNow;
+        return selected;
+    }
 
     // job contains measured rows and remote status, never credentials.
     private static TimesheetJobInfo Info(TimesheetJob job) => new(job.Id, job.CreatedAt, job.Options.Sources.Options.From,
         job.Options.Sources.Options.ToInclusive, job.State, job.Rows.Count, job.Rows.Count(row => row.Row.State == "completed"),
-        job.Rows.Count(row => row.Row.State is "failed" or "no_sources"));
+        job.Rows.Count(row => row.Row.State is "failed" or "no_sources"), job.ResultsSaved,
+        !job.UsageSaved || new[] { job.InputFile, job.OutputFile, job.ErrorFile }
+            .OfType<string>().Any(file => !job.DeletedFiles.Contains(file)));
 
     // state is normalized from the documented OpenAI Batch state machine.
     internal static bool Terminal(string state) => state is "completed" or "failed" or "expired" or "cancelled";
@@ -235,13 +285,31 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         return job;
     }
 
-    private List<TimesheetJobInfo> List()
+    // token cancels archive reads; cached metadata avoids repeatedly deserializing unchanged report rows.
+    private List<TimesheetJobInfo> List(CancellationToken token)
     {
-        if (!Directory.Exists(DirectoryPath)) return [];
-        var files = Directory.EnumerateFiles(DirectoryPath, "*.json").Take(201).ToArray();
-        if (files.Length > 200) throw new ReportExportValidationException("Export.RangeTooLarge");
-        return files.Select(path => Info(Load(Guid.ParseExact(Path.GetFileNameWithoutExtension(path), "N"))))
-            .OrderByDescending(job => job.CreatedAt).ToList();
+        if (!Directory.Exists(DirectoryPath)) { _catalog.Clear(); _recoveryAttempts.Clear(); return []; }
+        var present = new HashSet<Guid>();
+        var jobs = new List<TimesheetJobInfo>();
+        foreach (var path in Directory.EnumerateFiles(DirectoryPath, "*.json"))
+        {
+            token.ThrowIfCancellationRequested();
+            var id = Guid.ParseExact(Path.GetFileNameWithoutExtension(path), "N");
+            present.Add(id);
+            var file = new FileInfo(path);
+            if (!_catalog.TryGetValue(id, out var cached) || cached.LastWrite != file.LastWriteTimeUtc || cached.Length != file.Length)
+            {
+                cached = (file.LastWriteTimeUtc, file.Length, Info(Load(id)));
+                _catalog[id] = cached;
+            }
+            jobs.Add(cached.Info);
+        }
+        foreach (var id in _catalog.Keys.Where(id => !present.Contains(id)).ToArray())
+        {
+            _catalog.Remove(id);
+            _recoveryAttempts.Remove(id);
+        }
+        return jobs.OrderByDescending(job => job.CreatedAt).ThenBy(job => job.Id).ToList();
     }
 
     // job is atomically replaced so transport interruption cannot corrupt the recovery identity.
@@ -249,6 +317,8 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
     {
         Directory.CreateDirectory(DirectoryPath);
         ReportExportWriter.AtomicWrite(JobPath(job.Id), true, stream => JsonSerializer.Serialize(stream, job, Json), CancellationToken.None);
+        var file = new FileInfo(JobPath(job.Id));
+        _catalog[job.Id] = (file.LastWriteTimeUtc, file.Length, Info(job));
     }
 }
 
@@ -267,5 +337,6 @@ internal sealed class TimesheetJob
     public string? ErrorFile { get; set; }
     public bool ResultsSaved { get; set; }
     public bool Reserved { get; set; }
+    public bool UsageSaved { get; set; }
     public List<string> DeletedFiles { get; set; } = [];
 }

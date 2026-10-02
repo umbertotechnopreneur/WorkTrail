@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "Khách hàng",
   "Timesheet.Rate.Header": "Đơn giá theo giờ",
   "Timesheet.Currency.Header": "Tiền tệ (mã ISO)",
-  "Timesheet.Jobs.Header": "Báo cáo hàng loạt đã lưu"
+  "Timesheet.Jobs.Header": "Báo cáo hàng loạt đã lưu",
+  "Timesheet.PreviousPage": "Công việc trước",
+  "Timesheet.NextPage": "Công việc tiếp theo",
+  "Timesheet.ResultsPending": "Lô đã hoàn tất. Kết quả vẫn cần được lưu trên máy tính này.",
+  "Timesheet.CleanupPending": "Báo cáo đã được lưu. Việc dọn dẹp vẫn đang chờ; chọn Làm mới để thử lại.",
+  "Options.ScreenshotNotifications.Header": "Thông báo ảnh chụp màn hình",
+  "Options.ScreenshotNotifications.Description": "Hiển thị thông báo Windows kèm ảnh vừa chụp. Bạn cũng có thể tắt các thông báo này ngay trong thông báo.",
+  "Notification.ScreenshotCaptured.Title": "Đã chụp màn hình",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail đã chụp màn hình này.",
+  "Notification.ScreenshotCaptured.Disable": "Tắt các thông báo này",
+  "Notification.ScreenshotCaptured.DisableFailed": "Không thể tắt thông báo ảnh chụp màn hình. Vui lòng thử lại trong Tùy chọn."
 }

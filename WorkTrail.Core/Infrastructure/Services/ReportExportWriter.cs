@@ -19,7 +19,7 @@ internal static class ReportExportWriter
     internal static ReportExportResult Write(ExportDocument document, string destination, bool overwrite, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(destination) || !Path.IsPathFullyQualified(destination)
-            || !string.Equals(Path.GetExtension(destination), ReportExportService.Extension(document.Options.Format), StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(Path.GetExtension(destination), ReportExportFileNames.Extension(document.Options.Format), StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("The export destination or extension is invalid.");
         var path = Path.GetFullPath(destination);
         var tableCount = ReportExportService.Tables(document).Count;
@@ -137,6 +137,19 @@ internal static class ReportExportWriter
             tables.Add(new("Text parts", ["sheet", "row", "column", "part", "text"], () => overflow, overflow.Count));
             WriteSheet(zip, tables.Count, tables[^1], [], cancellationToken);
         }
+        WriteWorkbookPackage(zip, tables.Select(table => table.Name).ToArray());
+        WriteStyles(zip);
+        return tables.Count;
+    }
+
+    // zip owns completed worksheets.
+    // names defines their stable package order.
+    // recalculateOnOpen asks Excel to recompute trusted arithmetic formulas in editable reports.
+    internal static void WriteWorkbookPackage(ZipArchive zip, IReadOnlyList<string> names, bool recalculateOnOpen = false)
+    {
+        if (names.Count == 0 || names.Distinct(StringComparer.OrdinalIgnoreCase).Count() != names.Count
+            || names.Any(name => string.IsNullOrWhiteSpace(name) || name.Length > 31 || name.IndexOfAny(['[', ']', ':', '*', '?', '/', '\\']) >= 0))
+            throw new ArgumentException("Invalid Excel sheet names.");
         WriteXml(zip, "[Content_Types].xml", xml =>
         {
             const string types = "http://schemas.openxmlformats.org/package/2006/content-types";
@@ -145,7 +158,7 @@ internal static class ReportExportWriter
             Element(xml, "Default", types, ("Extension", "xml"), ("ContentType", "application/xml"));
             Element(xml, "Override", types, ("PartName", "/xl/workbook.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
             Element(xml, "Override", types, ("PartName", "/xl/styles.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"));
-            for (var index = 1; index <= tables.Count; index++)
+            for (var index = 1; index <= names.Count; index++)
                 Element(xml, "Override", types, ("PartName", $"/xl/worksheets/sheet{index}.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
             xml.WriteEndElement();
         });
@@ -158,7 +171,7 @@ internal static class ReportExportWriter
         WriteXml(zip, "xl/_rels/workbook.xml.rels", xml =>
         {
             xml.WriteStartElement("Relationships", Relationships);
-            for (var index = 1; index <= tables.Count; index++)
+            for (var index = 1; index <= names.Count; index++)
                 Element(xml, "Relationship", Relationships, ("Id", $"rId{index}"), ("Type", OfficeRelationships + "/worksheet"), ("Target", $"worksheets/sheet{index}.xml"));
             Element(xml, "Relationship", Relationships, ("Id", "styles"), ("Type", OfficeRelationships + "/styles"), ("Target", "styles.xml"));
             xml.WriteEndElement();
@@ -168,19 +181,18 @@ internal static class ReportExportWriter
             xml.WriteStartElement("workbook", Spreadsheet);
             xml.WriteAttributeString("xmlns", "r", null, OfficeRelationships);
             xml.WriteStartElement("sheets", Spreadsheet);
-            for (var index = 0; index < tables.Count; index++)
+            for (var index = 0; index < names.Count; index++)
             {
                 xml.WriteStartElement("sheet", Spreadsheet);
-                xml.WriteAttributeString("name", tables[index].Name);
+                xml.WriteAttributeString("name", names[index]);
                 xml.WriteAttributeString("sheetId", (index + 1).ToString(CultureInfo.InvariantCulture));
                 xml.WriteAttributeString("r", "id", OfficeRelationships, $"rId{index + 1}");
                 xml.WriteEndElement();
             }
             xml.WriteEndElement();
+            if (recalculateOnOpen) Element(xml, "calcPr", Spreadsheet, ("calcId", "191029"), ("fullCalcOnLoad", "1"));
             xml.WriteEndElement();
         });
-        WriteStyles(zip);
-        return tables.Count;
     }
 
     private static void WriteSheet(ZipArchive zip, int index, ExportTable table, List<object?[]> overflow, CancellationToken cancellationToken) =>

@@ -142,7 +142,8 @@ public sealed record AppSettings(
     bool LunarPhaseWindowShowInTaskbar = true,
     bool WindowSnappingEnabled = true,
     IReadOnlyList<WorkTrail.Application.ActivityLabelDefinition>? ActivityLabels = null,
-    DateTimeOffset? LastRetentionCleanupAt = null);
+    DateTimeOffset? LastRetentionCleanupAt = null,
+    bool ScreenshotNotificationsEnabled = true);
 
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,

@@ -103,13 +103,24 @@ internal sealed class OpenAiTimesheetBatchClient(string apiKey, HttpClient? tran
     // token cancels the local read.
     private async Task<string> SendAsync(HttpMethod method, string path, HttpContent? content, int limit, CancellationToken token)
     {
+        // ResponseHeadersRead ends HttpClient's timeout at the headers. Bound the entire streamed response as well.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromSeconds(90));
+        token = deadline.Token;
         using var request = new HttpRequestMessage(method, "https://api.openai.com/v1/" + path) { Content = content };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         using var response = await Transport.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
         if (method == HttpMethod.Delete && response.StatusCode == System.Net.HttpStatusCode.NotFound) return "{}";
         if (!response.IsSuccessStatusCode)
-            throw new ReportExportValidationException(response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden
-                ? "Timesheet.Credentials" : "Timesheet.RemoteError");
+        {
+            var messageKey = response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden
+                ? "Timesheet.Credentials" : "Timesheet.RemoteError";
+            // A rejected create request cannot have accepted paid work. Timeouts and server failures remain uncertain.
+            if (method == HttpMethod.Post && path == "batches" && (int)response.StatusCode is >= 400 and < 500
+                && response.StatusCode != System.Net.HttpStatusCode.RequestTimeout)
+                throw new TimesheetSubmissionRejectedException(messageKey);
+            throw new ReportExportValidationException(messageKey);
+        }
         if (response.Content.Headers.ContentLength > limit) throw new InvalidDataException("Batch response exceeds the local limit.");
         await using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         using var output = new MemoryStream();
@@ -126,4 +137,10 @@ internal sealed class OpenAiTimesheetBatchClient(string apiKey, HttpClient? tran
     // value is an opaque provider identifier, never a URL or file path.
     private static string Id(string? value) => !string.IsNullOrWhiteSpace(value) && value.Length <= 200
         && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-') ? value : throw new InvalidDataException("Invalid provider identifier.");
+}
+
+// A definite create rejection is distinct from a lost response to an accepted submission.
+internal sealed class TimesheetSubmissionRejectedException(string messageKey) : Exception(messageKey)
+{
+    internal string MessageKey { get; } = messageKey;
 }

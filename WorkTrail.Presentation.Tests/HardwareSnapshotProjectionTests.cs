@@ -35,8 +35,11 @@ public sealed class HardwareSnapshotProjectionTests
         Assert.Contains("8,4 W", battery.Value, StringComparison.Ordinal);
         Assert.Contains("43000 mWh", battery.Value, StringComparison.Ordinal);
         Assert.DoesNotContain("Temperature", battery.Value, StringComparison.Ordinal);
-        Assert.Contains(state.Hardware.Details, line => line.Contains(sampledAt.ToLocalTime().ToString("G", strings.Culture), StringComparison.Ordinal));
-        Assert.DoesNotContain(state.Hardware.Details, line => line.Contains("Temperature", StringComparison.Ordinal));
+        var device = Assert.Single(state.Hardware.Details);
+        Assert.Equal("/battery/0", device.Id);
+        Assert.Contains(sampledAt.ToLocalTime().ToString("G", strings.Culture), device.UpdatedAt, StringComparison.Ordinal);
+        Assert.Contains(device.Readings, line => line.Contains("Temperature", StringComparison.Ordinal)
+            && line.Contains(strings.Translate("Common.NotAvailable"), StringComparison.Ordinal));
         Assert.Equal(strings.Translate("Hardware.Status.Partial"), state.Hardware.Status);
         Assert.Equal("--", state.CpuUsage);
     }
@@ -74,8 +77,9 @@ public sealed class HardwareSnapshotProjectionTests
         Assert.Equal(strings.Translate("Hardware.Status.Stale"), result.Status);
         Assert.Contains(strings.Translate("Common.NotAvailable"), result.Summary[0].Value, StringComparison.Ordinal);
         Assert.DoesNotContain("35 W", result.Summary[0].Value, StringComparison.Ordinal);
-        Assert.Contains(result.Details, line => line.Contains("CPU Package", StringComparison.Ordinal));
-        Assert.Contains(result.Details, line => line.Contains("CPU Cores", StringComparison.Ordinal));
+        var device = Assert.Single(result.Details);
+        Assert.Contains(device.Readings, line => line.Contains("CPU Package", StringComparison.Ordinal));
+        Assert.Contains(device.Readings, line => line.Contains("CPU Cores", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -110,10 +114,12 @@ public sealed class HardwareSnapshotProjectionTests
         Assert.Equal("C: 192.3 GiB free / 418.2 GiB total · Read 0 B/s · Write 15.6 KiB/s",
             Assert.Single(result.Summary, row => row.Label == "Storage").Value);
         Assert.Equal("Ethernet: ↓ 18.4 KiB/s · ↑ 4.3 KiB/s", Assert.Single(result.Summary, row => row.Label == "Network").Value);
-        Assert.Contains(result.Details, line => line.Contains("Virtual Memory", StringComparison.Ordinal));
-        Assert.Contains(result.Details, line => line.Contains("99.26 %", StringComparison.Ordinal));
-        Assert.Contains(result.Details, line => line.Contains("210 MHz", StringComparison.Ordinal));
-        Assert.Contains(result.Details, line => line.Contains("0.19 %", StringComparison.Ordinal));
+        Assert.Equal(snapshot.Devices.Select(device => device.Id), result.Details.Select(device => device.Id));
+        Assert.Contains(result.Details, device => device.Name == "Virtual Memory");
+        var readings = result.Details.SelectMany(device => device.Readings).ToArray();
+        Assert.Contains(readings, line => line.Contains("99.26 %", StringComparison.Ordinal));
+        Assert.Contains(readings, line => line.Contains("210 MHz", StringComparison.Ordinal));
+        Assert.Contains(readings, line => line.Contains("0.19 %", StringComparison.Ordinal));
         Assert.Equal(16.46, snapshot.Devices[0].Sensors[1].Value);
     }
 
@@ -134,6 +140,31 @@ public sealed class HardwareSnapshotProjectionTests
         var cpu = Assert.Single(result.Summary);
         Assert.Contains("Zero CPU: 0 %", cpu.Value, StringComparison.Ordinal);
         Assert.Contains("Core-only CPU: " + strings.Translate("Common.NotAvailable"), cpu.Value, StringComparison.Ordinal);
-        Assert.Contains(result.Details, line => line.Contains("74,88 %", StringComparison.Ordinal));
+        Assert.Contains(result.Details.Single(device => device.Id == "/vram").Readings,
+            line => line.Contains("74,88 %", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Projection_GroupsDuplicateDeviceNamesAndPreservesZeroAndMissingMeasurements()
+    {
+        var timestamp = DateTimeOffset.UtcNow;
+        var strings = new LocalizationService("en-US");
+        var devices = new HardwareDeviceSnapshot[]
+        {
+            new("/gpu/0", "GPU", "GpuNvidia", timestamp,
+                [new("/gpu/0/load", "GPU Core", "Load", "%", 0), new("/gpu/0/temp", "GPU Core", "Temperature", "°C", null)]),
+            new("/gpu/1", "GPU", "GpuIntel", timestamp.AddSeconds(-5),
+                [new("/gpu/1/temp", "GPU Core", "Temperature", "°C", 40.25)])
+        };
+        var result = HardwareSnapshotProjection.Create(new SystemSnapshot(timestamp, "partial", devices), strings.Culture, strings.Translate);
+
+        Assert.Equal(2, result.Details.Count);
+        Assert.Equal(2, result.Details[0].Readings.Count);
+        Assert.Contains("0 %", result.Details[0].Readings[0], StringComparison.Ordinal);
+        Assert.Contains(strings.Translate("Common.NotAvailable"), result.Details[0].Readings[1], StringComparison.Ordinal);
+        Assert.Equal("/gpu/1", result.Details[1].Id);
+        Assert.NotEqual(result.Details[0].UpdatedAt, result.Details[1].UpdatedAt);
+        Assert.Null(devices[0].Sensors[1].Value);
+        Assert.Equal(40.25, devices[1].Sensors[0].Value);
     }
 }

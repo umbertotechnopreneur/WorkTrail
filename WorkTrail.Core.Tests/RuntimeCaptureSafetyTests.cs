@@ -110,7 +110,7 @@ public sealed class RuntimeCaptureSafetyTests
             };
             store.SaveSettings(settings);
             var snapshot = new SettingsSnapshot(settings);
-            var capture = new BlockingCaptureService(dataDirectory);
+            var capture = new BlockingCaptureService();
             await using var application = CreateApplication(store, snapshot, capture, startTimer: false);
 
             var first = application.CaptureManualScreenshotAsync(CancellationToken.None);
@@ -240,7 +240,7 @@ public sealed class RuntimeCaptureSafetyTests
             };
             store.SaveSettings(settings);
             var snapshot = new SettingsSnapshot(settings);
-            var capture = new BlockingCaptureService(dataDirectory);
+            var capture = new BlockingCaptureService();
             application = CreateApplication(store, snapshot, capture, startTimer: true);
             var started = await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None);
             Assert.True(started.Succeeded);
@@ -333,6 +333,7 @@ public sealed class RuntimeCaptureSafetyTests
         private readonly Action _beforeAuthorization;
         private readonly ScreenshotCaptureContext _context;
         private readonly string _captureId = Guid.NewGuid().ToString("N");
+        private readonly DateTimeOffset _capturedAt = DateTimeOffset.UtcNow;
 
         internal BoundaryCaptureService(
             string directory,
@@ -341,7 +342,8 @@ public sealed class RuntimeCaptureSafetyTests
         {
             _beforeAuthorization = beforeAuthorization ?? (() => { });
             _context = context ?? new ScreenshotCaptureContext("allowed-app", "Allowed", "Work", "Allowed window");
-            OutputPath = Path.Combine(directory, $"{_captureId}_1.0.0_manual_monitor-1.webp");
+            OutputPath = Path.Combine(ScreenshotStorageLayout.GetDayDirectory(directory, _capturedAt),
+                $"{_captureId}_1.0.0_manual_monitor-1.webp");
         }
 
         internal int PixelReadCount { get; private set; }
@@ -365,17 +367,18 @@ public sealed class RuntimeCaptureSafetyTests
             }
 
             PixelReadCount++;
-            File.WriteAllBytes(OutputPath, [1, 2, 3]);
+            Directory.CreateDirectory(Path.GetDirectoryName(OutputPath)!);
+            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(OutputPath), [1, 2, 3]);
             Captured.TrySetResult(true);
             return new ScreenshotCaptureResult(
                 _captureId,
                 [OutputPath],
                 [OutputPath],
-                captureOrigin);
+                captureOrigin, CapturedAt: _capturedAt);
         }
     }
 
-    private sealed class BlockingCaptureService(string directory) : IScreenCaptureService
+    private sealed class BlockingCaptureService : IScreenCaptureService
     {
         internal TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -400,9 +403,12 @@ public sealed class RuntimeCaptureSafetyTests
             Started.TrySetResult(true);
             Release.Wait(TimeSpan.FromSeconds(10));
             var captureId = Guid.NewGuid().ToString("N");
-            var outputPath = Path.Combine(directory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
-            File.WriteAllBytes(outputPath, [1, 2, 3]);
-            return new ScreenshotCaptureResult(captureId, [outputPath], [outputPath], captureOrigin);
+            var capturedAt = DateTimeOffset.UtcNow;
+            var day = ScreenshotStorageLayout.GetDayDirectory(requestedDirectory, capturedAt);
+            Directory.CreateDirectory(day);
+            var outputPath = Path.Combine(day, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
+            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(outputPath), [1, 2, 3]);
+            return new ScreenshotCaptureResult(captureId, [outputPath], [outputPath], captureOrigin, CapturedAt: capturedAt);
         }
     }
 

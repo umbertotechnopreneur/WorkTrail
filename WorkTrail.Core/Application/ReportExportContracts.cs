@@ -5,6 +5,30 @@ namespace WorkTrail.Application;
 /// <summary>Identifies the supported analytical file formats.</summary>
 public enum ReportExportFormat { Excel, Csv, Json }
 
+/// <summary>Supplies export file metadata without reading or projecting history.</summary>
+public static class ReportExportFileNames
+{
+    /// <summary>Returns the extension for the selected format.</summary>
+    /// <param name="format">The supported analytical file format.</param>
+    /// <exception cref="ArgumentOutOfRangeException">The format is unsupported.</exception>
+    public static string Extension(ReportExportFormat format) => format switch
+    {
+        ReportExportFormat.Excel => ".xlsx",
+        ReportExportFormat.Csv => ".zip",
+        ReportExportFormat.Json => ".json",
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
+    /// <summary>Returns the date-based filename independently of the UI culture.</summary>
+    /// <param name="options">The selected report date range.</param>
+    /// <exception cref="ArgumentNullException">The report options are missing.</exception>
+    public static string SuggestedFileName(ReportExportOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return FormattableString.Invariant($"WorkTrail_{options.From:yyyy-MM-dd}_{options.ToInclusive:yyyy-MM-dd}");
+    }
+}
+
 /// <summary>Chooses whether saved descriptions are exported as excerpts, complete text, or both.</summary>
 public enum ReportDescriptionMode { Brief, Complete, Both }
 

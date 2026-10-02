@@ -37,19 +37,30 @@ internal static class TimesheetProjection
         var rows = Aggregate(samples, from, to, zone, options.MergeDayParts, sources.IncludeWindowTitles, token);
         if (rows.Count == 0) throw new ReportExportValidationException("Timesheet.NoActivity");
         var captures = exports.ReadCaptures(sources.Options, token);
+        // Convert dates and index selected project labels once instead of scanning all captures for every row.
+        var captureGroups = new Dictionary<(DateOnly Date, string Part, string Project), List<ScreenshotGalleryItem>>();
+        foreach (var capture in captures)
+        {
+            token.ThrowIfCancellationRequested();
+            var local = TimeZoneInfo.ConvertTime(capture.CapturedAt, zone);
+            var date = DateOnly.FromDateTime(local.DateTime);
+            var part = options.MergeDayParts ? "day" : local.Hour < 12 ? "morning" : "afternoon";
+            var labels = capture.SpanLabels is null || capture.SpanLabels.Count == 0
+                ? new[] { "" } : capture.SpanLabels.Select(label => label.Label).Where(label => !string.IsNullOrEmpty(label)).Distinct(StringComparer.Ordinal);
+            foreach (var label in labels)
+            {
+                var key = (date, part, label);
+                if (!captureGroups.TryGetValue(key, out var group)) captureGroups[key] = group = [];
+                group.Add(capture);
+            }
+        }
         var work = new List<TimesheetWorkRow>();
         long totalCharacters = 0;
         foreach (var row in rows)
         {
             token.ThrowIfCancellationRequested();
-            var selected = captures.Where(capture =>
-            {
-                var local = TimeZoneInfo.ConvertTime(capture.CapturedAt, zone);
-                var part = options.MergeDayParts ? "day" : local.Hour < 12 ? "morning" : "afternoon";
-                return DateOnly.FromDateTime(local.DateTime) == row.Date && part == row.Part
-                    && (string.IsNullOrEmpty(row.Project) ? capture.SpanLabels is null || capture.SpanLabels.Count == 0
-                        : capture.SpanLabels?.Any(label => label.Label == row.Project) == true);
-            }).ToArray();
+            IReadOnlyList<ScreenshotGalleryItem> selected = captureGroups.TryGetValue((row.Date, row.Part, row.Project), out var group)
+                ? group : [];
             string? prompt = null;
             var count = 0;
             try

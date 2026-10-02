@@ -37,6 +37,7 @@ public static class SettingsCatalog
     public static IReadOnlyList<SettingDescriptor> Definitions { get; } =
     [
         Boolean("screenshots.enabled", "Allow application-initiated screenshot capture."),
+        Boolean("screenshots.notifications", "Show Windows notifications with a temporary preview after successful captures."),
         Boolean("screenshots.keep", "Keep screenshots after analysis."),
         Choice("screenshots.mode", "Select all displays or only the active window.", ScreenshotModes),
         Text("screenshots.directory", "Directory used for WorkTrail screenshot artifacts.", "path"),
@@ -118,6 +119,7 @@ public static class SettingsCatalog
         value = normalizedKey switch
         {
             "screenshots.enabled" => settings.ScreenshotsEnabled,
+            "screenshots.notifications" => settings.ScreenshotNotificationsEnabled,
             "screenshots.keep" => settings.KeepScreenshots,
             "screenshots.mode" => settings.ScreenshotCaptureMode,
             "screenshots.directory" => settings.ScreenshotDirectory,
@@ -243,6 +245,7 @@ public static class SettingsCatalog
             switch (key)
             {
                 case "screenshots.enabled" when TryBoolean(value, out var screenshots): current = current with { ScreenshotsEnabled = screenshots }; break;
+                case "screenshots.notifications" when TryBoolean(value, out var screenshotNotifications): current = current with { ScreenshotNotificationsEnabled = screenshotNotifications }; break;
                 case "screenshots.keep" when TryBoolean(value, out var keep): current = current with { KeepScreenshots = keep }; break;
                 case "screenshots.mode" when Canonical(ScreenshotModes, value) is { } screenshotMode: current = current with { ScreenshotCaptureMode = screenshotMode }; break;
                 case "screenshots.directory" when TryDirectory(value, allowEmpty: false, out var screenshotDirectory): current = current with { ScreenshotDirectory = screenshotDirectory }; break;

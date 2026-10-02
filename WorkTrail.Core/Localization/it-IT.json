@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "Cliente",
   "Timesheet.Rate.Header": "Tariffa oraria",
   "Timesheet.Currency.Header": "Valuta (codice ISO)",
-  "Timesheet.Jobs.Header": "Report batch salvati"
+  "Timesheet.Jobs.Header": "Report batch salvati",
+  "Timesheet.PreviousPage": "Precedenti",
+  "Timesheet.NextPage": "Successivi",
+  "Timesheet.ResultsPending": "Il batch è terminato. I risultati devono ancora essere salvati su questo PC.",
+  "Timesheet.CleanupPending": "Il report è salvato. La pulizia è ancora in sospeso; scegli Aggiorna per riprovare.",
+  "Options.ScreenshotNotifications.Header": "Notifiche screenshot",
+  "Options.ScreenshotNotifications.Description": "Mostra una notifica Windows con l’immagine acquisita. Puoi disattivare questi avvisi anche dalla notifica.",
+  "Notification.ScreenshotCaptured.Title": "Screenshot acquisito",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail ha acquisito questa schermata.",
+  "Notification.ScreenshotCaptured.Disable": "Disattiva queste notifiche",
+  "Notification.ScreenshotCaptured.DisableFailed": "Non è stato possibile disattivare le notifiche screenshot. Riprova nelle Opzioni."
 }

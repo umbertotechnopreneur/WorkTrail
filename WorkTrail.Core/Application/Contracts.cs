@@ -171,9 +171,13 @@ public sealed record ActivityLabelSample(
     InstallationProfile? Installation = null);
 
 /// <summary>Contains the retained screenshot projection for one local calendar date.</summary>
+/// <param name="Date">Local date represented by the gallery.</param>
+/// <param name="Items">Captures with verified durable installation provenance.</param>
+/// <param name="UnavailableArtifactCount">Artifacts excluded because their installation provenance is missing.</param>
 public sealed record ScreenshotGallery(
     DateOnly Date,
-    IReadOnlyList<ScreenshotGalleryItem> Items);
+    IReadOnlyList<ScreenshotGalleryItem> Items,
+    int UnavailableArtifactCount = 0);
 
 /// <summary>Contains one validated retained screenshot ready for presentation decoding.</summary>
 public sealed record ScreenshotImageContent(

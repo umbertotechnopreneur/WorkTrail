@@ -196,7 +196,9 @@ public sealed class SensorTraceHistory
     private readonly Dictionary<string, (string? Sensor, List<SensorTracePoint> Points)> _traces = new(StringComparer.Ordinal);
 
     /// <summary>Appends only new device samples and evicts readings outside the visible two-minute window.</summary>
-    public IReadOnlyList<SensorTracePoint> Update(SensorMonitorRow row, DateTimeOffset now)
+    /// <param name="row">Current device projection, including missing readings and its source sensor.</param>
+    /// <param name="now">Current collection time used to bound the trace.</param>
+    public void Record(SensorMonitorRow row, DateTimeOffset now)
     {
         if (!_traces.TryGetValue(row.Id, out var trace) || trace.Sensor != row.SensorId)
             trace = (row.SensorId, []);
@@ -205,8 +207,12 @@ public sealed class SensorTraceHistory
             trace.Points.Add(new(row.SampledAt, row.Percent));
         if (trace.Points.Count > 241) trace.Points.RemoveRange(0, trace.Points.Count - 241);
         _traces[row.Id] = trace;
-        return trace.Points.ToArray();
     }
+
+    /// <summary>Copies a device trace only when the visible page needs to render it.</summary>
+    /// <param name="deviceId">Stable identity of the device being rendered.</param>
+    public IReadOnlyList<SensorTracePoint> GetPoints(string deviceId) =>
+        _traces.TryGetValue(deviceId, out var trace) ? trace.Points.ToArray() : [];
 
     /// <summary>Discards traces for removed devices and failed or disabled collections.</summary>
     public void Retain(IReadOnlyList<SensorMonitorRow> rows)

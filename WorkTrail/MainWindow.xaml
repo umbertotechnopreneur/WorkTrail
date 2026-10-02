@@ -50,11 +50,10 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0" />
                 </Grid.ColumnDefinitions>
-                <Button
+                <Button AutomationProperties.AutomationId="Main.TitleBarBackButton"
                     x:Name="TitleBarBackButton"
                     Grid.Column="1"
                     Margin="8,0,0,0"
-                    AutomationProperties.Name="Back"
                     Click="TitleBarBackButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="QuickSetup.Back"
@@ -66,11 +65,10 @@
                         FontSize="17"
                         Glyph="&#xE72B;" />
                 </Button>
-                <Button
+                <Button AutomationProperties.AutomationId="Main.WorldClockButton"
                     x:Name="WorldClockButton"
                     Grid.Column="4"
                     AllowFocusOnInteraction="True"
-                    AutomationProperties.Name="Show world clocks"
                     Click="WorldClockButton_Click"
                     IsTabStop="True"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
@@ -80,11 +78,10 @@
                         AutomationProperties.AccessibilityView="Raw"
                         Symbol="Clock" />
                 </Button>
-                <Button
+                <Button AutomationProperties.AutomationId="Main.SensorsButton"
                     x:Name="SensorsButton"
                     Grid.Column="5"
                     Visibility="Collapsed"
-                    AutomationProperties.Name="Show hardware sensors"
                     Click="SensorsButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Sensors.Open"
@@ -107,11 +104,10 @@
                     TextTrimming="CharacterEllipsis" />
                     <controls:PremiumBadge x:Name="TitlePremiumBadge" Grid.Column="1" VerticalAlignment="Center" Visibility="Collapsed" />
                 </Grid>
-                <Button
+                <Button AutomationProperties.AutomationId="Main.TitleBarMoreButton"
                     x:Name="TitleBarMoreButton"
                     Grid.Column="6"
                     Padding="6"
-                    AutomationProperties.Name="Open application menu"
                     Click="TitleBarMoreButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Main.Menu.Open"
@@ -125,10 +121,9 @@
                         FontSize="19"
                         Glyph="&#xE712;" />
                 </Button>
-                <Button
+                <Button AutomationProperties.AutomationId="Main.TitleBarSearchButton"
                     x:Name="TitleBarSearchButton"
                     Grid.Column="7"
-                    AutomationProperties.Name="Search history"
                     Click="TitleBarSearchButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Search.Title"
@@ -139,10 +134,9 @@
                         FontSize="17"
                         Glyph="&#xE721;" />
                 </Button>
-                <Button
+                <Button AutomationProperties.AutomationId="Main.TitleBarMinimizeToTrayButton"
                     x:Name="TitleBarMinimizeToTrayButton"
                     Grid.Column="8"
-                    AutomationProperties.Name="Minimize to notification area"
                     Click="MinimizeToTrayButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Main.Menu.MinimizeToTray"
@@ -154,11 +148,10 @@
                         FontSize="17"
                         Glyph="&#xE921;" />
                 </Button>
-                <Button
+                <Button AutomationProperties.AutomationId="Main.TitleBarCloseButton"
                     x:Name="TitleBarCloseButton"
                     Grid.Column="9"
                     Width="48"
-                    AutomationProperties.Name="Close app"
                     Click="TitleBarCloseButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Tray.CloseApplication"
@@ -299,9 +292,8 @@
                                 <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Button
+                        <Button AutomationProperties.AutomationId="Main.MoreButton"
                             x:Name="MoreButton"
-                            AutomationProperties.Name="Open application menu"
                             Background="Transparent"
                             BorderBrush="Transparent"
                             ToolTipService.ToolTip="Open application menu"
@@ -339,7 +331,7 @@
                                         </Style>
                                     </MenuFlyout.MenuFlyoutPresenterStyle>
 
-                                    <MenuFlyoutItem
+                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickSearchMenuItem"
                                         x:Name="QuickSearchMenuItem"
                                         ToolTipService.ToolTip="Find recorded moments in your history."
                                         Tag="Search.Title"
@@ -350,7 +342,7 @@
                                             <FontIcon Foreground="#FFDB8D72" Glyph="&#xE721;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
-                                    <MenuFlyoutItem
+                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickActivityCalendarMenuItem"
                                         x:Name="QuickActivityCalendarMenuItem"
                                         ToolTipService.ToolTip="Open the activity calendar."
                                         Tag="ActivityCalendar.MenuTitle"
@@ -360,7 +352,7 @@
                                             <FontIcon Foreground="#FF7D9FF8" Glyph="&#xE787;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
-                                    <MenuFlyoutItem
+                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickScreenshotGalleryMenuItem"
                                         x:Name="QuickScreenshotGalleryMenuItem"
                                         ToolTipService.ToolTip="Browse captured screenshots."
                                         Tag="Screenshots.Caption"
@@ -371,22 +363,21 @@
                                             <FontIcon Foreground="#FF71CBB7" Glyph="&#xE8B9;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
-                                    <MenuFlyoutItem x:Name="ReportExportMenuItem" Tag="Export.Title" Text="Export activity" ToolTipService.ToolTip="Export activity" Click="ReportExportMenuItem_Click">
+                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.ReportExportMenuItem" x:Name="ReportExportMenuItem" Tag="Export.Title" Text="Export activity" ToolTipService.ToolTip="Export activity" Click="ReportExportMenuItem_Click">
                                         <MenuFlyoutItem.Icon><FontIcon Foreground="#FFDB8D72" Glyph="&#xEDE1;" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
                                     <MenuFlyoutSeparator />
 
-                                    <MenuFlyoutSubItem
+                                    <MenuFlyoutSubItem AutomationProperties.AutomationId="Main.CaptureMenu"
                                         x:Name="CaptureMenu"
                                         AutomationProperties.HelpText="Configure when screenshots are captured and whether capture is enabled."
-                                        AutomationProperties.Name="Screen capture"
                                         Tag="Main.Menu.Capture"
                                         Text="Screen capture"
                                         ToolTipService.ToolTip="Configure when screenshots are captured and whether capture is enabled.">
                                         <MenuFlyoutSubItem.Icon>
                                             <FontIcon Glyph="&#xE722;" />
                                         </MenuFlyoutSubItem.Icon>
-                                        <MenuFlyoutItem
+                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.ScheduleMenuItem"
                                             x:Name="ScheduleMenuItem"
                                             Tag="Schedule.Snapshots"
                                             Text="Screenshot schedule"
@@ -397,7 +388,7 @@
                                                 <FontIcon Foreground="#FF85A8DB" Glyph="&#xE8C0;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <ToggleMenuFlyoutItem
+                                        <ToggleMenuFlyoutItem AutomationProperties.AutomationId="Main.ScreenshotsMenuToggle"
                                             x:Name="ScreenshotsMenuToggle"
                                             Tag="MenuToggleScreenshot"
                                             Text="Automatic screenshots"
@@ -409,17 +400,16 @@
                                         </ToggleMenuFlyoutItem>
                                     </MenuFlyoutSubItem>
 
-                                    <MenuFlyoutSubItem
+                                    <MenuFlyoutSubItem AutomationProperties.AutomationId="Main.SettingsMenu"
                                         x:Name="SettingsMenu"
                                         AutomationProperties.HelpText="Configure WorkTrail or open maintenance and diagnostic tools."
-                                        AutomationProperties.Name="App settings"
                                         Tag="Main.Menu.Settings"
                                         Text="App settings"
                                         ToolTipService.ToolTip="Configure WorkTrail or open maintenance and diagnostic tools.">
                                         <MenuFlyoutSubItem.Icon>
                                             <FontIcon Glyph="&#xE713;" />
                                         </MenuFlyoutSubItem.Icon>
-                                        <MenuFlyoutItem
+                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickSetupMenuItem"
                                             x:Name="QuickSetupMenuItem"
                                             Tag="QuickSetup.MenuTitle"
                                             Text="Quick Setup"
@@ -429,7 +419,7 @@
                                                 <FontIcon Foreground="#FF71CBB7" Glyph="&#xE9D5;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem
+                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.OptionsMenuItem"
                                             x:Name="OptionsMenuItem"
                                             Tag="MenuTitleOptions"
                                             Text="App options"
@@ -440,7 +430,7 @@
                                                 <FontIcon Foreground="#FFE5B06A" Glyph="&#xE713;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem
+                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.OperationsMenuItem"
                                             x:Name="OperationsMenuItem"
                                             Tag="Main.Menu.Operations"
                                             Text="Maintenance and diagnostics"
@@ -450,7 +440,7 @@
                                                 <FontIcon Glyph="&#xE90F;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem
+                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.ExportDataMenuItem"
                                             x:Name="ExportDataMenuItem"
                                             Tag="Main.Menu.DataTransfer.Export"
                                             Text="Export data and screenshots…"
@@ -460,7 +450,7 @@
                                                 <FontIcon Foreground="#FF71CBB7" Glyph="&#xE898;" />
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem
+                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.ImportDataMenuItem"
                                             x:Name="ImportDataMenuItem"
                                             Tag="Main.Menu.DataTransfer.Import"
                                             Text="Import data and screenshots…"
@@ -472,17 +462,16 @@
                                         </MenuFlyoutItem>
                                     </MenuFlyoutSubItem>
 
-                                    <MenuFlyoutSubItem
+                                    <MenuFlyoutSubItem AutomationProperties.AutomationId="Main.AiProviderMenu"
                                         x:Name="AiProviderMenu"
                                         AutomationProperties.HelpText="Enable AI descriptions and review provider-specific usage costs."
-                                        AutomationProperties.Name="AI features"
                                         Tag="Main.Menu.AiProvider"
                                         Text="AI features"
                                         ToolTipService.ToolTip="Enable AI descriptions and review provider-specific usage costs.">
                                         <MenuFlyoutSubItem.Icon>
                                             <FontIcon Foreground="#FFA97BEA" Glyph="&#xE99A;" />
                                         </MenuFlyoutSubItem.Icon>
-                                        <ToggleMenuFlyoutItem
+                                        <ToggleMenuFlyoutItem AutomationProperties.AutomationId="Main.OpenAiMenuToggle"
                                             x:Name="OpenAiMenuToggle"
                                             Tag="MenuToggleOpenAi"
                                             Text="Automatic AI descriptions"
@@ -494,7 +483,7 @@
                                                 <FontIcon Foreground="#FFA97BEA" Glyph="&#xE9A3;" />
                                             </ToggleMenuFlyoutItem.Icon>
                                         </ToggleMenuFlyoutItem>
-                                        <MenuFlyoutItem
+                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.AiPricingMenuItem"
                                             x:Name="AiPricingMenuItem"
                                             Tag="AiPricing.MenuTitle"
                                             Text="OpenAI usage and costs"
@@ -508,7 +497,7 @@
                                     </MenuFlyoutSubItem>
 
                                     <MenuFlyoutSeparator />
-                                    <MenuFlyoutItem
+                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.MinimizeToTrayMenuItem"
                                         x:Name="MinimizeToTrayMenuItem"
                                         Tag="Main.Menu.MinimizeToTray"
                                         Text="Minimize to notification area"
@@ -518,7 +507,7 @@
                                             <FontIcon Foreground="#FF85A8DB" Glyph="&#xE921;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
-                                    <MenuFlyoutItem
+                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.AboutMenuItem"
                                         x:Name="AboutMenuItem"
                                         Tag="MenuTitleAbout"
                                         Text="About"
@@ -585,14 +574,13 @@
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
                                         Spacing="9">
-                                <Button
+                                <Button AutomationProperties.AutomationId="Tracking.Toggle"
                                     x:Name="TrackingButton"
                                     Width="74"
                                     Height="74"
                                     Padding="0"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
-                                    AutomationProperties.Name="Start tracking"
                                     Background="{ThemeResource PlayerAccentBrush}"
                                     BorderBrush="#D9FFFFFF"
                                     BorderThickness="1"
@@ -615,13 +603,12 @@
                                 <StackPanel
                                     VerticalAlignment="Center"
                                     Spacing="6">
-                                    <Button
+                                    <Button AutomationProperties.AutomationId="Capture.TakeScreenshot"
                                         x:Name="TakeScreenshotButton"
                                         Width="32"
                                         Height="32"
                                         Padding="0"
                                         HorizontalAlignment="Center"
-                                        AutomationProperties.Name="Take snapshot"
                                         Background="Transparent"
                                         BorderBrush="Transparent"
                                         BorderThickness="1"
@@ -637,14 +624,13 @@
                                             Foreground="{ThemeResource PlayerAccentTextBrush}"
                                             Glyph="&#xE722;"/>
                                     </Button>
-                                    <Button
+                                    <Button AutomationProperties.AutomationId="Main.DeleteSnapshotButton"
                                         x:Name="DeleteSnapshotButton"
                                         Tag="Snapshot.Delete"
                                         Width="32"
                                         Height="32"
                                         Padding="0"
                                         HorizontalAlignment="Center"
-                                        AutomationProperties.Name="Delete snapshot"
                                         Background="Transparent"
                                         BorderBrush="Transparent"
                                         BorderThickness="1"
@@ -754,7 +740,7 @@
                                     <controls:FeatureGate x:Name="PlayerLabelFeatureGate" Feature="ActivityLabels" ShowTitle="False" ShowHint="False" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <controls:ActivityLabelSelector x:Name="PlayerLabelSelector" />
                                     </controls:FeatureGate>
-                                    <Button x:Name="ManageLabelsButton" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                    <Button AutomationProperties.AutomationId="Main.ManageLabelsButton" x:Name="ManageLabelsButton" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center"
                                             Padding="8,4" FontSize="12" Click="ManageLabelsButton_Click">
                                         <Grid ColumnSpacing="6">
                                             <Grid.ColumnDefinitions>
@@ -841,13 +827,12 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <Button
+                            <Button AutomationProperties.AutomationId="Main.ActivityScoreButton"
                                 x:Name="ActivityScoreButton"
                                 MinHeight="32"
                                 Padding="2,6"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Stretch"
-                                AutomationProperties.Name="Hide activity score"
                                 Background="Transparent"
                                 BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                                 BorderThickness="0,1,0,0"
@@ -949,7 +934,7 @@
                             </Grid>
                         </Grid>
 
-                        <Button
+                        <Button AutomationProperties.AutomationId="Main.DetailsButton"
                             x:Name="DetailsButton"
                             Grid.Row="3"
                             MinHeight="34"
@@ -957,7 +942,6 @@
                             Padding="2,7"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Stretch"
-                            AutomationProperties.Name="Show last session"
                             Background="Transparent"
                             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                             BorderThickness="0,1,0,0"
@@ -1035,14 +1019,13 @@
                                         Text="Screenshot off"
                                         TextTrimming="CharacterEllipsis" />
                                 </Grid>
-                                <Button
+                                <Button AutomationProperties.AutomationId="Main.ScreenshotPreviewButton"
                                     x:Name="ScreenshotPreviewButton"
                                     Grid.Column="2"
                                     Width="132"
                                     Height="92"
                                     Padding="0"
                                     VerticalAlignment="Top"
-                                    AutomationProperties.Name="No screen capture available yet"
                                     Background="Transparent"
                                     BorderBrush="Transparent"
                                     BorderThickness="0"

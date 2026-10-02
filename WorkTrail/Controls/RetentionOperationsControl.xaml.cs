@@ -359,6 +359,16 @@ public sealed partial class RetentionOperationsControl : UserControl
                 RenderRetentionStatus();
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Cancellation stops remaining work; files deleted before the request are not restored.
+            _retentionPreview = null;
+            RenderRetentionPreviewState();
+            Context.ShowStatus(
+                _strings.Translate("Operations.Retention.Cancelled.Title"),
+                _strings.Translate("Export.Cancelled"),
+                InfoBarSeverity.Informational);
+        }
         catch (Exception)
         {
             // A dialog-host failure leaves retention untouched and the subsection available.

@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "Cliente",
   "Timesheet.Rate.Header": "Valor por hora",
   "Timesheet.Currency.Header": "Moeda (código ISO)",
-  "Timesheet.Jobs.Header": "Relatórios em lote salvos"
+  "Timesheet.Jobs.Header": "Relatórios em lote salvos",
+  "Timesheet.PreviousPage": "Anteriores",
+  "Timesheet.NextPage": "Próximos",
+  "Timesheet.ResultsPending": "O lote terminou. Os resultados ainda precisam ser salvos neste PC.",
+  "Timesheet.CleanupPending": "O relatório está salvo. A limpeza ainda está pendente; escolha Atualizar para tentar novamente.",
+  "Options.ScreenshotNotifications.Header": "Notificações de capturas de tela",
+  "Options.ScreenshotNotifications.Description": "Mostra uma notificação do Windows com a imagem capturada. Você também pode desativar esses avisos pela notificação.",
+  "Notification.ScreenshotCaptured.Title": "Captura de tela realizada",
+  "Notification.ScreenshotCaptured.Message": "O WorkTrail capturou esta tela.",
+  "Notification.ScreenshotCaptured.Disable": "Desativar estas notificações",
+  "Notification.ScreenshotCaptured.DisableFailed": "Não foi possível desativar as notificações de capturas. Tente novamente nas Opções."
 }

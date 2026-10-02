@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+using Microsoft.Extensions.Logging;
 using WorkTrail.Services;
 
 namespace WorkTrail.Application;
@@ -25,8 +26,10 @@ public sealed partial class WorkTrailApplication
                 : (_liveWorkDrained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
         }
         await liveWorkDrained.ConfigureAwait(false);
+        _screenshotNotifications?.Dispose();
         _liveWorkCancellation.Dispose();
         await _runtimeTimerTask.ConfigureAwait(false);
+        await _timesheetRecoveryTask.ConfigureAwait(false);
         _runtimeTimerCancellation.Dispose();
         await _screenshotReprocessing.DisposeAsync().ConfigureAwait(false);
         _tracking.DashboardStateChanged -= OnDashboardStateChanged;
@@ -43,6 +46,7 @@ public sealed partial class WorkTrailApplication
         _systemSnapshotGate.Dispose();
         await _snapshot.DisposeAsync().ConfigureAwait(false);
         _worldClockOperations.Dispose();
+        _timesheetGate.Dispose();
         _mutations.Dispose();
     }
 
@@ -117,14 +121,46 @@ public sealed partial class WorkTrailApplication
 
     private async Task RecoverScreenshotDeletionsAsync(CancellationToken cancellationToken)
     {
-        var pending = _screenshotDeletions.Pending();
+        // Recovery failures remain retryable and visible, but cannot prevent the application from starting.
+        void ReportFailure(Exception exception)
+        {
+            _logger.LogWarning("Screenshot deletion recovery failed. ExceptionType={ExceptionType}", exception.GetType().Name);
+            EnqueueNotification(new ApplicationNotification(Guid.NewGuid(), DateTimeOffset.UtcNow,
+                ApplicationNotificationSeverity.Error, "Notification.ScreenshotCaptureFailed.Title",
+                "Notification.ScreenshotCaptureFailed.Message", "screenshot.deletion.recovery.failed", exception.GetType().Name));
+        }
+        IReadOnlyList<ScreenshotDeletionJournal.Plan> pending;
+        try { pending = _screenshotDeletions.Pending(ReportFailure); }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        {
+            ReportFailure(exception);
+            return;
+        }
         if (pending.Count == 0) return;
+        var completed = new List<ScreenshotDeletionJournal.Plan>();
+        var batch = new ScreenshotDeletionJournal.Batch();
         foreach (var deletion in pending)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            _screenshotDeletions.Execute(deletion);
+            try
+            {
+                _screenshotDeletions.Execute(deletion, batch, cancellationToken);
+                completed.Add(deletion);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                ReportFailure(exception);
+            }
         }
-        await _search.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var deletion in pending) _screenshotDeletions.Complete(deletion);
+        if (completed.Count == 0) return;
+        try
+        {
+            await _search.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var deletion in completed) _screenshotDeletions.Complete(deletion);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ReportFailure(exception);
+        }
     }
 }

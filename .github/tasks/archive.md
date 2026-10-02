@@ -4,6 +4,42 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-02
 
+### Localized UI automation selectors
+
+- Registered stable selectors and localized accessible names for the main window,
+  reports, settings, retention, screenshot commands, sensors and maintenance navigation.
+- Added a dedicated control-name dictionary backed by the existing language catalogs
+  and a conversion register organized by UI surface. Kept state-dependent accessible
+  names and gave generated weekly schedule cells invariant selectors.
+- Included unopened menus, toolbar commands and expander headers in localization.
+  Validated selector coverage, every shipped language and export captions, and built
+  the Debug x64 UI. Live automation-tree inspection and interaction testing remain separate.
+
+### Grouped sensor details and visible-page rendering
+
+- Grouped every captured sensor reading by device, including zero and unavailable values,
+  with closed device sections instead of a flat expanded list.
+- Continued collecting all live trace samples while rendering and copying points only for
+  devices on the visible monitor page. Preserved capture timestamps and stored measurements.
+- Validated the hardware and sensor presentation checks with synthetic data and built the
+  Debug x64 UI. Visual acceptance and live memory profiling remain separate checkpoints.
+
+### Export reliability review
+
+- Distinguished rejected Batch creation from uncertain submissions, released unsubmitted
+  quota reservations atomically, and retained recovery identities without retrying paid work.
+- Added runtime recovery independent of export-window lifetime, durable result readiness,
+  retryable cloud cleanup, and a paged job catalog without the former 200-job cutoff.
+- Reconciled usage in one cancellable transaction and included consumed tokens from
+  incomplete responses in estimated costs.
+- Shared Excel package metadata, indexed day/project source selection, and removed the
+  full history projection previously used only to choose a save filename.
+- Added synthetic regression cases for rejection, uncertainty, archive paging, runtime
+  recovery, download/cleanup failure, quota transactions, source attribution, and costs.
+  Validated targeted export, aggregation, batch, and localization checks using simulated
+  provider responses, and built the Debug x64 UI. Live provider submission and visual
+  acceptance remain outside those checks.
+
 ### Batch timesheets and Excel previews
 
 - Added a resumable OpenAI Batch timesheet report with measured day/project durations,

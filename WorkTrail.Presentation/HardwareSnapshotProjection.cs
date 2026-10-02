@@ -8,13 +8,17 @@ namespace WorkTrail.Presentation;
 /// <summary>Contains an already-formatted hardware category summary.</summary>
 public sealed record HardwareSummaryRow(string Label, string Value);
 
+/// <summary>Groups all captured readings under their original device identity and sampling time.</summary>
+public sealed record HardwareDeviceDetails(string Id, string Name, string Category, string UpdatedAt,
+    IReadOnlyList<string> Readings);
+
 /// <summary>Contains inert hardware text rendered by capture and diagnostics surfaces.</summary>
 public sealed record HardwareSnapshotViewState(
     string Status,
     string CollectedAt,
     string DriverStatus,
     IReadOnlyList<HardwareSummaryRow> Summary,
-    IReadOnlyList<string> Details,
+    IReadOnlyList<HardwareDeviceDetails> Details,
     bool HasData = false);
 
 /// <summary>Formats captured sensor DTOs without querying hardware or estimating missing measurements.</summary>
@@ -51,20 +55,19 @@ public static class HardwareSnapshotProjection
             return new HardwareSnapshotViewState(string.Empty, string.Empty, string.Empty, rows, []);
         }
 
-        var details = new List<string>();
+        var details = new List<HardwareDeviceDetails>();
         foreach (var device in snapshot.Devices)
         {
-            var sensors = device.Sensors.Where(sensor => sensor.Value.HasValue).ToArray();
-            if (sensors.Length == 0)
+            if (device.Sensors.Count == 0)
             {
                 continue;
             }
 
-            details.Add($"{device.Name} · {device.Kind} · {string.Format(culture, translate("Hardware.DeviceUpdated"), device.SampledAt.ToLocalTime().ToString("G", culture))}");
-            foreach (var sensor in sensors)
-            {
-                details.Add($"  {sensor.Name} · {sensor.Kind}: {FormatSensor(sensor, culture, translate("Common.NotAvailable"))}");
-            }
+            var category = device.Kind is "GpuNvidia" or "GpuAmd" or "GpuIntel" ? "Gpu" : device.Kind;
+            var readings = device.Sensors.Select(sensor =>
+                $"{sensor.Name} · {sensor.Kind}: {FormatSensor(sensor, culture, translate("Common.NotAvailable"))}").ToArray();
+            details.Add(new HardwareDeviceDetails(device.Id, device.Name, translate("Hardware.Category." + category),
+                string.Format(culture, translate("Hardware.DeviceUpdated"), device.SampledAt.ToLocalTime().ToString("G", culture)), readings));
         }
 
         var status = TranslateStatus(snapshot.Status, translate);

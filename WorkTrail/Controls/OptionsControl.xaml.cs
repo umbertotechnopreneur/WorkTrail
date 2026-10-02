@@ -95,6 +95,7 @@ public sealed partial class OptionsControl : UserControl
             AutomationProperties.SetHelpText(AutoHideTitleBarSwitch, T("Options.Window.AutoHideTitleBar.Description"));
             AutomationProperties.SetName(WindowSnappingSwitch, T("Options.Window.Snapping.Header"));
             AutomationProperties.SetHelpText(WindowSnappingSwitch, T("Options.Window.Snapping.Description"));
+            AutomationProperties.SetHelpText(ScreenshotNotificationsSwitch, T("Options.ScreenshotNotifications.Description"));
             AutomationProperties.SetName(MainWindowShowInTaskbarSwitch, T("Options.Window.ShowInTaskbar.Header"));
             AutomationProperties.SetName(StartWithWindowsSwitch, T("Options.StartWithWindows.Header"));
             AutomationProperties.SetName(StartTrackingOnLaunchSwitch, T("Options.StartTracking.Header"));
@@ -491,6 +492,7 @@ public sealed partial class OptionsControl : UserControl
             MainWindowOpacitySlider.Value = settings.MainWindowOpacityPercent;
             AutoHideTitleBarSwitch.IsOn = settings.AutoHideTitleBar;
             WindowSnappingSwitch.IsOn = settings.WindowSnappingEnabled;
+            ScreenshotNotificationsSwitch.IsOn = settings.ScreenshotNotificationsEnabled;
             MainWindowShowInTaskbarSwitch.IsOn = settings.MainWindowShowInTaskbar;
             SelectTheme(settings.Theme);
             AiCustomPromptBox.Text = settings.AiCustomPrompt;
@@ -516,6 +518,9 @@ public sealed partial class OptionsControl : UserControl
     private void RegisterAutoSaveHandlers()
     {
         PositionBox.SelectionChanged += (_, _) => QueueAutoSave("position", SelectedTag(PositionBox, "bottom-center"));
+        ScreenshotNotificationsSwitch.Toggled += (_, _) => QueueAutoSave(
+            "screenshots.notifications",
+            ScreenshotNotificationsSwitch.IsOn ? "true" : "false");
         AutoHideTitleBarSwitch.Toggled += (_, _) => QueueAutoSave(
             "window.titlebar.auto_hide",
             AutoHideTitleBarSwitch.IsOn ? "true" : "false");

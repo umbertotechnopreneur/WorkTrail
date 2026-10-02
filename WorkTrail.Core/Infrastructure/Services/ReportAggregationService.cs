@@ -819,8 +819,8 @@ public sealed class ReportAggregationService
 
         internal AiCostEstimate? Estimate(AiRequestUsageRecord request)
         {
-            if (!request.Success
-                || !string.Equals(request.Provider, AiPricingProviders.OpenAi, StringComparison.OrdinalIgnoreCase)
+            // Output validity does not undo token consumption, including incomplete batch responses.
+            if (!string.Equals(request.Provider, AiPricingProviders.OpenAi, StringComparison.OrdinalIgnoreCase)
                 || !TryResolvePrice(request, out var price))
             {
                 return null;

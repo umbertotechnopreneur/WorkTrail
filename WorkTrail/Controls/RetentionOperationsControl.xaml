@@ -22,9 +22,9 @@
                 <TextBlock Tag="Operations.Retention.PolicyMonths" AutomationProperties.HeadingLevel="Level3" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
                 <Grid ColumnSpacing="4">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <ToggleButton x:Name="OneMonthButton" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><TextBlock Tag="Operations.Retention.OneMonth" Text="1 month" /></ToggleButton>
-                    <ToggleButton x:Name="TwoMonthsButton" Grid.Column="1" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><StackPanel Spacing="4"><TextBlock Tag="Operations.Retention.TwoMonths" Text="2 months" TextAlignment="Center" TextWrapping="Wrap" /><controls:PremiumBadge x:Name="TwoMonthsBadge" HorizontalAlignment="Center" /></StackPanel></ToggleButton>
-                    <ToggleButton x:Name="ThreeMonthsButton" Grid.Column="2" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><StackPanel Spacing="4"><TextBlock Tag="Operations.Retention.ThreeMonths" Text="3 months" TextAlignment="Center" TextWrapping="Wrap" /><controls:PremiumBadge x:Name="ThreeMonthsBadge" HorizontalAlignment="Center" /></StackPanel></ToggleButton>
+                    <ToggleButton AutomationProperties.AutomationId="Retention.OneMonthButton" x:Name="OneMonthButton" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><TextBlock Tag="Operations.Retention.OneMonth" Text="1 month" /></ToggleButton>
+                    <ToggleButton AutomationProperties.AutomationId="Retention.TwoMonthsButton" x:Name="TwoMonthsButton" Grid.Column="1" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><StackPanel Spacing="4"><TextBlock Tag="Operations.Retention.TwoMonths" Text="2 months" TextAlignment="Center" TextWrapping="Wrap" /><controls:PremiumBadge x:Name="TwoMonthsBadge" HorizontalAlignment="Center" /></StackPanel></ToggleButton>
+                    <ToggleButton AutomationProperties.AutomationId="Retention.ThreeMonthsButton" x:Name="ThreeMonthsButton" Grid.Column="2" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><StackPanel Spacing="4"><TextBlock Tag="Operations.Retention.ThreeMonths" Text="3 months" TextAlignment="Center" TextWrapping="Wrap" /><controls:PremiumBadge x:Name="ThreeMonthsBadge" HorizontalAlignment="Center" /></StackPanel></ToggleButton>
                 </Grid>
                 <TextBlock Tag="Operations.Retention.Limits" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 <TextBlock x:Name="RetentionStatusText" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
@@ -65,18 +65,18 @@
                 <TextBlock x:Name="RetentionPreviewText" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
                 <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <Button x:Name="RetentionPreviewButton" Tag="Operations.Retention.PreviewAction" Content="Show preview" Click="RetentionPreviewButton_Click" HorizontalAlignment="Left" ContentTemplate="{StaticResource WrappingActionLabelTemplate}" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" />
-                    <Button x:Name="RetentionCleanupButton" Grid.Column="1" Tag="Operations.Retention.CleanupAction" Content="Review and delete…" Click="RunRetentionButton_Click" HorizontalAlignment="Left" ContentTemplate="{StaticResource WrappingActionLabelTemplate}" IsEnabled="False" />
+                    <Button AutomationProperties.AutomationId="Retention.RetentionPreviewButton" x:Name="RetentionPreviewButton" Tag="Operations.Retention.PreviewAction" Content="Show preview" Click="RetentionPreviewButton_Click" HorizontalAlignment="Left" ContentTemplate="{StaticResource WrappingActionLabelTemplate}" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" />
+                    <Button AutomationProperties.AutomationId="Retention.RetentionCleanupButton" x:Name="RetentionCleanupButton" Grid.Column="1" Tag="Operations.Retention.CleanupAction" Content="Review and delete…" Click="RunRetentionButton_Click" HorizontalAlignment="Left" ContentTemplate="{StaticResource WrappingActionLabelTemplate}" IsEnabled="False" />
                 </Grid>
-                <Expander x:Name="PreviewPathsExpander" HorizontalAlignment="Stretch">
-                    <ListView x:Name="RetentionPathsList" MaxHeight="120" SelectionMode="None"><ListView.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" FontSize="12" FontFamily="Cascadia Mono" IsTextSelectionEnabled="True" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding}" /></DataTemplate></ListView.ItemTemplate></ListView>
+                <Expander AutomationProperties.AutomationId="Retention.PreviewPathsExpander" x:Name="PreviewPathsExpander" HorizontalAlignment="Stretch">
+                    <ListView AutomationProperties.AutomationId="Retention.RetentionPathsList" x:Name="RetentionPathsList" MaxHeight="120" SelectionMode="None"><ListView.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" FontSize="12" FontFamily="Cascadia Mono" IsTextSelectionEnabled="True" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding}" /></DataTemplate></ListView.ItemTemplate></ListView>
                 </Expander>
             </StackPanel>
             <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
             <StackPanel Spacing="8">
-                <TextBox x:Name="ScreenshotFolderBox" Tag="Options.SnapshotFolder" Header="Screen-capture folder"
+                <TextBox AutomationProperties.AutomationId="Retention.ScreenshotFolderBox" x:Name="ScreenshotFolderBox" Tag="Options.SnapshotFolder" Header="Screen-capture folder"
                          PlaceholderText="Folder for screen captures" LostFocus="ScreenshotFolderBox_LostFocus" IsEnabled="False" />
-                <HyperlinkButton x:Name="OpenFolderButton" Padding="0,5,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                <HyperlinkButton AutomationProperties.AutomationId="Retention.OpenFolderButton" x:Name="OpenFolderButton" Padding="0,5,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                  Click="OpenFolderButton_Click" IsEnabled="False">
                     <Grid ColumnSpacing="7">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -91,39 +91,39 @@
                         <TextBlock Tag="Options.KeepSnapshots.On" Text="Keep on this PC" TextWrapping="Wrap"
                                    Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
-                    <ToggleSwitch x:Name="KeepScreenshotsSwitch" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                    <ToggleSwitch AutomationProperties.AutomationId="Retention.KeepScreenshotsSwitch" x:Name="KeepScreenshotsSwitch" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
                                   MinWidth="0" OffContent="" OnContent="" Toggled="KeepScreenshotsSwitch_Toggled" IsEnabled="False" />
                 </Grid>
-                <Expander x:Name="CaptureSettingsExpander" HorizontalAlignment="Stretch">
+                <Expander AutomationProperties.AutomationId="Retention.CaptureSettingsExpander" x:Name="CaptureSettingsExpander" HorizontalAlignment="Stretch">
                     <StackPanel Spacing="10">
                         <TextBlock Tag="Options.Section.Snapshots.Description" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                         <Grid MinHeight="44" ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <TextBlock Tag="Options.SnapshotsEnabled.Header" Text="Allow screen captures" VerticalAlignment="Center" TextWrapping="Wrap" />
-                            <ToggleSwitch x:Name="ScreenshotsEnabledSwitch" Grid.Column="1" HorizontalAlignment="Right" MinWidth="0"
+                            <ToggleSwitch AutomationProperties.AutomationId="Retention.ScreenshotsEnabledSwitch" x:Name="ScreenshotsEnabledSwitch" Grid.Column="1" HorizontalAlignment="Right" MinWidth="0"
                                           OffContent="" OnContent="" Toggled="ScreenshotsEnabledSwitch_Toggled" IsEnabled="False" />
                         </Grid>
-                        <ComboBox x:Name="ScreenshotModeBox" Tag="Options.SnapshotMode" Header="What to capture" HorizontalAlignment="Stretch"
+                        <ComboBox AutomationProperties.AutomationId="Retention.ScreenshotModeBox" x:Name="ScreenshotModeBox" Tag="Options.SnapshotMode" Header="What to capture" HorizontalAlignment="Stretch"
                                   SelectionChanged="ScreenshotModeBox_SelectionChanged" IsEnabled="False">
                             <ComboBoxItem Content="All displays" Tag="all-screens" />
                             <ComboBoxItem Content="Active window" Tag="active-window" />
                         </ComboBox>
-                        <TextBox x:Name="ScreenshotModeHintBox" Tag="Options.SnapshotResult" Header="Result" IsReadOnly="True" IsTabStop="False" TextWrapping="Wrap" />
-                        <ToggleSwitch x:Name="HardwareSaveSnapshotsSwitch" Tag="Options.Sensors.SaveSnapshots" Header="Save sensor readings with captures"
+                        <TextBox AutomationProperties.AutomationId="Retention.ScreenshotModeHintBox" x:Name="ScreenshotModeHintBox" Tag="Options.SnapshotResult" Header="Result" IsReadOnly="True" IsTabStop="False" TextWrapping="Wrap" />
+                        <ToggleSwitch AutomationProperties.AutomationId="Retention.HardwareSaveSnapshotsSwitch" x:Name="HardwareSaveSnapshotsSwitch" Tag="Options.Sensors.SaveSnapshots" Header="Save sensor readings with captures"
                                       OffContent="" OnContent="" Toggled="HardwareSaveSnapshotsSwitch_Toggled" IsEnabled="False" />
                         <TextBlock Tag="Options.Sensors.SaveSnapshots.Description" Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Expander>
-                <Expander x:Name="OcrSettingsExpander" HorizontalAlignment="Stretch">
+                <Expander AutomationProperties.AutomationId="Retention.OcrSettingsExpander" x:Name="OcrSettingsExpander" HorizontalAlignment="Stretch">
                     <StackPanel Spacing="10">
                         <Grid MinHeight="44" ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <TextBlock Tag="Options.Ocr.Enabled" Text="Extract screenshot text" VerticalAlignment="Center" TextWrapping="Wrap" />
-                            <ToggleSwitch x:Name="OcrEnabledSwitch" Grid.Column="1" HorizontalAlignment="Right" MinWidth="0"
+                            <ToggleSwitch AutomationProperties.AutomationId="Retention.OcrEnabledSwitch" x:Name="OcrEnabledSwitch" Grid.Column="1" HorizontalAlignment="Right" MinWidth="0"
                                           OffContent="" OnContent="" Toggled="OcrEnabledSwitch_Toggled" IsEnabled="False" />
                         </Grid>
-                        <ComboBox x:Name="OcrLanguageBox" Tag="Options.Ocr.Language" Header="OCR language" HorizontalAlignment="Stretch"
+                        <ComboBox AutomationProperties.AutomationId="Retention.OcrLanguageBox" x:Name="OcrLanguageBox" Tag="Options.Ocr.Language" Header="OCR language" HorizontalAlignment="Stretch"
                                   SelectionChanged="OcrLanguageBox_SelectionChanged" IsEnabled="False" />
                         <TextBlock Tag="Options.Ocr.Restart" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />

@@ -65,6 +65,8 @@ dotnet build .\WorkTrail\WorkTrail.csproj -p:Platform=x64
 - `WorkTrail/`: Windows-first WinUI 3 app (`net10.0-windows10.0.19041.0`, x64/ARM64).
 - `scripts/`: repository utilities. `.github/`: governance, workflows, Copilot context, and tasks.
 - Track active work in `.github/tasks/todo.md` and completed work in `.github/tasks/archive.md`.
+- When preparing or updating a PR, record notable implemented user or contributor changes in `CHANGELOG.md` under `Unreleased`, in the same PR. Use the final diff and completed task records as evidence; do not copy open tasks, private plans, or claim unverified fixes. Internal-only changes may omit an entry when the PR explains why.
+- Keep changelog entries concise and group them under Added, Changed, Fixed, Removed, or Security as applicable. Keep durable engineering lessons in `.github/tasks/lessons.md`; validation details belong in the PR and technical task records. Update entries if the PR scope changes. Move `Unreleased` entries to a dated version only during an explicitly authorized release; never infer a release from a merge or local build.
 - Keep repository-wide rules here; `.github/copilot-instructions.md` is only a pointer and need not be reread when this file is already current in context.
 
 ## Licensing

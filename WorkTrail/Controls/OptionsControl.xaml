@@ -103,21 +103,20 @@
                                    Text="Organize your activities by project or context with names, icons and colors."
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    TextWrapping="Wrap" />
-                        <Button Tag="Labels.Manage" Click="ManageLabels_Click" HorizontalAlignment="Left">
+                        <Button AutomationProperties.AutomationId="Settings.Labels_Manage" Tag="Labels.Manage" Click="ManageLabels_Click" HorizontalAlignment="Left">
                             <TextBlock Tag="Labels.Manage" Text="Manage labels" TextWrapping="Wrap" />
                         </Button>
                     </StackPanel>
                     <StackPanel Spacing="6" Margin="0,0,0,20">
-                        <ToggleSwitch x:Name="ShowAiMonthlySpendSwitch" Tag="Options.AiMonthlySpendVisibility" Header="Show monthly AI spend in the player" OffContent="Hidden" OnContent="Visible" />
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.ShowAiMonthlySpendSwitch" x:Name="ShowAiMonthlySpendSwitch" Tag="Options.AiMonthlySpendVisibility" Header="Show monthly AI spend in the player" OffContent="Hidden" OnContent="Visible" />
                         <TextBlock Tag="Labels.CostHint" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                     <StackPanel Spacing="6" Margin="0,0,0,20">
-                        <ComboBox
+                        <ComboBox AutomationProperties.AutomationId="Settings.LanguageBox"
                             x:Name="LanguageBox"
                             Tag="Options.Language"
                             HorizontalAlignment="Stretch"
-                            Header="Interface language"
-                            AutomationProperties.Name="Interface language">
+                            Header="Interface language">
                             <ComboBoxItem Content="🌐 System" Tag="system" />
                             <ComboBoxItem Content="🇨🇳 Chinese (Simplified) · 简体中文" Tag="zh-Hans" />
                             <ComboBoxItem Content="🇺🇸 English (United States)" Tag="en-US" />
@@ -149,42 +148,56 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <ToggleButton
+                        <ToggleButton AutomationProperties.AutomationId="Settings.ThemeSystemButton"
                             x:Name="ThemeSystemButton"
                             MinHeight="36"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            AutomationProperties.Name="System theme"
                             Click="ThemeButton_Click"
                             IsChecked="True"
                             Tag="Options.Theme.system">
                             <TextBlock Tag="Options.Theme.system" Text="System" />
                         </ToggleButton>
-                        <ToggleButton
+                        <ToggleButton AutomationProperties.AutomationId="Settings.ThemeLightButton"
                             x:Name="ThemeLightButton"
                             Grid.Column="1"
                             MinHeight="36"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            AutomationProperties.Name="Light theme"
                             Click="ThemeButton_Click"
                             Tag="Options.Theme.light">
                             <TextBlock Tag="Options.Theme.light" Text="Light" />
                         </ToggleButton>
-                        <ToggleButton
+                        <ToggleButton AutomationProperties.AutomationId="Settings.ThemeDarkButton"
                             x:Name="ThemeDarkButton"
                             Grid.Column="2"
                             MinHeight="36"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            AutomationProperties.Name="Dark theme"
                             Click="ThemeButton_Click"
                             Tag="Options.Theme.dark">
                             <TextBlock Tag="Options.Theme.dark" Text="Dark" />
                         </ToggleButton>
                     </Grid>
 
-                    <ComboBox
+                    <StackPanel Margin="0,16,0,0" Spacing="4">
+                        <ToggleSwitch
+                            x:Name="ScreenshotNotificationsSwitch"
+                            AutomationProperties.AutomationId="Settings.ScreenshotNotificationsSwitch"
+                            Tag="Options.ScreenshotNotifications"
+                            Header="Screenshot notifications"
+                            IsOn="True"
+                            OffContent=""
+                            OnContent="" />
+                        <TextBlock
+                            Tag="Options.ScreenshotNotifications.Description"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="Show a Windows notification with the captured image. You can also turn these notices off from a notification."
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <ComboBox AutomationProperties.AutomationId="Settings.PositionBox"
                         x:Name="PositionBox"
                         Margin="0,16,0,0"
                         Tag="Options.Position"
@@ -203,7 +216,7 @@
                             Style="{StaticResource BodyStrongTextBlockStyle}"
                             Tag="Options.Section.Window"
                             Text="Window" />
-                        <ToggleSwitch
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.AutoHideTitleBarSwitch"
                             x:Name="AutoHideTitleBarSwitch"
                             Header="Automatically hide title bars"
                             IsOn="True"
@@ -216,7 +229,7 @@
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Text="Applies to all windows. Turn off to keep title bars visible."
                             TextWrapping="Wrap" />
-                        <ToggleSwitch
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.WindowSnappingSwitch"
                             x:Name="WindowSnappingSwitch"
                             Header="Window snapping"
                             IsOn="True"
@@ -229,7 +242,7 @@
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Text="Snap within 5 pixels of other WorkTrail windows or monitor edges. Leaving the monitor disables snapping for the rest of that drag."
                             TextWrapping="Wrap" />
-                        <Slider
+                        <Slider AutomationProperties.AutomationId="Settings.MainWindowOpacitySlider"
                             x:Name="MainWindowOpacitySlider"
                             Header="Window opacity"
                             Maximum="100"
@@ -237,7 +250,7 @@
                             StepFrequency="1"
                             Tag="Options.Window.Opacity"
                             Value="100" />
-                        <ToggleSwitch
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.MainWindowShowInTaskbarSwitch"
                             x:Name="MainWindowShowInTaskbarSwitch"
                             Header="Show window icon in taskbar"
                             OffContent=""
@@ -264,13 +277,12 @@
                         Visibility="Collapsed" />
 
                     <StackPanel x:Name="OptionsSecondaryPanel" Grid.Row="2" Grid.Column="0" Spacing="0">
-                    <HyperlinkButton
+                    <HyperlinkButton AutomationProperties.AutomationId="Settings.OcrAiSettingsButton"
                         x:Name="OcrAiSettingsButton"
                         MinHeight="36"
                         Margin="0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch"
-                        AutomationProperties.Name="Open OCR and AI settings"
                         Click="OcrAiSettingsButton_Click"
                         Padding="0,8"
                         Tag="Options.AiConfiguration.Title">
@@ -331,7 +343,7 @@
                             Text="Capture the current context, review the latest image, or ask the configured AI provider to analyze what is happening."
                             TextWrapping="Wrap"
                             Visibility="Collapsed" />
-                        <HyperlinkButton
+                        <HyperlinkButton AutomationProperties.AutomationId="Settings.SnapshotAiOperationsLink"
                             x:Name="SnapshotAiOperationsLink"
                             MinHeight="36"
                             Padding="0,8"
@@ -373,7 +385,7 @@
                             Text="Define on-device rules that prevent sensitive apps, window titles, or context details from being captured or shared with an AI provider."
                             TextWrapping="Wrap"
                             Visibility="Collapsed" />
-                        <HyperlinkButton
+                        <HyperlinkButton AutomationProperties.AutomationId="Settings.PrivacyOperationsLink"
                             x:Name="PrivacyOperationsLink"
                             MinHeight="36"
                             Padding="0,8"
@@ -415,7 +427,7 @@
                             Text="Review how long activity and screen captures remain on this PC, preview cleanup, and remove eligible data with confirmation."
                             TextWrapping="Wrap"
                             Visibility="Collapsed" />
-                        <HyperlinkButton
+                        <HyperlinkButton AutomationProperties.AutomationId="Settings.RetentionOperationsLink"
                             x:Name="RetentionOperationsLink"
                             MinHeight="36"
                             Padding="0,8"
@@ -457,7 +469,7 @@
                             Text="Manage local app-specific context enrichers without changing core activity tracking."
                             TextWrapping="Wrap"
                             Visibility="Collapsed" />
-                        <HyperlinkButton
+                        <HyperlinkButton AutomationProperties.AutomationId="Settings.PluginsOperationsLink"
                             x:Name="PluginsOperationsLink"
                             MinHeight="36"
                             Padding="0,8"
@@ -486,11 +498,10 @@
                         </HyperlinkButton>
                     </StackPanel>
 
-                    <Button
+                    <Button AutomationProperties.AutomationId="Settings.AppAdvanced"
                         Margin="0,10,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch"
-                        AutomationProperties.Name="Advanced app options"
                         Background="Transparent"
                         BorderBrush="Transparent"
                         Click="GeneralAdvancedButton_Click"
@@ -528,13 +539,12 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock VerticalAlignment="Center" Tag="Options.StartWithWindows.Header" Text="Start with Windows" TextWrapping="Wrap" />
-                            <ToggleSwitch
+                            <ToggleSwitch AutomationProperties.AutomationId="Settings.StartWithWindowsSwitch"
                                 x:Name="StartWithWindowsSwitch"
                                 Grid.Column="1"
                                 MinWidth="0"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
-                                AutomationProperties.Name="Start with Windows"
                                 OffContent=""
                                 OnContent="" />
                         </Grid>
@@ -544,13 +554,12 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock VerticalAlignment="Center" Tag="Options.StartTracking.Header" Text="Start tracking on launch" TextWrapping="Wrap" />
-                            <ToggleSwitch
+                            <ToggleSwitch AutomationProperties.AutomationId="Settings.StartTrackingOnLaunchSwitch"
                                 x:Name="StartTrackingOnLaunchSwitch"
                                 Grid.Column="1"
                                 MinWidth="0"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
-                                AutomationProperties.Name="Start tracking on launch"
                                 OffContent=""
                                 OnContent="" />
                         </Grid>
@@ -572,7 +581,7 @@
                     <StackPanel Spacing="2">
                         <TextBlock Tag="Options.Search.Section" Style="{StaticResource BodyStrongTextBlockStyle}" Text="Local search" />
                     </StackPanel>
-                    <ComboBox x:Name="SearchLanguageBox" Tag="Options.Search.Language" HorizontalAlignment="Stretch" Header="Search language">
+                    <ComboBox AutomationProperties.AutomationId="Settings.SearchLanguageBox" x:Name="SearchLanguageBox" Tag="Options.Search.Language" HorizontalAlignment="Stretch" Header="Search language">
                         <ComboBoxItem Content="System" Tag="system" />
                         <ComboBoxItem Content="English (United States)" Tag="en-US" />
                         <ComboBoxItem Content="Italiano" Tag="it-IT" />
@@ -591,13 +600,12 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock VerticalAlignment="Center" Tag="Options.Search.Synonyms" Text="Use synonyms" TextWrapping="Wrap" />
-                        <ToggleSwitch
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.SearchSynonymsSwitch"
                             x:Name="SearchSynonymsSwitch"
                             Grid.Column="1"
                             MinWidth="0"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
-                            AutomationProperties.Name="Use synonyms"
                             OffContent=""
                             OnContent="" />
                     </Grid>
@@ -607,22 +615,20 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock VerticalAlignment="Center" Tag="Options.Search.TypoTolerance" Text="Tolerate typing errors" TextWrapping="Wrap" />
-                        <ToggleSwitch
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.SearchTypoToleranceSwitch"
                             x:Name="SearchTypoToleranceSwitch"
                             Grid.Column="1"
                             MinWidth="0"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
-                            AutomationProperties.Name="Tolerate typing errors"
                             OffContent=""
                             OnContent="" />
                     </Grid>
-                    <Button
+                    <Button AutomationProperties.AutomationId="Settings.RebuildSearchIndexButton"
                         x:Name="RebuildSearchIndexButton"
                         MinHeight="58"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch"
-                        AutomationProperties.Name="Rebuild search index"
                         Click="RebuildSearchIndexButton_Click">
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
@@ -669,11 +675,10 @@
                             Style="{StaticResource BodyStrongTextBlockStyle}"
                             Text="AI features"
                             TextWrapping="Wrap" />
-                        <ToggleSwitch
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.OpenAiEnabledSwitch"
                             x:Name="OpenAiEnabledSwitch"
                             Grid.Column="1"
                             VerticalAlignment="Center"
-                            AutomationProperties.Name="AI features"
                             IsEnabled="{Binding CanToggle, Mode=OneWay}"
                             IsOn="{Binding Enabled, Mode=OneWay}"
                             OffContent=""
@@ -751,11 +756,10 @@
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     Text="Only AI descriptions created successfully count toward this quota. It resets at local midnight: new descriptions resume then; screenshots already saved without one are not reprocessed automatically."
                                     TextWrapping="Wrap" />
-                                <Expander
+                                <Expander AutomationProperties.AutomationId="Settings.AiDailyLimitExpander"
                                     x:Name="AiDailyLimitExpander"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Stretch"
-                                    AutomationProperties.Name="Set daily processing limit"
                                     Background="Transparent"
                                     BorderBrush="Transparent"
                                     BorderThickness="0"
@@ -768,10 +772,9 @@
                                             Text="Set daily processing limit" />
                                     </Expander.Header>
                                     <StackPanel Padding="0,2,0,6" Spacing="8">
-                                        <NumberBox
+                                        <NumberBox AutomationProperties.AutomationId="Settings.AiDailyLimitBox"
                                             x:Name="AiDailyLimitBox"
                                             Tag="Options.AiQuota.Limit"
-                                            AutomationProperties.Name="Screenshots processed per day"
                                             Header="Screenshots processed per day"
                                             Minimum="0"
                                             Maximum="400"
@@ -812,12 +815,11 @@
                             TextWrapping="Wrap" />
                     </StackPanel>
 
-                    <Expander
+                    <Expander AutomationProperties.AutomationId="Settings.ApiKeyExpander"
                         x:Name="ApiKeyExpander"
                         Margin="0,6,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch"
-                        AutomationProperties.Name="Set key"
                         Background="Transparent"
                         BorderBrush="Transparent"
                         BorderThickness="0"
@@ -829,7 +831,7 @@
                                 Text="Set key" />
                         </Expander.Header>
                         <StackPanel Padding="0,2,0,6" Spacing="0">
-                            <PasswordBox
+                            <PasswordBox AutomationProperties.AutomationId="Settings.ApiKeyBox"
                                 x:Name="ApiKeyBox"
                                 Tag="Options.ApiKey"
                                 Header="API key"
@@ -842,7 +844,7 @@
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="Stored only in your Windows user environment."
                                 TextWrapping="Wrap" />
-                            <Button
+                            <Button AutomationProperties.AutomationId="Settings.ProviderSetup_Verify"
                                 Margin="0,8,0,0"
                                 Tag="ProviderSetup.Verify"
                                 HorizontalAlignment="Stretch"
@@ -854,7 +856,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <ComboBox
+                    <ComboBox AutomationProperties.AutomationId="Settings.ModelBox"
                         x:Name="ModelBox"
                         Margin="0,12,0,0"
                         Tag="Options.Model"
@@ -936,16 +938,15 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <Button
+                    <Button AutomationProperties.AutomationId="Settings.TestConnectionButton"
                         x:Name="TestConnectionButton"
                         Margin="0,12,0,0"
                         MinWidth="132"
                         HorizontalAlignment="Left"
-                        AutomationProperties.Name="Test AI connection"
                         Click="TestConnectionButton_Click"
                         Content="Test connection"
                         Tag="Options.AiConnection.Test" />
-                    <ComboBox
+                    <ComboBox AutomationProperties.AutomationId="Settings.AiReasoningEffortBox"
                         x:Name="AiReasoningEffortBox"
                         Margin="0,10,0,0"
                         Tag="Options.Reasoning"
@@ -960,11 +961,10 @@
                         <ComboBoxItem Content="Maximum" Tag="max" />
                     </ComboBox>
 
-                    <Button
+                    <Button AutomationProperties.AutomationId="Settings.AiAdvanced"
                         Margin="0,10,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch"
-                        AutomationProperties.Name="Advanced AI options"
                         Background="Transparent"
                         BorderBrush="Transparent"
                         Click="AiAdvancedButton_Click"
@@ -988,20 +988,20 @@
 
                     <StackPanel x:Name="AiAdvancedPanel" Margin="0,8,0,0" Spacing="10" Visibility="Collapsed">
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                        <ComboBox x:Name="AiOutputDetailBox" Tag="Options.OutputDetail" HorizontalAlignment="Stretch" Header="Analysis detail">
+                        <ComboBox AutomationProperties.AutomationId="Settings.AiOutputDetailBox" x:Name="AiOutputDetailBox" Tag="Options.OutputDetail" HorizontalAlignment="Stretch" Header="Analysis detail">
                             <ComboBoxItem Content="Compact · lowest usage" Tag="compact" />
                             <ComboBoxItem Content="Balanced" Tag="balanced" />
                             <ComboBoxItem Content="Detailed · larger budget" Tag="detailed" />
                         </ComboBox>
-                        <TextBox x:Name="AiCustomPromptBox" Tag="Options.CustomPrompt" AcceptsReturn="True" Header="Additional AI instruction (optional)" MinHeight="76" PlaceholderText="Example: Prioritize concise, factual descriptions." TextWrapping="Wrap" />
-                        <ToggleSwitch x:Name="IncludeDeviceLocationSwitch" Tag="Options.DeviceLocation" Header="Include Windows location in AI requests" OffContent="Off" OnContent="Windows Location" />
-                        <ComboBox x:Name="AiProviderBox" Tag="Options.AiProvider" HorizontalAlignment="Stretch" Header="AI service" SelectionChanged="AiProviderBox_SelectionChanged">
+                        <TextBox AutomationProperties.AutomationId="Settings.AiCustomPromptBox" x:Name="AiCustomPromptBox" Tag="Options.CustomPrompt" AcceptsReturn="True" Header="Additional AI instruction (optional)" MinHeight="76" PlaceholderText="Example: Prioritize concise, factual descriptions." TextWrapping="Wrap" />
+                        <ToggleSwitch AutomationProperties.AutomationId="Settings.IncludeDeviceLocationSwitch" x:Name="IncludeDeviceLocationSwitch" Tag="Options.DeviceLocation" Header="Include Windows location in AI requests" OffContent="Off" OnContent="Windows Location" />
+                        <ComboBox AutomationProperties.AutomationId="Settings.AiProviderBox" x:Name="AiProviderBox" Tag="Options.AiProvider" HorizontalAlignment="Stretch" Header="AI service" SelectionChanged="AiProviderBox_SelectionChanged">
                             <ComboBoxItem Content="OpenAI" Tag="openai" />
                             <ComboBoxItem Content="OpenRouter" Tag="openrouter" />
                             <ComboBoxItem Content="Anthropic" Tag="anthropic" />
                         </ComboBox>
-                        <TextBox x:Name="AiEndpointBox" Tag="Options.AiEndpoint" Header="Service address" />
-                        <TextBox x:Name="AiApiKeyNameBox" Tag="Options.AiKeyVariable" Header="Windows key name" />
+                        <TextBox AutomationProperties.AutomationId="Settings.AiEndpointBox" x:Name="AiEndpointBox" Tag="Options.AiEndpoint" Header="Service address" />
+                        <TextBox AutomationProperties.AutomationId="Settings.AiApiKeyNameBox" x:Name="AiApiKeyNameBox" Tag="Options.AiKeyVariable" Header="Windows key name" />
 
                     </StackPanel>
                     </StackPanel>

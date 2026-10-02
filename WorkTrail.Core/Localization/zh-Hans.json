@@ -1472,5 +1472,15 @@
   "Timesheet.Client.Header": "客户",
   "Timesheet.Rate.Header": "小时费率",
   "Timesheet.Currency.Header": "货币（ISO 代码）",
-  "Timesheet.Jobs.Header": "已保存的批处理报告"
+  "Timesheet.Jobs.Header": "已保存的批处理报告",
+  "Timesheet.PreviousPage": "上一页任务",
+  "Timesheet.NextPage": "下一页任务",
+  "Timesheet.ResultsPending": "批处理已结束。其结果仍需保存到此电脑。",
+  "Timesheet.CleanupPending": "报告已保存。清理仍待完成；选择刷新以重试。",
+  "Options.ScreenshotNotifications.Header": "截图通知",
+  "Options.ScreenshotNotifications.Description": "显示包含所截取图像的 Windows 通知。您也可以直接在通知中关闭这些提示。",
+  "Notification.ScreenshotCaptured.Title": "已截取屏幕",
+  "Notification.ScreenshotCaptured.Message": "WorkTrail 已截取此屏幕。",
+  "Notification.ScreenshotCaptured.Disable": "关闭这些通知",
+  "Notification.ScreenshotCaptured.DisableFailed": "无法关闭截图通知。请在选项中重试。"
 }
