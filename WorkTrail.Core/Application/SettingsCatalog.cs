@@ -67,7 +67,7 @@ public static class SettingsCatalog
         Boolean("ai.show_cost_guardrail", "Include local cost guardrail state in status output."),
         Choice("language", "Application language.", ProductLanguageCatalog.UiChoices, requiresRestart: true),
         Choice("theme", "Application color theme.", Themes),
-        Choice("position", "Player flyout anchor.", FlyoutAnchors),
+        Choice("position", "Main window anchor.", FlyoutAnchors),
         Boolean("window.titlebar.auto_hide", "Automatically hide title bars in all windows when the pointer leaves."),
         Boolean("window.snapping.enabled", "Snap within 5 pixels of WorkTrail windows or monitor edges; leaving the monitor disables snapping for that drag."),
         Integer("window.main.opacity_percent", "Player window opacity from 25 through 100 percent."),
@@ -77,8 +77,6 @@ public static class SettingsCatalog
         Boolean("window.world_clocks.show_in_taskbar", "Show the world-clock window in the Windows taskbar."),
         Boolean("window.world_map.show_in_taskbar", "Show the world-map window in the Windows taskbar."),
         Boolean("window.lunar_phase.show_in_taskbar", "Show the lunar-phase window in the Windows taskbar."),
-        Boolean("taskbar.widget.visible", "Show the compact control in the Windows taskbar."),
-        Choice("taskbar.widget.position", "Taskbar control anchor.", TaskbarAnchors),
         Text("activity.span_label", "Short local activity label, limited to 20 characters."),
         Text("activity.label.save", "Create or update a label using an Id, Name, Icon and Color JSON object; empty Id creates a label.", "json"),
         Text("activity.label.delete", "Delete a label by ID; deleting the selected label clears selection."),
@@ -160,8 +158,6 @@ public static class SettingsCatalog
             "window.world_clocks.show_in_taskbar" => settings.WorldClockWindowShowInTaskbar,
             "window.world_map.show_in_taskbar" => settings.WorldMapWindowShowInTaskbar,
             "window.lunar_phase.show_in_taskbar" => settings.LunarPhaseWindowShowInTaskbar,
-            "taskbar.widget.visible" => settings.TaskbarWidgetVisible,
-            "taskbar.widget.position" => settings.TaskbarWidgetPosition,
             "activity.span_label" => settings.SpanLabel,
             "activity.label.save" => settings.ActivityLabels ?? [],
             "activity.label.delete" => string.Empty,
@@ -286,8 +282,6 @@ public static class SettingsCatalog
                 case "window.world_clocks.show_in_taskbar" when TryBoolean(value, out var worldClockShowInTaskbar): current = current with { WorldClockWindowShowInTaskbar = worldClockShowInTaskbar }; break;
                 case "window.world_map.show_in_taskbar" when TryBoolean(value, out var worldMapShowInTaskbar): current = current with { WorldMapWindowShowInTaskbar = worldMapShowInTaskbar }; break;
                 case "window.lunar_phase.show_in_taskbar" when TryBoolean(value, out var lunarPhaseShowInTaskbar): current = current with { LunarPhaseWindowShowInTaskbar = lunarPhaseShowInTaskbar }; break;
-                case "taskbar.widget.visible" when TryBoolean(value, out var taskbarVisible): current = current with { TaskbarWidgetVisible = taskbarVisible }; break;
-                case "taskbar.widget.position" when Canonical(TaskbarAnchors, value) is { } taskbarPosition: current = current with { TaskbarWidgetPosition = taskbarPosition }; break;
                 case "activity.span_label" when value is not null && value.Length <= 20: current = current with { SpanLabel = value }; break;
                 case "activity.label.save" when ActivityLabelCatalog.TrySave(current, value, out var savedLabels): current = savedLabels; break;
                 case "activity.label.delete" when ActivityLabelCatalog.TryDelete(current, value, out var deletedLabels): current = deletedLabels; break;
@@ -359,6 +353,8 @@ public static class SettingsCatalog
             Theme = Canonical(Themes, settings.Theme) ?? "system",
             MainWindowOpacityPercent = Math.Clamp(settings.MainWindowOpacityPercent, 25, 100),
             WorldClockWindowOpacityPercent = Math.Clamp(settings.WorldClockWindowOpacityPercent, 25, 100),
+            // The Premium taskbar widget is unavailable in v1; persisted visibility cannot enable it.
+            TaskbarWidgetVisible = false,
             TaskbarWidgetPosition = Canonical(TaskbarAnchors, settings.TaskbarWidgetPosition) ?? TaskbarWidgetPositions.Left,
             SpanLabel = settings.SpanLabel is { Length: <= 20 } ? settings.SpanLabel.Trim() : string.Empty,
             // Existing day settings now represent fixed month choices; cleanup uses AddMonths, never AddDays.

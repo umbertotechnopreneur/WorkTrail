@@ -851,7 +851,7 @@
   "Options.Theme.system": "Sistema",
   "Options.Theme.light": "Chiaro",
   "Options.Theme.dark": "Scuro",
-  "Options.Position.Header": "Posizione player",
+  "Options.Position.Header": "Posizione finestra principale",
   "Options.Position.bottom-center": "Basso centro",
   "Options.Position.bottom-left": "Basso sinistra",
   "Options.Position.bottom-right": "Basso destra",

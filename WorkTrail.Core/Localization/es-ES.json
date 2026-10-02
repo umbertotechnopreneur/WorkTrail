@@ -833,7 +833,7 @@
   "Options.Theme.system": "Sistema",
   "Options.Theme.light": "Claro",
   "Options.Theme.dark": "Oscuro",
-  "Options.Position.Header": "Posición del reproductor",
+  "Options.Position.Header": "Posición de la ventana principal",
   "Options.Position.bottom-center": "Centro inferior",
   "Options.Position.bottom-left": "Abajo a la izquierda",
   "Options.Position.bottom-right": "Abajo a la derecha",

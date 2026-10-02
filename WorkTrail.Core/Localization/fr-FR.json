@@ -833,7 +833,7 @@
   "Options.Theme.system": "Système",
   "Options.Theme.light": "Clair",
   "Options.Theme.dark": "Sombre",
-  "Options.Position.Header": "Position du lecteur",
+  "Options.Position.Header": "Position de la fenêtre principale",
   "Options.Position.bottom-center": "En bas au centre",
   "Options.Position.bottom-left": "En bas à gauche",
   "Options.Position.bottom-right": "En bas à droite",

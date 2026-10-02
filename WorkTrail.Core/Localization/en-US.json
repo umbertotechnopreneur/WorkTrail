@@ -826,7 +826,7 @@
   "Options.Theme.system": "System",
   "Options.Theme.light": "Light",
   "Options.Theme.dark": "Dark",
-  "Options.Position.Header": "Player position",
+  "Options.Position.Header": "Main window position",
   "Options.Position.bottom-center": "Bottom center",
   "Options.Position.bottom-left": "Bottom left",
   "Options.Position.bottom-right": "Bottom right",

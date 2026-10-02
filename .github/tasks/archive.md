@@ -4,6 +4,14 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-02
 
+### Consolidated storage settings and v1 surface cleanup
+
+- Collected screenshot capture preferences, local OCR choices, and saved hardware metadata
+  under data retention, using the existing typed settings facade and automatic persistence.
+- Removed taskbar widget settings and activation paths from v1, rejected its withdrawn
+  catalog keys, and disabled saved visibility when loading settings.
+- Renamed the main-window position control consistently in every shipped UI language.
+
 ### Calendar-month retention refinement
 
 - Limited effective activity and screenshot retention to one month for Free and three

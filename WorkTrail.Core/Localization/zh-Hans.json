@@ -833,7 +833,7 @@
   "Options.Theme.system": "系统",
   "Options.Theme.light": "浅色",
   "Options.Theme.dark": "深色",
-  "Options.Position.Header": "播放器位置",
+  "Options.Position.Header": "主窗口位置",
   "Options.Position.bottom-center": "底部居中",
   "Options.Position.bottom-left": "左下角",
   "Options.Position.bottom-right": "右下角",

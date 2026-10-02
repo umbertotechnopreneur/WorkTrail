@@ -12,8 +12,6 @@
                                 <TextBlock Tag="Hardware.Advanced.Action" Text="Install and activate advanced sensors" TextWrapping="Wrap" />
                             </Button>
                             <TextBlock x:Name="HardwareActivationStatusText" AutomationProperties.LiveSetting="Polite" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                            <ToggleSwitch x:Name="HardwareSaveSnapshotsSwitch" Toggled="Snapshots_Toggled" Tag="Options.Sensors.SaveSnapshots" Header="Save sensor readings with captures" OffContent="" OnContent="" />
-                            <TextBlock Tag="Options.Sensors.SaveSnapshots.Description" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Applies to new captures. Turning this off stops saving detailed sensor readings and keeps existing captures unchanged." TextWrapping="Wrap" />
                             <Slider x:Name="HardwareSamplingSlider" ValueChanged="Sampling_Changed" Header="Update frequency" Tag="Options.Sensors.Sampling" Minimum="0" Maximum="3" StepFrequency="1" TickFrequency="1" TickPlacement="Outside" SnapsTo="Ticks" IsThumbToolTipEnabled="False" Value="1" />
                             <Grid ColumnSpacing="6">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>

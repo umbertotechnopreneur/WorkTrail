@@ -45,13 +45,11 @@ public sealed partial class SensorOptionsControl : UserControl
             HardwareSamplingSlider.Header = _strings.Translate("Options.Sensors.Sampling.Header");
             HardwareSensorsEnabledSwitch.IsOn = settings.HardwareSensorsEnabled;
             HardwareAdvancedSwitch.IsOn = settings.HardwareUseAdvancedSensors;
-            HardwareSaveSnapshotsSwitch.IsOn = settings.HardwareSaveSnapshots;
             HardwareSamplingSlider.Value = HardwareSettingsProjection.ProfileIndex(settings.HardwareSamplingProfile);
             foreach (var (control, key) in new (FrameworkElement, string)[]
             {
                 (HardwareSensorsEnabledSwitch, "Options.Sensors.Enabled.Header"),
                 (HardwareAdvancedSwitch, "Options.Sensors.Advanced.Header"),
-                (HardwareSaveSnapshotsSwitch, "Options.Sensors.SaveSnapshots.Header"),
                 (HardwareSamplingSlider, "Options.Sensors.Sampling.Header"),
                 (ActivateAdvancedSensorsButton, "Hardware.Advanced.Action")
             }) AutomationProperties.SetName(control, _strings.Translate(key));
@@ -66,7 +64,6 @@ public sealed partial class SensorOptionsControl : UserControl
         HardwareSensorsEnabledSwitch.IsEnabled = !_busy;
         var enabled = HardwareSensorsEnabledSwitch.IsOn && !_busy;
         HardwareAdvancedSwitch.IsEnabled = enabled;
-        HardwareSaveSnapshotsSwitch.IsEnabled = enabled;
         HardwareSamplingSlider.IsEnabled = enabled;
         ActivateAdvancedSensorsButton.IsEnabled = enabled && HardwareAdvancedSwitch.IsOn;
         var profile = HardwareSettingsProjection.Create(HardwareSettingsProjection.ProfileKeyAt(HardwareSamplingSlider.Value), _strings.Culture, _strings.Translate);
@@ -77,7 +74,6 @@ public sealed partial class SensorOptionsControl : UserControl
 
     private async void Enabled_Toggled(object sender, RoutedEventArgs e) => await SaveAsync("sensors.enabled", HardwareSensorsEnabledSwitch.IsOn ? "true" : "false");
     private async void Advanced_Toggled(object sender, RoutedEventArgs e) => await SaveAsync("sensors.advanced", HardwareAdvancedSwitch.IsOn ? "true" : "false");
-    private async void Snapshots_Toggled(object sender, RoutedEventArgs e) => await SaveAsync("sensors.save_snapshots", HardwareSaveSnapshotsSwitch.IsOn ? "true" : "false");
     private async void Sampling_Changed(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e) =>
         await SaveAsync("sensors.sampling_profile", HardwareSettingsProjection.ProfileKeyAt(e.NewValue));
 

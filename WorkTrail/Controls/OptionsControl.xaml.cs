@@ -90,7 +90,6 @@ public sealed partial class OptionsControl : UserControl
                 PopulateThinkingEfforts(selectedModel, SelectedTag(AiReasoningEffortBox, _requestedThinkingEffort));
                 ModelDescriptionText.Text = LocalizedModelDescription(selectedModel);
             }
-            AutomationProperties.SetName(TaskbarWidgetVisibleSwitch, T("Options.TaskbarWidget.Visible"));
             AutomationProperties.SetName(MainWindowOpacitySlider, T("Options.Window.Opacity.Header"));
             AutomationProperties.SetName(AutoHideTitleBarSwitch, T("Options.Window.AutoHideTitleBar.Header"));
             AutomationProperties.SetHelpText(AutoHideTitleBarSwitch, T("Options.Window.AutoHideTitleBar.Description"));
@@ -99,11 +98,9 @@ public sealed partial class OptionsControl : UserControl
             AutomationProperties.SetName(MainWindowShowInTaskbarSwitch, T("Options.Window.ShowInTaskbar.Header"));
             AutomationProperties.SetName(StartWithWindowsSwitch, T("Options.StartWithWindows.Header"));
             AutomationProperties.SetName(StartTrackingOnLaunchSwitch, T("Options.StartTracking.Header"));
-            AutomationProperties.SetName(ScreenshotsEnabledSwitch, T("Options.SnapshotsEnabled.Header"));
             AutomationProperties.SetName(OcrAiSettingsButton, T("Options.AiConfiguration.Title"));
             AutomationProperties.SetName(SearchSynonymsSwitch, T("Options.Search.Synonyms"));
             AutomationProperties.SetName(SearchTypoToleranceSwitch, T("Options.Search.TypoTolerance"));
-            AutomationProperties.SetName(OcrEnabledSwitch, T("Options.Ocr.Enabled"));
             AutomationProperties.SetName(RebuildSearchIndexButton, T("Options.Search.Rebuild"));
             AutomationProperties.SetName(ShowAiMonthlySpendSwitch, T("Options.AiMonthlySpendVisibility.Header"));
             AutomationProperties.SetName(AiDailyLimitExpander, T("Options.AiQuota.Configure"));
@@ -123,7 +120,6 @@ public sealed partial class OptionsControl : UserControl
             AutomationProperties.SetHelpText(PluginsOperationsLink, T("Options.Navigation.Plugins.Description"));
             UpdateApiKeyPresentation();
             UpdateAiQuotaPresentation();
-            UpdateScreenshotModeHint();
             NotifyLayoutChanged();
         }
         finally
@@ -243,12 +239,6 @@ public sealed partial class OptionsControl : UserControl
     private void PluginsOperationsLink_Click(object sender, RoutedEventArgs e) =>
         OperationsSectionRequested?.Invoke(OperationsSection.Plugins);
 
-    private void OcrEnabledSwitch_Toggled(object sender, RoutedEventArgs e)
-    {
-        OcrLanguageBox.IsEnabled = OcrEnabledSwitch.IsOn;
-        QueueAutoSave("ocr.enabled", OcrEnabledSwitch.IsOn ? "true" : "false");
-    }
-
     /// <summary>Requests the detached progress surface; the control does not own top-level windows.</summary>
     private void RebuildSearchIndexButton_Click(object sender, RoutedEventArgs e) =>
         SearchIndexingRequested?.Invoke(this, EventArgs.Empty);
@@ -260,12 +250,6 @@ public sealed partial class OptionsControl : UserControl
         ThemeLightButton.IsChecked = ReferenceEquals(sender, ThemeLightButton);
         ThemeDarkButton.IsChecked = ReferenceEquals(sender, ThemeDarkButton);
         QueueAutoSave("theme", SelectedTheme());
-    }
-
-    private void TaskbarWidgetVisibleSwitch_Toggled(object sender, RoutedEventArgs e)
-    {
-        TaskbarWidgetPositionBox.IsEnabled = TaskbarWidgetVisibleSwitch.IsOn;
-        QueueAutoSave("taskbar.widget.visible", TaskbarWidgetVisibleSwitch.IsOn ? "true" : "false");
     }
 
     /// <summary>Shows or hides lower-frequency application settings.</summary>
@@ -477,13 +461,7 @@ public sealed partial class OptionsControl : UserControl
             refreshAiState: true);
     }
 
-    /// <summary>Updates the local capture-mode hint.</summary>
-    private void ScreenshotModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        UpdateScreenshotModeHint();
-        QueueAutoSave("screenshots.mode", SelectedTag(ScreenshotModeBox, "all-screens"));
-    }
-
+    /// <summary>Renders the confirmed application preferences without resubmitting edits.</summary>
     private void ApplySettings(AppSettings settings)
     {
         _lastPersistedSettings = settings;
@@ -498,13 +476,9 @@ public sealed partial class OptionsControl : UserControl
             ApplyLanguage(settings.UiLanguage);
             _requestedThinkingEffort = settings.AiReasoningEffort;
             SelectModel(settings.Model);
-            ScreenshotsEnabledSwitch.IsOn = settings.ScreenshotsEnabled;
             SelectTag(SearchLanguageBox, settings.SearchLanguage, "system");
             SearchSynonymsSwitch.IsOn = settings.SearchSynonymsEnabled;
             SearchTypoToleranceSwitch.IsOn = settings.SearchTypoToleranceEnabled;
-            OcrEnabledSwitch.IsOn = settings.OcrEnabled;
-            SelectTag(OcrLanguageBox, settings.OcrLanguage, "system");
-            OcrLanguageBox.IsEnabled = settings.OcrEnabled;
             StartWithWindowsSwitch.IsOn = settings.StartWithWindows;
             StartTrackingOnLaunchSwitch.IsOn = settings.StartTrackingOnLaunch;
             SelectTag(AiProviderBox, settings.AiProvider, "openai");
@@ -512,22 +486,17 @@ public sealed partial class OptionsControl : UserControl
             AiApiKeyNameBox.Text = string.IsNullOrWhiteSpace(settings.AiApiKeyName) ? DefaultApiKeyName(settings.AiProvider) : settings.AiApiKeyName;
             SelectTag(AiOutputDetailBox, settings.AiOutputDetail, "balanced");
             SelectTag(AiReasoningEffortBox, settings.AiReasoningEffort, "auto");
-            SelectTag(ScreenshotModeBox, settings.ScreenshotCaptureMode, "all-screens");
             SelectTag(LanguageBox, settings.UiLanguage, "system");
             SelectTag(PositionBox, settings.FlyoutPosition, "bottom-center");
             MainWindowOpacitySlider.Value = settings.MainWindowOpacityPercent;
             AutoHideTitleBarSwitch.IsOn = settings.AutoHideTitleBar;
             WindowSnappingSwitch.IsOn = settings.WindowSnappingEnabled;
             MainWindowShowInTaskbarSwitch.IsOn = settings.MainWindowShowInTaskbar;
-            TaskbarWidgetVisibleSwitch.IsOn = settings.TaskbarWidgetVisible;
-            SelectTag(TaskbarWidgetPositionBox, settings.TaskbarWidgetPosition, "left");
-            TaskbarWidgetPositionBox.IsEnabled = settings.TaskbarWidgetVisible;
             SelectTheme(settings.Theme);
             AiCustomPromptBox.Text = settings.AiCustomPrompt;
             IncludeDeviceLocationSwitch.IsOn = settings.IncludeDeviceLocation;
             ShowAiMonthlySpendSwitch.IsOn = settings.ShowAiMonthlySpend;
             UpdateAiQuotaPresentation();
-            UpdateScreenshotModeHint();
             NotifyLayoutChanged();
         }
         finally
@@ -559,9 +528,6 @@ public sealed partial class OptionsControl : UserControl
         MainWindowShowInTaskbarSwitch.Toggled += (_, _) => QueueAutoSave(
             "window.main.show_in_taskbar",
             MainWindowShowInTaskbarSwitch.IsOn ? "true" : "false");
-        TaskbarWidgetPositionBox.SelectionChanged += (_, _) => QueueAutoSave(
-            "taskbar.widget.position",
-            SelectedTag(TaskbarWidgetPositionBox, "left"));
         LanguageBox.SelectionChanged += (_, _) => QueueAutoSave("language", SelectedTag(LanguageBox, "system"));
         StartWithWindowsSwitch.Toggled += (_, _) => QueueAutoSave(
             "startup.enabled",
@@ -569,9 +535,6 @@ public sealed partial class OptionsControl : UserControl
         StartTrackingOnLaunchSwitch.Toggled += (_, _) => QueueAutoSave(
             "tracking.start_on_launch",
             StartTrackingOnLaunchSwitch.IsOn ? "true" : "false");
-        ScreenshotsEnabledSwitch.Toggled += (_, _) => QueueAutoSave(
-            "screenshots.enabled",
-            ScreenshotsEnabledSwitch.IsOn ? "true" : "false");
         SearchLanguageBox.SelectionChanged += (_, _) => QueueAutoSave("search.language", SelectedTag(SearchLanguageBox, "system"));
         SearchSynonymsSwitch.Toggled += (_, _) => QueueAutoSave(
             "search.synonyms",
@@ -579,7 +542,6 @@ public sealed partial class OptionsControl : UserControl
         SearchTypoToleranceSwitch.Toggled += (_, _) => QueueAutoSave(
             "search.typo_tolerance",
             SearchTypoToleranceSwitch.IsOn ? "true" : "false");
-        OcrLanguageBox.SelectionChanged += (_, _) => QueueAutoSave("ocr.language", SelectedTag(OcrLanguageBox, "system"));
         AiDailyLimitBox.ValueChanged += (_, _) => QueueAiDailyLimitSave();
         AiReasoningEffortBox.SelectionChanged += (_, _) => QueueReasoningEffortSave();
         AiOutputDetailBox.SelectionChanged += (_, _) => QueueAutoSave(
@@ -651,8 +613,6 @@ public sealed partial class OptionsControl : UserControl
         StatusText.Visibility = string.IsNullOrWhiteSpace(message) ? Visibility.Collapsed : Visibility.Visible;
         NotifyLayoutChanged();
     }
-
-    private void UpdateScreenshotModeHint() => ScreenshotModeHintBox.Text = SelectedTag(ScreenshotModeBox, "all-screens") == "active-window" ? T("Options.SnapshotHintActive") : T("Options.SnapshotHintAll");
 
     private void ConfigureModelOptions(AiModelCatalogSnapshot catalog)
     {

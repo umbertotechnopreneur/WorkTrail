@@ -108,11 +108,25 @@ public sealed class PremiumUiContractTests
     {
         var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
         var retention = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
-        foreach (var controlName in new[] { "ScreenshotFolderBox", "KeepScreenshotsSwitch" })
+        foreach (var controlName in new[] { "ScreenshotFolderBox", "KeepScreenshotsSwitch", "ScreenshotsEnabledSwitch", "ScreenshotModeBox", "OcrEnabledSwitch", "OcrLanguageBox" })
         {
             Assert.DoesNotContain(options.Descendants(), element => Name(element) == controlName);
             Assert.Single(retention.Descendants(), element => Name(element) == controlName);
         }
+        var sensors = XDocument.Load(PathFor("WorkTrail", "Controls", "SensorOptionsControl.xaml"));
+        Assert.DoesNotContain(sensors.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
+        Assert.Single(retention.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
+    }
+
+    /// <summary>The v1 surface never advertises or instantiates the withdrawn taskbar widget.</summary>
+    [Fact]
+    public void TaskbarWidget_HasNoV1SettingsOrActivationPath()
+    {
+        var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
+        Assert.DoesNotContain(options.Descendants(), element => element.Attribute("Tag")?.Value?.StartsWith("Options.TaskbarWidget.", StringComparison.Ordinal) == true);
+        var app = File.ReadAllText(PathFor("WorkTrail", "App.xaml.cs"));
+        Assert.DoesNotContain("TaskbarWidgetSurface", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApplyTaskbarWidgetSettings", app, StringComparison.Ordinal);
     }
 
     /// <summary>Monthly cleanup is queued only after the workspace and restored windows are ready.</summary>

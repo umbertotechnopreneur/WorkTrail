@@ -94,6 +94,41 @@
                     <ToggleSwitch x:Name="KeepScreenshotsSwitch" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
                                   MinWidth="0" OffContent="" OnContent="" Toggled="KeepScreenshotsSwitch_Toggled" IsEnabled="False" />
                 </Grid>
+                <Expander x:Name="CaptureSettingsExpander" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="10">
+                        <TextBlock Tag="Options.Section.Snapshots.Description" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <Grid MinHeight="44" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Tag="Options.SnapshotsEnabled.Header" Text="Allow screen captures" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="ScreenshotsEnabledSwitch" Grid.Column="1" HorizontalAlignment="Right" MinWidth="0"
+                                          OffContent="" OnContent="" Toggled="ScreenshotsEnabledSwitch_Toggled" IsEnabled="False" />
+                        </Grid>
+                        <ComboBox x:Name="ScreenshotModeBox" Tag="Options.SnapshotMode" Header="What to capture" HorizontalAlignment="Stretch"
+                                  SelectionChanged="ScreenshotModeBox_SelectionChanged" IsEnabled="False">
+                            <ComboBoxItem Content="All displays" Tag="all-screens" />
+                            <ComboBoxItem Content="Active window" Tag="active-window" />
+                        </ComboBox>
+                        <TextBox x:Name="ScreenshotModeHintBox" Tag="Options.SnapshotResult" Header="Result" IsReadOnly="True" IsTabStop="False" TextWrapping="Wrap" />
+                        <ToggleSwitch x:Name="HardwareSaveSnapshotsSwitch" Tag="Options.Sensors.SaveSnapshots" Header="Save sensor readings with captures"
+                                      OffContent="" OnContent="" Toggled="HardwareSaveSnapshotsSwitch_Toggled" IsEnabled="False" />
+                        <TextBlock Tag="Options.Sensors.SaveSnapshots.Description" Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Expander>
+                <Expander x:Name="OcrSettingsExpander" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="10">
+                        <Grid MinHeight="44" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Tag="Options.Ocr.Enabled" Text="Extract screenshot text" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="OcrEnabledSwitch" Grid.Column="1" HorizontalAlignment="Right" MinWidth="0"
+                                          OffContent="" OnContent="" Toggled="OcrEnabledSwitch_Toggled" IsEnabled="False" />
+                        </Grid>
+                        <ComboBox x:Name="OcrLanguageBox" Tag="Options.Ocr.Language" Header="OCR language" HorizontalAlignment="Stretch"
+                                  SelectionChanged="OcrLanguageBox_SelectionChanged" IsEnabled="False" />
+                        <TextBlock Tag="Options.Ocr.Restart" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Expander>
             </StackPanel>
         </StackPanel>
     </Grid>

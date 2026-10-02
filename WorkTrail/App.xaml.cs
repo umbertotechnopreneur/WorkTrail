@@ -17,7 +17,6 @@ using WorkTrail.Controls;
 using WorkTrail.Presentation;
 using WorkTrail.Runtime;
 using WorkTrail.Services;
-using TaskbarWidgetSurface = WorkTrail.Taskbar.TaskbarWidgetSurface;
 
 namespace WorkTrail;
 
@@ -41,7 +40,6 @@ public partial class App : Microsoft.UI.Xaml.Application
     private ScreenshotWindow? _screenshotsWindow;
     private SearchWindow? _searchWindow;
     private QuickSetupWindow? _quickSetupWindow;
-    private TaskbarWidgetSurface? _taskbarWidgetSurface;
     private RuntimeHost? _runtimeHost;
     private IWorkTrailApplication? _runtimeApplication;
     private IWorkTrailApplication? _applicationFacade;
@@ -189,7 +187,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             _dashboardRefreshCoordinator = new DashboardRefreshCoordinator(application);
             var trayIcon = new TrayIconService(_services.GetRequiredService<ILoggerFactory>().CreateLogger<TrayIconService>());
             _window = new MainWindow(application, options, _dialogs, trayIcon, _windowsNotifications, _dashboardRefreshCoordinator);
-            _window.SettingsApplied += ApplyTaskbarWidgetSettings;
             _window.SettingsApplied += ApplyWorldClockWindowSettings;
             _window.SettingsApplied += ApplyTitleBarSettings;
             _window.QuickSetupRequested += MainWindow_QuickSetupRequested;
@@ -249,7 +246,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             }
 
             var settings = settingsResult.Value;
-            ApplyTaskbarWidgetSettings(settings);
             if (_window is null)
             {
                 return;
@@ -273,7 +269,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         catch (Exception exception)
         {
             _logger.LogError(exception, "UI startup preparation failed after the main window was activated.");
-            DisposeTaskbarWidget();
             if (_window is not null && Volatile.Read(ref _shutdownStarted) == 0)
             {
                 var strings = new LocalizationService(previousSettings.UiLanguage);
@@ -441,10 +436,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         if (_window is not null)
         {
             await _window.ApplyExternalSettingsAsync(settings);
-        }
-        else
-        {
-            ApplyTaskbarWidgetSettings(settings);
         }
     }
 
@@ -957,7 +948,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         _lunarPhaseWindow = null;
         if (_window is not null)
         {
-            _window.SettingsApplied -= ApplyTaskbarWidgetSettings;
             _window.SettingsApplied -= ApplyWorldClockWindowSettings;
             _window.SettingsApplied -= ApplyTitleBarSettings;
             _window.QuickSetupRequested -= MainWindow_QuickSetupRequested;
@@ -1019,7 +1009,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             _searchWindow = null;
         }
 
-        DisposeTaskbarWidget();
         if (Volatile.Read(ref _atomicResetStarted) != 0)
         {
             return;
@@ -1046,49 +1035,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             _searchWindow.Closed -= SearchWindow_Closed;
             _searchWindow = null;
         }
-    }
-
-    private void ApplyTaskbarWidgetSettings(AppSettings settings)
-    {
-        if (!settings.TaskbarWidgetVisible)
-        {
-            DisposeTaskbarWidget();
-            return;
-        }
-
-        if (_taskbarWidgetSurface is not null)
-        {
-            _taskbarWidgetSurface.ApplySettings(settings);
-            _taskbarWidgetSurface.Configure(settings.TaskbarWidgetPosition);
-            return;
-        }
-
-        try
-        {
-            var application = _applicationFacade ?? throw new InvalidOperationException("The taskbar widget requires an initialized application facade.");
-            var dashboardRefreshCoordinator = _dashboardRefreshCoordinator
-                ?? throw new InvalidOperationException("The taskbar widget requires an initialized dashboard coordinator.");
-            var taskbarWidgetSurface = new TaskbarWidgetSurface(application, dashboardRefreshCoordinator, new TaskbarWidgetHost(_services.GetRequiredService<ILogger<TaskbarWidgetHost>>()), _services.GetRequiredService<ILogger<TaskbarWidgetSurface>>());
-            _taskbarWidgetSurface = taskbarWidgetSurface;
-            taskbarWidgetSurface.FlyoutRequested += (_, _) => _window?.DispatcherQueue.TryEnqueue(() => _window?.ShowFlyout());
-            taskbarWidgetSurface.ApplySettings(settings);
-            if (!taskbarWidgetSurface.Attach(settings.TaskbarWidgetPosition))
-            {
-                // If a custom shell rejects parenting, keep the normal player usable rather than leaving an orphaned top-level control.
-                DisposeTaskbarWidget();
-            }
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Taskbar widget initialization failed; the main window remains available.");
-            DisposeTaskbarWidget();
-        }
-    }
-
-    private void DisposeTaskbarWidget()
-    {
-        _taskbarWidgetSurface?.Dispose();
-        _taskbarWidgetSurface = null;
     }
 
     private void StartBackgroundRuntime(LaunchOptions options) => _ = StartBackgroundRuntimeAsync(options);

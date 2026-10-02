@@ -483,7 +483,9 @@ public sealed record RetentionCleanupProgress(Guid OperationId, long CompletedIt
 public sealed record RetentionStatus(int DataRetentionDays, int ScreenshotRetentionDays, string ScreenshotDirectory,
     int MaximumMonths = 1, DateOnly? FirstActivationDate = null, DateOnly? LastCleanupDate = null,
     DateOnly? NextCleanupDate = null, bool IsCleanupDue = false, RetentionCleanupProgress? Progress = null,
-    bool KeepScreenshots = false);
+    bool KeepScreenshots = false, bool ScreenshotsEnabled = false, string ScreenshotCaptureMode = "all-screens",
+    bool OcrEnabled = false, string OcrLanguage = "system", bool HardwareSaveSnapshots = true,
+    bool HardwareSensorsEnabled = true);
 
 /// <summary>Requires both destructive confirmations before an atomic application reset can be prepared.</summary>
 public sealed record AtomicResetRequest(bool FirstConfirmation, bool FinalConfirmation);

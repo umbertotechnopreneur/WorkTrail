@@ -1993,7 +1993,9 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier) * 30,
             RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier) * 30,
             settings.ScreenshotDirectory, RetentionPolicy.MaximumMonths(tier), first, last, next,
-            DateOnly.FromDateTime(now.LocalDateTime) >= next, Volatile.Read(ref _retentionCleanupProgress), settings.KeepScreenshots);
+            DateOnly.FromDateTime(now.LocalDateTime) >= next, Volatile.Read(ref _retentionCleanupProgress), settings.KeepScreenshots,
+            settings.ScreenshotsEnabled, settings.ScreenshotCaptureMode, settings.OcrEnabled, settings.OcrLanguage,
+            settings.HardwareSaveSnapshots, settings.HardwareSensorsEnabled);
     }
 
     /// <inheritdoc />

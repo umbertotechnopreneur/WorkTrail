@@ -189,7 +189,7 @@
                         Margin="0,16,0,0"
                         Tag="Options.Position"
                         HorizontalAlignment="Stretch"
-                        Header="Player position">
+                        Header="Main window position">
                         <ComboBoxItem Content="Bottom center" Tag="bottom-center" />
                         <ComboBoxItem Content="Bottom left" Tag="bottom-left" />
                         <ComboBoxItem Content="Bottom right" Tag="bottom-right" />
@@ -244,53 +244,6 @@
                             OnContent=""
                             Tag="Options.Window.ShowInTaskbar" />
                     </StackPanel>
-
-                    <Border
-                        Height="1"
-                        Margin="0,18,0,0"
-                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                    <StackPanel Margin="0,14,0,0" Spacing="2">
-                        <TextBlock
-                            Tag="Options.Section.TaskbarWidget"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="Windows taskbar widget" />
-                        <TextBlock
-                            Tag="Options.Section.TaskbarWidget.Description"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="Show quick controls and recording status in the Windows taskbar."
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-                    <Grid MinHeight="52" Margin="0,6,0,0" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock
-                            Tag="Options.TaskbarWidget.Visible"
-                            VerticalAlignment="Center"
-                            Text="Visible" />
-                        <ToggleSwitch
-                            x:Name="TaskbarWidgetVisibleSwitch"
-                            Grid.Column="1"
-                            MinWidth="0"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            AutomationProperties.Name="Visible"
-                            OffContent=""
-                            OnContent=""
-                            Toggled="TaskbarWidgetVisibleSwitch_Toggled" />
-                    </Grid>
-                    <ComboBox
-                        x:Name="TaskbarWidgetPositionBox"
-                        Margin="0,8,0,0"
-                        Tag="Options.TaskbarPosition"
-                        HorizontalAlignment="Stretch"
-                        Header="Position"
-                        IsEnabled="False">
-                        <ComboBoxItem Content="Left" Tag="left" />
-                        <ComboBoxItem Content="Right" Tag="right" />
-                    </ComboBox>
 
                     </StackPanel>
 
@@ -612,37 +565,6 @@
                                 OnContent="" />
                         </Grid>
 
-                        <Border Height="1" Margin="0,4,0,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                        <StackPanel Spacing="2">
-                            <TextBlock Tag="Options.Section.Snapshots" Style="{StaticResource BodyStrongTextBlockStyle}" Text="Screen captures" />
-                            <TextBlock
-                                Tag="Options.Section.Snapshots.Description"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Choose when screen captures are made and how long they stay here."
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-                        <Grid MinHeight="44" ColumnSpacing="12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Tag="Options.SnapshotsEnabled.Header" Text="Allow screen captures" TextWrapping="Wrap" />
-                            <ToggleSwitch
-                                x:Name="ScreenshotsEnabledSwitch"
-                                Grid.Column="1"
-                                MinWidth="0"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                AutomationProperties.Name="Allow screen captures"
-                                OffContent=""
-                                OnContent="" />
-                        </Grid>
-                        <ComboBox x:Name="ScreenshotModeBox" Tag="Options.SnapshotMode" HorizontalAlignment="Stretch" Header="What to capture" SelectionChanged="ScreenshotModeBox_SelectionChanged">
-                            <ComboBoxItem Content="All displays" Tag="all-screens" />
-                            <ComboBoxItem Content="Active window" Tag="active-window" />
-                        </ComboBox>
-                        <TextBox x:Name="ScreenshotModeHintBox" Tag="Options.SnapshotResult" Header="Result" IsReadOnly="True" IsTabStop="False" TextWrapping="Wrap" />
                     </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -743,45 +665,6 @@
                         </Grid>
                     </Button>
 
-                    <Border Height="1" Margin="0,4,0,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                    <StackPanel Spacing="2">
-                        <TextBlock Tag="Options.Ocr.Section" Style="{StaticResource BodyStrongTextBlockStyle}" Text="Screenshot text extraction" />
-                    </StackPanel>
-                    <Grid MinHeight="44" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Tag="Options.Ocr.Enabled" Text="Extract screenshot text" TextWrapping="Wrap" />
-                        <ToggleSwitch
-                            x:Name="OcrEnabledSwitch"
-                            Grid.Column="1"
-                            MinWidth="0"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            AutomationProperties.Name="Extract screenshot text"
-                            OffContent=""
-                            OnContent=""
-                            Toggled="OcrEnabledSwitch_Toggled" />
-                    </Grid>
-                    <ComboBox x:Name="OcrLanguageBox" Tag="Options.Ocr.Language" HorizontalAlignment="Stretch" Header="OCR language">
-                        <ComboBoxItem Content="System" Tag="system" />
-                        <ComboBoxItem Content="English (United States)" Tag="en-US" />
-                        <ComboBoxItem Content="Italiano" Tag="it-IT" />
-                        <ComboBoxItem Content="Français" Tag="fr-FR" />
-                        <ComboBoxItem Content="Deutsch" Tag="de-DE" />
-                        <ComboBoxItem Content="Español" Tag="es-ES" />
-                        <ComboBoxItem Content="简体中文" Tag="zh-CN" />
-                        <ComboBoxItem Content="한국어" Tag="ko-KR" />
-                        <ComboBoxItem Content="Português (Portugal)" Tag="pt-PT" />
-                        <ComboBoxItem Content="Português (Brasil)" Tag="pt-BR" />
-                    </ComboBox>
-                    <TextBlock
-                        Tag="Options.Ocr.Restart"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="OCR changes apply after WorkTrail restarts."
-                        TextWrapping="Wrap" />
                     </StackPanel>
                     <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
                     <StackPanel x:Name="AiOptionsView" Spacing="0">

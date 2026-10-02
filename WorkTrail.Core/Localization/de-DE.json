@@ -833,7 +833,7 @@
   "Options.Theme.system": "System",
   "Options.Theme.light": "Hell",
   "Options.Theme.dark": "Dunkel",
-  "Options.Position.Header": "Position der Aktivitätssteuerung",
+  "Options.Position.Header": "Position des Hauptfensters",
   "Options.Position.bottom-center": "Unten mittig",
   "Options.Position.bottom-left": "Unten links",
   "Options.Position.bottom-right": "Unten rechts",

@@ -22,7 +22,7 @@ public sealed class CliSettingsCatalogTests
         Assert.Contains("ai.key_variable", keys);
         Assert.Contains("ai.output_detail", keys);
         Assert.Contains("ai.reasoning_effort", keys);
-        Assert.Contains("taskbar.widget.position", keys);
+        Assert.DoesNotContain(keys, key => key.StartsWith("taskbar.widget.", StringComparison.Ordinal));
         Assert.Contains("window.titlebar.auto_hide", keys);
         Assert.DoesNotContain(keys, key => key.Contains("installation", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(keys, key => key.Contains("privacy", StringComparison.OrdinalIgnoreCase));
