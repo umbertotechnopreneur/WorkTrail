@@ -86,6 +86,48 @@ public sealed class PremiumUiContractTests
         Assert.Contains("ToggleButtonBackground", labels, StringComparison.Ordinal);
     }
 
+    /// <summary>Extended retention uses the same Premium control and exposes all three monthly choices.</summary>
+    [Fact]
+    public void Retention_ExtendedChoicesUseSharedPremiumBadge()
+    {
+        var document = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        foreach (var buttonName in new[] { "TwoMonthsButton", "ThreeMonthsButton" })
+        {
+            var button = document.Descendants().Single(element => Name(element) == buttonName);
+            Assert.Single(button.Descendants(), element => element.Name.LocalName == "PremiumBadge");
+        }
+        var free = document.Descendants().Single(element => Name(element) == "OneMonthButton");
+        Assert.DoesNotContain(free.Descendants(), element => element.Name.LocalName == "PremiumBadge");
+        foreach (var name in new[] { "FirstActivationText", "LastCleanupText", "NextCleanupText" })
+            Assert.Single(document.Descendants(), element => Name(element) == name);
+    }
+
+    /// <summary>The folder editor and keep-captures toggle have a single home on the retention page.</summary>
+    [Fact]
+    public void Retention_OwnsScreenshotStorageSettings()
+    {
+        var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
+        var retention = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        foreach (var controlName in new[] { "ScreenshotFolderBox", "KeepScreenshotsSwitch" })
+        {
+            Assert.DoesNotContain(options.Descendants(), element => Name(element) == controlName);
+            Assert.Single(retention.Descendants(), element => Name(element) == controlName);
+        }
+    }
+
+    /// <summary>Monthly cleanup is queued only after the workspace and restored windows are ready.</summary>
+    [Fact]
+    public void RetentionStartup_WaitsForWorkspaceAndRestoration()
+    {
+        var app = File.ReadAllText(PathFor("WorkTrail", "App.xaml.cs"));
+        var ready = app.IndexOf("await _window.WaitForWorkspaceReadyAsync();", StringComparison.Ordinal);
+        var restored = app.IndexOf("await RestoreWorkspaceAsync(application, previousSettings);", StringComparison.Ordinal);
+        var maintenance = app.IndexOf("StartRetentionMaintenance();", StringComparison.Ordinal);
+        Assert.True(ready >= 0 && ready < restored && restored < maintenance);
+        Assert.Contains("DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()", app, StringComparison.Ordinal);
+        Assert.Contains("Scheduled: true, OperationId: operationId", app, StringComparison.Ordinal);
+    }
+
     private static string? Name(XElement element) => element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")?.Value;
 
     private static string PathFor(params string[] segments)

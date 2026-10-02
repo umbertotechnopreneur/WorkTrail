@@ -50,12 +50,19 @@ internal sealed class OperationsSectionContext
         ExecuteCoreAsync(operation, showSuccess, showInlineProgress: true);
 
     /// <summary>Runs a potentially long request behind the shared modal progress surface without an inline spinner.</summary>
+    /// <param name="operation">Request executed through the shared application facade.</param>
+    /// <param name="title">Localized heading of the progress surface.</param>
+    /// <param name="description">Localized explanation of the operation.</param>
+    /// <param name="showSuccess">Whether successful completion produces a banner.</param>
+    /// <param name="archiveOperationId">Archive job whose phase progress is displayed, if any.</param>
+    /// <param name="retentionOperationId">Retention job whose phase progress is displayed, if any.</param>
     internal Task<OperationResult<T>?> ExecuteWithProgressAsync<T>(
         Func<IWorkTrailApplication, CancellationToken, Task<OperationResult<T>>> operation,
         string title,
         string description,
         bool showSuccess = true,
-        Guid? archiveOperationId = null)
+        Guid? archiveOperationId = null,
+        Guid? retentionOperationId = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -69,7 +76,7 @@ internal sealed class OperationsSectionContext
                     : throw new InvalidOperationException("Progress dialogs require framework-element owner content."),
                 title,
                 description,
-                operation, archiveOperationId),
+                operation, archiveOperationId, retentionOperationId),
             showSuccess,
             showInlineProgress: false);
     }

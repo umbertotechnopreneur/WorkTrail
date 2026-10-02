@@ -90,9 +90,6 @@ public sealed partial class OptionsControl : UserControl
                 PopulateThinkingEfforts(selectedModel, SelectedTag(AiReasoningEffortBox, _requestedThinkingEffort));
                 ModelDescriptionText.Text = LocalizedModelDescription(selectedModel);
             }
-            var openFolderLabel = T("Options.OpenFolderAction");
-            AutomationProperties.SetName(OpenScreenshotFolderButton, openFolderLabel);
-            ToolTipService.SetToolTip(OpenScreenshotFolderButton, openFolderLabel);
             AutomationProperties.SetName(TaskbarWidgetVisibleSwitch, T("Options.TaskbarWidget.Visible"));
             AutomationProperties.SetName(MainWindowOpacitySlider, T("Options.Window.Opacity.Header"));
             AutomationProperties.SetName(AutoHideTitleBarSwitch, T("Options.Window.AutoHideTitleBar.Header"));
@@ -100,7 +97,6 @@ public sealed partial class OptionsControl : UserControl
             AutomationProperties.SetName(WindowSnappingSwitch, T("Options.Window.Snapping.Header"));
             AutomationProperties.SetHelpText(WindowSnappingSwitch, T("Options.Window.Snapping.Description"));
             AutomationProperties.SetName(MainWindowShowInTaskbarSwitch, T("Options.Window.ShowInTaskbar.Header"));
-            AutomationProperties.SetName(KeepScreenshotsSwitch, T("Options.KeepSnapshots.Header"));
             AutomationProperties.SetName(StartWithWindowsSwitch, T("Options.StartWithWindows.Header"));
             AutomationProperties.SetName(StartTrackingOnLaunchSwitch, T("Options.StartTracking.Header"));
             AutomationProperties.SetName(ScreenshotsEnabledSwitch, T("Options.SnapshotsEnabled.Header"));
@@ -308,18 +304,6 @@ public sealed partial class OptionsControl : UserControl
         }
     }
 
-    /// <summary>Opens the configured screen-capture folder through the shared application facade.</summary>
-    private async void OpenScreenshotFolderButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_application is null)
-        {
-            return;
-        }
-
-        var result = await _application.OpenScreenshotFolderAsync(ScreenshotFolderBox.Text, CancellationToken.None);
-        ShowStatus(result.Succeeded ? result.Value ?? string.Empty : T("Options.OpenFolderError"));
-    }
-
     /// <summary>Forwards a secret to the application facade without placing it in settings or UI state.</summary>
     private async void SetApiKeyButton_Click(object sender, RoutedEventArgs e)
     {
@@ -514,8 +498,6 @@ public sealed partial class OptionsControl : UserControl
             ApplyLanguage(settings.UiLanguage);
             _requestedThinkingEffort = settings.AiReasoningEffort;
             SelectModel(settings.Model);
-            ScreenshotFolderBox.Text = settings.ScreenshotDirectory;
-            KeepScreenshotsSwitch.IsOn = settings.KeepScreenshots;
             ScreenshotsEnabledSwitch.IsOn = settings.ScreenshotsEnabled;
             SelectTag(SearchLanguageBox, settings.SearchLanguage, "system");
             SearchSynonymsSwitch.IsOn = settings.SearchSynonymsEnabled;
@@ -580,10 +562,6 @@ public sealed partial class OptionsControl : UserControl
         TaskbarWidgetPositionBox.SelectionChanged += (_, _) => QueueAutoSave(
             "taskbar.widget.position",
             SelectedTag(TaskbarWidgetPositionBox, "left"));
-        ScreenshotFolderBox.LostFocus += (_, _) => QueueAutoSave("screenshots.directory", ScreenshotFolderBox.Text);
-        KeepScreenshotsSwitch.Toggled += (_, _) => QueueAutoSave(
-            "screenshots.keep",
-            KeepScreenshotsSwitch.IsOn ? "true" : "false");
         LanguageBox.SelectionChanged += (_, _) => QueueAutoSave("language", SelectedTag(LanguageBox, "system"));
         StartWithWindowsSwitch.Toggled += (_, _) => QueueAutoSave(
             "startup.enabled",

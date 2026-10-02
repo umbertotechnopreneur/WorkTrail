@@ -9,6 +9,11 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Visually accept monthly retention at Windows scaling levels in light, dark, and high
+  contrast themes, including Free/Premium choices, a missed monthly cleanup after startup,
+  and shutdown while the shared progress dialog is active. Package installation remains
+  separately authorized.
+
 - [ ] Visually accept the guided AI/OpenWeather key sheets and edge-to-edge About hero at
   Windows scaling levels, including success, rejected key, offline/timeout, close during a
   request, and returning to a profile without AI. The owner authorized this OOBE work as an

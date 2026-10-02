@@ -1977,6 +1977,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         OperationResult<RetentionStatus>.Success("retention.status.loaded", "RetentionStatusLoaded",
             await Task.Run(() => BuildRetentionStatus(DateTimeOffset.Now), cancellationToken).ConfigureAwait(false));
 
+    // now supplies the local date used to decide whether the monthly cleanup is due.
+    // InvalidOperationException reports a missing durable installation profile.
     private RetentionStatus BuildRetentionStatus(DateTimeOffset now)
     {
         var settings = _settingsSnapshot.Value;
@@ -1991,7 +1993,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier) * 30,
             RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier) * 30,
             settings.ScreenshotDirectory, RetentionPolicy.MaximumMonths(tier), first, last, next,
-            DateOnly.FromDateTime(now.LocalDateTime) >= next, Volatile.Read(ref _retentionCleanupProgress));
+            DateOnly.FromDateTime(now.LocalDateTime) >= next, Volatile.Read(ref _retentionCleanupProgress), settings.KeepScreenshots);
     }
 
     /// <inheritdoc />
@@ -2002,6 +2004,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             await Task.Run(() => BuildRetentionPreview(cancellationToken), cancellationToken).ConfigureAwait(false));
 
     /// <inheritdoc />
+    /// <param name="request">Confirmed manual cleanup or an installation-anchored scheduled check.</param>
+    /// <param name="cancellationToken">Stops cleanup without advancing its durable checkpoint.</param>
     public Task<OperationResult<RetentionPreview>> RunRetentionAsync(RetentionRequest request, CancellationToken cancellationToken) => MutateVisualStateAsync(() => Task.Run(async () =>
     {
         if (!request.Execute || (!request.Confirmed && !request.Scheduled))
@@ -2014,9 +2018,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return OperationResult<RetentionPreview>.Success("retention.not_due", "RetentionCompleted", new RetentionPreview(0, 0, []));
 
         await RecoverScreenshotDeletionsAsync(cancellationToken).ConfigureAwait(false);
-        var preview = BuildRetentionPreview(cancellationToken, now);
+        var settings = _settingsSnapshot.Value;
+        var tier = _featureAccess.Snapshot.Tier;
+        var preview = BuildRetentionPreview(cancellationToken, now, tier);
         var operationId = request.OperationId == Guid.Empty ? Guid.NewGuid() : request.OperationId;
         long completedItems = 0;
+        // phase identifies the current cleanup step for the passive progress surface.
         void Report(string phase) => Volatile.Write(ref _retentionCleanupProgress,
             new RetentionCleanupProgress(operationId, completedItems, preview.FileCount, phase));
         Report("Screenshots");
@@ -2032,8 +2039,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             Report("Screenshots");
         }
 
-        var settings = _settingsSnapshot.Value;
-        var tier = _featureAccess.Snapshot.Tier;
         cancellationToken.ThrowIfCancellationRequested();
         Report("Records");
         _store.ApplyRetention(now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier)));
@@ -3117,11 +3122,14 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         });
     }
 
-    private RetentionPreview BuildRetentionPreview(CancellationToken cancellationToken, DateTimeOffset? referenceTime = null)
+    // cancellationToken stops the read-only file and database preview.
+    // referenceTime keeps preview and deletion on the same calendar-month cutoff.
+    // effectiveTier keeps a running cleanup consistent if licensing changes concurrently.
+    private RetentionPreview BuildRetentionPreview(CancellationToken cancellationToken, DateTimeOffset? referenceTime = null, ProductTier? effectiveTier = null)
     {
         var settings = _settingsSnapshot.Value;
         var now = referenceTime ?? DateTimeOffset.Now;
-        var tier = _featureAccess.Snapshot.Tier;
+        var tier = effectiveTier ?? _featureAccess.Snapshot.Tier;
         var screenshotCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
         var dataCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier));
         var retainedScreenshotPaths = Directory.Exists(settings.ScreenshotDirectory)

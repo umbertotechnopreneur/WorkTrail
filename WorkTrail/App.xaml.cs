@@ -45,6 +45,8 @@ public partial class App : Microsoft.UI.Xaml.Application
     private RuntimeHost? _runtimeHost;
     private IWorkTrailApplication? _runtimeApplication;
     private IWorkTrailApplication? _applicationFacade;
+    private DispatcherQueueTimer? _retentionTimer;
+    private bool _retentionCheckInProgress;
     private DashboardRefreshCoordinator? _dashboardRefreshCoordinator;
     private bool _searchWindowOpening;
     private bool _worldClockWindowOpening;
@@ -262,6 +264,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             {
                 await RestoreWorkspaceAsync(application, previousSettings);
             }
+            StartRetentionMaintenance();
         }
         catch (OperationCanceledException)
         {
@@ -1167,11 +1170,67 @@ public partial class App : Microsoft.UI.Xaml.Application
         return _applicationFacade;
     }
 
+    private void StartRetentionMaintenance()
+    {
+        if (_retentionTimer is not null || Volatile.Read(ref _shutdownStarted) != 0) return;
+        _retentionTimer = _dispatcherQueue.CreateTimer();
+        _retentionTimer.Interval = TimeSpan.FromHours(1);
+        _retentionTimer.Tick += RetentionTimer_Tick;
+        _retentionTimer.Start();
+        // Workspace initialization and restoration have completed; yield once more before opening a modal.
+        if (!_dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()))
+            _logger.LogWarning("Scheduled retention could not be queued after UI startup.");
+    }
+
+    // sender is the ready-state maintenance timer owned by this UI instance.
+    // args contains the timer tick notification.
+    private async void RetentionTimer_Tick(DispatcherQueueTimer sender, object args) => await CheckScheduledRetentionAsync();
+
+    private async Task CheckScheduledRetentionAsync()
+    {
+        if (_retentionCheckInProgress || _window is null || _applicationFacade is null || Volatile.Read(ref _shutdownStarted) != 0) return;
+        _retentionCheckInProgress = true;
+        try
+        {
+            var application = _applicationFacade;
+            var settings = await application.GetSettingsAsync(CancellationToken.None);
+            if (settings is not { Succeeded: true, Value: { QuickSetupCompleted: true } }) return;
+            var status = await application.GetRetentionStatusAsync(CancellationToken.None);
+            if (!status.Succeeded) throw new InvalidOperationException("Scheduled retention status could not be loaded.");
+            if (status.Value is not { IsCleanupDue: true } || _window is null) return;
+            var owner = _window;
+            var strings = new LocalizationService(settings.Value.UiLanguage);
+            var operationId = Guid.NewGuid();
+            var result = await _dialogs.RunWithProgressAsync(application, owner,
+                (owner.Content as FrameworkElement)?.ActualTheme ?? throw new InvalidOperationException("Retention progress requires window content."),
+                strings.Translate("Operations.Retention.Progress.Cleanup.Title"),
+                strings.Translate("Operations.Retention.ProgressDescription"),
+                (facade, token) => facade.RunRetentionAsync(new RetentionRequest(true, false, Scheduled: true, OperationId: operationId), token),
+                retentionOperationId: operationId);
+            if (!result.Succeeded) throw new InvalidOperationException($"Scheduled retention failed ({result.Code}).");
+        }
+        catch (OperationCanceledException)
+        {
+            // Closing the owner cancels cleanup; the durable monthly checkpoint is not advanced.
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Scheduled retention failed; the next ready-state check will retry.");
+        }
+        finally { _retentionCheckInProgress = false; }
+    }
+
     private async Task ShutdownRuntimeAsync()
     {
         if (Interlocked.Exchange(ref _shutdownStarted, 1) != 0)
         {
             return;
+        }
+        if (_retentionTimer is not null)
+        {
+            _retentionTimer.Stop();
+            _retentionTimer.Tick -= RetentionTimer_Tick;
+            _retentionTimer = null;
         }
 
         // A local RuntimeHost owns and disposes its application before releasing the runtime mutex.

@@ -2,6 +2,20 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-02
+
+### Calendar-month retention refinement
+
+- Limited effective activity and screenshot retention to one month for Free and three
+  months for Premium, with matching guards in the shared settings facade.
+- Added monthly choices, shared Premium badges, an installation-anchored timeline,
+  separate preview counts, and moved the screenshot folder editor, open-folder action,
+  and keep-captures toggle out of general settings while preserving automatic persistence.
+- Queued due cleanup after workspace readiness and restoration, with hourly due-date checks
+  while the UI is running and the shared Mica progress surface for deletion.
+- Preserved owned-artifact checks and capture provenance; the monthly checkpoint advances
+  only after cleanup and local-search synchronization finish successfully.
+
 ## 2026-09-24
 
 ### Locale checks after private Store listing removal

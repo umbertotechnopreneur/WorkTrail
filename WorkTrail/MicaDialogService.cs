@@ -43,6 +43,14 @@ internal sealed class MicaDialogService
     }
 
     /// <summary>Runs one facade request only after its queued modal Mica progress surface is visible.</summary>
+    /// <param name="application">Shared facade that owns the operation and its progress.</param>
+    /// <param name="owner">Window whose modal queue hosts the progress surface.</param>
+    /// <param name="theme">Actual theme used by the owner.</param>
+    /// <param name="title">Localized heading of the progress surface.</param>
+    /// <param name="description">Localized explanation of the operation.</param>
+    /// <param name="operation">Request to run after the progress surface becomes visible.</param>
+    /// <param name="archiveOperationId">Archive job whose progress is displayed, if any.</param>
+    /// <param name="retentionOperationId">Retention job whose progress is displayed, if any.</param>
     internal async Task<OperationResult<T>> RunWithProgressAsync<T>(
         IWorkTrailApplication application,
         Window owner,
@@ -50,7 +58,8 @@ internal sealed class MicaDialogService
         string title,
         string description,
         Func<IWorkTrailApplication, CancellationToken, Task<OperationResult<T>>> operation,
-        Guid? archiveOperationId = null)
+        Guid? archiveOperationId = null,
+        Guid? retentionOperationId = null)
     {
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(operation);
@@ -76,7 +85,7 @@ internal sealed class MicaDialogService
                 async cancellationToken =>
                 {
                     operationResult = await operation(application, cancellationToken);
-                }, archiveOperationId);
+                }, archiveOperationId, retentionOperationId);
             await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
             return operationResult ?? throw new InvalidOperationException("The progress operation returned no result.");
         });

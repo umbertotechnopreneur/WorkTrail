@@ -292,65 +292,6 @@
                         <ComboBoxItem Content="Right" Tag="right" />
                     </ComboBox>
 
-                    <StackPanel Margin="0,14,0,0" Spacing="2">
-                        <TextBox
-                            x:Name="ScreenshotFolderBox"
-                            Tag="Options.SnapshotFolder"
-                            Header="Screen-capture folder"
-                            PlaceholderText="Folder for screen captures" />
-                        <HyperlinkButton
-                            x:Name="OpenScreenshotFolderButton"
-                            Padding="0,5,0,0"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Stretch"
-                            AutomationProperties.Name="Open snapshot and debug-image folder"
-                            Click="OpenScreenshotFolderButton_Click"
-                            ToolTipService.ToolTip="Open snapshot and debug-image folder">
-                            <Grid ColumnSpacing="7">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon
-                                    AutomationProperties.AccessibilityView="Raw"
-                                    FontFamily="Segoe Fluent Icons"
-                                    FontSize="14"
-                                    Glyph="&#xE8A7;" />
-                                <TextBlock
-                                    Grid.Column="1"
-                                    Tag="Options.OpenFolderAction"
-                                    Text="Open snapshot and debug-image folder"
-                                    TextWrapping="Wrap" />
-                            </Grid>
-                        </HyperlinkButton>
-                    </StackPanel>
-
-                    <Grid MinHeight="52" Margin="0,10,0,0" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center" Spacing="1">
-                            <TextBlock Tag="Options.KeepSnapshots.Header" Text="Keep screen captures" TextWrapping="Wrap" />
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Tag="Options.KeepSnapshots.On"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Keep on this PC"
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-                        <ToggleSwitch
-                            x:Name="KeepScreenshotsSwitch"
-                            Grid.Column="1"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Right"
-                            MinWidth="0"
-                            AutomationProperties.Name="Keep screen captures"
-                            OffContent=""
-                            OnContent="" />
-                    </Grid>
-
-
                     </StackPanel>
 
                     <Border
