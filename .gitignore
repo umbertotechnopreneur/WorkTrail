@@ -13,6 +13,7 @@ data/
 !/WorkTrail.Core/Data/sky-catalog.json
 !/WorkTrail.Core/Data/sky-palette.json
 !/WorkTrail.Core/Data/important-dates.json
+!/WorkTrail.Core/Data/celestial-calendar.json
 /screenshots/
 .env
 .env.*

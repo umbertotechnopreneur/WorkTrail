@@ -2154,11 +2154,35 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 Satellites = await CelestialSatelliteService.GetPositionsAsync(snapshot, cancellationToken).ConfigureAwait(false)
             };
         var zone = TimeZoneInfo.FindSystemTimeZoneById(snapshot.TimeZoneId);
+        var calendar = CelestialCalendarCatalog.Current;
+        await _mutations.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // The same activity database owns calendar rows; keep its asset refresh serialized with other writes.
+            _store.EnsureCelestialCalendar(calendar);
+        }
+        finally
+        {
+            _mutations.Release();
+        }
+
+        var preferences = _settingsSnapshot.Value;
+        var firstDate = DateOnly.FromDateTime(snapshot.LocalTime.DateTime);
+        var lastDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(snapshot.InstantUtc.AddDays(2), zone).DateTime);
+        var holidays = firstDate <= calendar.CoverageEnd && lastDate >= calendar.CoverageStart
+            ? _store.LoadCalendarHolidays(firstDate, lastDate)
+            : [];
+        var saints = preferences.AstronomyAgendaShowSaints && firstDate <= calendar.CoverageEnd && lastDate >= calendar.CoverageStart
+            ? Enumerable.Range(0, lastDate.DayNumber - firstDate.DayNumber + 1)
+                .SelectMany(offset => _store.LoadCalendarSaints(firstDate.AddDays(offset))).ToArray()
+            : [];
+        var calendarEvents = CelestialCalendarEventService.Build(snapshot, zone, holidays, saints,
+            preferences.AstronomyAgendaCountryCodes ?? [], preferences.AstronomyAgendaShowSaints, cancellationToken);
         var spaceWeather = await CelestialSpaceWeatherService.GetAsync(snapshot.InstantUtc, zone, cancellationToken).ConfigureAwait(false);
         snapshot = snapshot with
         {
             SpaceWeather = spaceWeather.Snapshot,
-            Agenda = Array.AsReadOnly(snapshot.Agenda.Concat(spaceWeather.Agenda)
+            Agenda = Array.AsReadOnly(snapshot.Agenda.Concat(calendarEvents).Concat(spaceWeather.Agenda)
                 .Select(item => item with
                 {
                     IsAtReferenceInstant = item.StartUtc <= snapshot.InstantUtc && item.EndUtc is { } end && snapshot.InstantUtc < end
@@ -2278,6 +2302,26 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
 
         var current = validation.Value;
+        if (patch.Values.Keys.Any(key => string.Equals(key, "astronomy.agenda.city_id", StringComparison.OrdinalIgnoreCase))
+            && current.AstronomyAgendaCityId.Length > 0)
+        {
+            var selectedCity = current.AstronomyAgendaCityId;
+            try
+            {
+                _worldClockOperations.NormalizeAndValidateCityId(selectedCity);
+            }
+            catch (ArgumentException)
+            {
+                return OperationResult<AppSettings>.Failure("settings.validation.failed", "SettingsValidationFailed",
+                    new ValidationIssue("astronomy.agenda.city_id", "unknown_city", "SettingsFieldInvalid"));
+            }
+
+            if (!WorldClockSelection.NormalizePersisted(current.WorldClockCityIds).Contains(selectedCity, StringComparer.Ordinal))
+            {
+                return OperationResult<AppSettings>.Failure("settings.validation.failed", "SettingsValidationFailed",
+                    new ValidationIssue("astronomy.agenda.city_id", "city_not_selected", "SettingsFieldInvalid"));
+            }
+        }
         if (_featureAccess.DeniedSettingsChange(settings, current) is { } quotaIssue)
             return OperationResult<AppSettings>.Failure("feature." + quotaIssue.Code, quotaIssue.MessageKey, quotaIssue);
         if (!TryValidateOpenAiConfiguration(current, requireImageInput: false, out var validatedSettings, out var validationIssue))

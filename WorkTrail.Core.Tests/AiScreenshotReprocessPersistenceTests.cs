@@ -445,7 +445,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
 
             var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(directory));
 
-            Assert.Contains("Unsupported activity database schema version 6; expected 10", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("Unsupported activity database schema version 6; expected 12", exception.Message, StringComparison.Ordinal);
             using var check = OpenDatabase(directory);
             using var version = check.CreateCommand();
             version.CommandText = "PRAGMA user_version;";

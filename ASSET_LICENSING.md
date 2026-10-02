@@ -71,6 +71,14 @@ or live sky data. Generation prompts, unmodified output dimensions and checksums
 are recorded in the adjacent `PROVENANCE.md` files. These records do not change
 the separate licensing of existing photographs, geographic textures or branding.
 
+The astronomical agenda's country-holiday and saint illustrations in the same
+artwork directory are also first-party decorative assets, outside the MIT code
+grant. The country set and three named saint illustrations were AI-generated at
+the owner's request; the remaining saint symbols are generated from project-
+authored drawing code and stable calendar keys. The adjacent artwork provenance
+records their distinct methods, dimensions and hashes. None is a historical
+portrait, government emblem, or liturgical source image.
+
 
 The project owner has confirmed that the first-party WorkTrail visual assets
 listed in

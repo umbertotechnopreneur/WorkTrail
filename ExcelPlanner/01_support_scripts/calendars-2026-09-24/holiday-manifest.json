@@ -1,0 +1,300 @@
+{
+  "generated_utc": "2026-09-23T20:51:39+00:00",
+  "holiday_library": "holidays 0.105",
+  "years": [
+    2026,
+    2027,
+    2028
+  ],
+  "countries": [
+    {
+      "code": "CN",
+      "name": "Cina continentale",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 22,
+          "workdays": 6,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 19,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 15,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "IN",
+      "name": "India",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 4
+        },
+        {
+          "year": 2028,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 4
+        }
+      ]
+    },
+    {
+      "code": "KR",
+      "name": "Corea del Sud",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 22,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 24,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "JP",
+      "name": "Giappone",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 17,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 16,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "BD",
+      "name": "Bangladesh",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 11
+        },
+        {
+          "year": 2028,
+          "holidays": 18,
+          "workdays": 0,
+          "estimated": 11
+        }
+      ]
+    },
+    {
+      "code": "IT",
+      "name": "Italia",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 13,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 14,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 14,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "FR",
+      "name": "Francia",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 11,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 11,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 11,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "NO",
+      "name": "Norvegia",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 12,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 11,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 12,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "SE",
+      "name": "Svezia",
+      "scope": "Public + de_facto; domeniche ricorrenti escluse, gestite in Parametri",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 16,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 16,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 16,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "US",
+      "name": "Stati Uniti",
+      "scope": "Nazionale; senza suddivisioni",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 12,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 15,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 12,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    },
+    {
+      "code": "CA",
+      "name": "Canada",
+      "scope": "Base federale (public + government); non tutte le aziende",
+      "source": "https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py",
+      "years": [
+        {
+          "year": 2026,
+          "holidays": 11,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2027,
+          "holidays": 12,
+          "workdays": 0,
+          "estimated": 0
+        },
+        {
+          "year": 2028,
+          "holidays": 14,
+          "workdays": 0,
+          "estimated": 0
+        }
+      ]
+    }
+  ],
+  "holiday_rows": 542,
+  "licence": "MIT",
+  "scope": "National baseline, not individually official-verified; subdivisions excluded"
+}

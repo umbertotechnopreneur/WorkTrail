@@ -1,0 +1,2524 @@
+[
+    {
+        "month": 1,
+        "day": 2,
+        "event_key": "StsBasilGreg",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 7,
+        "event_key": "StRayPenyafort",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 13,
+        "event_key": "StHilaryPoitiers",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 17,
+        "event_key": "StAnthonyEgypt",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 20,
+        "event_key": "StFabianPope",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 20,
+        "event_key": "StSebastian",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 21,
+        "event_key": "StAgnes",
+        "grade": 3,
+        "common": [
+            "Martyrs:For a Virgin Martyr",
+            "Virgins:For One Virgin"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 22,
+        "event_key": "StVincentDeacon",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 24,
+        "event_key": "StFrancisDeSales",
+        "grade": 3,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 25,
+        "event_key": "ConversionStPaul",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 26,
+        "event_key": "StsTimothyTitus",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 27,
+        "event_key": "StAngelaMerici",
+        "grade": 2,
+        "common": [
+            "Virgins:For One Virgin",
+            "Holy Men and Women:For Educators"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 28,
+        "event_key": "StThomasAquinas",
+        "grade": 3,
+        "common": [
+            "Pastors:For One Pastor",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 1,
+        "day": 31,
+        "event_key": "StJohnBosco",
+        "grade": 3,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For Educators"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 2,
+        "event_key": "Presentation",
+        "grade": 5,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 3,
+        "event_key": "StBlase",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 3,
+        "event_key": "StAnsgar",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Pastors:For Missionaries"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 5,
+        "event_key": "StAgatha",
+        "grade": 3,
+        "common": [
+            "Martyrs:For a Virgin Martyr",
+            "Virgins:For One Virgin"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 6,
+        "event_key": "StsPaulMiki",
+        "grade": 3,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 8,
+        "event_key": "StJeromeEmiliani",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Educators"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 10,
+        "event_key": "StScholastica",
+        "grade": 3,
+        "common": [
+            "Virgins:For One Virgin",
+            "Holy Men and Women:For a Nun"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 11,
+        "event_key": "OurLadyOfLourdes",
+        "grade": 2,
+        "common": [
+            "Blessed Virgin Mary"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 14,
+        "event_key": "StsCyrilMethodius",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 17,
+        "event_key": "SevenHolyFounders",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 21,
+        "event_key": "StPeterDamian",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 22,
+        "event_key": "ChairStPeter",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 2,
+        "day": 23,
+        "event_key": "StPolycarp",
+        "grade": 3,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 4,
+        "event_key": "StCasimir",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For One Saint"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 7,
+        "event_key": "StsPerpetuaFelicity",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 8,
+        "event_key": "StJohnGod",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious",
+            "Holy Men and Women:For Those Who Practiced Works of Mercy"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 9,
+        "event_key": "StFrancesRome",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious",
+            "Holy Men and Women:For Holy Women"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 17,
+        "event_key": "StPatrick",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Pastors:For Missionaries"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 18,
+        "event_key": "StCyrilJerusalem",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 19,
+        "event_key": "StJoseph",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 23,
+        "event_key": "StTuribius",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 3,
+        "day": 25,
+        "event_key": "Annunciation",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 2,
+        "event_key": "StFrancisPaola",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 4,
+        "event_key": "StIsidore",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 5,
+        "event_key": "StVincentFerrer",
+        "grade": 2,
+        "common": [
+            "Pastors:For Missionaries"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 7,
+        "event_key": "StJohnBaptistDeLaSalle",
+        "grade": 3,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For Educators"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 11,
+        "event_key": "StStanislaus",
+        "grade": 3,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 13,
+        "event_key": "StMartinPope",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 21,
+        "event_key": "StAnselm",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 23,
+        "event_key": "StGeorge",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 24,
+        "event_key": "StFidelisSigmaringen",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For One Pastor"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 25,
+        "event_key": "StMarkEvangelist",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 28,
+        "event_key": "StPeterChanel",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For Missionaries"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 29,
+        "event_key": "StCatherineSiena",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 4,
+        "day": 30,
+        "event_key": "StPiusV",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 1,
+        "event_key": "StJosephWorker",
+        "grade": 2,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 2,
+        "event_key": "StAthanasius",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 3,
+        "event_key": "StsPhilipJames",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 12,
+        "event_key": "StsNereusAchilleus",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 12,
+        "event_key": "StPancras",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 14,
+        "event_key": "StMatthiasAp",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 18,
+        "event_key": "StJohnIPope",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 20,
+        "event_key": "StBernardineSiena",
+        "grade": 2,
+        "common": [
+            "Pastors:For Missionaries",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 25,
+        "event_key": "StBedeVenerable",
+        "grade": 2,
+        "common": [
+            "Doctors",
+            "Holy Men and Women:For a Monk"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 25,
+        "event_key": "StGregoryVII",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 25,
+        "event_key": "StMaryMagdalenePazzi",
+        "grade": 2,
+        "common": [
+            "Virgins:For One Virgin",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 26,
+        "event_key": "StPhilipNeri",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 27,
+        "event_key": "StAugustineCanterbury",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Pastors:For Missionaries"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 5,
+        "day": 31,
+        "event_key": "Visitation",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 1,
+        "event_key": "StJustinMartyr",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 2,
+        "event_key": "StsMarcellinusPeter",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 3,
+        "event_key": "StsCharlesLwanga",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 5,
+        "event_key": "StBoniface",
+        "grade": 3,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For Missionaries"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 6,
+        "event_key": "StNorbert",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 9,
+        "event_key": "StEphrem",
+        "grade": 2,
+        "common": [
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 11,
+        "event_key": "StBarnabasAp",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 13,
+        "event_key": "StAnthonyPadua",
+        "grade": 3,
+        "common": [
+            "Pastors:For One Pastor",
+            "Doctors",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 19,
+        "event_key": "StRomuald",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For an Abbot"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 21,
+        "event_key": "StAloysiusGonzaga",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 22,
+        "event_key": "StPaulinusNola",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 22,
+        "event_key": "StsJohnFisherThomasMore",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 24,
+        "event_key": "NativityJohnBaptist",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 27,
+        "event_key": "StCyrilAlexandria",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 28,
+        "event_key": "StIrenaeus",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 29,
+        "event_key": "StsPeterPaulAp",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 6,
+        "day": 30,
+        "event_key": "FirstMartyrsRome",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 3,
+        "event_key": "StThomasAp",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 4,
+        "event_key": "StElizabethPortugal",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Those Who Practiced Works of Mercy"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 5,
+        "event_key": "StAnthonyZaccaria",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For Religious",
+            "Holy Men and Women:For Educators"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 6,
+        "event_key": "StMariaGoretti",
+        "grade": 2,
+        "common": [
+            "Martyrs:For a Virgin Martyr",
+            "Virgins:For One Virgin"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 11,
+        "event_key": "StBenedict",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 13,
+        "event_key": "StHenry",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For One Saint"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 14,
+        "event_key": "StCamillusDeLellis",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Those Who Practiced Works of Mercy"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 15,
+        "event_key": "StBonaventure",
+        "grade": 3,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 16,
+        "event_key": "OurLadyOfMountCarmel",
+        "grade": 2,
+        "common": [
+            "Blessed Virgin Mary"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 21,
+        "event_key": "StLawrenceBrindisi",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Doctors",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 22,
+        "event_key": "StMaryMagdalene",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 23,
+        "event_key": "StBridget",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious",
+            "Holy Men and Women:For Holy Women"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 25,
+        "event_key": "StJamesAp",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 26,
+        "event_key": "StsJoachimAnne",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 29,
+        "event_key": "StMartha",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 30,
+        "event_key": "StPeterChrysologus",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 7,
+        "day": 31,
+        "event_key": "StIgnatiusLoyola",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 1,
+        "event_key": "StAlphonsusMariaDeLiguori",
+        "grade": 3,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 2,
+        "event_key": "StEusebius",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 4,
+        "event_key": "StJeanVianney",
+        "grade": 3,
+        "common": [
+            "Pastors:For One Pastor"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 5,
+        "event_key": "DedicationStMaryMajor",
+        "grade": 2,
+        "common": [
+            "Blessed Virgin Mary"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 6,
+        "event_key": "Transfiguration",
+        "grade": 5,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 7,
+        "event_key": "StSixtusIIPope",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 7,
+        "event_key": "StCajetan",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 8,
+        "event_key": "StDominic",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 10,
+        "event_key": "StLawrenceDeacon",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 11,
+        "event_key": "StClare",
+        "grade": 3,
+        "common": [
+            "Virgins:For One Virgin",
+            "Holy Men and Women:For a Nun"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 12,
+        "event_key": "StJaneFrancesDeChantal",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 13,
+        "event_key": "StsPontianHippolytus",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs",
+            "Pastors:For Several Pastors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 15,
+        "event_key": "Assumption",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 16,
+        "event_key": "StStephenHungary",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For One Saint"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 19,
+        "event_key": "StJohnEudes",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 20,
+        "event_key": "StBernardClairvaux",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 21,
+        "event_key": "StPiusX",
+        "grade": 3,
+        "common": [
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 22,
+        "event_key": "QueenshipMary",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 23,
+        "event_key": "StRoseLima",
+        "grade": 2,
+        "common": [
+            "Virgins:For One Virgin"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 24,
+        "event_key": "StBartholomewAp",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 25,
+        "event_key": "StLouis",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For One Saint"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 25,
+        "event_key": "StJosephCalasanz",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For Educators"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 27,
+        "event_key": "StMonica",
+        "grade": 3,
+        "common": [
+            "Holy Men and Women:For Holy Women"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 28,
+        "event_key": "StAugustineHippo",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 8,
+        "day": 29,
+        "event_key": "BeheadingJohnBaptist",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 3,
+        "event_key": "StGregoryGreat",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 8,
+        "event_key": "NativityVirginMary",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 13,
+        "event_key": "StJohnChrysostom",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 14,
+        "event_key": "ExaltationCross",
+        "grade": 5,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 15,
+        "event_key": "OurLadyOfSorrows",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 16,
+        "event_key": "StsCorneliusCyprian",
+        "grade": 3,
+        "common": [
+            "Martyrs:For Several Martyrs",
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 17,
+        "event_key": "StRobertBellarmine",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 19,
+        "event_key": "StJanuarius",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 21,
+        "event_key": "StMatthewEvangelist",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 26,
+        "event_key": "StsCosmasDamian",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 27,
+        "event_key": "StVincentDePaul",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 28,
+        "event_key": "StWenceslaus",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 29,
+        "event_key": "StsArchangels",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 9,
+        "day": 30,
+        "event_key": "StJerome",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 1,
+        "event_key": "StThereseChildJesus",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 2,
+        "event_key": "GuardianAngels",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 4,
+        "event_key": "StFrancisAssisi",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 6,
+        "event_key": "StBruno",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For a Monk"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 7,
+        "event_key": "OurLadyOfTheRosary",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 9,
+        "event_key": "StDenis",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Several Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 9,
+        "event_key": "StJohnLeonardi",
+        "grade": 2,
+        "common": [
+            "Pastors:For Missionaries",
+            "Holy Men and Women:For Those Who Practiced Works of Mercy"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 14,
+        "event_key": "StCallistusIPope",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 15,
+        "event_key": "StTeresaJesus",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 16,
+        "event_key": "StHedwig",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious",
+            "Holy Men and Women:For Holy Women"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 16,
+        "event_key": "StMargaretAlacoque",
+        "grade": 2,
+        "common": [
+            "Virgins:For One Virgin"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 17,
+        "event_key": "StIgnatiusAntioch",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 18,
+        "event_key": "StLukeEvangelist",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 19,
+        "event_key": "StsJeanBrebeuf",
+        "grade": 2,
+        "common": [
+            "Martyrs:For Missionary Martyrs"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 19,
+        "event_key": "StPaulCross",
+        "grade": 2,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 23,
+        "event_key": "StJohnCapistrano",
+        "grade": 2,
+        "common": [
+            "Pastors:For Missionaries",
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 24,
+        "event_key": "StAnthonyMaryClaret",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Pastors:For Missionaries"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 10,
+        "day": 28,
+        "event_key": "StSimonStJudeAp",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 1,
+        "event_key": "AllSaints",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 2,
+        "event_key": "AllSouls",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "purple"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 3,
+        "event_key": "StMartinPorres",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Religious"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 4,
+        "event_key": "StCharlesBorromeo",
+        "grade": 3,
+        "common": [
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 9,
+        "event_key": "DedicationLateran",
+        "grade": 5,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 10,
+        "event_key": "StLeoGreat",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 11,
+        "event_key": "StMartinTours",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 12,
+        "event_key": "StJosaphat",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 15,
+        "event_key": "StAlbertGreat",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 16,
+        "event_key": "StMargaretScotland",
+        "grade": 2,
+        "common": [
+            "Holy Men and Women:For Those Who Practiced Works of Mercy"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 16,
+        "event_key": "StGertrudeGreat",
+        "grade": 2,
+        "common": [
+            "Virgins:For One Virgin",
+            "Holy Men and Women:For a Nun"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 17,
+        "event_key": "StElizabethHungary",
+        "grade": 3,
+        "common": [
+            "Holy Men and Women:For Those Who Practiced Works of Mercy"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 18,
+        "event_key": "DedicationStsPeterPaul",
+        "grade": 2,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 21,
+        "event_key": "PresentationMary",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 22,
+        "event_key": "StCecilia",
+        "grade": 3,
+        "common": [
+            "Martyrs:For a Virgin Martyr",
+            "Virgins:For One Virgin"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 23,
+        "event_key": "StClementIPope",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 23,
+        "event_key": "StColumban",
+        "grade": 2,
+        "common": [
+            "Pastors:For Missionaries",
+            "Holy Men and Women:For an Abbot"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 11,
+        "day": 30,
+        "event_key": "StAndrewAp",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 3,
+        "event_key": "StFrancisXavier",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 4,
+        "event_key": "StJohnDamascene",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 6,
+        "event_key": "StNicholas",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 7,
+        "event_key": "StAmbrose",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 8,
+        "event_key": "ImmaculateConception",
+        "grade": 6,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 11,
+        "event_key": "StDamasusIPope",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 13,
+        "event_key": "StLucySyracuse",
+        "grade": 3,
+        "common": [
+            "Martyrs:For a Virgin Martyr",
+            "Virgins:For One Virgin"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 14,
+        "event_key": "StJohnCross",
+        "grade": 3,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 21,
+        "event_key": "StPeterCanisius",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Doctors"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 23,
+        "event_key": "StJohnKanty",
+        "grade": 2,
+        "common": [
+            "Pastors:For One Pastor",
+            "Holy Men and Women:For Those Who Practiced Works of Mercy"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 26,
+        "event_key": "StStephenProtomartyr",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 27,
+        "event_key": "StJohnEvangelist",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 28,
+        "event_key": "HolyInnocents",
+        "grade": 4,
+        "common": [
+            "Proper"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "red"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 29,
+        "event_key": "StThomasBecket",
+        "grade": 2,
+        "common": [
+            "Martyrs:For One Martyr",
+            "Pastors:For a Bishop"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white",
+            "red"
+        ]
+    },
+    {
+        "month": 12,
+        "day": 31,
+        "event_key": "StSylvesterIPope",
+        "grade": 2,
+        "common": [
+            "Pastors:For a Pope"
+        ],
+        "calendar": "GENERAL ROMAN",
+        "color": [
+            "white"
+        ]
+    }
+]

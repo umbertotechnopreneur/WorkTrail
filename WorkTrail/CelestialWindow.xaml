@@ -43,6 +43,7 @@
                     <ColumnDefinition Width="2*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="3*" />
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="CitySelector" DisplayMemberPath="CityName" SelectedValuePath="CityId"
@@ -52,7 +53,12 @@
                               IsOn="True" Toggled="SkyVisibilitySwitch_Toggled" />
                 <ToggleSwitch x:Name="ConstellationsVisibilitySwitch" Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center"
                               IsOn="True" Toggled="SkyVisibilitySwitch_Toggled" />
-                <TextBlock x:Name="StatusText" Grid.Column="3" FontSize="12" FontWeight="Light"
+                <Button x:Name="AgendaOptionsButton" Grid.Column="3" Width="38" Height="38"
+                        Visibility="Collapsed" Click="AgendaOptionsButton_Click"
+                        AutomationProperties.Name="Agenda options" ToolTipService.ToolTip="Agenda options">
+                    <FontIcon Glyph="&#xE712;" FontSize="16" AutomationProperties.AccessibilityView="Raw" />
+                </Button>
+                <TextBlock x:Name="StatusText" Grid.Column="4" FontSize="12" FontWeight="Light"
                            TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Grid>

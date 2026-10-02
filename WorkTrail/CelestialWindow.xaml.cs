@@ -24,6 +24,7 @@ internal sealed partial class CelestialWindow : Window
     private readonly DispatcherQueueTimer _resizeTimer;
     private CancellationTokenSource? _projectionCancellation;
     private LocalizationService _strings = new("system");
+    private AppSettings _agendaSettings = new();
     private WorldClockSnapshot? _reference;
     private bool _changingCities;
     private bool _closed;
@@ -70,6 +71,7 @@ internal sealed partial class CelestialWindow : Window
     {
         ArgumentNullException.ThrowIfNull(settings);
         _strings = new LocalizationService(settings.UiLanguage);
+        _agendaSettings = settings;
         _pendingRender = null;
         _displayedRender = null;
         Title = T(_windowKey switch
@@ -95,6 +97,10 @@ internal sealed partial class CelestialWindow : Window
         UiLocalization.SetAccessibleLabel(ConstellationsVisibilitySwitch, T("Celestial.Sky.ShowConstellations"));
         ToolTipService.SetToolTip(PlanetsVisibilitySwitch, T("Celestial.Sky.ShowPlanets"));
         ToolTipService.SetToolTip(ConstellationsVisibilitySwitch, T("Celestial.Sky.ShowConstellations"));
+        AgendaOptionsButton.Visibility = _windowKey == WindowStateKeys.AstronomyAgenda
+            ? Visibility.Visible : Visibility.Collapsed;
+        UiLocalization.SetAccessibleLabel(AgendaOptionsButton, T("Celestial.Agenda.Options"));
+        ToolTipService.SetToolTip(AgendaOptionsButton, T("Celestial.Agenda.Options"));
         ZodiacNoteText.Text = T("Celestial.Zodiac.Note");
         _controller.ApplySettings(settings);
     }
@@ -121,8 +127,10 @@ internal sealed partial class CelestialWindow : Window
                     .SequenceEqual(snapshot.Clocks.Select(city => (city.CityId, city.CityName))))
             {
                 CitySelector.ItemsSource = snapshot.Clocks;
-                CitySelector.SelectedValue = snapshot.Clocks.Any(city => city.CityId == selectedId)
-                    ? selectedId : snapshot.Clocks.FirstOrDefault()?.CityId;
+                var preferred = _windowKey == WindowStateKeys.AstronomyAgenda
+                    ? _agendaSettings.AstronomyAgendaCityId : selectedId;
+                CitySelector.SelectedValue = snapshot.Clocks.Any(city => city.CityId == preferred)
+                    ? preferred : snapshot.Clocks.FirstOrDefault()?.CityId;
             }
         }
         finally
@@ -139,6 +147,71 @@ internal sealed partial class CelestialWindow : Window
         {
             RefreshProjection();
         }
+    }
+
+    private async void AgendaOptionsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_windowKey != WindowStateKeys.AstronomyAgenda || _reference is null) return;
+        var city = new ComboBox
+        {
+            Header = T("Celestial.Agenda.Options.City"),
+            ItemsSource = _reference.Clocks,
+            DisplayMemberPath = "CityName",
+            SelectedValuePath = "CityId",
+            SelectedValue = CitySelector.SelectedValue,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var saints = new CheckBox
+        {
+            Content = T("Celestial.Agenda.Options.Saints"),
+            IsChecked = _agendaSettings.AstronomyAgendaShowSaints
+        };
+        var countryBoxes = CelestialCalendarCountries.All.Select(country => new CheckBox
+        {
+            Content = country.Name,
+            Tag = country.Code,
+            IsChecked = (_agendaSettings.AstronomyAgendaCountryCodes ?? []).Contains(country.Code, StringComparer.Ordinal)
+        }).ToArray();
+        var content = new StackPanel { Spacing = 10 };
+        content.Children.Add(city);
+        content.Children.Add(saints);
+        content.Children.Add(new TextBlock { Text = T("Celestial.Agenda.Options.Countries"), TextWrapping = TextWrapping.Wrap });
+        foreach (var box in countryBoxes) content.Children.Add(box);
+        content.Children.Add(new TextBlock
+        {
+            Text = T("Celestial.Agenda.Options.Coverage"),
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = ThemeBrush("TextFillColorSecondaryBrush")
+        });
+        var dialogContent = new ScrollViewer { Content = content, MaxHeight = 450, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        if (!await _dialogs.ConfirmAsync(this, new DialogRequest(
+                T("Celestial.Agenda.Options"), T("Celestial.Agenda.Options.Coverage"),
+                T("Labels.Save"), T("Dialog.Cancel")), dialogContent)) return;
+        if (city.SelectedValue is not string cityId) return;
+        try
+        {
+            var selectedCodes = countryBoxes.Where(box => box.IsChecked == true)
+                .Select(box => (string)box.Tag).ToArray();
+            var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
+            {
+                ["astronomy.agenda.city_id"] = cityId,
+                ["astronomy.agenda.country_codes"] = string.Join(',', selectedCodes),
+                ["astronomy.agenda.show_saints"] = saints.IsChecked == true ? "true" : "false"
+            }), _lifetimeCancellation.Token);
+            if (!result.Succeeded || result.Value is null)
+            {
+                ShowFailure(result.MessageKey);
+                return;
+            }
+
+            _changingCities = true;
+            try { CitySelector.SelectedValue = cityId; }
+            finally { _changingCities = false; }
+            ApplySettings(result.Value);
+        }
+        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested) { }
+        catch (Exception exception) { if (!_closed) ShowFailure("Celestial.Unavailable", exception); }
     }
 
     private void SkyVisibilitySwitch_Toggled(object sender, RoutedEventArgs e)
@@ -540,6 +613,16 @@ internal sealed partial class CelestialWindow : Window
                     Source = ImportantDateArtwork(item.ImportantDateId ?? throw new InvalidDataException("An important date must identify its catalog entry."))
                 };
             }
+            else if (item.Kind is CelestialEventKind.Holiday or CelestialEventKind.Saint)
+            {
+                illustration = new Image
+                {
+                    Width = 60,
+                    Height = 60,
+                    Stretch = Stretch.Uniform,
+                    Source = CalendarArtwork(item)
+                };
+            }
             else if (item.Kind == CelestialEventKind.SpaceWeather)
             {
                 illustration = new Image
@@ -589,7 +672,11 @@ internal sealed partial class CelestialWindow : Window
             });
             details.Children.Add(new TextBlock
             {
-                Text = item.IsApproximate ? T("Celestial.Agenda.ApproximatePeak") : item.EndLocal is { } end
+                Text = item.Kind == CelestialEventKind.Holiday
+                    ? item.StartLocal.ToString("t", _strings.Culture)
+                    : item.Kind == CelestialEventKind.Saint
+                    ? T("Celestial.Agenda.AllDay")
+                    : item.IsApproximate ? T("Celestial.Agenda.ApproximatePeak") : item.EndLocal is { } end
                     ? $"{item.StartLocal.ToString("t", _strings.Culture)} – {end.ToString("t", _strings.Culture)}"
                     : item.StartLocal.ToString("t", _strings.Culture),
                 FontWeight = FontWeights.Light,
@@ -626,6 +713,18 @@ internal sealed partial class CelestialWindow : Window
                 details.Children.Add(new TextBlock
                 {
                     Text = SpaceWeatherDetail(item),
+                    FontWeight = FontWeights.Light,
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = ThemeBrush("TextFillColorSecondaryBrush")
+                });
+            }
+            else if (item.Kind is CelestialEventKind.Holiday or CelestialEventKind.Saint)
+            {
+                details.Children.Add(new TextBlock
+                {
+                    Text = item.Kind == CelestialEventKind.Holiday
+                        ? CalendarHolidayDetail(item) : T("Celestial.Agenda.SaintSource"),
                     FontWeight = FontWeights.Light,
                     FontSize = 11,
                     TextWrapping = TextWrapping.Wrap,
@@ -689,8 +788,35 @@ internal sealed partial class CelestialWindow : Window
         CelestialEventKind.MeteorShower => T($"CelestialMeteor{item.MeteorShowerId ?? throw new InvalidDataException("A meteor shower must identify its catalog entry.")}"),
         CelestialEventKind.ImportantDate => T($"CelestialImportantDate{item.ImportantDateId ?? throw new InvalidDataException("An important date must identify its catalog entry.")}"),
         CelestialEventKind.SpaceWeather => T($"CelestialSpaceWeather{item.SpaceWeatherKind ?? throw new InvalidDataException("A space-weather event must identify its condition.")}"),
+        CelestialEventKind.Holiday or CelestialEventKind.Saint => item.CalendarLabel
+            ?? throw new InvalidDataException("A calendar event must identify its name."),
         _ => T($"CelestialEvent{item.Kind}")
     };
+
+    private string CalendarHolidayDetail(CelestialAgendaEvent item)
+    {
+        var code = item.CalendarCountryCode ?? throw new InvalidDataException("A holiday must identify its country.");
+        var name = CelestialCalendarCountries.All.Single(country => country.Code == code).Name;
+        var quality = item.CalendarQuality is "estimated" or "provisional"
+            ? $" · {T($"Celestial.Agenda.Quality.{item.CalendarQuality}")}" : string.Empty;
+        return $"{name} · {T("Celestial.Agenda.HolidaySource")}{quality}";
+    }
+
+    private static BitmapImage CalendarArtwork(CelestialAgendaEvent item)
+    {
+        var name = item.Kind switch
+        {
+            CelestialEventKind.Holiday when item.CalendarArtworkFileName is { } artwork
+                && artwork.EndsWith(".png", StringComparison.Ordinal)
+                && artwork.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.')
+                => artwork,
+            CelestialEventKind.Saint when item.CalendarEntryKey is { } key
+                && key.All(char.IsLetterOrDigit)
+                => $"saint-{key}-v1.png",
+            _ => throw new InvalidDataException("A calendar event has no approved artwork identifier.")
+        };
+        return new BitmapImage(new Uri($"ms-appx:///Assets/Celestial/Artwork/{name}"));
+    }
 
     private string SpaceWeatherDetail(CelestialAgendaEvent item)
     {

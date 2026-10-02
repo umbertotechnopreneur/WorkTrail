@@ -141,7 +141,10 @@ public sealed record AppSettings(
     bool WorldMapWindowShowInTaskbar = true,
     bool LunarPhaseWindowShowInTaskbar = true,
     bool WindowSnappingEnabled = true,
-    IReadOnlyList<WorkTrail.Application.ActivityLabelDefinition>? ActivityLabels = null);
+    IReadOnlyList<WorkTrail.Application.ActivityLabelDefinition>? ActivityLabels = null,
+    string AstronomyAgendaCityId = "",
+    IReadOnlyList<string>? AstronomyAgendaCountryCodes = null,
+    bool AstronomyAgendaShowSaints = true);
 
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,

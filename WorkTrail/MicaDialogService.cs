@@ -35,6 +35,18 @@ internal sealed class MicaDialogService
         return await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Close) == ContentDialogResult.Primary;
     }
 
+    /// <summary>Shows a queued confirmation with caller-provided WinUI content.</summary>
+    /// <param name="owner">The window that owns the dialog.</param>
+    /// <param name="request">The localized title and button labels.</param>
+    /// <param name="content">The UI element displayed inside the dialog.</param>
+    /// <returns><see langword="true"/> only when the user explicitly chooses the primary action.</returns>
+    internal async Task<bool> ConfirmAsync(Window owner, DialogRequest request, object content)
+    {
+        ValidateDialogRequest(request, requiresCloseButton: true);
+        ArgumentNullException.ThrowIfNull(content);
+        return await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Close, content: content) == ContentDialogResult.Primary;
+    }
+
     /// <summary>Shows the illustrated reset confirmation while preserving queued ownership and safe dismissal.</summary>
     internal async Task<bool> ConfirmAtomicResetAsync(Window owner, DialogRequest request)
     {
@@ -250,7 +262,8 @@ internal sealed class MicaDialogService
         Window owner,
         DialogRequest request,
         ContentDialogButton defaultButton,
-        bool atomicReset = false)
+        bool atomicReset = false,
+        object? content = null)
     {
         ValidateOwnerThread(owner);
         using var ownerLifetime = new CancellationTokenSource();
@@ -284,7 +297,7 @@ internal sealed class MicaDialogService
                     RequestedTheme = ownerContent.ActualTheme,
                     Language = ownerContent.Language
                 }
-                : CreateContentDialog(xamlRoot, ownerContent, request, defaultButton);
+                : CreateContentDialog(xamlRoot, ownerContent, request, defaultButton, content);
             _activeContentDialog = dialog;
             try
             {
@@ -428,14 +441,15 @@ internal sealed class MicaDialogService
         XamlRoot xamlRoot,
         FrameworkElement ownerContent,
         DialogRequest request,
-        ContentDialogButton defaultButton) =>
+        ContentDialogButton defaultButton,
+        object? content = null) =>
         new()
         {
             XamlRoot = xamlRoot,
             RequestedTheme = ownerContent.ActualTheme,
             Language = ownerContent.Language,
             Title = request.Title,
-            Content = request.Message,
+            Content = content ?? request.Message,
             PrimaryButtonText = request.PrimaryButtonText,
             CloseButtonText = request.CloseButtonText,
             DefaultButton = defaultButton

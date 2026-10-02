@@ -29,7 +29,7 @@ public enum CelestialEventKind
     Sunrise, Sunset, Moonrise, Moonset, CivilDawn, CivilDusk, MorningBlueHour, EveningBlueHour,
     NewMoon, FirstQuarter, FullMoon, LastQuarter,
     MarchEquinox, JuneSolstice, SeptemberEquinox, DecemberSolstice,
-    MoonPlanetConjunction, MeteorShower, ImportantDate, SpaceWeather
+    MoonPlanetConjunction, MeteorShower, ImportantDate, SpaceWeather, Holiday, Saint
 }
 
 /// <summary>Classifies a significant NOAA Space Weather Prediction Center condition without inferring local aurora visibility.</summary>
@@ -60,7 +60,9 @@ public sealed record CelestialAgendaEvent(
     DateOnly? ActivityStartDate = null, DateOnly? ActivityEndDate = null, bool IsApproximate = false,
     double? MoonPhaseAngleDegrees = null, string? ImportantDateId = null,
     SpaceWeatherEventKind? SpaceWeatherKind = null, int? NoaaScale = null, double? KpIndex = null,
-    string? SpaceWeatherAlertId = null)
+    string? SpaceWeatherAlertId = null,
+    string? CalendarCountryCode = null, string? CalendarLabel = null, string? CalendarQuality = null,
+    string? CalendarArtworkFileName = null, string? CalendarEntryKey = null, DateOnly? CalendarDate = null)
 {
     /// <summary>Indicates that the projected instant falls in this event's half-open interval; point events are not ongoing.</summary>
     public bool IsAtReferenceInstant { get; init; }
@@ -100,4 +102,22 @@ public sealed record CelestialSnapshot(
 
     /// <summary>Contains currently relevant NOAA SWPC data; it is empty for historical snapshots or unavailable feeds.</summary>
     public SpaceWeatherSnapshot SpaceWeather { get; init; } = SpaceWeatherSnapshot.Empty;
+}
+
+/// <summary>Identifies a national holiday calendar available in the offline astronomical agenda.</summary>
+public sealed record CelestialCalendarCountry(string Code, string Name);
+
+/// <summary>Lists the national calendars bundled with WorkTrail; local subdivisions are outside this catalog.</summary>
+public static class CelestialCalendarCountries
+{
+    /// <summary>Gets all supported national calendars in stable display order.</summary>
+    public static IReadOnlyList<CelestialCalendarCountry> All { get; } =
+    [
+        new("CN", "China"), new("VN", "Vietnam"), new("IT", "Italy"), new("FR", "France"),
+        new("DE", "Germany"), new("CA", "Canada"), new("US", "United States"),
+        new("IN", "India"), new("BD", "Bangladesh"), new("JP", "Japan"),
+        new("KR", "South Korea"), new("LA", "Laos"), new("KH", "Cambodia"),
+        new("AU", "Australia"), new("NZ", "New Zealand"), new("SG", "Singapore"),
+        new("PL", "Poland")
+    ];
 }

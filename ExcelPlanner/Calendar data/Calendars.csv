@@ -1,0 +1,543 @@
+﻿Calendar;Date;Name;Active;Source;Kind;Status;Version;Updated
+BD;2026-02-04;Mid-Sha'ban;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-02-21;Martyrs' Day and International Mother Language Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-03-17;Laylat al-Qadr;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-03-20;Jumu'atul-Wida;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-03-21;Eid al-Fitr;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-03-22;Eid al-Fitr;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-03-23;Eid al-Fitr;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-03-26;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-04-14;Bengali New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-05-01;May Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-05-28;Eid al-Adha;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-05-29;Eid al-Adha;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-05-30;Eid al-Adha;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-06-26;Ashura;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-08-05;July Mass Uprising Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-08-26;Prophet's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-12-16;Victory Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2026-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2027-01-24;Mid-Sha'ban (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-02-21;Martyrs' Day and International Mother Language Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2027-03-05;Jumu'atul-Wida (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-03-07;Laylat al-Qadr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-03-10;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-03-11;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-03-12;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-03-26;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2027-04-14;Bengali New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2027-05-01;May Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2027-05-17;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-05-18;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-05-19;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-06-16;Ashura (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-08-05;July Mass Uprising Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2027-08-15;Prophet's Birthday (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2027-12-16;Victory Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2027-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2028-01-13;Mid-Sha'ban (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-02-21;Martyrs' Day and International Mother Language Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2028-02-24;Laylat al-Qadr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-02-25;Jumu'atul-Wida (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-02-27;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-02-28;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-02-29;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-03-26;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2028-04-14;Bengali New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2028-05-01;May Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2028-05-06;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-05-07;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-05-08;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-06-04;Ashura (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-08-04;Prophet's Birthday (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+BD;2028-08-05;July Mass Uprising Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2028-12-16;Victory Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+BD;2028-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/bangladesh.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-04-03;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-05-18;Victoria Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-07-01;Canada Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-09-07;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-09-30;National Day for Truth and Reconciliation;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-10-12;Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-11-11;Remembrance Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-12-26;Boxing Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2026-12-28;Boxing Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-03-26;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-05-24;Victoria Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-07-01;Canada Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-09-06;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-09-30;National Day for Truth and Reconciliation;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-10-11;Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-11-11;Remembrance Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-12-26;Boxing Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-12-27;Christmas Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2027-12-28;Boxing Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-01-03;New Year's Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-04-14;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-05-22;Victoria Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-07-01;Canada Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-07-03;Canada Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-09-04;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-09-30;National Day for Truth and Reconciliation;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-10-02;National Day for Truth and Reconciliation (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-10-09;Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-11-11;Remembrance Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-11-13;Remembrance Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CA;2028-12-26;Boxing Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/canada.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-01-02;Day off (substituted from 01/04/2026);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-01-04;Recupero lavorativo previsto dal calendario nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;WORKDAY;"Da calendario; verificare applicabilita";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-14;Recupero lavorativo previsto dal calendario nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;WORKDAY;"Da calendario; verificare applicabilita";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-16;Chinese New Year's Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-17;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-18;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-19;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-20;Day off (substituted from 02/14/2026);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-23;Day off (substituted from 02/28/2026);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-02-28;Recupero lavorativo previsto dal calendario nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;WORKDAY;"Da calendario; verificare applicabilita";0.105;2026-09-23T20:51:39+00:00
+CN;2026-04-05;Tomb-Sweeping Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-04-06;Tomb-Sweeping Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-05-02;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-05-04;Labor Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-05-05;Day off (substituted from 05/09/2026);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-05-09;Recupero lavorativo previsto dal calendario nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;WORKDAY;"Da calendario; verificare applicabilita";0.105;2026-09-23T20:51:39+00:00
+CN;2026-06-19;Dragon Boat Festival;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-09-20;Recupero lavorativo previsto dal calendario nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;WORKDAY;"Da calendario; verificare applicabilita";0.105;2026-09-23T20:51:39+00:00
+CN;2026-09-25;Mid-Autumn Festival;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-10-01;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-10-02;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-10-03;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-10-05;National Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-10-06;Day off (substituted from 09/20/2026);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-10-07;Day off (substituted from 10/10/2026);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+CN;2026-10-10;Recupero lavorativo previsto dal calendario nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;WORKDAY;"Da calendario; verificare applicabilita";0.105;2026-09-23T20:51:39+00:00
+CN;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-02-05;Chinese New Year's Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-02-06;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-02-07;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-02-08;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-02-09;Chinese New Year (Spring Festival) (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-02-10;Chinese New Year (Spring Festival) (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-04-05;Tomb-Sweeping Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-05-02;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-05-03;Labor Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-05-04;Labor Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-06-09;Dragon Boat Festival;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-09-15;Mid-Autumn Festival;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-10-01;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-10-02;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-10-03;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-10-04;National Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2027-10-05;National Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-01-03;New Year's Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-01-25;Chinese New Year's Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-01-26;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-01-27;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-01-28;Chinese New Year (Spring Festival);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-04-04;Tomb-Sweeping Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-05-02;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-05-28;Dragon Boat Festival;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-05-29;Dragon Boat Festival (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-10-01;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-10-02;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-10-03;"Mid-Autumn Festival; National Day";1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+CN;2028-10-04;National Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/china.py;HOLIDAY;Provvisoria: ponti e recuperi annuali da aggiornare;0.105;2026-09-23T20:51:39+00:00
+FR;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-04-06;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-05-08;Victory Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-05-14;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-05-25;Pentecost Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-07-14;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-08-15;Assumption Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-11-01;All Saints' Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-11-11;Armistice Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2026-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-03-29;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-05-06;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-05-08;Victory Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-05-17;Pentecost Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-07-14;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-08-15;Assumption Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-11-01;All Saints' Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-11-11;Armistice Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2027-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-04-17;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-05-08;Victory Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-05-25;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-06-05;Pentecost Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-07-14;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-08-15;Assumption Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-11-01;All Saints' Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-11-11;Armistice Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+FR;2028-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/france.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+GB-ENG;2026-01-01;New Year’s Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2026-04-03;Good Friday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2026-04-06;Easter Monday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2026-05-04;Early May bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2026-05-25;Spring bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2026-08-31;Summer bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2026-12-25;Christmas Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2026-12-28;Boxing Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-01-01;New Year’s Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-03-26;Good Friday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-03-29;Easter Monday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-05-03;Early May bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-05-31;Spring bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-08-30;Summer bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-12-27;Christmas Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2027-12-28;Boxing Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-01-03;New Year’s Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-04-14;Good Friday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-04-17;Easter Monday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-05-01;Early May bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-05-29;Spring bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-08-28;Summer bank holiday;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-12-25;Christmas Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+GB-ENG;2028-12-26;Boxing Day;1;https://www.gov.uk/bank-holidays;HOLIDAY;Fonte preesistente;preesistente;2026-09-23T20:51:39+00:00
+IN;2026-01-26;Republic Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-03-04;Holi;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-03-21;Eid al-Fitr;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-03-26;Ram Navami;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-03-31;Mahavira's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-04-03;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-04-14;Dr. B. R. Ambedkar's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-05-01;Buddha Purnima;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-05-27;Eid al-Adha;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-06-26;Ashura;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-08-15;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-08-26;Prophet's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-09-04;Janmashtami (Vaishnava);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-10-02;Mahatma Gandhi's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-10-20;Dussehra;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-11-08;Diwali (Deepavali);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-11-24;Guru Nanak's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2026-12-25;Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-01-26;Republic Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-03-06;Maha Shivaratri;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-03-10;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2027-03-22;Holi;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-03-26;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-04-14;Dr. B. R. Ambedkar's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-04-15;Ram Navami;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-04-18;Mahavira's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-05-17;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2027-05-20;Buddha Purnima;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-06-16;Ashura (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2027-08-15;"Independence Day; Prophet's Birthday (estimated)";1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2027-08-25;Janmashtami (Vaishnava);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-10-02;Mahatma Gandhi's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-10-09;Dussehra;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-10-29;Diwali (Deepavali);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-11-14;Guru Nanak's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2027-12-25;Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-01-26;Republic Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-02-23;Maha Shivaratri;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-02-27;Eid al-Fitr (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2028-03-11;Holi;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-04-03;Ram Navami;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-04-07;Mahavira's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-04-14;"Dr. B. R. Ambedkar's Birthday; Good Friday";1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-05-06;Eid al-Adha (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2028-05-08;Buddha Purnima;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-06-04;Ashura (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2028-08-04;Prophet's Birthday (estimated);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;Stimata;0.105;2026-09-23T20:51:39+00:00
+IN;2028-08-13;Janmashtami (Vaishnava);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-08-15;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-09-27;Dussehra;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-10-02;Mahatma Gandhi's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-10-17;Diwali (Deepavali);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-11-02;Guru Nanak's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IN;2028-12-25;Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/india.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-01-01;Capodanno;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-01-06;Epifania;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-04-05;Pasqua;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-04-06;Lunedì dell'Angelo;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-04-25;Anniversario della Liberazione;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-05-01;Festa del Lavoro;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-06-02;Festa della Repubblica;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-08-15;Assunzione della Beata Vergine Maria;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-10-04;Festa nazionale di San Francesco d'Assisi, patrono d'Italia;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-11-01;"Giorno dell'unità nazionale; Ognissanti";1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-12-08;Immacolata Concezione;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-12-25;Natale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2026-12-26;Santo Stefano;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-01-01;Capodanno;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-01-06;Epifania;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-03-28;Pasqua;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-03-29;Lunedì dell'Angelo;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-04-25;Anniversario della Liberazione;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-05-01;Festa del Lavoro;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-06-02;Festa della Repubblica;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-08-15;Assunzione della Beata Vergine Maria;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-10-04;Festa nazionale di San Francesco d'Assisi, patrono d'Italia;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-11-01;Ognissanti;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-11-07;Giorno dell'unità nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-12-08;Immacolata Concezione;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-12-25;Natale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2027-12-26;Santo Stefano;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-01-01;Capodanno;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-01-06;Epifania;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-04-16;Pasqua;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-04-17;Lunedì dell'Angelo;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-04-25;Anniversario della Liberazione;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-05-01;Festa del Lavoro;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-06-02;Festa della Repubblica;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-08-15;Assunzione della Beata Vergine Maria;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-10-04;Festa nazionale di San Francesco d'Assisi, patrono d'Italia;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-11-01;Ognissanti;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-11-05;Giorno dell'unità nazionale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-12-08;Immacolata Concezione;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-12-25;Natale;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+IT;2028-12-26;Santo Stefano;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/italy.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-01-12;Coming of Age Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-02-11;Foundation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-02-23;Emperor's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-03-20;Vernal Equinox Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-04-29;Showa Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-05-03;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-05-04;Greenery Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-05-05;Children's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-05-06;Substitute Holiday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-07-20;Marine Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-08-11;Mountain Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-09-21;Respect for the Aged Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-09-22;National Holiday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-09-23;Autumnal Equinox Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-10-12;Sports Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-11-03;Culture Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2026-11-23;Labor Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-01-11;Coming of Age Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-02-11;Foundation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-02-23;Emperor's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-03-21;Vernal Equinox Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-03-22;Substitute Holiday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-04-29;Showa Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-05-03;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-05-04;Greenery Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-05-05;Children's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-07-19;Marine Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-08-11;Mountain Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-09-20;Respect for the Aged Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-09-23;Autumnal Equinox Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-10-11;Sports Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-11-03;Culture Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2027-11-23;Labor Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-01-10;Coming of Age Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-02-11;Foundation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-02-23;Emperor's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-03-20;Vernal Equinox Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-04-29;Showa Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-05-03;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-05-04;Greenery Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-05-05;Children's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-07-17;Marine Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-08-11;Mountain Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-09-18;Respect for the Aged Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-09-22;Autumnal Equinox Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-10-09;Sports Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-11-03;Culture Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+JP;2028-11-23;Labor Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/japan.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-02-16;The day preceding Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-02-17;Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-02-18;The second day of Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-03-01;Independence Movement Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-03-02;Alternative holiday for Independence Movement Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-05-05;Children's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-05-24;Buddha's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-05-25;Alternative holiday for Buddha's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-06-03;Local Election Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-06-06;Memorial Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-07-17;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-08-15;Liberation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-08-17;Alternative holiday for Liberation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-09-24;The day preceding Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-09-25;Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-09-26;The second day of Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-10-03;National Foundation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-10-05;Alternative holiday for National Foundation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-10-09;Hangul Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2026-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-02-06;The day preceding Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-02-07;Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-02-08;The second day of Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-02-09;Alternative holiday for Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-03-01;Independence Movement Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-05-03;Alternative holiday for Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-05-05;Children's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-05-13;Buddha's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-06-06;Memorial Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-07-17;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-07-19;Alternative holiday for Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-08-15;Liberation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-08-16;Alternative holiday for Liberation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-09-14;The day preceding Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-09-15;Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-09-16;The second day of Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-10-03;National Foundation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-10-04;Alternative holiday for National Foundation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-10-09;Hangul Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-10-11;Alternative holiday for Hangul Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2027-12-27;Alternative holiday for Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-01-26;The day preceding Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-01-27;Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-01-28;The second day of Korean New Year;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-03-01;Independence Movement Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-04-12;National Assembly Election Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-05-02;Buddha's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-05-05;Children's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-06-06;Memorial Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-07-17;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-08-15;Liberation Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-10-02;The day preceding Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-10-03;"Chuseok; National Foundation Day";1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-10-04;The second day of Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-10-05;Alternative holiday for Chuseok;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-10-09;Hangul Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+KR;2028-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/south_korea.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-04-02;Maundy Thursday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-04-03;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-04-05;Easter Sunday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-04-06;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-05-14;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-05-17;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-05-24;Pentecost;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-05-25;Pentecost Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2026-12-26;Second Day of Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-03-25;Maundy Thursday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-03-26;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-03-28;Easter Sunday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-03-29;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-05-06;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-05-16;Pentecost;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-05-17;"Constitution Day; Pentecost Monday";1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2027-12-26;Second Day of Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-04-13;Maundy Thursday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-04-14;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-04-16;Easter Sunday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-04-17;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-05-01;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-05-17;Constitution Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-05-25;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-06-04;Pentecost;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-06-05;Pentecost Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+NO;2028-12-26;Second Day of Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/norway.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-01-06;Epiphany;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-04-03;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-04-05;Easter Sunday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-04-06;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-05-01;May Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-05-14;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-05-24;Pentecost;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-06-06;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-06-19;Midsummer Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-06-20;Midsummer Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-10-31;All Saints' Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-12-24;Christmas Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-12-26;Second Day of Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2026-12-31;New Year's Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-01-06;Epiphany;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-03-26;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-03-28;Easter Sunday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-03-29;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-05-01;May Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-05-06;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-05-16;Pentecost;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-06-06;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-06-25;Midsummer Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-06-26;Midsummer Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-11-06;All Saints' Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-12-24;Christmas Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-12-26;Second Day of Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2027-12-31;New Year's Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-01-06;Epiphany;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-04-14;Good Friday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-04-16;Easter Sunday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-04-17;Easter Monday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-05-01;May Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-05-25;Ascension Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-06-04;Pentecost;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-06-06;National Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-06-23;Midsummer Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-06-24;Midsummer Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-11-04;All Saints' Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-12-24;Christmas Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-12-26;Second Day of Christmas;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+SE;2028-12-31;New Year's Eve;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/sweden.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-01-19;Martin Luther King Jr. Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-02-16;Washington's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-05-25;Memorial Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-06-19;Juneteenth National Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-07-03;Independence Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-07-04;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-09-07;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-10-12;Columbus Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-11-11;Veterans Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-11-26;Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2026-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-01-18;Martin Luther King Jr. Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-02-15;Washington's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-05-31;Memorial Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-06-18;Juneteenth National Independence Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-06-19;Juneteenth National Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-07-04;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-07-05;Independence Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-09-06;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-10-11;Columbus Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-11-11;Veterans Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-11-25;Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-12-24;Christmas Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2027-12-31;New Year's Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-01-01;New Year's Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-01-17;Martin Luther King Jr. Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-02-21;Washington's Birthday;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-05-29;Memorial Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-06-19;Juneteenth National Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-07-04;Independence Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-09-04;Labor Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-10-09;Columbus Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-11-10;Veterans Day (observed);1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-11-11;Veterans Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-11-23;Thanksgiving Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00
+US;2028-12-25;Christmas Day;1;https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/united_states.py;HOLIDAY;"Da regole; non verificata singolarmente";0.105;2026-09-23T20:51:39+00:00

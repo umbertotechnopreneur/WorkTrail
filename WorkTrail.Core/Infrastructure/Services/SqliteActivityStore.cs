@@ -10,11 +10,11 @@ using WorkTrail.Application;
 namespace WorkTrail.Services;
 
 /// <summary>Persists activity history and privacy-safe AI telemetry in the single local SQLite store.</summary>
-internal sealed class SqliteActivityStore
+internal sealed partial class SqliteActivityStore
 {
     internal const string DatabaseFileName = "activity.sqlite3";
     /// <summary>Defines the current persisted SQLite contract, shared with portable archive validation.</summary>
-    internal const int SchemaVersion = 10;
+    internal const int SchemaVersion = 12;
     private const long FixedEstimatedRowBytes = 96;
 
     private static readonly SchemaColumn[] ExpectedActivityColumns =
@@ -291,7 +291,13 @@ internal sealed class SqliteActivityStore
         "tr_search_profile_update",
         "tr_search_profile_delete",
         "capture_hardware_snapshots",
-        "ix_capture_hardware_snapshots_sampled"
+        "ix_capture_hardware_snapshots_sampled",
+        "calendar_dataset",
+        "calendar_countries",
+        "calendar_holidays",
+        "ix_calendar_holidays_date",
+        "calendar_saints",
+        "ix_calendar_saints_month_day"
     ];
 
     private readonly string _databasePath;
@@ -2695,7 +2701,7 @@ internal sealed class SqliteActivityStore
         command.CommandText = ActivitySchemaSql + AiSchemaSql + ScreenshotTextSchemaSql + AiPricingSchemaSql
             + ScreenshotIntervalTelemetrySchemaSql + AiReprocessingSchemaSql + InstallationArchiveSchemaSql
             + SearchRevisionSchemaSql
-            + CaptureHardwareSnapshotSchemaSql
+            + CaptureHardwareSnapshotSchemaSql + CalendarSchemaSql
             + $"PRAGMA user_version = {SchemaVersion};";
         command.ExecuteNonQuery();
         transaction.Commit();
@@ -2725,6 +2731,16 @@ internal sealed class SqliteActivityStore
 
     private static void ValidateSchema(SqliteConnection connection)
     {
+        ValidatePriorSchema(connection);
+        ValidateCalendarSchema(connection);
+        if (!ReadApplicationSchemaObjects(connection).SetEquals(ExpectedApplicationSchemaObjects))
+        {
+            throw new InvalidOperationException("The activity database contains unsupported schema objects.");
+        }
+    }
+
+    private static void ValidatePriorSchema(SqliteConnection connection)
+    {
         ValidateBaseSchema(connection, ActivitySchemaSql, ExpectedActivityColumns, ExpectedActivityIndexes);
         ValidateScreenshotTextSchema(connection);
         ValidateScreenshotIntervalTelemetrySchema(connection);
@@ -2744,10 +2760,6 @@ internal sealed class SqliteActivityStore
                 "sqlite_autoindex_capture_hardware_snapshots_1", "ix_capture_hardware_snapshots_sampled"]))
         {
             throw new InvalidOperationException("The capture hardware snapshot schema does not match the supported schema.");
-        }
-        if (!ReadApplicationSchemaObjects(connection).SetEquals(ExpectedApplicationSchemaObjects))
-        {
-            throw new InvalidOperationException("The activity database contains unsupported schema objects.");
         }
     }
 

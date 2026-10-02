@@ -9,6 +9,11 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Visually accept the astronomical agenda's 17-country holiday filters, Latin
+  saints, per-entry artwork and same-window settings at Windows x64 scale levels;
+  confirm sunrise ordering, reference marker and polar-day presentation. Local
+  Debug build and targeted tests are authorized; installation still needs owner approval.
+
 - [ ] Visually accept the guided AI/OpenWeather key sheets and edge-to-edge About hero at
   Windows scaling levels, including success, rejected key, offline/timeout, close during a
   request, and returning to a profile without AI. The owner authorized this OOBE work as an

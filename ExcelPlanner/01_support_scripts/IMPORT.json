@@ -1,0 +1,22 @@
+{
+  "ImportedOn": "2026-09-24",
+  "Origin": "Owner-provided Excel prototype; separate Obsidian copy retained",
+  "SourceFilesVerified": 70,
+  "RuntimeCsvCount": 6,
+  "NativeQueryCount": 6,
+  "TemplateChanges": [
+    "Parametri B25: machine path removed",
+    "Parametri B32: key removed or left blank"
+  ],
+  "Scripts": "All original mjs, ps1, py and pq source scripts retained; machine paths adapted",
+  "Excluded": [
+    "API keys",
+    "Private implementation plan",
+    "Original reference workbooks",
+    "Old workbook versions and backups",
+    "QA reports and previews",
+    "node_modules and installed Python vendor packages"
+  ],
+  "WorkbookSourceSha256": "2D6E90C646926D13724F70A680C675686766602B89665F130B4FA149B645E3A3",
+  "WorkbookTemplateSha256": "4854364BB5B5F8616A7695A7CE6BDE7F2404FE60BB88985ECC5EB26A8244EBC5"
+}

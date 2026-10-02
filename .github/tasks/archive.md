@@ -4,6 +4,17 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-09-24
 
+### Standalone Excel planner source snapshot
+
+- Added the owner-requested ExcelPlanner folder with the current workbook, six CSV
+  datasets, original authoring scripts, source provenance and third-party licenses.
+- Kept the template free of credentials and machine-specific data paths. The
+  existing launcher now uses an ignored local working copy.
+- Preserved the separate Obsidian copy; excluded private plans, keys, installed
+  dependencies, reference workbooks, backups and temporary QA output.
+- Checked script syntax, copy integrity and preservation of native query parts.
+  No app integration, build, test suite, API refresh, commit or push was performed.
+
 ### Locale checks after private Store listing removal
 
 - Made repository discovery use the solution file and checked the canonical locale catalog

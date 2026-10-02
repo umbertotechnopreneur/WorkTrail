@@ -73,6 +73,9 @@ public static class SettingsCatalog
         Integer("window.main.opacity_percent", "Player window opacity from 25 through 100 percent."),
         Boolean("window.main.show_in_taskbar", "Show the player window in the Windows taskbar."),
         Boolean("world_clocks.weather.enabled", "Show source-backed current weather in the live world-clock projection."),
+        Text("astronomy.agenda.city_id", "City selected in the astronomical agenda."),
+        Text("astronomy.agenda.country_codes", "Comma-separated national holiday calendars shown in the astronomical agenda."),
+        Boolean("astronomy.agenda.show_saints", "Show source-backed Latin sanctoral entries in the astronomical agenda."),
         Integer("window.world_clocks.opacity_percent", "World-clock window opacity from 25 through 100 percent."),
         Boolean("window.world_clocks.show_in_taskbar", "Show the world-clock window in the Windows taskbar."),
         Boolean("window.world_map.show_in_taskbar", "Show the world-map window in the Windows taskbar."),
@@ -156,6 +159,9 @@ public static class SettingsCatalog
             "window.main.opacity_percent" => settings.MainWindowOpacityPercent,
             "window.main.show_in_taskbar" => settings.MainWindowShowInTaskbar,
             "world_clocks.weather.enabled" => settings.WorldClockWeatherEnabled,
+            "astronomy.agenda.city_id" => settings.AstronomyAgendaCityId,
+            "astronomy.agenda.country_codes" => settings.AstronomyAgendaCountryCodes ?? [],
+            "astronomy.agenda.show_saints" => settings.AstronomyAgendaShowSaints,
             "window.world_clocks.opacity_percent" => settings.WorldClockWindowOpacityPercent,
             "window.world_clocks.show_in_taskbar" => settings.WorldClockWindowShowInTaskbar,
             "window.world_map.show_in_taskbar" => settings.WorldMapWindowShowInTaskbar,
@@ -282,6 +288,9 @@ public static class SettingsCatalog
                 case "window.main.opacity_percent" when TryInteger(value, 25, 100, out var mainOpacity): current = current with { MainWindowOpacityPercent = mainOpacity }; break;
                 case "window.main.show_in_taskbar" when TryBoolean(value, out var mainShowInTaskbar): current = current with { MainWindowShowInTaskbar = mainShowInTaskbar }; break;
                 case "world_clocks.weather.enabled" when TryBoolean(value, out var worldClockWeatherEnabled): current = current with { WorldClockWeatherEnabled = worldClockWeatherEnabled }; break;
+                case "astronomy.agenda.city_id" when IsAgendaCityId(value): current = current with { AstronomyAgendaCityId = value! }; break;
+                case "astronomy.agenda.country_codes" when TryAgendaCountryCodes(value, out var agendaCountries): current = current with { AstronomyAgendaCountryCodes = agendaCountries }; break;
+                case "astronomy.agenda.show_saints" when TryBoolean(value, out var showAgendaSaints): current = current with { AstronomyAgendaShowSaints = showAgendaSaints }; break;
                 case "window.world_clocks.opacity_percent" when TryInteger(value, 25, 100, out var worldClockOpacity): current = current with { WorldClockWindowOpacityPercent = worldClockOpacity }; break;
                 case "window.world_clocks.show_in_taskbar" when TryBoolean(value, out var worldClockShowInTaskbar): current = current with { WorldClockWindowShowInTaskbar = worldClockShowInTaskbar }; break;
                 case "window.world_map.show_in_taskbar" when TryBoolean(value, out var worldMapShowInTaskbar): current = current with { WorldMapWindowShowInTaskbar = worldMapShowInTaskbar }; break;
@@ -369,6 +378,10 @@ public static class SettingsCatalog
             EstimatedCostPerScreenshotUsd = Math.Clamp(settings.EstimatedCostPerScreenshotUsd, 0m, 1_000m),
             ActiveHours = ActiveHoursSchedule.Normalize(settings.ActiveHours),
             WorldClockCityIds = WorldClockSelection.NormalizePersisted(settings.WorldClockCityIds),
+            AstronomyAgendaCityId = IsAgendaCityId(settings.AstronomyAgendaCityId)
+                ? settings.AstronomyAgendaCityId
+                : throw new InvalidDataException("Persisted astronomical agenda city is invalid."),
+            AstronomyAgendaCountryCodes = NormalizeAgendaCountryCodes(settings.AstronomyAgendaCountryCodes),
             ActivityLabels = labels
         };
     }
@@ -417,6 +430,42 @@ public static class SettingsCatalog
     {
         parsed = value == "true";
         return value is "true" or "false";
+    }
+
+    private static bool IsAgendaCityId(string? value) => value is { Length: <= 128 }
+        && value == value.Trim() && !value.Any(char.IsControl);
+
+    private static bool TryAgendaCountryCodes(string? value, out IReadOnlyList<string> codes)
+    {
+        codes = [];
+        if (value is null)
+        {
+            return false;
+        }
+
+        var parsed = value.Length == 0 ? [] : value.Split(',', StringSplitOptions.TrimEntries)
+            .Select(code => code.ToUpperInvariant()).ToArray();
+        if (parsed.Length != parsed.Distinct(StringComparer.Ordinal).Count()
+            || parsed.Any(code => code.Length == 0 || !CelestialCalendarCountries.All.Any(country => country.Code == code)))
+        {
+            return false;
+        }
+
+        codes = Array.AsReadOnly(parsed);
+        return true;
+    }
+
+    private static IReadOnlyList<string> NormalizeAgendaCountryCodes(IReadOnlyList<string>? codes)
+    {
+        if (codes is null)
+        {
+            return [];
+        }
+
+        var joined = string.Join(',', codes);
+        return TryAgendaCountryCodes(joined, out var normalized) && normalized.Count == codes.Count
+            ? normalized
+            : throw new InvalidDataException("Persisted astronomical agenda country selection is invalid.");
     }
 
     private static bool TryInteger(string? value, int minimum, int maximum, out int parsed) =>

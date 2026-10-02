@@ -53,6 +53,26 @@ tracked `.csproj` files and distributed world-clock data/media assets.
 | [System.IO.FileSystem.AccessControl 5.0.0](https://www.nuget.org/packages/System.IO.FileSystem.AccessControl/5.0.0) | NuGet | [MIT](https://licenses.nuget.org/MIT) | LibreHardwareMonitor source build |
 | [System.IO.Ports 10.0.3](https://www.nuget.org/packages/System.IO.Ports/10.0.3) | NuGet | [MIT](https://licenses.nuget.org/MIT) | LibreHardwareMonitor source build |
 
+## Offline national holidays and Latin sanctoral selection
+
+`WorkTrail.Core/Data/celestial-calendar.json` bundles 565 national-calendar rows for
+17 countries from 2026-01-01 through 2028-03-31. They were generated with
+[holidays 0.105](https://github.com/vacanza/holidays/tree/v0.105) (MIT license),
+using national or federal baselines rather than subdivision calendars. They are
+rule-based data, not official government feeds; future lunar and bridge dates
+may change. The asset marks estimated and provisional entries, and the agenda
+does not present make-up workdays as holidays.
+
+The same JSON contains 211 Latin fixed-date sanctoral entries covering 191
+distinct recurring dates. Their calendar keys and Latin labels come from the
+[Liturgical Calendar API](https://github.com/Liturgical-Calendar/LiturgicalCalendarAPI)
+at revision `1bb2b7c503a701a9713b2f881795afe46044af3b` (Apache-2.0),
+except for the owner-supplied Our Lady of Mercy example, whose Latin title is
+supported by the [Vatican text](https://www.vatican.va/content/john-paul-ii/la/apost_letters/1982/documents/hf_jp-ii_apl_19820203_cultum-sanctorum.html).
+This is a selected General Roman Calendar subset, not a complete martyrology
+or a computed movable liturgical calendar. `scripts/Generate-CelestialCalendarData.py`
+records the pinned source and quality rules used to build the JSON.
+
 ## Celestial star catalog subset
 
 `TrackMeUp.Core/Data/sky-catalog.json` includes 83 J2000 ICRS stellar coordinates and available V-band
