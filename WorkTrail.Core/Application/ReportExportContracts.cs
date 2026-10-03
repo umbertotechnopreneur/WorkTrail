@@ -32,6 +32,9 @@ public static class ReportExportFileNames
 /// <summary>Chooses whether saved descriptions are exported as excerpts, complete text, or both.</summary>
 public enum ReportDescriptionMode { Brief, Complete, Both }
 
+/// <summary>Selects a printable palette that remains editable through Excel's native themes.</summary>
+public enum ReportWorkbookTheme { WorkTrail, SpreadsheetGreen, InkBlue }
+
 /// <summary>Contains explicit range, field and privacy choices shared by preview and export.</summary>
 public sealed record ReportExportOptions(
     DateOnly From,
@@ -51,7 +54,8 @@ public sealed record ReportExportOptions(
     bool IncludeTelemetry = false,
     bool IncludeAiUsage = false,
     string CsvSeparator = ";",
-    string Language = "en-US");
+    string Language = "en-US",
+    ReportWorkbookTheme Theme = ReportWorkbookTheme.WorkTrail);
 
 /// <summary>Contains a bounded table preview; raw complete text never crosses IPC for ordinary previews.</summary>
 public sealed record ReportExportTablePreview(string Name, IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows, int RowCount);

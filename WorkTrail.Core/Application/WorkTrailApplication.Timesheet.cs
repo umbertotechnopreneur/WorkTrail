@@ -17,7 +17,14 @@ public sealed partial class WorkTrailApplication
         {
             ArgumentNullException.ThrowIfNull(request);
             if (request.Action == ReportFilePreviewAction.Generate)
-                return ReportFilePreviewService.Create(_store, request, token);
+            {
+                if (request.TimesheetJobId is null) return ReportFilePreviewService.Create(_store, request, token);
+                // Reading a V1 job can migrate it. Share the recovery gate so an older snapshot
+                // cannot overwrite results arriving while the preview is being generated.
+                await _timesheetGate.WaitAsync(token).ConfigureAwait(false);
+                try { return ReportFilePreviewService.Create(_store, request, token); }
+                finally { _timesheetGate.Release(); }
+            }
 
             token.ThrowIfCancellationRequested();
             var path = ReportFilePreviewService.ValidatePath(request.PreviewPath);

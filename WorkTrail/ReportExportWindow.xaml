@@ -107,6 +107,9 @@
                             </Grid>
                             <TextBlock x:Name="TimeZoneText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                             <TextBlock x:Name="FormatHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <ComboBox x:Name="WorkbookThemeCombo" AutomationProperties.AutomationId="Report.WorkbookTheme"
+                                      Tag="Export.ExcelTheme" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
+                            <TextBlock Tag="Export.ExcelThemeHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel x:Name="ContentsPage" Visibility="Collapsed" Spacing="14">
                             <TextBlock Tag="Export.Contents" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" Margin="0,0,0,10" />
@@ -159,6 +162,8 @@
                                 <controls:PremiumBadge x:Name="TimesheetPremiumBadge" />
                             </StackPanel>
                             <TextBlock x:Name="TimesheetRange" TextWrapping="Wrap" />
+                            <ComboBox x:Name="TimesheetGroupingCombo" AutomationProperties.AutomationId="Report.TimesheetGrouping"
+                                      Tag="Timesheet.Grouping" HorizontalAlignment="Stretch" SelectionChanged="TimesheetGrouping_SelectionChanged" />
                             <CheckBox AutomationProperties.AutomationId="Report.TimesheetMergeCheck" x:Name="TimesheetMergeCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Merge" IsChecked="True" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                             <CheckBox AutomationProperties.AutomationId="Report.TimesheetMonthsCheck" x:Name="TimesheetMonthsCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Months" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                             <Grid ColumnSpacing="14" RowSpacing="14">

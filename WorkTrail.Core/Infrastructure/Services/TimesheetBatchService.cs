@@ -94,7 +94,11 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         if (command.Action == TimesheetBatchAction.Export)
         {
             if (!current.ResultsSaved) throw new ReportExportValidationException("Timesheet.NotReady");
-            var path = TimesheetExcelWriter.Write(current, command.DestinationPath ?? "", command.Overwrite, token);
+            // Presentation changes reuse the paid snapshot; there is nothing to resubmit or persist.
+            if (command.Theme is { } theme)
+                current.Options = current.Options with { Sources = current.Options.Sources with { Options = current.Options.Sources.Options with { Theme = theme } } };
+            var archive = new ReportExportService(store).Build(current.Options.Sources.Options, null, token);
+            var path = TimesheetExcelWriter.Write(current, command.DestinationPath ?? "", command.Overwrite, token, archive: archive);
             return View(Info(current), command.Page, token) with { ExportedPath = path };
         }
         // Saved jobs belong to their original OpenAI connection, even after the selected provider changes.
@@ -281,7 +285,21 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         var path = JobPath(id);
         if (new FileInfo(path).Length > 64_000_000) throw new InvalidDataException("Timesheet snapshot is too large.");
         var job = JsonSerializer.Deserialize<TimesheetJob>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Missing timesheet snapshot.");
-        if (job.Version != 1 || job.Id != id || job.Rows.Count > TimesheetProjection.MaximumRows) throw new InvalidDataException("Invalid timesheet snapshot.");
+        if (job.Version is not (1 or 2) || job.Id != id || job.Rows.Count > TimesheetProjection.MaximumRows
+            || !Enum.IsDefined(job.Options.Grouping)) throw new InvalidDataException("Invalid timesheet snapshot.");
+        if (job.Version == 1)
+        {
+            // Version one stored an exact day/project row. Promote that measured snapshot once,
+            // preserving paid descriptions without submitting another request or inventing sources.
+            if (job.Options.Grouping != TimesheetGrouping.Day) throw new InvalidDataException("Version one has no weekly snapshot.");
+            foreach (var row in job.Rows)
+                row.Observations = [row.Row with { Description = "", State = "measured", SourceCount = 0 }];
+            job.Version = 2;
+            Save(job);
+        }
+        if (job.Rows.Any(row => row.Observations.Count == 0) || job.Rows.Sum(row => row.Observations.Count) > TimesheetProjection.MaximumRows
+            || job.Rows.Select(row => row.Row.Id).Distinct(StringComparer.Ordinal).Count() != job.Rows.Count)
+            throw new InvalidDataException("Missing or invalid measured timesheet detail.");
         return job;
     }
 
@@ -299,7 +317,9 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
             var file = new FileInfo(path);
             if (!_catalog.TryGetValue(id, out var cached) || cached.LastWrite != file.LastWriteTimeUtc || cached.Length != file.Length)
             {
-                cached = (file.LastWriteTimeUtc, file.Length, Info(Load(id)));
+                var info = Info(Load(id));
+                file.Refresh();
+                cached = (file.LastWriteTimeUtc, file.Length, info);
                 _catalog[id] = cached;
             }
             jobs.Add(cached.Info);
@@ -324,7 +344,7 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
 
 internal sealed class TimesheetJob
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public Guid Id { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public required TimesheetOptions Options { get; set; }

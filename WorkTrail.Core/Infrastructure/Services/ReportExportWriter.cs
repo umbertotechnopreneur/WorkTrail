@@ -125,27 +125,24 @@ internal static class ReportExportWriter
 
     private static int WriteExcel(Stream stream, ExportDocument document, CancellationToken cancellationToken)
     {
-        using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true);
-        var tables = ReportExportService.Tables(document).ToList();
-        var overflow = new List<object?[]>();
-        for (var index = 0; index < tables.Count; index++)
-            WriteSheet(zip, index + 1, tables[index], overflow, cancellationToken);
-        if (overflow.Count > 0)
-        {
-            if (document.RowLimit is { } limit) overflow = overflow.Take(limit).ToList();
-            // Excel limits cell text to 32,767 characters. Preserve complete source text in ordered parts.
-            tables.Add(new("Text parts", ["sheet", "row", "column", "part", "text"], () => overflow, overflow.Count));
-            WriteSheet(zip, tables.Count, tables[^1], [], cancellationToken);
-        }
-        WriteWorkbookPackage(zip, tables.Select(table => table.Name).ToArray());
-        WriteStyles(zip);
-        return tables.Count;
+        var workbook = new ReportExcelWorkbook(new LocalizationService(document.Options.Language), document.Options, document.RowLimit);
+        ReportExcelData.Add(workbook, document);
+        return workbook.Write(stream, cancellationToken);
     }
 
     // zip owns completed worksheets.
     // names defines their stable package order.
     // recalculateOnOpen asks Excel to recompute trusted arithmetic formulas in editable reports.
-    internal static void WriteWorkbookPackage(ZipArchive zip, IReadOnlyList<string> names, bool recalculateOnOpen = false)
+    // zip owns the atomic workbook package.
+    // names lists the unique sheets in workbook order.
+    // recalculateOnOpen refreshes trusted formulas when Excel opens the report.
+    // printAreas bounds each printed sheet to its generated rows.
+    // includeBrandMark declares the embedded cover artwork.
+    // includeTheme declares the native Office theme part.
+    // repeatedColumns preserves identifiers only on horizontally paged tables.
+    internal static void WriteWorkbookPackage(ZipArchive zip, IReadOnlyList<string> names, bool recalculateOnOpen = false,
+        IReadOnlyList<string>? printAreas = null, bool includeBrandMark = false, bool includeTheme = false,
+        IReadOnlyList<string>? repeatedColumns = null)
     {
         if (names.Count == 0 || names.Distinct(StringComparer.OrdinalIgnoreCase).Count() != names.Count
             || names.Any(name => string.IsNullOrWhiteSpace(name) || name.Length > 31 || name.IndexOfAny(['[', ']', ':', '*', '?', '/', '\\']) >= 0))
@@ -156,8 +153,15 @@ internal static class ReportExportWriter
             xml.WriteStartElement("Types", types);
             Element(xml, "Default", types, ("Extension", "rels"), ("ContentType", "application/vnd.openxmlformats-package.relationships+xml"));
             Element(xml, "Default", types, ("Extension", "xml"), ("ContentType", "application/xml"));
+            if (includeBrandMark)
+            {
+                Element(xml, "Default", types, ("Extension", "png"), ("ContentType", "image/png"));
+                Element(xml, "Override", types, ("PartName", "/xl/drawings/brandmark.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.drawing+xml"));
+            }
             Element(xml, "Override", types, ("PartName", "/xl/workbook.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
             Element(xml, "Override", types, ("PartName", "/xl/styles.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"));
+            if (includeTheme)
+                Element(xml, "Override", types, ("PartName", "/xl/theme/theme1.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.theme+xml"));
             for (var index = 1; index <= names.Count; index++)
                 Element(xml, "Override", types, ("PartName", $"/xl/worksheets/sheet{index}.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
             xml.WriteEndElement();
@@ -174,6 +178,8 @@ internal static class ReportExportWriter
             for (var index = 1; index <= names.Count; index++)
                 Element(xml, "Relationship", Relationships, ("Id", $"rId{index}"), ("Type", OfficeRelationships + "/worksheet"), ("Target", $"worksheets/sheet{index}.xml"));
             Element(xml, "Relationship", Relationships, ("Id", "styles"), ("Type", OfficeRelationships + "/styles"), ("Target", "styles.xml"));
+            if (includeTheme)
+                Element(xml, "Relationship", Relationships, ("Id", "theme"), ("Type", OfficeRelationships + "/theme"), ("Target", "theme/theme1.xml"));
             xml.WriteEndElement();
         });
         WriteXml(zip, "xl/workbook.xml", xml =>
@@ -190,81 +196,27 @@ internal static class ReportExportWriter
                 xml.WriteEndElement();
             }
             xml.WriteEndElement();
+            if (printAreas is not null)
+            {
+                xml.WriteStartElement("definedNames", Spreadsheet);
+                for (var index = 0; index < names.Count; index++)
+                {
+                    xml.WriteStartElement("definedName", Spreadsheet);
+                    xml.WriteAttributeString("name", "_xlnm.Print_Area"); xml.WriteAttributeString("localSheetId", index.ToString(CultureInfo.InvariantCulture));
+                    xml.WriteString(ReportExcelWorkbook.Location(names[index], printAreas[index])); xml.WriteEndElement();
+                    if (index == 0) continue;
+                    xml.WriteStartElement("definedName", Spreadsheet);
+                    xml.WriteAttributeString("name", "_xlnm.Print_Titles"); xml.WriteAttributeString("localSheetId", index.ToString(CultureInfo.InvariantCulture));
+                    var titles = ReportExcelWorkbook.Location(names[index], "$1:$7");
+                    // Excel counts repeated columns twice when fitting a sheet to one page across.
+                    if (repeatedColumns?[index] is { Length: > 0 } columns) titles += "," + ReportExcelWorkbook.Location(names[index], columns);
+                    xml.WriteString(titles); xml.WriteEndElement();
+                }
+                xml.WriteEndElement();
+            }
             if (recalculateOnOpen) Element(xml, "calcPr", Spreadsheet, ("calcId", "191029"), ("fullCalcOnLoad", "1"));
             xml.WriteEndElement();
         });
-    }
-
-    private static void WriteSheet(ZipArchive zip, int index, ExportTable table, List<object?[]> overflow, CancellationToken cancellationToken) =>
-        WriteXml(zip, $"xl/worksheets/sheet{index}.xml", xml =>
-        {
-            xml.WriteStartElement("worksheet", Spreadsheet);
-            xml.WriteStartElement("sheetViews", Spreadsheet);
-            xml.WriteStartElement("sheetView", Spreadsheet);
-            xml.WriteAttributeString("workbookViewId", "0");
-            Element(xml, "pane", Spreadsheet, ("ySplit", "1"), ("topLeftCell", "A2"), ("activePane", "bottomLeft"), ("state", "frozen"));
-            xml.WriteEndElement();
-            xml.WriteEndElement();
-            xml.WriteStartElement("cols", Spreadsheet);
-            for (var column = 1; column <= table.Columns.Count; column++)
-                Element(xml, "col", Spreadsheet, ("min", column.ToString()), ("max", column.ToString()), ("width", "26"), ("customWidth", "1"));
-            xml.WriteEndElement();
-            xml.WriteStartElement("sheetData", Spreadsheet);
-            WriteRow(xml, table.Columns.Cast<object?>().ToArray(), 1, table, overflow, header: true);
-            var rowNumber = 1;
-            foreach (var row in table.Rows())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (++rowNumber > 1_048_576) throw new ReportExportValidationException("Export.RangeTooLarge");
-                WriteRow(xml, row, rowNumber, table, overflow, header: false);
-            }
-            xml.WriteEndElement();
-            Element(xml, "autoFilter", Spreadsheet, ("ref", $"A1:{ColumnName(table.Columns.Count)}{rowNumber}"));
-            xml.WriteEndElement();
-        });
-
-    private static void WriteRow(XmlWriter xml, object?[] values, int rowNumber, ExportTable table, List<object?[]> overflow, bool header)
-    {
-        xml.WriteStartElement("row", Spreadsheet);
-        xml.WriteAttributeString("r", rowNumber.ToString(CultureInfo.InvariantCulture));
-        for (var index = 0; index < values.Length; index++)
-        {
-            var value = values[index];
-            if (value is null) continue;
-            xml.WriteStartElement("c", Spreadsheet);
-            xml.WriteAttributeString("r", ColumnName(index + 1) + rowNumber.ToString(CultureInfo.InvariantCulture));
-            xml.WriteAttributeString("s", header ? "1" : "0");
-            if (value is string text)
-            {
-                if (text.Length > 32767)
-                {
-                    var offset = 0;
-                    var part = 0;
-                    while (offset < text.Length)
-                    {
-                        var length = Math.Min(30000, text.Length - offset);
-                        if (char.IsHighSurrogate(text[offset + length - 1])) length--;
-                        overflow.Add([table.Name, rowNumber, table.Columns[index], ++part, text.Substring(offset, length)]);
-                        offset += length;
-                    }
-                    text = ReportExportService.Excerpt(text, 240) + " [Text parts]";
-                }
-                xml.WriteAttributeString("t", "inlineStr");
-                xml.WriteStartElement("is", Spreadsheet);
-                xml.WriteStartElement("t", Spreadsheet);
-                xml.WriteAttributeString("xml", "space", "http://www.w3.org/XML/1998/namespace", "preserve");
-                xml.WriteString(ExcelText(text));
-                xml.WriteEndElement();
-                xml.WriteEndElement();
-            }
-            else
-            {
-                if (value is bool) xml.WriteAttributeString("t", "b");
-                xml.WriteElementString("v", Spreadsheet, value is bool flag ? (flag ? "1" : "0") : Convert.ToString(value, CultureInfo.InvariantCulture));
-            }
-            xml.WriteEndElement();
-        }
-        xml.WriteEndElement();
     }
 
     internal static string ExcelText(string text)
@@ -288,34 +240,6 @@ internal static class ReportExportWriter
         while (number > 0) { number--; result = (char)('A' + number % 26) + result; number /= 26; }
         return result;
     }
-
-    private static void WriteStyles(ZipArchive zip) => WriteXml(zip, "xl/styles.xml", xml =>
-    {
-        xml.WriteStartElement("styleSheet", Spreadsheet);
-        xml.WriteStartElement("fonts", Spreadsheet); xml.WriteAttributeString("count", "2");
-        for (var index = 0; index < 2; index++)
-        {
-            xml.WriteStartElement("font", Spreadsheet);
-            Element(xml, "sz", Spreadsheet, ("val", "11")); Element(xml, "name", Spreadsheet, ("val", "Calibri"));
-            if (index == 1) { Element(xml, "b", Spreadsheet); Element(xml, "color", Spreadsheet, ("rgb", "FFF4511E")); }
-            xml.WriteEndElement();
-        }
-        xml.WriteEndElement();
-        xml.WriteStartElement("fills", Spreadsheet); xml.WriteAttributeString("count", "2");
-        foreach (var pattern in new[] { "none", "gray125" })
-        { xml.WriteStartElement("fill", Spreadsheet); Element(xml, "patternFill", Spreadsheet, ("patternType", pattern)); xml.WriteEndElement(); }
-        xml.WriteEndElement();
-        xml.WriteStartElement("borders", Spreadsheet); xml.WriteAttributeString("count", "1"); Element(xml, "border", Spreadsheet); xml.WriteEndElement();
-        xml.WriteStartElement("cellStyleXfs", Spreadsheet); xml.WriteAttributeString("count", "1");
-        Element(xml, "xf", Spreadsheet, ("numFmtId", "0"), ("fontId", "0"), ("fillId", "0"), ("borderId", "0")); xml.WriteEndElement();
-        xml.WriteStartElement("cellXfs", Spreadsheet); xml.WriteAttributeString("count", "2");
-        for (var index = 0; index < 2; index++)
-            Element(xml, "xf", Spreadsheet, ("numFmtId", "0"), ("fontId", index.ToString()), ("fillId", "0"), ("borderId", "0"), ("xfId", "0"), ("applyFont", "1"));
-        xml.WriteEndElement();
-        xml.WriteStartElement("cellStyles", Spreadsheet); xml.WriteAttributeString("count", "1");
-        Element(xml, "cellStyle", Spreadsheet, ("name", "Normal"), ("xfId", "0"), ("builtinId", "0")); xml.WriteEndElement();
-        xml.WriteEndElement();
-    });
 
     internal static void WriteXml(ZipArchive zip, string name, Action<XmlWriter> write)
     {

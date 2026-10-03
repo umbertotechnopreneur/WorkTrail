@@ -5,16 +5,20 @@ namespace WorkTrail.Application;
 /// <summary>Identifies an explicit operation on a durable timesheet batch.</summary>
 public enum TimesheetBatchAction { Start = 1, List, Refresh, Cancel, Export }
 
+/// <summary>Chooses one AI request per local day or Monday-to-Sunday week.</summary>
+public enum TimesheetGrouping { Day, Week }
+
 /// <summary>Contains the selected text sources, grouping and optional billing metadata.</summary>
 public sealed record TimesheetOptions(ReportSummaryRequest Sources, bool MergeDayParts = true,
     string Consultant = "", string Client = "", decimal? HourlyRate = null, string Currency = "EUR",
-    bool SeparateMonths = false);
+    bool SeparateMonths = false, TimesheetGrouping Grouping = TimesheetGrouping.Day);
 
 /// <summary>Requests a batch operation. Only Start sends source text for paid processing.</summary>
 public sealed record TimesheetBatchCommand(TimesheetBatchAction Action, TimesheetOptions? Options = null,
-    Guid? JobId = null, string? DestinationPath = null, bool Overwrite = false, int Page = 0);
+    Guid? JobId = null, string? DestinationPath = null, bool Overwrite = false, int Page = 0,
+    ReportWorkbookTheme? Theme = null);
 
-/// <summary>Contains measured time and a separately generated description for one day/project/fascia.</summary>
+/// <summary>Contains measured time and a separately generated description for a local day, day part, or week.</summary>
 public sealed record TimesheetRow(string Id, DateOnly Date, string Part, string Project,
     DateTimeOffset FirstObserved, DateTimeOffset LastObserved, double ActiveSeconds, double IdleSeconds,
     string Applications, string References, int SourceCount, string Description = "", string State = "pending");

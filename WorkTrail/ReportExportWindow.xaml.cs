@@ -72,10 +72,15 @@ internal sealed partial class ReportExportWindow : Window
         UiLocalization.SetAccessibleLabel(WeekButton, T("Export.Week"));
         UiLocalization.SetAccessibleLabel(MonthButton, T("Export.Month"));
         FormatCombo.ItemsSource = new[] { "Excel .xlsx", "CSV .zip", "JSON .json" };
+        WorkbookThemeCombo.ItemsSource = new[] { T("Export.ThemeWorkTrail"), T("Export.ThemeGreen"), T("Export.ThemeBlue") };
+        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme"));
         DescriptionCombo.ItemsSource = new[] { T("Export.Brief"), T("Export.CompleteText"), T("Export.Both") };
         SeparatorCombo.ItemsSource = new[] { ";", "," };
         GroupingCombo.ItemsSource = new[] { T("Export.ByDay"), T("Export.ByApplication"), T("Export.WholePeriod") };
         GroupingCombo.SelectedIndex = 0;
+        TimesheetGroupingCombo.ItemsSource = new[] { T("Timesheet.ByDay"), T("Timesheet.ByWeek") };
+        TimesheetGroupingCombo.SelectedIndex = 0;
+        UiLocalization.SetAccessibleLabel(TimesheetGroupingCombo, T("Timesheet.Grouping"));
         Navigation.SelectedItem = ExportTab;
         ExportButton.IsEnabled = false;
         appWindow.Closing += (_, args) =>
@@ -132,6 +137,7 @@ internal sealed partial class ReportExportWindow : Window
         TimeZoneText.Text = options.TimeZoneId;
         DevicesCombo.SelectedIndex = 0;
         FormatCombo.SelectedIndex = (int)options.Format;
+        WorkbookThemeCombo.SelectedIndex = (int)options.Theme;
         DescriptionCombo.SelectedIndex = (int)options.DescriptionMode;
         SeparatorCombo.SelectedIndex = options.CsvSeparator == ";" ? 0 : 1;
         DaysCheck.IsChecked = options.IncludeDays; ApplicationsCheck.IsChecked = options.IncludeApplications;
@@ -153,6 +159,7 @@ internal sealed partial class ReportExportWindow : Window
             ToInclusive = DateOnly.FromDateTime(to.DateTime),
             Language = _strings.Language,
             Format = (ReportExportFormat)FormatCombo.SelectedIndex,
+            Theme = (ReportWorkbookTheme)WorkbookThemeCombo.SelectedIndex,
             InstallationId = DevicesCombo.SelectedIndex > 0 ? _setup.Installations[DevicesCombo.SelectedIndex - 1].InstallationId : null,
             IncludeDays = DaysCheck.IsChecked == true,
             IncludeApplications = ApplicationsCheck.IsChecked == true,

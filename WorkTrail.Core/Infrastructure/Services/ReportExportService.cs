@@ -42,7 +42,7 @@ internal sealed partial class ReportExportService(LocalStore store)
     internal void Validate(ReportExportOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (!Enum.IsDefined(options.Format) || !Enum.IsDefined(options.DescriptionMode)
+        if (!Enum.IsDefined(options.Format) || !Enum.IsDefined(options.DescriptionMode) || !Enum.IsDefined(options.Theme)
             || options.CsvSeparator is not ("," or ";") || string.IsNullOrWhiteSpace(options.Language)
             || options.From > options.ToInclusive || options.ToInclusive == DateOnly.MaxValue
             || options.ToInclusive.DayNumber - options.From.DayNumber >= ReportAggregationService.MaximumRangeDays)

@@ -50,6 +50,15 @@ internal sealed partial class ReportExportWindow
     // sender and args indicate changed report choices, invalidating selection of a previous result.
     private void TimesheetOptionsChanged(object sender, RoutedEventArgs args) => ResetTimesheetSelection();
 
+    // sender is the explicit day/week choice.
+    // args identifies the selection change; a week has no morning/afternoon split.
+    private void TimesheetGrouping_SelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (TimesheetMergeCheck is null) return;
+        TimesheetMergeCheck.IsEnabled = TimesheetGroupingCombo.SelectedIndex != 1;
+        ResetTimesheetSelection();
+    }
+
     // sender identifies the explicit generate button.
     // args describes the click; Excel opens only after a separate request.
     private async void ExcelPreview_Click(object sender, RoutedEventArgs args) => await RunAsync(async token =>
@@ -129,12 +138,13 @@ internal sealed partial class ReportExportWindow
     }
 
     private TimesheetOptions CollectTimesheetOptions() => new(
-        new(CollectOptions() with { Format = ReportExportFormat.Excel, IncludeAiUsage = false },
+        new(CollectOptions() with { Format = ReportExportFormat.Excel },
             IncludeDescriptionExcerpt: false, IncludeCompleteDescription: TimesheetDescriptions.IsChecked == true,
             IncludeOcr: TimesheetOcr.IsChecked == true, IncludeWindowTitles: TimesheetTitles.IsChecked == true),
-        TimesheetMergeCheck.IsChecked == true, TimesheetConsultant.Text.Trim(), TimesheetClient.Text.Trim(),
+        TimesheetGroupingCombo.SelectedIndex == 1 || TimesheetMergeCheck.IsChecked == true, TimesheetConsultant.Text.Trim(), TimesheetClient.Text.Trim(),
         TimesheetBillingCheck.IsChecked == true ? (decimal)TimesheetRate.Value : null,
-        TimesheetCurrency.Text.Trim().ToUpperInvariant(), TimesheetMonthsCheck.IsChecked == true);
+        TimesheetCurrency.Text.Trim().ToUpperInvariant(), TimesheetMonthsCheck.IsChecked == true,
+        TimesheetGroupingCombo.SelectedIndex == 1 ? TimesheetGrouping.Week : TimesheetGrouping.Day);
 
     private async Task LoadTimesheetJobsAsync()
     {
@@ -267,7 +277,7 @@ internal sealed partial class ReportExportWindow
         var destination = await picker.PickSaveFileAsync();
         if (destination is null || token.IsCancellationRequested) return;
         var result = await _application.ManageTimesheetBatchAsync(new(TimesheetBatchAction.Export, JobId: selected.Id,
-            DestinationPath: destination.Path, Overwrite: true, Page: _timesheetView!.Page), token);
+            DestinationPath: destination.Path, Overwrite: true, Page: _timesheetView!.Page, Theme: CollectOptions().Theme), token);
         if (result.Succeeded && result.Value is { } view)
         {
             RenderTimesheet(view);

@@ -153,21 +153,21 @@ public sealed class TimesheetBatchTests : IDisposable
         var path = TimesheetExcelWriter.Write(job, Path.Combine(_directory, "preview.xlsx"), false, CancellationToken.None, 10);
         using var zip = ZipFile.OpenRead(path);
         XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        foreach (var entry in zip.Entries.Where(entry => entry.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal)))
+        foreach (var entry in zip.Entries.Where(entry => entry.FullName.StartsWith("xl/worksheets/sheet", StringComparison.Ordinal)))
         {
             using var stream = entry.Open(); var xml = XDocument.Load(stream);
-            var filter = xml.Descendants(ns + "autoFilter").Single().Attribute("ref")!.Value;
-            Assert.EndsWith("20", filter);
+            var filter = xml.Descendants(ns + "autoFilter").SingleOrDefault()?.Attribute("ref")!.Value;
+            if (filter is not null) Assert.True(int.Parse(new string(filter.Split(':')[1].Where(char.IsDigit).ToArray())) <= 17);
             Assert.DoesNotContain(xml.Descendants(ns + "f"), formula => formula.Value.Contains("HYPERLINK", StringComparison.Ordinal));
         }
-        using var sheet = zip.GetEntry("xl/worksheets/sheet1.xml")!.Open();
+        using var sheet = zip.GetEntry("xl/worksheets/sheet2.xml")!.Open();
         var cells = XDocument.Load(sheet).Descendants(ns + "c").ToDictionary(cell => cell.Attribute("r")!.Value);
-        Assert.Equal("inlineStr", cells["D11"].Attribute("t")!.Value);
-        Assert.Equal("=1+1", cells["F11"].Descendants(ns + "t").Single().Value);
-        Assert.Equal(1d / 24d, double.Parse(cells["C11"].Element(ns + "v")!.Value, System.Globalization.CultureInfo.InvariantCulture), 10);
-        Assert.Equal("SUM(C11:C20)", cells["A7"].Element(ns + "f")!.Value);
-        Assert.Equal("A7*3", cells["F7"].Element(ns + "f")!.Value);
-        Assert.Equal("ROUND(C11*24*$C$5,2)", cells["I11"].Element(ns + "f")!.Value);
+        Assert.Contains("=HYPERLINK(\"bad\")", cells["A5"].Descendants(ns + "t").Single().Value);
+        Assert.Equal("=1+1", cells["D8"].Descendants(ns + "t").Single().Value);
+        Assert.Equal(1d / 24d, double.Parse(cells["B8"].Element(ns + "v")!.Value, System.Globalization.CultureInfo.InvariantCulture), 10);
+        Assert.Equal("SUM(B8:B17)", cells["B18"].Element(ns + "f")!.Value);
+        Assert.Contains("SUM('Details'!K8:K8)", cells["F8"].Element(ns + "f")!.Value);
+        Assert.Contains("ISNUMBER('Source guide'!$B$8)", cells["F8"].Element(ns + "f")!.Value);
     }
 
     [Fact]
@@ -181,10 +181,11 @@ public sealed class TimesheetBatchTests : IDisposable
             Assert.EndsWith(".xlsx", result.Path);
             using var zip = ZipFile.OpenRead(result.Path);
             XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-            foreach (var entry in zip.Entries.Where(entry => entry.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal)))
+            foreach (var entry in zip.Entries.Where(entry => entry.FullName.StartsWith("xl/worksheets/sheet", StringComparison.Ordinal) && entry.FullName != "xl/worksheets/sheet1.xml"))
             {
                 using var stream = entry.Open();
-                Assert.True(XDocument.Load(stream).Descendants(ns + "row").Count() <= 11);
+                var filter = XDocument.Load(stream).Descendants(ns + "autoFilter").SingleOrDefault()?.Attribute("ref")!.Value;
+                if (filter is not null) Assert.True(int.Parse(new string(filter.Split(':')[1].Where(char.IsDigit).ToArray())) <= 17);
             }
         }
         finally { File.Delete(result.Path); }
@@ -468,9 +469,9 @@ public sealed class TimesheetBatchTests : IDisposable
         Assert.Equal(1, result.Value.AiUsage.EstimatedCostRequestCount);
     }
 
-    /// <summary>Indexed capture sources preserve project and morning/afternoon boundaries.</summary>
+    /// <summary>Each day part combines projects once without crossing the noon boundary.</summary>
     [Fact]
-    public void SourceProjection_DoesNotMixProjectOrDayPartText()
+    public void SourceProjection_GroupsProjectsAndPreservesDayPartText()
     {
         var store = SourceStore();
         store.AppendSample(Sample(Day.AddHours(11), 60, "Project B") with { WindowTitle = "Other project observation", InstallationId = store.LoadSettings().InstallationId });
@@ -478,14 +479,37 @@ public sealed class TimesheetBatchTests : IDisposable
         store.AppendSample(Sample(Day.AddHours(14), 60) with { WindowTitle = "Afternoon observation", InstallationId = store.LoadSettings().InstallationId });
         AddCapture(store, Day.AddHours(14.5));
         var rows = TimesheetProjection.Build(store, TextSources() with { MergeDayParts = false }, CancellationToken.None);
-        Assert.Equal(3, rows.Count);
-        var morning = rows.Single(row => row.Row.Project == "Project A" && row.Row.Part == "morning");
+        Assert.Equal(2, rows.Count);
+        var morning = rows.Single(row => row.Row.Part == "morning");
         Assert.Contains("private title", morning.Prompt);
-        Assert.DoesNotContain("Other project observation", morning.Prompt);
+        Assert.Contains("Other project observation", morning.Prompt);
         Assert.DoesNotContain("Afternoon observation", morning.Prompt);
-        Assert.Contains("Other project observation", rows.Single(row => row.Row.Project == "Project B").Prompt);
+        Assert.Equal("Project A; Project B", morning.Row.Project);
         Assert.Contains("Afternoon observation", rows.Single(row => row.Row.Part == "afternoon").Prompt);
+        Assert.Equal(2, morning.Row.SourceCount);
+        Assert.Equal(1, rows.Single(row => row.Row.Part == "afternoon").Row.SourceCount);
+    }
+
+    /// <summary>Partial weeks clip prompt dates and keep unrelated days outside their requests.</summary>
+    [Fact]
+    public void WeeklyProjection_ClipsSelectedDates_AndKeepsRequestsSeparate()
+    {
+        var store = SourceStore();
+        store.AppendSample(Sample(Day.AddDays(3).AddHours(9), 60) with { InstallationId = store.LoadSettings().InstallationId });
+        AddCapture(store, Day.AddDays(3).AddHours(10));
+        store.AppendSample(Sample(Day.AddDays(9).AddHours(9), 60) with { InstallationId = store.LoadSettings().InstallationId });
+        AddCapture(store, Day.AddDays(9).AddHours(10));
+        var options = TextSources() with
+        {
+            Grouping = TimesheetGrouping.Week,
+            Sources = TextSources().Sources with { Options = Options.Sources.Options with { From = new(2026, 9, 23), ToInclusive = new(2026, 10, 2) } }
+        };
+        var rows = TimesheetProjection.Build(store, options, CancellationToken.None);
+        Assert.Equal(2, rows.Count);
+        Assert.Contains("2026-09-23 through 2026-09-27", rows[0].Prompt);
+        Assert.Contains("2026-09-28 through 2026-10-02", rows[1].Prompt);
         Assert.All(rows, row => Assert.Equal(1, row.Row.SourceCount));
+        Assert.All(rows, row => Assert.Equal(3600, row.Row.ActiveSeconds));
     }
 
     private LocalStore SourceStore()
@@ -553,6 +577,7 @@ public sealed class TimesheetBatchTests : IDisposable
         Rows = Enumerable.Range(1, count).Select(i => new TimesheetWorkRow
         {
             Row = new($"row-{i:D5}", DateOnly.FromDateTime(Day.DateTime), "day", "Project A", Day.AddHours(9), Day.AddHours(10), 3600, 0, "Editor", "", 1),
+            Observations = [new($"source-{i:D5}", DateOnly.FromDateTime(Day.DateTime), "day", "Project A", Day.AddHours(9), Day.AddHours(10), 3600, 0, "Editor", "", 0)],
             Prompt = "Summarize synthetic test observations."
         }).ToList()
     };

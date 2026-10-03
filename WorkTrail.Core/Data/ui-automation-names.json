@@ -192,5 +192,7 @@
   "Operations.OpenInstallationTransferLink": "Operations.InstallationTransfer.Navigation.Action",
   "Operations.AtomicNukeButton": "Operations.AtomicNuke.Action",
   "Gallery.Details.AllSensors": "Hardware.AllSensors",
-  "Settings.ScreenshotNotificationsSwitch": "Options.ScreenshotNotifications.Header"
+  "Settings.ScreenshotNotificationsSwitch": "Options.ScreenshotNotifications.Header",
+  "Report.TimesheetGrouping": "Timesheet.Grouping",
+  "Report.WorkbookTheme": "Export.ExcelTheme"
 }

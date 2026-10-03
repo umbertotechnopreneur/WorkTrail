@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\docs\assets\meup\worktrail-mark-v1.png" LogicalName="WorkTrail.Report.brandmark.png" />
     <Compile Include="..\WorkTrail\Models\ActivityModels.cs" Link="Domain\ActivityModels.cs" />
     <Compile Include="..\WorkTrail\Providers\ActivityContextProviders.cs" Link="Infrastructure\ActivityContextProviders.cs" />
     <Compile Include="Infrastructure\Services\*.cs" />

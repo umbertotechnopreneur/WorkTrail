@@ -133,7 +133,7 @@ public sealed class ReportExportTests : IDisposable
         var description = "=HYPERLINK(\"https://invalid.example\") " + new string('a', 40000);
         var path = Path.Combine(_root, "report.xlsx");
         var result = ReportExportWriter.Write(Document(description: description), path, false, CancellationToken.None);
-        Assert.Equal(5, result.TableCount);
+        Assert.Equal(8, result.TableCount);
         using var zip = ZipFile.OpenRead(path);
         XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         foreach (var entry in zip.Entries.Where(entry => entry.FullName.EndsWith(".xml") || entry.FullName.EndsWith(".rels")))
@@ -142,11 +142,11 @@ public sealed class ReportExportTests : IDisposable
             var xml = XDocument.Load(stream);
             Assert.Empty(xml.Descendants(ns + "f"));
         }
-        using var parts = zip.GetEntry("xl/worksheets/sheet5.xml")!.Open();
-        var rows = XDocument.Load(parts).Descendants(ns + "row").Skip(1).ToArray();
+        using var parts = zip.GetEntry("xl/worksheets/sheet8.xml")!.Open();
+        var rows = XDocument.Load(parts).Descendants(ns + "row").Where(row => int.Parse(row.Attribute("r")!.Value) >= 8).ToArray();
         var reconstructed = string.Concat(rows.Select(row => row.Elements(ns + "c").Last().Descendants(ns + "t").Single().Value));
         Assert.Equal(description, reconstructed);
-        using var captureSheet = zip.GetEntry("xl/worksheets/sheet4.xml")!.Open();
+        using var captureSheet = zip.GetEntry("xl/worksheets/sheet5.xml")!.Open();
         Assert.All(XDocument.Load(captureSheet).Descendants(ns + "t"), value => Assert.True(value.Value.Length <= 32767));
         Assert.NotNull(zip.GetEntry("[Content_Types].xml"));
         Assert.NotNull(zip.GetEntry("xl/_rels/workbook.xml.rels"));

@@ -36,9 +36,11 @@ internal static class ReportFilePreviewService
                     Options = request.Timesheet!,
                     Rows = TimesheetProjection.Build(store, request.Timesheet!, token)
                 };
-            TimesheetExcelWriter.Write(job, path, false, token, rowLimit: 10);
-            return new(path, new FileInfo(path).Length, 2 + (job.Options.SeparateMonths
-                ? job.Rows.Select(row => (row.Row.Date.Year, row.Row.Date.Month)).Distinct().Count() : 0));
+            job.Options = job.Options with { Sources = job.Options.Sources with { Options = job.Options.Sources.Options with { Theme = request.Options.Theme } } };
+            var archive = new ReportExportService(store).Build(job.Options.Sources.Options, null, token);
+            TimesheetExcelWriter.Write(job, path, false, token, rowLimit: 10, archive: archive);
+            using var package = System.IO.Compression.ZipFile.OpenRead(path);
+            return new(path, new FileInfo(path).Length, package.Entries.Count(entry => entry.FullName.StartsWith("xl/worksheets/sheet", StringComparison.Ordinal) && entry.FullName.EndsWith(".xml", StringComparison.Ordinal)));
         }
         var document = new ReportExportService(store).Build(request.Options with { Format = ReportExportFormat.Excel }, request.Summary, token);
         return ReportExportWriter.Write(document with { RowLimit = 10 }, path, false, token);
