@@ -408,9 +408,9 @@ public sealed class WinUiOperationsSurfaceContractTests
         var operationsSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OperationsControl.xaml.cs"));
         var sectionTags = new[]
         {
-            "Operations.Retention.Policy",
+            "Operations.Retention.PolicyMonths",
             "Operations.Retention.Preview",
-            "Operations.Retention.Cleanup"
+            "Operations.Retention.Monthly"
         };
 
         Assert.All(sectionTags, tag => Assert.Contains(surface.Descendants(), element =>
@@ -419,9 +419,9 @@ public sealed class WinUiOperationsSurfaceContractTests
                 attribute.Name.LocalName == "AutomationProperties.HeadingLevel"
                 && attribute.Value == "Level3")));
         Assert.True(surface.Descendants().Count(element => element.Name.LocalName == "Rectangle") >= 2);
-        Assert.DoesNotContain(surface.Descendants(), element => element.Name.LocalName == "Border");
+        Assert.Single(surface.Descendants(), element => element.Name.LocalName == "Border");
         Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Preview.Description");
-        Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Cleanup.Description");
+        Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Summary");
 
         Assert.All(new[]
         {
@@ -439,15 +439,15 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.Contains("internal async Task LoadAsync()", source, StringComparison.Ordinal);
         Assert.Contains("_ = _retentionSection!.LoadAsync();", operationsSource, StringComparison.Ordinal);
 
-        var directory = surface.Descendants().Single(element => HasName(element, "RetentionDirectoryText"));
+        var directory = surface.Descendants().Single(element => HasName(element, "ScreenshotFolderBox"));
         var candidatePath = surface.Descendants().Single(element =>
             element.Name.LocalName == "TextBlock" && element.Attribute("ToolTipService.ToolTip")?.Value == "{Binding}");
-        Assert.Equal("CharacterEllipsis", directory.Attribute("TextTrimming")?.Value);
-        Assert.Equal("1", directory.Attribute("MaxLines")?.Value);
+        Assert.Equal("TextBox", directory.Name.LocalName);
+        Assert.Equal("ScreenshotFolderBox_LostFocus", directory.Attribute("LostFocus")?.Value);
         Assert.Equal("CharacterEllipsis", candidatePath.Attribute("TextTrimming")?.Value);
         Assert.Equal("1", candidatePath.Attribute("MaxLines")?.Value);
-        Assert.Contains("RetentionDirectoryText.Text = status.ScreenshotDirectory", source, StringComparison.Ordinal);
-        Assert.Contains("ToolTipService.SetToolTip(RetentionDirectoryText, status.ScreenshotDirectory)", source, StringComparison.Ordinal);
+        Assert.Contains("ScreenshotFolderBox.Text = status.ScreenshotDirectory", source, StringComparison.Ordinal);
+        Assert.Contains("QueueStorageSave(\"screenshots.directory\"", source, StringComparison.Ordinal);
         Assert.Contains("Operations.Retention.Preview.Paths", source, StringComparison.Ordinal);
         Assert.DoesNotContain("System.IO", source, StringComparison.Ordinal);
     }
@@ -461,7 +461,8 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.Contains("Dialogs.ConfirmAsync(", source, StringComparison.Ordinal);
         Assert.Contains("DialogRequest.Confirmation(", source, StringComparison.Ordinal);
         Assert.Contains("if (!confirmed)", source, StringComparison.Ordinal);
-        Assert.Contains("new RetentionRequest(Execute: true, Confirmed: true)", source, StringComparison.Ordinal);
+        Assert.Contains("new RetentionRequest(Execute: true, Confirmed: true, OperationId: operationId)", source, StringComparison.Ordinal);
+        Assert.Contains("retentionOperationId: operationId", source, StringComparison.Ordinal);
     }
 
     /// <summary>Guards the two-step warning flow and keeps destructive reset work behind the shared facade.</summary>

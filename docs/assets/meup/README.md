@@ -1,13 +1,13 @@
 # MeUp visual style
 
-MailMeUp, PromptMeUp, and WorkTrail share one presentation style. Each app keeps its own name and icon. The family artwork connects the products without replacing their individual identities.
+AgentInbox, PromptMeUp, and WorkTrail share one presentation style. Each app keeps its own name and icon. The family artwork connects the products without replacing their individual identities.
 
 ## Use the same structure
 
 - Start with the product name and one concrete benefit, followed by a short explanation and a getting-started link.
 - Show actual app screenshots before decorative artwork when available. Label illustrations and sample data accurately.
 - Keep the main task first. Put optional extras, implementation detail, and author background farther down the page.
-- Use plain English and the maintainer's first-person singular voice. Sign off with: "Built by Umberto Giacobbi, with help from contributors."
+- Use plain English and write about my work in first person. Sign off with: "I’m Umberto Giacobbi. I built and maintain [product], with help from contributors."
 - Link the three products under "More from MeUp" using the same descriptions in each repository.
 
 For PromptMeUp, use: "Can't remember that command? Git, Bash, or PowerShell: describe what you want to do. hm is here to help."
@@ -18,7 +18,7 @@ Use an ink navy background (`#101526`), warm ivory objects, fine connecting line
 
 | Product | Accent | Subject |
 | --- | --- | --- |
-| MailMeUp | Mint `#71DEB7` | Inboxes and calendars connected to one conversation |
+| AgentInbox | Mint `#71DEB7` | Inboxes and calendars connected to one conversation |
 | PromptMeUp | Amber `#F6C453` | A request, a command, and the choice to run it |
 | WorkTrail | Lilac `#AF9BFF` | Past activity, search, and time |
 

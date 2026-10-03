@@ -1575,7 +1575,7 @@ internal sealed partial class SqliteActivityStore
     }
 
     /// <summary>Removes terminal reprocessing checkpoints whose screenshot day is outside retention.</summary>
-    internal int DeleteTerminalAiReprocessJobsBefore(DateTimeOffset cutoffUtc)
+    internal int DeleteTerminalAiReprocessJobsBefore(DateTimeOffset cutoffUtc, CancellationToken cancellationToken = default)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
@@ -1585,14 +1585,14 @@ internal sealed partial class SqliteActivityStore
               AND state IN ('completed', 'completed_with_errors', 'failed');
             """;
         command.Parameters.AddWithValue("$cutoff", cutoffUtc.UtcDateTime.Ticks);
-        return command.ExecuteNonQuery();
+        return ExecuteCancellableDelete(command, cancellationToken);
     }
 
     /// <summary>
     /// Deletes expired capture provenance only after every persisted screenshot, OCR, AI, and
     /// reprocessing reference has been removed.
     /// </summary>
-    internal int DeleteOrphanedScreenshotCapturesBefore(DateTimeOffset cutoffUtc)
+    internal int DeleteOrphanedScreenshotCapturesBefore(DateTimeOffset cutoffUtc, CancellationToken cancellationToken = default)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
@@ -1612,7 +1612,7 @@ internal sealed partial class SqliteActivityStore
                   SELECT capture_id FROM ai_reprocess_job_items);
             """;
         command.Parameters.AddWithValue("$cutoff", cutoffUtc.UtcDateTime.Ticks);
-        return command.ExecuteNonQuery();
+        return ExecuteCancellableDelete(command, cancellationToken);
     }
 
     /// <summary>Deletes one capture provenance row only when no persisted child still references it.</summary>
@@ -1949,7 +1949,7 @@ internal sealed partial class SqliteActivityStore
             FROM ai_request_usage
             WHERE occurred_utc_ticks >= $from
               AND occurred_utc_ticks < $to
-              AND request_kind IN ('screen_analysis', 'ocr_refinement', 'report_summary');
+              AND request_kind IN ('screen_analysis', 'ocr_refinement', 'report_summary', 'report_timesheet_batch');
             """;
         command.Parameters.AddWithValue("$from", fromUtc.UtcDateTime.Ticks);
         command.Parameters.AddWithValue("$to", toUtc.UtcDateTime.Ticks);
@@ -2060,6 +2060,7 @@ internal sealed partial class SqliteActivityStore
     }
 
     /// <summary>Removes one screenshot artifact from its AI analysis, deleting the result only when no artifacts remain.</summary>
+    /// <param name="screenshotPath">Full path of the retained screenshot being removed.</param>
     internal int DeleteAiAnalysesReferencingScreenshot(string screenshotPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(screenshotPath);
@@ -2071,7 +2072,11 @@ internal sealed partial class SqliteActivityStore
         using (var select = connection.CreateCommand())
         {
             select.Transaction = transaction;
-            select.CommandText = "SELECT correlation_id, screenshot_paths FROM ai_analysis_results WHERE screenshot_paths IS NOT NULL;";
+            select.CommandText = """
+                SELECT correlation_id, screenshot_paths
+                FROM ai_analysis_results
+                WHERE screenshot_paths IS NOT NULL;
+                """;
             using var reader = select.ExecuteReader();
             while (reader.Read())
             {
@@ -2578,36 +2583,58 @@ internal sealed partial class SqliteActivityStore
     }
 
     /// <summary>Deletes expired activity and AI rows, including their derived full-text search documents.</summary>
-    internal int ApplyRetention(DateTimeOffset cutoffUtc)
+    // cutoffUtc selects expired records consistently across the transaction.
+    // cancellationToken interrupts active SQLite statements and prevents a partial commit.
+    // progress reports pending deletions while they can still be rolled back.
+    internal int ApplyRetention(DateTimeOffset cutoffUtc, Action<int>? progress = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction();
         var cutoff = cutoffUtc.UtcDateTime.Ticks;
-        var removedAiResults = ExecuteDelete(connection, transaction, """
+        var removed = 0;
+        // sql supplies one bounded retention phase; derived documents do not count as retained records.
+        // countRecords controls whether progress includes this phase's removed rows.
+        void Delete(string sql, bool countRecords = true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var count = ExecuteDelete(connection, transaction, sql, cutoff, cancellationToken);
+            if (countRecords) removed = checked(removed + count);
+            progress?.Invoke(removed);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        try
+        {
+            Delete("""
             DELETE FROM ai_analysis_search
             WHERE correlation_id IN (
                 SELECT correlation_id FROM ai_analysis_results WHERE timestamp_utc_ticks < $cutoff);
-            """, cutoff);
-        _ = removedAiResults; // FTS documents are derived data and are not counted as separate retained records.
-        var removedResults = ExecuteDelete(connection, transaction, """
+            """, countRecords: false);
+            Delete("""
             DELETE FROM ai_analysis_results WHERE timestamp_utc_ticks < $cutoff;
-            """, cutoff);
-        var removedRequests = ExecuteDelete(connection, transaction, """
+            """);
+            Delete("""
             DELETE FROM ai_request_usage
             WHERE occurred_utc_ticks < $cutoff
               AND NOT EXISTS (
                   SELECT 1 FROM ai_analysis_results
                   WHERE ai_analysis_results.attempt_id = ai_request_usage.attempt_id);
-            """, cutoff);
-        var removedActivity = ExecuteDelete(connection, transaction, "DELETE FROM activity_samples WHERE timestamp_utc_ticks < $cutoff;", cutoff);
-        var removedText = ExecuteDelete(connection, transaction, "DELETE FROM screenshot_text_snapshots WHERE extracted_utc_ticks < $cutoff;", cutoff);
-        var removedTelemetry = ExecuteDelete(connection, transaction, "DELETE FROM screenshot_interval_telemetry WHERE captured_utc_ticks < $cutoff;", cutoff);
-        var removedHardware = ExecuteDelete(connection, transaction, """
+            """);
+            Delete("DELETE FROM activity_samples WHERE timestamp_utc_ticks < $cutoff;");
+            Delete("DELETE FROM screenshot_text_snapshots WHERE extracted_utc_ticks < $cutoff;");
+            Delete("DELETE FROM screenshot_interval_telemetry WHERE captured_utc_ticks < $cutoff;");
+            Delete("""
             DELETE FROM capture_hardware_snapshots WHERE capture_id IN
                 (SELECT capture_id FROM screenshot_captures WHERE captured_utc_ticks < $cutoff);
-            """, cutoff);
-        transaction.Commit();
-        return checked(removedActivity + removedRequests + removedResults + removedText + removedTelemetry + removedHardware);
+            """);
+            cancellationToken.ThrowIfCancellationRequested();
+            transaction.Commit();
+            return removed;
+        }
+        catch (SqliteException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("Retention was cancelled during SQLite work.", exception, cancellationToken);
+        }
     }
 
     private void InitializeSchema(bool databaseExisted)
@@ -3003,6 +3030,61 @@ internal sealed partial class SqliteActivityStore
         command.ExecuteNonQuery();
     }
 
+    // requests contains stable row identities for one batch, committed together rather than one transaction per row.
+    // token cancels before publication and rolls back the entire batch mutation.
+    internal void SaveTimesheetUsage(IReadOnlyList<AiRequestUsageRecord> requests, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(requests);
+        if (requests.Count > TimesheetProjection.MaximumRows || requests.Any(request => request.RequestKind != "report_timesheet_batch"))
+            throw new ArgumentException("Bounded timesheet usage records are required.");
+        token.ThrowIfCancellationRequested();
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "DELETE FROM ai_request_usage WHERE attempt_id = $id AND request_kind = 'report_timesheet_batch';";
+        var identity = command.Parameters.Add("$id", SqliteType.Text);
+        foreach (var request in requests)
+        {
+            token.ThrowIfCancellationRequested();
+            identity.Value = request.AttemptId;
+            command.ExecuteNonQuery();
+            InsertAiRequest(connection, transaction, request);
+        }
+        token.ThrowIfCancellationRequested();
+        transaction.Commit();
+    }
+
+    // identities identifies only reservations for a batch known not to have been accepted remotely.
+    // token cancels the single transaction; completed or token-bearing telemetry is preserved.
+    internal void ReleaseTimesheetReservations(IReadOnlyList<string> identities, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(identities);
+        if (identities.Count > TimesheetProjection.MaximumRows) throw new ArgumentException("Too many reservation identities.");
+        token.ThrowIfCancellationRequested();
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM ai_request_usage WHERE attempt_id = $id AND request_kind = 'report_timesheet_batch'
+            AND completed_utc_ticks IS NULL AND input_tokens IS NULL AND output_tokens IS NULL AND total_tokens IS NULL
+            AND cached_input_tokens IS NULL AND cache_write_tokens IS NULL AND cache_creation_input_tokens IS NULL
+            AND cache_read_input_tokens IS NULL AND reasoning_tokens IS NULL AND thinking_tokens IS NULL
+            AND reported_cost_microusd IS NULL AND reported_upstream_cost_microusd IS NULL
+            AND provider_response_id IS NULL AND success = 0;
+            """;
+        var identity = command.Parameters.Add("$id", SqliteType.Text);
+        foreach (var id in identities)
+        {
+            token.ThrowIfCancellationRequested();
+            identity.Value = id;
+            command.ExecuteNonQuery();
+        }
+        token.ThrowIfCancellationRequested();
+        transaction.Commit();
+    }
+
     private static void InsertAiAnalysisResult(SqliteConnection connection, SqliteTransaction transaction, AiRequestUsageRecord request, AiAnalysis analysis)
     {
         using var command = connection.CreateCommand();
@@ -3194,13 +3276,28 @@ internal sealed partial class SqliteActivityStore
 
     private SqliteConnection OpenConnection() => _connections.Open();
 
-    private static int ExecuteDelete(SqliteConnection connection, SqliteTransaction transaction, string sql, long cutoff)
+    private static int ExecuteDelete(SqliteConnection connection, SqliteTransaction transaction, string sql, long cutoff,
+        CancellationToken cancellationToken)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = sql;
         command.Parameters.AddWithValue("$cutoff", cutoff);
-        return command.ExecuteNonQuery();
+        return ExecuteCancellableDelete(command, cancellationToken);
+    }
+
+    // command owns a live connection for the duration of the delete and cancellation registration.
+    // cancellationToken interrupts native SQLite work; transaction owners decide when to commit.
+    private static int ExecuteCancellableDelete(SqliteCommand command, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // SqliteCommand.Cancel is a no-op. The registration must drain before the connection is disposed.
+        using var interruption = cancellationToken.Register(() => SQLitePCL.raw.sqlite3_interrupt(command.Connection!.Handle!));
+        try { return command.ExecuteNonQuery(); }
+        catch (SqliteException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("Retention was cancelled during SQLite work.", exception, cancellationToken);
+        }
     }
 
     private static void Add(SqliteCommand command, string name, object? value) =>

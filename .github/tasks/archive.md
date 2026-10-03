@@ -2,6 +2,99 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-02
+
+### Explicit Excel preview actions
+
+- Replaced the faint preview action with a filled generation button and an inline
+  generation status beneath the card. Completed previews expose a selectable absolute
+  path, an explicit open command, and an accessible copy-path icon.
+- Kept workbook creation, validated file opening, and clipboard access behind the runtime
+  facade. Changing report options hides stale preview results; opening or copying reuses
+  the existing file without regenerating it or submitting AI work.
+- Updated all shipped languages and the UI automation register. Source review and C#
+  formatting verification passed; tests, a new build, and live interaction remain unverified.
+
+### Localized UI automation selectors
+
+- Registered stable selectors and localized accessible names for the main window,
+  reports, settings, retention, screenshot commands, sensors and maintenance navigation.
+- Added a dedicated control-name dictionary backed by the existing language catalogs
+  and a conversion register organized by UI surface. Kept state-dependent accessible
+  names and gave generated weekly schedule cells invariant selectors.
+- Included unopened menus, toolbar commands and expander headers in localization.
+  Validated selector coverage, every shipped language and export captions, and built
+  the Debug x64 UI. Live automation-tree inspection and interaction testing remain separate.
+
+### Grouped sensor details and visible-page rendering
+
+- Grouped every captured sensor reading by device, including zero and unavailable values,
+  with closed device sections instead of a flat expanded list.
+- Continued collecting all live trace samples while rendering and copying points only for
+  devices on the visible monitor page. Preserved capture timestamps and stored measurements.
+- Validated the hardware and sensor presentation checks with synthetic data and built the
+  Debug x64 UI. Visual acceptance and live memory profiling remain separate checkpoints.
+
+### Export reliability review
+
+- Distinguished rejected Batch creation from uncertain submissions, released unsubmitted
+  quota reservations atomically, and retained recovery identities without retrying paid work.
+- Added runtime recovery independent of export-window lifetime, durable result readiness,
+  retryable cloud cleanup, and a paged job catalog without the former 200-job cutoff.
+- Reconciled usage in one cancellable transaction and included consumed tokens from
+  incomplete responses in estimated costs.
+- Shared Excel package metadata, indexed day/project source selection, and removed the
+  full history projection previously used only to choose a save filename.
+- Added synthetic regression cases for rejection, uncertainty, archive paging, runtime
+  recovery, download/cleanup failure, quota transactions, source attribution, and costs.
+  Validated targeted export, aggregation, batch, and localization checks using simulated
+  provider responses, and built the Debug x64 UI. Live provider submission and visual
+  acceptance remain outside those checks.
+
+### Batch timesheets and Excel previews
+
+- Added a resumable OpenAI Batch timesheet report with measured day/project durations,
+  optional morning/afternoon rows, monthly sheets, billing fields, and source details.
+- Persisted job identities and partial results independently of the export window;
+  uncertain submissions are reconciled before another paid batch can be created.
+  Raw request prompts and API credentials are excluded from persisted job snapshots.
+- Replaced embedded export previews with a generated Excel-themed card that opens a
+  temporary workbook limited to ten records per sheet without calling AI.
+- Kept the export title bar and native close button visible, and added a localized
+  in-app explanation of daily, application, and whole-period summary grouping.
+- Validated batch transport and recovery with simulated responses, workbook structure,
+  measured interval projection, entitlement, and localization contracts.
+
+
+### Consolidated storage settings and v1 surface cleanup
+
+- Collected screenshot capture preferences, local OCR choices, and saved hardware metadata
+  under data retention, using the existing typed settings facade and automatic persistence.
+- Removed taskbar widget settings and activation paths from v1, rejected its withdrawn
+  catalog keys, and disabled saved visibility when loading settings.
+- Renamed the main-window position control consistently in every shipped UI language.
+- Removed the redundant separators above data tools and startup options, and unified
+  OCR/AI navigation with the existing settings links for consistent pointer feedback.
+- Centered the labels editor on its owner at each opening while retaining saved size,
+  and kept its title bar visible independently of the global auto-hide setting.
+- Reduced captured hardware summaries to CPU total, GPU load and temperature, physical
+  RAM capacity, disk space and transfers, and network throughput with compact units.
+  Retained unmodified sensor readings in the complete details and persisted snapshots.
+- Added colored day, week, and month icons to export-period shortcuts, preserving
+  localized labels and accessible names with high-contrast theme support.
+
+### Calendar-month retention refinement
+
+- Limited effective activity and screenshot retention to one month for Free and three
+  months for Premium, with matching guards in the shared settings facade.
+- Added monthly choices, shared Premium badges, an installation-anchored timeline,
+  separate preview counts, and moved the screenshot folder editor, open-folder action,
+  and keep-captures toggle out of general settings while preserving automatic persistence.
+- Queued due cleanup after workspace readiness and restoration, with hourly due-date checks
+  while the UI is running and the shared Mica progress surface for deletion.
+- Preserved owned-artifact checks and capture provenance; the monthly checkpoint advances
+  only after cleanup and local-search synchronization finish successfully.
+
 ## 2026-09-24
 
 ### Standalone Excel planner source snapshot

@@ -10,6 +10,7 @@ WorkTrail/AppPackages/
 data/
 !/WorkTrail.Core/Data/
 /WorkTrail.Core/Data/*
+!/WorkTrail.Core/Data/ui-automation-names.json
 !/WorkTrail.Core/Data/sky-catalog.json
 !/WorkTrail.Core/Data/sky-palette.json
 !/WorkTrail.Core/Data/important-dates.json

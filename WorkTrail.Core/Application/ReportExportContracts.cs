@@ -5,8 +5,35 @@ namespace WorkTrail.Application;
 /// <summary>Identifies the supported analytical file formats.</summary>
 public enum ReportExportFormat { Excel, Csv, Json }
 
+/// <summary>Supplies export file metadata without reading or projecting history.</summary>
+public static class ReportExportFileNames
+{
+    /// <summary>Returns the extension for the selected format.</summary>
+    /// <param name="format">The supported analytical file format.</param>
+    /// <exception cref="ArgumentOutOfRangeException">The format is unsupported.</exception>
+    public static string Extension(ReportExportFormat format) => format switch
+    {
+        ReportExportFormat.Excel => ".xlsx",
+        ReportExportFormat.Csv => ".zip",
+        ReportExportFormat.Json => ".json",
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
+    /// <summary>Returns the date-based filename independently of the UI culture.</summary>
+    /// <param name="options">The selected report date range.</param>
+    /// <exception cref="ArgumentNullException">The report options are missing.</exception>
+    public static string SuggestedFileName(ReportExportOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return FormattableString.Invariant($"WorkTrail_{options.From:yyyy-MM-dd}_{options.ToInclusive:yyyy-MM-dd}");
+    }
+}
+
 /// <summary>Chooses whether saved descriptions are exported as excerpts, complete text, or both.</summary>
 public enum ReportDescriptionMode { Brief, Complete, Both }
+
+/// <summary>Selects a printable palette that remains editable through Excel's native themes.</summary>
+public enum ReportWorkbookTheme { WorkTrail, SpreadsheetGreen, InkBlue }
 
 /// <summary>Contains explicit range, field and privacy choices shared by preview and export.</summary>
 public sealed record ReportExportOptions(
@@ -27,7 +54,8 @@ public sealed record ReportExportOptions(
     bool IncludeTelemetry = false,
     bool IncludeAiUsage = false,
     string CsvSeparator = ";",
-    string Language = "en-US");
+    string Language = "en-US",
+    ReportWorkbookTheme Theme = ReportWorkbookTheme.WorkTrail);
 
 /// <summary>Contains a bounded table preview; raw complete text never crosses IPC for ordinary previews.</summary>
 public sealed record ReportExportTablePreview(string Name, IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows, int RowCount);
@@ -79,3 +107,11 @@ public static class ReportSummaryModelPolicy
 
 /// <summary>Returns editable generated text without persisting it as historical activity.</summary>
 public sealed record ReportSummaryResult(string Text, int SourceCount, string Provider, string Model);
+
+/// <summary>Identifies an explicit action on a temporary Excel preview.</summary>
+public enum ReportFilePreviewAction { Generate, Open, CopyPath }
+
+/// <summary>Generates a ten-record sample or acts on an already generated temporary workbook.</summary>
+public sealed record ReportFilePreviewRequest(ReportExportOptions Options, string? Summary = null,
+    TimesheetOptions? Timesheet = null, Guid? TimesheetJobId = null,
+    ReportFilePreviewAction Action = ReportFilePreviewAction.Generate, string? PreviewPath = null);

@@ -172,7 +172,7 @@ public sealed class ReportAggregationService
         }
     }
 
-    private static DateTimeOffset ConvertLocalBoundaryToUtc(DateOnly date, TimeZoneInfo timeZone)
+    internal static DateTimeOffset ConvertLocalBoundaryToUtc(DateOnly date, TimeZoneInfo timeZone)
     {
         var local = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
         while (timeZone.IsInvalidTime(local))
@@ -412,7 +412,7 @@ public sealed class ReportAggregationService
             => _coverage.Add(startTicks, endTicks);
     }
 
-    private static List<ActivitySegment> SplitIntoLocalHourSegments(
+    internal static List<ActivitySegment> SplitIntoLocalHourSegments(
         long startTicks,
         long endTicks,
         TimeZoneInfo timeZone)
@@ -489,9 +489,9 @@ public sealed class ReportAggregationService
         return result;
     }
 
-    private readonly record struct LocalBucket(DateOnly Date, int DayOfWeek, int Hour);
+    internal readonly record struct LocalBucket(DateOnly Date, int DayOfWeek, int Hour);
 
-    private readonly record struct ActivitySegment(long StartTicks, long EndTicks, LocalBucket Bucket);
+    internal readonly record struct ActivitySegment(long StartTicks, long EndTicks, LocalBucket Bucket);
 
     private sealed class DayAccumulator
     {
@@ -819,8 +819,8 @@ public sealed class ReportAggregationService
 
         internal AiCostEstimate? Estimate(AiRequestUsageRecord request)
         {
-            if (!request.Success
-                || !string.Equals(request.Provider, AiPricingProviders.OpenAi, StringComparison.OrdinalIgnoreCase)
+            // Output validity does not undo token consumption, including incomplete batch responses.
+            if (!string.Equals(request.Provider, AiPricingProviders.OpenAi, StringComparison.OrdinalIgnoreCase)
                 || !TryResolvePrice(request, out var price))
             {
                 return null;
@@ -849,6 +849,7 @@ public sealed class ReportAggregationService
                 + CalculateTokenCost(cachedInputTokens, price.CachedInputUsdPerMillionTokens ?? 0m)
                 + CalculateTokenCost(cacheWriteTokens, price.CacheWriteUsdPerMillionTokens ?? 0m)
                 + CalculateTokenCost(outputTokens, price.OutputUsdPerMillionTokens);
+            if (request.RequestKind == "report_timesheet_batch") costUsd *= 0.5m;
             return new AiCostEstimate(costUsd, price.SourceRetrievedAt);
         }
 

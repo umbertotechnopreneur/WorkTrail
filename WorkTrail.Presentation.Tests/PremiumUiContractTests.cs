@@ -58,14 +58,14 @@ public sealed class PremiumUiContractTests
         Assert.Contains(add.Parent!.Elements(), element => Name(element) == "AddClockPremiumBadge");
     }
 
-    /// <summary>Only the existing separator remains around the OCR/AI settings action.</summary>
+    /// <summary>The OCR/AI action uses the same navigation control as the surrounding settings links.</summary>
     [Fact]
     public void OcrSettings_HaveNoDecorativeHeadingOrDuplicateBorder()
     {
         var document = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
         Assert.DoesNotContain(document.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.Ai");
         var action = document.Descendants().Single(element => Name(element) == "OcrAiSettingsButton");
-        Assert.Equal("0", action.Attribute("BorderThickness")?.Value);
+        Assert.Equal("HyperlinkButton", action.Name.LocalName);
         Assert.DoesNotContain("OptionsPanoramaVioletBrush", document.ToString(), StringComparison.Ordinal);
     }
 
@@ -84,6 +84,62 @@ public sealed class PremiumUiContractTests
         Assert.Contains("result.Code == \"feature.label_limit\"", labels, StringComparison.Ordinal);
         Assert.Contains("button.BorderThickness = new Thickness(0);", labels, StringComparison.Ordinal);
         Assert.Contains("ToggleButtonBackground", labels, StringComparison.Ordinal);
+    }
+
+    /// <summary>Extended retention uses the same Premium control and exposes all three monthly choices.</summary>
+    [Fact]
+    public void Retention_ExtendedChoicesUseSharedPremiumBadge()
+    {
+        var document = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        foreach (var buttonName in new[] { "TwoMonthsButton", "ThreeMonthsButton" })
+        {
+            var button = document.Descendants().Single(element => Name(element) == buttonName);
+            Assert.Single(button.Descendants(), element => element.Name.LocalName == "PremiumBadge");
+        }
+        var free = document.Descendants().Single(element => Name(element) == "OneMonthButton");
+        Assert.DoesNotContain(free.Descendants(), element => element.Name.LocalName == "PremiumBadge");
+        foreach (var name in new[] { "FirstActivationText", "LastCleanupText", "NextCleanupText" })
+            Assert.Single(document.Descendants(), element => Name(element) == name);
+    }
+
+    /// <summary>The folder editor and keep-captures toggle have a single home on the retention page.</summary>
+    [Fact]
+    public void Retention_OwnsScreenshotStorageSettings()
+    {
+        var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
+        var retention = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        foreach (var controlName in new[] { "ScreenshotFolderBox", "KeepScreenshotsSwitch", "ScreenshotsEnabledSwitch", "ScreenshotModeBox", "OcrEnabledSwitch", "OcrLanguageBox" })
+        {
+            Assert.DoesNotContain(options.Descendants(), element => Name(element) == controlName);
+            Assert.Single(retention.Descendants(), element => Name(element) == controlName);
+        }
+        var sensors = XDocument.Load(PathFor("WorkTrail", "Controls", "SensorOptionsControl.xaml"));
+        Assert.DoesNotContain(sensors.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
+        Assert.Single(retention.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
+    }
+
+    /// <summary>The v1 surface never advertises or instantiates the withdrawn taskbar widget.</summary>
+    [Fact]
+    public void TaskbarWidget_HasNoV1SettingsOrActivationPath()
+    {
+        var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
+        Assert.DoesNotContain(options.Descendants(), element => element.Attribute("Tag")?.Value?.StartsWith("Options.TaskbarWidget.", StringComparison.Ordinal) == true);
+        var app = File.ReadAllText(PathFor("WorkTrail", "App.xaml.cs"));
+        Assert.DoesNotContain("TaskbarWidgetSurface", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApplyTaskbarWidgetSettings", app, StringComparison.Ordinal);
+    }
+
+    /// <summary>Monthly cleanup is queued only after the workspace and restored windows are ready.</summary>
+    [Fact]
+    public void RetentionStartup_WaitsForWorkspaceAndRestoration()
+    {
+        var app = File.ReadAllText(PathFor("WorkTrail", "App.xaml.cs"));
+        var ready = app.IndexOf("await _window.WaitForWorkspaceReadyAsync();", StringComparison.Ordinal);
+        var restored = app.IndexOf("await RestoreWorkspaceAsync(application, previousSettings);", StringComparison.Ordinal);
+        var maintenance = app.IndexOf("StartRetentionMaintenance();", StringComparison.Ordinal);
+        Assert.True(ready >= 0 && ready < restored && restored < maintenance);
+        Assert.Contains("DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()", app, StringComparison.Ordinal);
+        Assert.Contains("Scheduled: true, OperationId: operationId", app, StringComparison.Ordinal);
     }
 
     private static string? Name(XElement element) => element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")?.Value;

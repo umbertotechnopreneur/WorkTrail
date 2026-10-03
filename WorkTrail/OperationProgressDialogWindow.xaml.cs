@@ -16,7 +16,7 @@ namespace WorkTrail;
 internal sealed partial class OperationProgressDialogWindow : Window
 {
     private const int LogicalWidth = 520;
-    private const int LogicalHeight = 340;
+    private const int LogicalHeight = 390;
     private const int LogicalScreenMargin = 24;
     private readonly Func<CancellationToken, Task> _operation;
     private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -27,14 +27,27 @@ internal sealed partial class OperationProgressDialogWindow : Window
     private bool _loaded;
     private bool _allowClose;
     private bool _closed;
+    private bool _cancellationRequested;
     private readonly IWorkTrailApplication _application;
     private readonly Guid? _archiveOperationId;
+    private readonly Guid? _retentionOperationId;
     private readonly LocalizationService _strings;
     private readonly DispatcherQueueTimer _progressTimer;
     private readonly Stopwatch _elapsed = new();
     private bool _readingProgress;
 
     /// <summary>Creates an owned progress surface whose supplied operation uses the shared application facade.</summary>
+    /// <param name="application">Shared facade supplying phase progress.</param>
+    /// <param name="theme">Actual theme used by the owner.</param>
+    /// <param name="title">Localized operation heading.</param>
+    /// <param name="description">Localized operation explanation.</param>
+    /// <param name="language">Resolved UI language for progress labels.</param>
+    /// <param name="ownerAppWindow">Native owner used to place this transient surface.</param>
+    /// <param name="ownerHandle">Valid native owner handle.</param>
+    /// <param name="operation">Request to execute after the surface is visible.</param>
+    /// <param name="archiveOperationId">Archive job to observe, if any.</param>
+    /// <param name="retentionOperationId">Retention job to observe, if any.</param>
+    /// <exception cref="ArgumentException">A required owner handle or operation caption is invalid.</exception>
     internal OperationProgressDialogWindow(
         IWorkTrailApplication application,
         ElementTheme theme,
@@ -44,7 +57,8 @@ internal sealed partial class OperationProgressDialogWindow : Window
         AppWindow ownerAppWindow,
         IntPtr ownerHandle,
         Func<CancellationToken, Task> operation,
-        Guid? archiveOperationId = null)
+        Guid? archiveOperationId = null,
+        Guid? retentionOperationId = null)
     {
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(ownerAppWindow);
@@ -54,6 +68,7 @@ internal sealed partial class OperationProgressDialogWindow : Window
         _operation = operation ?? throw new ArgumentNullException(nameof(operation));
         _application = application;
         _archiveOperationId = archiveOperationId;
+        _retentionOperationId = retentionOperationId;
         _strings = new LocalizationService(language);
         if (ownerHandle == IntPtr.Zero)
         {
@@ -69,8 +84,10 @@ internal sealed partial class OperationProgressDialogWindow : Window
         AutomationProperties.SetName(RootGrid, title);
         AutomationProperties.SetName(DescriptionText, description);
         AutomationProperties.SetName(OperationProgress, title);
+        CancelOperationButton.Content = _strings.Translate("Dialog.Cancel");
+        UiLocalization.SetAccessibleLabel(CancelOperationButton, _strings.Translate("Dialog.Cancel"));
         PhaseText.Text = _strings.Translate("Archive.Progress.Waiting");
-        PhaseText.Visibility = archiveOperationId.HasValue ? Visibility.Visible : Visibility.Collapsed;
+        PhaseText.Visibility = archiveOperationId.HasValue || retentionOperationId.HasValue ? Visibility.Visible : Visibility.Collapsed;
         _progressTimer = DispatcherQueue.CreateTimer();
         _progressTimer.Interval = TimeSpan.FromSeconds(1);
         _progressTimer.Tick += ProgressTimer_Tick;
@@ -83,7 +100,8 @@ internal sealed partial class OperationProgressDialogWindow : Window
             TitleDragRegion,
             TitleBarLeftInsetColumn,
             TitleBarRightInsetColumn,
-            static () => Array.Empty<FrameworkElement>());
+            static () => Array.Empty<FrameworkElement>(),
+            allowAutoHide: false);
         _placement = new WindowPlacementService(
             application,
             this,
@@ -101,7 +119,7 @@ internal sealed partial class OperationProgressDialogWindow : Window
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
             presenter.IsAlwaysOnTop = true;
-            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: false);
+            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: true);
         }
 
         _lifecycle.InitializationFailed += CompleteWithException;
@@ -165,25 +183,56 @@ internal sealed partial class OperationProgressDialogWindow : Window
         }
     }
 
+    // cancellationToken reaches the facade and keeps the dialog open until deletion has stopped.
     private async Task RunOperationAsync(CancellationToken cancellationToken)
     {
-        await _lifecycle.WaitUntilLoadedAsync(cancellationToken);
-        var visibleFrame = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        // Defer the facade call until Loaded has returned and WinUI has had a chance to compose progress.
-        if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => visibleFrame.TrySetResult()))
+        try
         {
-            throw new InvalidOperationException("The progress operation could not be queued.");
+            await _lifecycle.WaitUntilLoadedAsync(cancellationToken);
+            var visibleFrame = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            // Defer the facade call until Loaded has returned and WinUI has had a chance to compose progress.
+            if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => visibleFrame.TrySetResult()))
+            {
+                throw new InvalidOperationException("The progress operation could not be queued.");
+            }
+            await visibleFrame.Task.WaitAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            _elapsed.Start();
+            _progressTimer.Start();
+            await _operation(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            _completion.TrySetResult();
         }
-        await visibleFrame.Task.WaitAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        _elapsed.Start();
-        _progressTimer.Start();
-        await _operation(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _completion.TrySetCanceled(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _completion.TrySetException(exception);
+        }
+        finally
+        {
+            _allowClose = true;
+            if (!_closed) Close();
+        }
+    }
 
-        _allowClose = true;
-        _completion.TrySetResult();
-        Close();
+    // sender is the localized cancel command on the progress surface.
+    // args is the routed button activation.
+    private void CancelOperationButton_Click(object sender, RoutedEventArgs args) => RequestCancellation();
+
+    private void RequestCancellation()
+    {
+        if (_closed || _allowClose || _cancellationRequested) return;
+        _cancellationRequested = true;
+        CancelOperationButton.IsEnabled = false;
+        var caption = _strings.Translate("SearchIndex.Status.Cancelling");
+        CancelOperationButton.Content = caption;
+        UiLocalization.SetAccessibleLabel(CancelOperationButton, caption);
+        PhaseText.Text = caption;
+        PhaseText.Visibility = Visibility.Visible;
+        _lifecycle.Cancel();
     }
 
     private void CompleteWithException(Exception exception)
@@ -201,14 +250,30 @@ internal sealed partial class OperationProgressDialogWindow : Window
 
     private async void ProgressTimer_Tick(DispatcherQueueTimer sender, object args)
     {
-        if (_closed) return;
+        if (_closed || _cancellationRequested) return;
         ElapsedText.Text = _strings.Format("Archive.Progress.Elapsed", _elapsed.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture));
-        if (_archiveOperationId is not { } id || _readingProgress) return;
+        if ((_archiveOperationId is null && _retentionOperationId is null) || _readingProgress) return;
         _readingProgress = true;
         try
         {
+            if (_retentionOperationId is { } retentionId)
+            {
+                var status = await _application.GetRetentionStatusAsync(_lifecycle.Token);
+                if (_closed || _cancellationRequested) return;
+                if (!status.Succeeded) throw new InvalidOperationException("Retention progress is unavailable.");
+                if (status.Value?.Progress is { } retention && retention.OperationId == retentionId)
+                {
+                    PhaseText.Text = _strings.Translate($"Operations.Retention.Phase.{retention.Phase}");
+                    AutomationProperties.SetName(PhaseText, PhaseText.Text);
+                    OperationProgress.IsIndeterminate = retention.TotalItems <= 0;
+                    if (retention.TotalItems > 0) OperationProgress.Value = 100d * retention.CompletedItems / retention.TotalItems;
+                    CountText.Text = _strings.Format("Archive.Progress.Items", retention.CompletedItems, retention.TotalItems);
+                }
+                return;
+            }
+            var id = _archiveOperationId!.Value;
             var result = await _application.GetDataArchiveProgressAsync(new DataArchiveProgressRequest(id), _lifecycle.Token);
-            if (_closed) return;
+            if (_closed || _cancellationRequested) return;
             if (!result.Succeeded) throw new InvalidOperationException("Archive progress is unavailable.");
             if (result.Value is not { } progress) return;
             PhaseText.Text = _strings.Translate($"Archive.Progress.{progress.Phase}");
@@ -237,8 +302,13 @@ internal sealed partial class OperationProgressDialogWindow : Window
         finally { _readingProgress = false; }
     }
 
-    private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args) =>
+    // sender is the native progress window with its always-visible close button.
+    // args defers closing until the operation acknowledges cancellation.
+    private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
         args.Cancel = !_allowClose;
+        if (!_allowClose) RequestCancellation();
+    }
 
     private void OperationProgressDialogWindow_Closed(object sender, WindowEventArgs args)
     {

@@ -76,10 +76,17 @@ public static class Program
         }
     }
 
+    // activation owns the Windows payload only for the duration of this callback.
     private static RedirectedActivationRequest CaptureRedirectedActivation(AppActivationArguments activation)
     {
         ArgumentNullException.ThrowIfNull(activation);
         var kind = activation.Kind;
+        if (kind == ExtendedActivationKind.Protocol
+            && activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol)
+        {
+            // Copy the URI while the WinRT callback owns its payload; the app validates fixed actions.
+            return new RedirectedActivationRequest(LaunchOptions.Parse([]), kind, protocol.Uri.AbsoluteUri);
+        }
         var options = kind switch
         {
             ExtendedActivationKind.Launch when activation.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch =>
@@ -102,4 +109,4 @@ public static class Program
 }
 
 /// <summary>Contains the managed snapshot consumed after a redirected WinRT activation callback returns.</summary>
-internal sealed record RedirectedActivationRequest(LaunchOptions Options, ExtendedActivationKind Kind);
+internal sealed record RedirectedActivationRequest(LaunchOptions Options, ExtendedActivationKind Kind, string? ProtocolUri = null);

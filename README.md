@@ -31,7 +31,7 @@ You'll need:
 - x64 or ARM64.
 
 ~~~powershell
-git clone https://github.com/umbertotechnopreneur/TrackMeUp.git WorkTrail
+git clone https://github.com/umbertotechnopreneur/WorkTrail.git WorkTrail
 Set-Location .\WorkTrail
 pwsh -NoProfile -File .\scripts\WorkTrail.ps1 -Action Preflight
 pwsh -NoProfile -File .\scripts\WorkTrail.ps1 -Action Build -Platform x64 -WarnAsError
@@ -58,7 +58,7 @@ Open `WorkTrail.exe` from the folder created under `artifacts/unpackaged/<versio
 Portable executables can run directly. MSIX packages require signing before installation. See the [release guide](docs/RELEASING.md) for package details.
 
 <p align="center">
-  <a href="https://github.com/umbertotechnopreneur/TrackMeUp/actions/workflows/build.yml"><img src="https://github.com/umbertotechnopreneur/TrackMeUp/actions/workflows/build.yml/badge.svg?branch=main" alt="Build status" /></a>
+  <a href="https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml"><img src="https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml/badge.svg?branch=main" alt="Build status" /></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D4?logo=windows11&amp;logoColor=white" alt="Windows" />
   <img src="https://img.shields.io/badge/status-pre--production-F9665B" alt="Pre-production" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT License" /></a>
@@ -349,11 +349,11 @@ provenance file before redistributing repository material or packaged binaries.
 </p>
 
 <p align="center">
-  <a href="https://github.com/umbertotechnopreneur/MailMeUp"><strong>MailMeUp</strong></a> · Connect your inboxes to your AI assistant.<br />
-  <a href="https://github.com/umbertotechnopreneur/PromptMeUp"><strong>PromptMeUp</strong></a> · Can't remember that command? Git, Bash, or PowerShell: hm is here to help.<br />
-  <a href="https://github.com/umbertotechnopreneur/TrackMeUp"><strong>WorkTrail</strong></a> · Track your time. Find what you worked on.
+  <a href="https://github.com/umbertotechnopreneur/AgentInbox"><strong>AgentInbox</strong></a> · Connect your inboxes to your AI assistant.<br />
+  <a href="https://github.com/umbertotechnopreneur/PromptMeUp"><strong>PromptMeUp</strong></a> · Can't remember that command? Git, Bash, or PowerShell: describe what you want to do. hm is here to help.<br />
+  <a href="https://github.com/umbertotechnopreneur/WorkTrail"><strong>WorkTrail</strong></a> · Track your time. Find what you worked on.
 </p>
 
 <p align="center"><sub>Brand mark, not an app icon. <a href="docs/assets/meup/README.md">Visual style and image credits</a>.</sub></p>
 
-<p align="center">Built by <a href="https://umbertogiacobbi.biz/">Umberto Giacobbi</a>, with help from contributors.</p>
+<p align="center">I’m Umberto Giacobbi. I built and maintain WorkTrail with help from contributors.<br />Find me on <a href="https://www.linkedin.com/in/umbertogiacobbi/">LinkedIn</a> or at <a href="https://umbertogiacobbi.biz/">umbertogiacobbi.biz</a>.</p>

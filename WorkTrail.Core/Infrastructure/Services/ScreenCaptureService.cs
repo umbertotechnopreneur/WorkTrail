@@ -23,7 +23,7 @@ public interface IScreenCaptureService
     /// <param name="captureMode">Capture mode: all-screens or active-window.</param>
     /// <param name="captureOrigin">Stable manual or scheduled capture origin.</param>
     /// <param name="authorizeCapture">Fail-closed application policy evaluated immediately before capture.</param>
-    /// <returns>The captured analysis and retained artifact paths.</returns>
+    /// <returns>The final analysis and retained paths; images remain staged until Core publishes their provenance.</returns>
     ScreenshotCaptureResult CaptureByMode(
         string directory,
         string captureMode,
@@ -149,6 +149,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService
     {
         var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
         var captureDirectory = ScreenshotStorageLayout.GetDayDirectory(directory, capturedAt);
+        ScreenshotStorageLayout.RejectLinks(captureDirectory);
         // All artifacts from this capture pass share one resolved day directory; directory creation failures abort capture.
         Directory.CreateDirectory(captureDirectory);
         var displays = EnumerateDisplays();
@@ -210,6 +211,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
         var captureDirectory = ScreenshotStorageLayout.GetDayDirectory(directory, capturedAt);
         // The foreground capture uses the same durable calendar layout as multi-monitor capture.
+        ScreenshotStorageLayout.RejectLinks(captureDirectory);
         Directory.CreateDirectory(captureDirectory);
         var focusedDisplay = ResolveFocusedDisplay(EnumerateDisplays(), foreground.WindowBounds);
         var focusMetadata = CreateFocusMetadata(focusedDisplay, foreground, "active-window");
@@ -381,6 +383,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
         var versionedStem = $"{captureId}_{_appVersion}_{validatedOrigin}_{stem}";
         var screenshotPath = Path.Combine(directory, $"{versionedStem}.webp");
+        var stagingPath = ScreenshotPublicationJournal.StagingPath(screenshotPath);
 
         try
         {
@@ -396,8 +399,10 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                 AuthorizeCurrentForeground(authorizeCapture);
             }
 
-            EncodeBitmapAsWebp(bitmap, screenshotPath);
-            File.SetLastWriteTimeUtc(screenshotPath, capturedAt.UtcDateTime);
+            // Staging names are excluded from the gallery until Core commits installation provenance.
+            ScreenshotStorageLayout.RejectLinks(stagingPath);
+            EncodeBitmapAsWebp(bitmap, stagingPath);
+            File.SetLastWriteTimeUtc(stagingPath, capturedAt.UtcDateTime);
         }
         catch
         {
@@ -484,7 +489,8 @@ public sealed class ScreenCaptureService : IScreenCaptureService
 
     private static void DeletePartialArtifacts(IEnumerable<string> paths)
     {
-        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists))
+        foreach (var path in paths.SelectMany(path => new[] { path, ScreenshotPublicationJournal.StagingPath(path) })
+                     .Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists))
         {
             try
             {
@@ -525,6 +531,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                 ?? throw new InvalidOperationException("Unable to encode screenshot as WEBP.");
             using var output = File.Create(outputWebp);
             data.SaveTo(output);
+            output.Flush(flushToDisk: true);
         }
         finally
         {

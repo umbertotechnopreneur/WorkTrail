@@ -171,9 +171,13 @@ public sealed record ActivityLabelSample(
     InstallationProfile? Installation = null);
 
 /// <summary>Contains the retained screenshot projection for one local calendar date.</summary>
+/// <param name="Date">Local date represented by the gallery.</param>
+/// <param name="Items">Captures with verified durable installation provenance.</param>
+/// <param name="UnavailableArtifactCount">Artifacts excluded because their installation provenance is missing.</param>
 public sealed record ScreenshotGallery(
     DateOnly Date,
-    IReadOnlyList<ScreenshotGalleryItem> Items);
+    IReadOnlyList<ScreenshotGalleryItem> Items,
+    int UnavailableArtifactCount = 0);
 
 /// <summary>Contains one validated retained screenshot ready for presentation decoding.</summary>
 public sealed record ScreenshotImageContent(
@@ -440,7 +444,7 @@ public static class QuickSetupProfileIds
 public sealed record QuickSetupProfileRequest(string ProfileId, bool StartWithWindows);
 
 /// <summary>Requests a retention preview or confirmed cleanup.</summary>
-public sealed record RetentionRequest(bool Execute, bool Confirmed);
+public sealed record RetentionRequest(bool Execute, bool Confirmed, bool Scheduled = false, Guid OperationId = default);
 
 /// <summary>Describes the runtime reachable through the local IPC host.</summary>
 public sealed record RuntimeHealth(
@@ -473,10 +477,19 @@ public sealed record PrivacyRule(string Id, string Type, string Value);
 public sealed record PluginInfo(string Id, string Name, bool Enabled, string Description);
 
 /// <summary>Describes a retention candidate without deleting it.</summary>
-public sealed record RetentionPreview(int FileCount, long TotalBytes, IReadOnlyList<string> Paths);
+public sealed record RetentionPreview(int FileCount, long TotalBytes, IReadOnlyList<string> Paths,
+    int RecordCount = 0, int ScreenshotCount = 0, long ActivityBytes = 0, long ScreenshotBytes = 0);
+
+/// <summary>Reports progress for one serialized retention cleanup without exposing private paths.</summary>
+public sealed record RetentionCleanupProgress(Guid OperationId, long CompletedItems, long TotalItems, string Phase);
 
 /// <summary>Describes the configured data-retention policy.</summary>
-public sealed record RetentionStatus(int DataRetentionDays, int ScreenshotRetentionDays, string ScreenshotDirectory);
+public sealed record RetentionStatus(int DataRetentionDays, int ScreenshotRetentionDays, string ScreenshotDirectory,
+    int MaximumMonths = 1, DateOnly? FirstActivationDate = null, DateOnly? LastCleanupDate = null,
+    DateOnly? NextCleanupDate = null, bool IsCleanupDue = false, RetentionCleanupProgress? Progress = null,
+    bool KeepScreenshots = false, bool ScreenshotsEnabled = false, string ScreenshotCaptureMode = "all-screens",
+    bool OcrEnabled = false, string OcrLanguage = "system", bool HardwareSaveSnapshots = true,
+    bool HardwareSensorsEnabled = true);
 
 /// <summary>Requires both destructive confirmations before an atomic application reset can be prepared.</summary>
 public sealed record AtomicResetRequest(bool FirstConfirmation, bool FinalConfirmation);
@@ -758,6 +771,14 @@ public interface IWorkTrailApplication : IAsyncDisposable
 
     /// <summary>Explicitly sends selected saved text to the configured AI provider and returns an editable summary.</summary>
     Task<OperationResult<ReportSummaryResult>> GenerateReportSummaryAsync(ReportSummaryRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Previews, submits, resumes, cancels or exports a durable OpenAI Batch timesheet.</summary>
+    /// <param name="command">The explicit operation and its selected local report inputs.</param>
+    /// <param name="cancellationToken">Cancels local work without cancelling an already submitted cloud batch.</param>
+    Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken);
+
+    /// <summary>Generates, opens, or copies the path of a temporary ten-record Excel sample without sending AI requests.</summary>
+    Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken);
 
     /// <summary>Captures a current system snapshot.</summary>
     Task<OperationResult<SystemSnapshot>> CaptureSystemSnapshotAsync(CancellationToken cancellationToken);

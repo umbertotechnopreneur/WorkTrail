@@ -289,6 +289,14 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public Task<OperationResult<ReportExportSetup>> GetReportExportSetupAsync(CancellationToken cancellationToken) =>
         SendAsync<ReportExportSetup>(RuntimeOperation.ReportExportSetupV1, null, cancellationToken, ReportQueryTimeout);
+
+    /// <inheritdoc />
+    public Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken) =>
+        SendAsync<TimesheetBatchView>(RuntimeOperation.TimesheetBatchV1, command, cancellationToken, DataArchiveTimeout);
+
+    /// <inheritdoc />
+    public Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken) =>
+        SendAsync<ReportExportResult>(RuntimeOperation.ReportFilePreviewV1, request, cancellationToken, DataArchiveTimeout);
     /// <inheritdoc />
     public Task<OperationResult<ReportExportPreview>> PreviewReportExportAsync(ReportExportOptions options, CancellationToken cancellationToken) =>
         SendAsync<ReportExportPreview>(RuntimeOperation.ReportExportPreviewV1, options, cancellationToken, DataArchiveTimeout);

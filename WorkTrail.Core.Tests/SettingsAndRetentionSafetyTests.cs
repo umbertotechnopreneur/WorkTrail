@@ -474,7 +474,7 @@ public sealed class SettingsAndRetentionSafetyTests
     }
 
     [Fact]
-    public void TaskbarWidget_IsHiddenByDefaultAndCanBeEnabledAtAValidatedPosition()
+    public void TaskbarWidget_IsUnavailableInV1AndPersistedVisibilityIsDisabled()
     {
         var defaults = Assert.IsType<AppSettings>(JsonSerializer.Deserialize<AppSettings>("{}", new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         var result = SettingsCatalog.Apply(
@@ -486,15 +486,15 @@ public sealed class SettingsAndRetentionSafetyTests
             }));
 
         Assert.False(defaults.TaskbarWidgetVisible);
-        Assert.True(result.Succeeded);
-        var settings = Assert.IsType<AppSettings>(result.Value);
-        Assert.True(settings.TaskbarWidgetVisible);
-        Assert.Equal(TaskbarWidgetPositions.Right, settings.TaskbarWidgetPosition);
-        Assert.True(SettingsCatalog.TryGetValue(settings, "taskbar.widget.visible", out var visible));
-        Assert.Equal(true, visible);
+        Assert.False(result.Succeeded);
+        Assert.False(SettingsCatalog.TryGetValue(defaults, "taskbar.widget.visible", out _));
+        Assert.False(SettingsCatalog.TryGetValue(defaults, "taskbar.widget.position", out _));
+        Assert.DoesNotContain(SettingsCatalog.Definitions, setting => setting.Key.StartsWith("taskbar.widget.", StringComparison.Ordinal));
+        var normalized = SettingsCatalog.NormalizePersisted(defaults with { TaskbarWidgetVisible = true }, Path.GetTempPath());
+        Assert.False(normalized.TaskbarWidgetVisible);
 
         var invalidPosition = SettingsCatalog.Apply(
-            settings,
+            defaults,
             new SettingsPatch(new Dictionary<string, string?> { ["taskbar.widget.position"] = "center" }));
         Assert.False(invalidPosition.Succeeded);
         Assert.Contains(invalidPosition.Issues, issue => issue.Field == "taskbar.widget.position");
@@ -565,8 +565,8 @@ public sealed class SettingsAndRetentionSafetyTests
         Assert.Equal("auto", normalized.AiReasoningEffort);
         Assert.Equal(400, normalized.OpenAiDailyLimit);
         Assert.Equal(1440, normalized.ScreenshotIntervalMinutes);
-        Assert.Equal(0, normalized.DataRetentionDays);
-        Assert.Equal(3650, normalized.ScreenshotRetentionDays);
+        Assert.Equal(30, normalized.DataRetentionDays);
+        Assert.Equal(90, normalized.ScreenshotRetentionDays);
     }
 
     [Fact]

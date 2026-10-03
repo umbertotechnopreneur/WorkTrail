@@ -120,6 +120,10 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.AiAnalyze => ToResponse(request, await _application.AnalyzeCurrentActivityAsync(Read<AnalyzeCurrentActivityRequest>(request.Payload) ?? new AnalyzeCurrentActivityRequest(), cancellationToken)),
                 RuntimeOperation.ReportQueryV1 => await DispatchReportQueryAsync(request, cancellationToken),
                 RuntimeOperation.ReportExportSetupV1 => ToResponse(request, await _application.GetReportExportSetupAsync(cancellationToken)),
+                RuntimeOperation.ReportFilePreviewV1 => ToResponse(request, await _application.OpenReportFilePreviewAsync(
+                    Read<ReportFilePreviewRequest>(request.Payload) ?? throw new InvalidDataException("A preview request is required."), cancellationToken)),
+                RuntimeOperation.TimesheetBatchV1 => ToResponse(request, await _application.ManageTimesheetBatchAsync(
+                    Read<TimesheetBatchCommand>(request.Payload) ?? throw new InvalidDataException("A timesheet command is required."), cancellationToken)),
                 RuntimeOperation.ReportExportPreviewV1 => ToResponse(request, await _application.PreviewReportExportAsync(
                     Read<ReportExportOptions>(request.Payload) ?? throw new InvalidDataException("Export options are required."), cancellationToken)),
                 RuntimeOperation.ReportExportPreferencesV1 => ToResponse(request, await _application.SaveReportExportPreferencesAsync(

@@ -226,11 +226,10 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Button
+                <Button AutomationProperties.AutomationId="Gallery.Timeline.PreviousTimelineButton"
                     x:Name="PreviousTimelineButton"
                     Margin="0,0,8,0"
                     VerticalAlignment="Center"
-                    AutomationProperties.Name="Previous screenshots"
                     Click="PreviousTimelineButton_Click"
                     Style="{StaticResource TimelineNavigationButtonStyle}"
                     Tag="Screenshots.Timeline.Previous"
@@ -242,7 +241,7 @@
                         FontSize="16"
                         Glyph="&#xE76B;" />
                 </Button>
-                <ListView
+                <ListView AutomationProperties.AutomationId="Gallery.Timeline.FilmstripList"
                     x:Name="FilmstripList"
                     Grid.Column="1"
                     HorizontalAlignment="Stretch"
@@ -270,12 +269,11 @@
                         </ItemsPanelTemplate>
                     </ListView.ItemsPanel>
                 </ListView>
-                <Button
+                <Button AutomationProperties.AutomationId="Gallery.Timeline.NextTimelineButton"
                     x:Name="NextTimelineButton"
                     Grid.Column="2"
                     Margin="8,0,0,0"
                     VerticalAlignment="Center"
-                    AutomationProperties.Name="Next screenshots"
                     Click="NextTimelineButton_Click"
                     Style="{StaticResource TimelineNavigationButtonStyle}"
                     Tag="Screenshots.Timeline.Next"
@@ -289,12 +287,11 @@
                 </Button>
             </Grid>
         </Border>
-        <Button
+        <Button AutomationProperties.AutomationId="Gallery.Timeline.FilmstripToggleButton"
             x:Name="FilmstripToggleButton"
             Width="1"
             Height="1"
             Padding="0"
-            AutomationProperties.Name="Hide screenshot strip"
             Background="Transparent"
             BorderBrush="Transparent"
             Tag="Screenshots.Timeline.Hide"

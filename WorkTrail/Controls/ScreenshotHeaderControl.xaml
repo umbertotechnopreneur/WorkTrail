@@ -183,9 +183,8 @@
             DefaultLabelPosition="Collapsed"
             IsDynamicOverflowEnabled="True"
             OverflowButtonVisibility="Auto">
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ZoomOutButton"
                 x:Name="ZoomOutButton"
-                AutomationProperties.Name="Zoom out"
                 Click="ZoomOutButton_Click"
                 IsEnabled="False"
                 Label="Zoom out"
@@ -195,9 +194,8 @@
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE71F;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ZoomResetButton"
                 x:Name="ZoomResetButton"
-                AutomationProperties.Name="Reset zoom to 100 percent"
                 Click="ZoomResetButton_Click"
                 IsEnabled="False"
                 Label="Reset zoom to 100%"
@@ -213,9 +211,8 @@
                         Glyph="100%" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ZoomInButton"
                 x:Name="ZoomInButton"
-                AutomationProperties.Name="Zoom in"
                 Click="ZoomInButton_Click"
                 IsEnabled="False"
                 Label="Zoom in"
@@ -226,9 +223,8 @@
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator />
-            <AppBarToggleButton
+            <AppBarToggleButton AutomationProperties.AutomationId="Gallery.Header.DetailsToggleButton"
                 x:Name="DetailsToggleButton"
-                AutomationProperties.Name="Show snapshot details"
                 Click="DetailsToggleButton_Click"
                 IsEnabled="False"
                 Label="Show snapshot details"
@@ -239,9 +235,8 @@
                 </AppBarToggleButton.Icon>
             </AppBarToggleButton>
             <AppBarSeparator />
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.SaveButton"
                 x:Name="SaveButton"
-                AutomationProperties.Name="Save selected image"
                 Click="SaveButton_Click"
                 IsEnabled="False"
                 Label="Save selected image"
@@ -251,9 +246,8 @@
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ShareButton"
                 x:Name="ShareButton"
-                AutomationProperties.Name="Share with another app"
                 Click="ShareButton_Click"
                 IsEnabled="False"
                 Label="Share with another app"
@@ -263,9 +257,8 @@
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE72D;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.OpenFolderButton"
                 x:Name="OpenFolderButton"
-                AutomationProperties.Name="Open containing folder"
                 Click="OpenFolderButton_Click"
                 Label="Open containing folder"
                 Tag="Screenshots.Toolbar.OpenFolder"
@@ -275,9 +268,8 @@
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator />
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.DeleteScreenshotButton"
                 x:Name="DeleteScreenshotButton"
-                AutomationProperties.Name="Delete screenshot"
                 Click="DeleteScreenshotButton_Click"
                 Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                 IsEnabled="False"
@@ -288,9 +280,8 @@
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.DeleteAnalysisButton"
                 x:Name="DeleteAnalysisButton"
-                AutomationProperties.Name="Delete analysis data"
                 Click="DeleteAnalysisButton_Click"
                 Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                 IsEnabled="False"
@@ -409,12 +400,11 @@
                     TextTrimming="CharacterEllipsis" />
             </StackPanel>
 
-            <CalendarDatePicker
+            <CalendarDatePicker AutomationProperties.AutomationId="Gallery.Header.SelectedDatePicker"
                 x:Name="SelectedDatePicker"
                 Width="200"
                 Height="40"
                 HorizontalAlignment="Left"
-                AutomationProperties.Name="Screenshot date"
                 DateFormat="{}{day.integer} {month.full} {year.full}"
                 PlaceholderText="Select a day"
                 ToolTipService.ToolTip="Select date" />

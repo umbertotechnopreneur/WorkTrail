@@ -17,7 +17,6 @@ using WorkTrail.Controls;
 using WorkTrail.Presentation;
 using WorkTrail.Runtime;
 using WorkTrail.Services;
-using TaskbarWidgetSurface = WorkTrail.Taskbar.TaskbarWidgetSurface;
 
 namespace WorkTrail;
 
@@ -41,10 +40,17 @@ public partial class App : Microsoft.UI.Xaml.Application
     private ScreenshotWindow? _screenshotsWindow;
     private SearchWindow? _searchWindow;
     private QuickSetupWindow? _quickSetupWindow;
-    private TaskbarWidgetSurface? _taskbarWidgetSurface;
     private RuntimeHost? _runtimeHost;
     private IWorkTrailApplication? _runtimeApplication;
     private IWorkTrailApplication? _applicationFacade;
+    private DispatcherQueueTimer? _retentionTimer;
+    private bool _retentionCheckInProgress;
+    private bool _retentionDeferredForSession;
+#if DEBUG
+    private static readonly bool AutomaticRetentionEnabled = false;
+#else
+    private static readonly bool AutomaticRetentionEnabled = true;
+#endif
     private DashboardRefreshCoordinator? _dashboardRefreshCoordinator;
     private bool _searchWindowOpening;
     private bool _worldClockWindowOpening;
@@ -79,6 +85,16 @@ public partial class App : Microsoft.UI.Xaml.Application
         try
         {
             var activationKind = ReadActivationKind();
+            if (activationKind == ExtendedActivationKind.Protocol)
+            {
+                var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+                if (activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol)
+                {
+                    HandleScreenshotNotificationProtocol(protocol.Uri.AbsoluteUri, closeAfterAction: true);
+                    return;
+                }
+                throw new ArgumentException("Protocol activation has no URI payload.", nameof(args));
+            }
             var options = StartupActivationPolicy.Apply(
                 LaunchOptions.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray()),
                 activationKind);
@@ -138,6 +154,11 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private void HandleRedirectedActivationOnUiThread(RedirectedActivationRequest activation)
     {
+        if (activation.Kind == ExtendedActivationKind.Protocol)
+        {
+            HandleScreenshotNotificationProtocol(activation.ProtocolUri, closeAfterAction: false);
+            return;
+        }
         var options = activation.Options;
         _logger.LogInformation("Redirected activation received. Mode={Mode} ActivationKind={ActivationKind}", options.Mode, activation.Kind);
         switch (options.Mode)
@@ -152,6 +173,55 @@ public partial class App : Microsoft.UI.Xaml.Application
             default:
                 // Short-lived CLI modes are never redirected by Program and cannot execute inside the runtime owner.
                 throw new ArgumentException("Unsupported redirected WorkTrail launch mode.", nameof(activation));
+        }
+    }
+
+    // uri is an untrusted Windows activation value; only the two fixed notification actions are allowed.
+    // closeAfterAction identifies an action-only cold launch, which must not open the main window.
+    private async void HandleScreenshotNotificationProtocol(string? uri, bool closeAfterAction)
+    {
+        if (!ScreenshotNotificationActivation.IsSupported(uri))
+        {
+            _logger.LogWarning("Unsupported screenshot notification activation was rejected.");
+            if (closeAfterAction) Exit();
+            return;
+        }
+        if (uri == ScreenshotNotificationActivation.Open)
+        {
+            StartUi(LaunchOptions.Parse([]));
+            return;
+        }
+        try
+        {
+            var application = StartOrConnectRuntime();
+            var result = await application.PatchSettingsAsync(
+                new SettingsPatch(new Dictionary<string, string?> { ["screenshots.notifications"] = "false" }),
+                CancellationToken.None);
+            if (!result.Succeeded)
+                throw new InvalidOperationException("Screenshot notification preference could not be saved.");
+            _logger.LogInformation("Screenshot notifications were disabled from a Windows notification.");
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Screenshot notification preference could not be updated.");
+            _windowsNotifications.TryShow("WorkTrail", new LocalizationService(_uiLanguage).Translate("Notification.ScreenshotCaptured.DisableFailed"));
+        }
+        finally
+        {
+            // A normal launch redirected during this write owns the newly requested UI and its runtime.
+            if (closeAfterAction && _window is null && !_uiStarting)
+            {
+                try
+                {
+                    await ShutdownRuntimeAsync();
+                    await LoggingBootstrapper.ShutdownAsync(_services);
+                }
+                catch (Exception exception)
+                {
+                    System.Diagnostics.Debug.WriteLine($"WorkTrail notification-action shutdown failed: {exception.GetType().Name}");
+                }
+                finally { Exit(); }
+            }
         }
     }
 
@@ -187,7 +257,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             _dashboardRefreshCoordinator = new DashboardRefreshCoordinator(application);
             var trayIcon = new TrayIconService(_services.GetRequiredService<ILoggerFactory>().CreateLogger<TrayIconService>());
             _window = new MainWindow(application, options, _dialogs, trayIcon, _windowsNotifications, _dashboardRefreshCoordinator);
-            _window.SettingsApplied += ApplyTaskbarWidgetSettings;
             _window.SettingsApplied += ApplyWorldClockWindowSettings;
             _window.SettingsApplied += ApplyTitleBarSettings;
             _window.QuickSetupRequested += MainWindow_QuickSetupRequested;
@@ -247,7 +316,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             }
 
             var settings = settingsResult.Value;
-            ApplyTaskbarWidgetSettings(settings);
             if (_window is null)
             {
                 return;
@@ -262,6 +330,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             {
                 await RestoreWorkspaceAsync(application, previousSettings);
             }
+            StartRetentionMaintenance();
         }
         catch (OperationCanceledException)
         {
@@ -270,7 +339,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         catch (Exception exception)
         {
             _logger.LogError(exception, "UI startup preparation failed after the main window was activated.");
-            DisposeTaskbarWidget();
             if (_window is not null && Volatile.Read(ref _shutdownStarted) == 0)
             {
                 var strings = new LocalizationService(previousSettings.UiLanguage);
@@ -438,10 +506,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         if (_window is not null)
         {
             await _window.ApplyExternalSettingsAsync(settings);
-        }
-        else
-        {
-            ApplyTaskbarWidgetSettings(settings);
         }
     }
 
@@ -954,7 +1018,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         _lunarPhaseWindow = null;
         if (_window is not null)
         {
-            _window.SettingsApplied -= ApplyTaskbarWidgetSettings;
             _window.SettingsApplied -= ApplyWorldClockWindowSettings;
             _window.SettingsApplied -= ApplyTitleBarSettings;
             _window.QuickSetupRequested -= MainWindow_QuickSetupRequested;
@@ -1016,7 +1079,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             _searchWindow = null;
         }
 
-        DisposeTaskbarWidget();
         if (Volatile.Read(ref _atomicResetStarted) != 0)
         {
             return;
@@ -1043,49 +1105,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             _searchWindow.Closed -= SearchWindow_Closed;
             _searchWindow = null;
         }
-    }
-
-    private void ApplyTaskbarWidgetSettings(AppSettings settings)
-    {
-        if (!settings.TaskbarWidgetVisible)
-        {
-            DisposeTaskbarWidget();
-            return;
-        }
-
-        if (_taskbarWidgetSurface is not null)
-        {
-            _taskbarWidgetSurface.ApplySettings(settings);
-            _taskbarWidgetSurface.Configure(settings.TaskbarWidgetPosition);
-            return;
-        }
-
-        try
-        {
-            var application = _applicationFacade ?? throw new InvalidOperationException("The taskbar widget requires an initialized application facade.");
-            var dashboardRefreshCoordinator = _dashboardRefreshCoordinator
-                ?? throw new InvalidOperationException("The taskbar widget requires an initialized dashboard coordinator.");
-            var taskbarWidgetSurface = new TaskbarWidgetSurface(application, dashboardRefreshCoordinator, new TaskbarWidgetHost(_services.GetRequiredService<ILogger<TaskbarWidgetHost>>()), _services.GetRequiredService<ILogger<TaskbarWidgetSurface>>());
-            _taskbarWidgetSurface = taskbarWidgetSurface;
-            taskbarWidgetSurface.FlyoutRequested += (_, _) => _window?.DispatcherQueue.TryEnqueue(() => _window?.ShowFlyout());
-            taskbarWidgetSurface.ApplySettings(settings);
-            if (!taskbarWidgetSurface.Attach(settings.TaskbarWidgetPosition))
-            {
-                // If a custom shell rejects parenting, keep the normal player usable rather than leaving an orphaned top-level control.
-                DisposeTaskbarWidget();
-            }
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Taskbar widget initialization failed; the main window remains available.");
-            DisposeTaskbarWidget();
-        }
-    }
-
-    private void DisposeTaskbarWidget()
-    {
-        _taskbarWidgetSurface?.Dispose();
-        _taskbarWidgetSurface = null;
     }
 
     private void StartBackgroundRuntime(LaunchOptions options) => _ = StartBackgroundRuntimeAsync(options);
@@ -1167,11 +1186,75 @@ public partial class App : Microsoft.UI.Xaml.Application
         return _applicationFacade;
     }
 
+    private void StartRetentionMaintenance()
+    {
+        if (!AutomaticRetentionEnabled)
+        {
+            // Development packages keep real diagnostic data; manual retention remains available.
+            _logger.LogInformation("Automatic retention is disabled in Debug builds.");
+            return;
+        }
+        if (_retentionTimer is not null || Volatile.Read(ref _shutdownStarted) != 0) return;
+        _retentionTimer = _dispatcherQueue.CreateTimer();
+        _retentionTimer.Interval = TimeSpan.FromHours(1);
+        _retentionTimer.Tick += RetentionTimer_Tick;
+        _retentionTimer.Start();
+        // Workspace initialization and restoration have completed; yield once more before opening a modal.
+        if (!_dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()))
+            _logger.LogWarning("Scheduled retention could not be queued after UI startup.");
+    }
+
+    // sender is the ready-state maintenance timer owned by this UI instance.
+    // args contains the timer tick notification.
+    private async void RetentionTimer_Tick(DispatcherQueueTimer sender, object args) => await CheckScheduledRetentionAsync();
+
+    private async Task CheckScheduledRetentionAsync()
+    {
+        if (!AutomaticRetentionEnabled || _retentionDeferredForSession || _retentionCheckInProgress
+            || _window is null || _applicationFacade is null || Volatile.Read(ref _shutdownStarted) != 0) return;
+        _retentionCheckInProgress = true;
+        try
+        {
+            var application = _applicationFacade;
+            var settings = await application.GetSettingsAsync(CancellationToken.None);
+            if (settings is not { Succeeded: true, Value: { QuickSetupCompleted: true } }) return;
+            var status = await application.GetRetentionStatusAsync(CancellationToken.None);
+            if (!status.Succeeded) throw new InvalidOperationException("Scheduled retention status could not be loaded.");
+            if (status.Value is not { IsCleanupDue: true } || _window is null) return;
+            var owner = _window;
+            var strings = new LocalizationService(settings.Value.UiLanguage);
+            var operationId = Guid.NewGuid();
+            var result = await _dialogs.RunWithProgressAsync(application, owner,
+                (owner.Content as FrameworkElement)?.ActualTheme ?? throw new InvalidOperationException("Retention progress requires window content."),
+                strings.Translate("Operations.Retention.Progress.Cleanup.Title"),
+                strings.Translate("Operations.Retention.ProgressDescription"),
+                (facade, token) => facade.RunRetentionAsync(new RetentionRequest(true, false, Scheduled: true, OperationId: operationId), token),
+                retentionOperationId: operationId);
+            if (!result.Succeeded) throw new InvalidOperationException($"Scheduled retention failed ({result.Code}).");
+        }
+        catch (OperationCanceledException)
+        {
+            // Respect cancellation for this session without claiming a completed monthly cleanup.
+            _retentionDeferredForSession = true;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Scheduled retention failed; the next ready-state check will retry.");
+        }
+        finally { _retentionCheckInProgress = false; }
+    }
+
     private async Task ShutdownRuntimeAsync()
     {
         if (Interlocked.Exchange(ref _shutdownStarted, 1) != 0)
         {
             return;
+        }
+        if (_retentionTimer is not null)
+        {
+            _retentionTimer.Stop();
+            _retentionTimer.Tick -= RetentionTimer_Tick;
+            _retentionTimer = null;
         }
 
         // A local RuntimeHost owns and disposes its application before releasing the runtime mutex.

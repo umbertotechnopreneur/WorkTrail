@@ -251,7 +251,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Expander Background="Transparent" HorizontalAlignment="Stretch" IsExpanded="False">
+                <Expander AutomationProperties.AutomationId="Gallery.Details.AllSensors" Background="Transparent" HorizontalAlignment="Stretch" IsExpanded="False">
                     <Expander.Header>
                         <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Hardware.AllSensors" Text="All sensors" />
                     </Expander.Header>
@@ -261,7 +261,24 @@
                         <ItemsControl x:Name="HardwareSensorList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Margin="0,3" FontSize="12" IsTextSelectionEnabled="True" Text="{Binding}" TextWrapping="Wrap" />
+                                    <Expander HorizontalAlignment="Stretch" Background="Transparent" IsExpanded="False">
+                                        <Expander.Header>
+                                            <StackPanel Spacing="2">
+                                                <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
+                                                <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Category}" />
+                                            </StackPanel>
+                                        </Expander.Header>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="12" Text="{Binding UpdatedAt}" TextWrapping="Wrap" />
+                                            <ItemsControl ItemsSource="{Binding Readings}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Margin="0,3" FontSize="12" IsTextSelectionEnabled="True" Text="{Binding}" TextWrapping="Wrap" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Expander>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -269,7 +286,7 @@
                 </Expander>
             </StackPanel>
 
-            <Expander
+            <Expander AutomationProperties.AutomationId="Gallery.Details.AnalysisSourcesExpander"
                 x:Name="AnalysisSourcesExpander"
                 Background="Transparent"
                 HorizontalAlignment="Stretch"
@@ -325,12 +342,11 @@
 
                     <StackPanel x:Name="OcrTextSection" Spacing="6" Visibility="Collapsed">
                         <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Screenshots.OcrText.Details.Title" Text="OCR text" />
-                        <Button
+                        <Button AutomationProperties.AutomationId="Gallery.Details.OpenOcrTextButton"
                             x:Name="OpenOcrTextButton"
                             MinHeight="36"
                             Padding="0,6"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="Open OCR text in a new window"
                             Background="Transparent"
                             BorderBrush="Transparent"
                             BorderThickness="0"

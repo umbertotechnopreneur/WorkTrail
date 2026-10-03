@@ -569,6 +569,316 @@ public sealed class ScreenshotDeletionTests
         }
     }
 
+    /// <summary>Retries one locked deletion while other recoverable work completes and startup remains available.</summary>
+    [Fact]
+    public async Task Recovery_LockedDeletionDoesNotBlockStartupOrOtherPendingCaptures()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var locked = CreateCapture(store, directory);
+            var other = CreateCapture(store, directory);
+            var journal = new ScreenshotDeletionJournal(store);
+            journal.Begin(locked.StoredScreenshotPaths[0], deleteAnalysis: true);
+            journal.Begin(other.StoredScreenshotPaths[0], deleteAnalysis: true);
+            using (var held = new FileStream(locked.StoredScreenshotPaths[0], FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                await using var application = CreateApplication(store);
+                Assert.True(File.Exists(locked.StoredScreenshotPaths[0]));
+                Assert.False(File.Exists(other.StoredScreenshotPaths[0]));
+                Assert.Single(journal.Pending(_ => { }));
+            }
+            await using (var application = CreateApplication(store))
+            {
+                Assert.False(File.Exists(locked.StoredScreenshotPaths[0]));
+                Assert.Empty(journal.Pending(_ => { }));
+            }
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>Frozen deletion authorization survives a change to the configured screenshot root.</summary>
+    [Fact]
+    public async Task Recovery_UsesTheOriginallyAuthorizedRootAfterSettingsChange()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var capture = CreateCapture(store, directory);
+            var journal = new ScreenshotDeletionJournal(store);
+            var plan = journal.Begin(capture.StoredScreenshotPaths[0], deleteAnalysis: true);
+            Assert.Equal(directory, plan!.AuthorizedRoot);
+            store.SaveSettings(store.LoadSettings() with { ScreenshotDirectory = Path.Combine(directory, "new-root") });
+
+            await using var application = CreateApplication(store);
+
+            Assert.All(capture.AllScreenshotPaths, path => Assert.False(File.Exists(path)));
+            Assert.Empty(journal.Pending(_ => { }));
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>Reports an invalid intent without deleting its evidence or blocking unrelated runtime use.</summary>
+    /// <param name="missingIdentity">Whether the JSON contains a plan with a missing screenshot identity.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Recovery_CorruptIntentRemainsVisibleAndDoesNotPreventStartup(bool missingIdentity)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var journals = Path.Combine(directory, "pending-screenshot-deletions");
+            Directory.CreateDirectory(journals);
+            var path = Path.Combine(journals, "invalid.json");
+            File.WriteAllText(path, missingIdentity
+                ? System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    ScreenshotPath = (string?)null,
+                    AuthorizedRoot = directory,
+                    Artifacts = new[] { Path.Combine(directory, "invalid.webp") }
+                })
+                : "null");
+            await using var application = CreateApplication(store);
+            var failures = new List<Exception>();
+            Assert.Empty(new ScreenshotDeletionJournal(store).Pending(failures.Add));
+            Assert.Single(failures);
+            Assert.True(File.Exists(path));
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>Incomplete captures are reported separately from verified gallery items.</summary>
+    [Fact]
+    public void Gallery_MissingProvenanceDoesNotHideValidCapturesOrInventAnOwner()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var capture = CreateCapture(store, directory);
+            var unregistered = Path.Combine(Path.GetDirectoryName(capture.StoredScreenshotPaths[0])!,
+                $"{Guid.NewGuid():N}_1.0.0_manual_monitor-1.webp");
+            File.WriteAllBytes(unregistered, [7, 8, 9]);
+
+            var gallery = store.GetScreenshotGallery(DateOnly.FromDateTime(capture.CapturedAt!.Value.LocalDateTime));
+
+            Assert.Equal(1, gallery.UnavailableArtifactCount);
+            Assert.Equal(capture.StoredScreenshotPaths[0], Assert.Single(gallery.Items).Path);
+            Assert.True(File.Exists(unregistered));
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>Every visible monitor has durable provenance even if publication stops between images.</summary>
+    [Fact]
+    public void Publication_RegistersProvenanceBeforeAnyImageBecomesVisibleAndRecoversRemainingMonitors()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var capture = CreateStagedCapture(directory);
+            var journal = new ScreenshotPublicationJournal(store);
+            var settings = store.LoadSettings();
+            using (var held = new FileStream(ScreenshotPublicationJournal.StagingPath(capture.StoredScreenshotPaths[1]),
+                FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Assert.Throws<IOException>(() => journal.Publish(capture, directory, settings.InstallationId, keep: true));
+                var gallery = store.GetScreenshotGallery(DateOnly.FromDateTime(capture.CapturedAt!.Value.LocalDateTime));
+                var item = Assert.Single(gallery.Items);
+                Assert.Equal(0, gallery.UnavailableArtifactCount);
+                Assert.Equal(settings.InstallationId, item.Installation!.InstallationId);
+            }
+            store.SaveSettings(settings with { ScreenshotDirectory = Path.Combine(directory, "new-root") });
+            var errors = new List<Exception>();
+            journal.Recover(errors.Add);
+            Assert.Empty(errors);
+            Assert.All(capture.AllScreenshotPaths, path => Assert.True(File.Exists(path)));
+            Assert.All(capture.AllScreenshotPaths, path => Assert.False(File.Exists(ScreenshotPublicationJournal.StagingPath(path))));
+            Assert.Empty(Directory.EnumerateFiles(Path.Combine(directory, "pending-screenshot-publications"), "*.json"));
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>Restart removes interrupted transient captures instead of retaining them in the gallery.</summary>
+    [Fact]
+    public void Publication_InterruptedTransientCaptureIsDiscardedAtRecovery()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var journal = new ScreenshotPublicationJournal(store);
+            var capture = CreateStagedCapture(journal.TransientRoot);
+            journal.Publish(capture, journal.TransientRoot, store.LoadSettings().InstallationId, keep: false);
+            Assert.All(capture.AllScreenshotPaths, path => Assert.True(File.Exists(path)));
+            var errors = new List<Exception>();
+            journal.Recover(errors.Add);
+            Assert.Empty(errors);
+            Assert.All(capture.AllScreenshotPaths, path => Assert.False(File.Exists(path)));
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>A failed capture's rollback intent cannot turn back into publication after restart.</summary>
+    [Fact]
+    public void Publication_FailedRollbackRemainsADiscardAcrossRestart()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var capture = CreateStagedCapture(directory);
+            var journal = new ScreenshotPublicationJournal(store);
+            using (var held = new FileStream(ScreenshotPublicationJournal.StagingPath(capture.StoredScreenshotPaths[1]),
+                FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Assert.Throws<IOException>(() => journal.Publish(capture, directory, store.LoadSettings().InstallationId, keep: true));
+                Assert.Throws<IOException>(() => journal.Discard(capture.CaptureId));
+            }
+            var errors = new List<Exception>();
+            journal.Recover(errors.Add);
+            Assert.Empty(errors);
+            Assert.All(capture.AllScreenshotPaths, path =>
+            {
+                Assert.False(File.Exists(path));
+                Assert.False(File.Exists(ScreenshotPublicationJournal.StagingPath(path)));
+            });
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>Staging cleanup removes only expired canonical captures that have no durable publication owner.</summary>
+    [Fact]
+    public void Publication_StagingCleanupPreservesFreshForeignAndClaimedFiles()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var journal = new ScreenshotPublicationJournal(store);
+            var expiredDirectory = ScreenshotStorageLayout.GetDayDirectory(directory, DateTimeOffset.Now.AddMonths(-4));
+            Directory.CreateDirectory(expiredDirectory);
+            var expired = Path.Combine(expiredDirectory, $"{Guid.NewGuid():N}_1.0.0_manual_monitor-1.webp.pending");
+            var foreign = Path.Combine(expiredDirectory, "personal-photo.webp.pending");
+            File.WriteAllBytes(expired, [1]);
+            File.WriteAllBytes(foreign, [2]);
+            var fresh = CreateStagedCapture(directory);
+            var claimed = Path.Combine(expiredDirectory, $"{fresh.CaptureId}_1.0.0_manual_monitor-1.webp.pending");
+            File.WriteAllBytes(claimed, [3]);
+            using (var held = new FileStream(ScreenshotPublicationJournal.StagingPath(fresh.StoredScreenshotPaths[0]),
+                FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Assert.Throws<IOException>(() => journal.Publish(fresh, directory, store.LoadSettings().InstallationId, keep: true));
+                journal.CleanupUnclaimedStages(directory, DateTimeOffset.Now.AddMonths(-1), CancellationToken.None);
+                Assert.False(File.Exists(expired));
+                Assert.True(File.Exists(foreign));
+                Assert.True(File.Exists(claimed));
+                Assert.All(fresh.AllScreenshotPaths, path => Assert.True(File.Exists(ScreenshotPublicationJournal.StagingPath(path))));
+            }
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    // directory is a generated fixture path whose recursive cleanup must stay under the named test root.
+    private static void DeleteTemporaryDirectory(string directory)
+    {
+        var root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "WorkTrail.Tests")) + Path.DirectorySeparatorChar;
+        var target = Path.GetFullPath(directory);
+        if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Screenshot fixture cleanup must stay inside its temporary test root.");
+        Directory.Delete(target, recursive: true);
+    }
+
+    /// <summary>Startup removes fresh unclaimed transient staging while leaving retained staging for its retention period.</summary>
+    [Fact]
+    public async Task Recovery_UnclaimedTransientStagesAreRemovedBeforeCaptureWorkersStart()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var journal = new ScreenshotPublicationJournal(store);
+            var transient = CreateStagedCapture(journal.TransientRoot);
+            var retained = CreateStagedCapture(directory);
+
+            await using var application = CreateApplication(store);
+
+            Assert.All(transient.AllScreenshotPaths, path => Assert.False(File.Exists(ScreenshotPublicationJournal.StagingPath(path))));
+            Assert.All(retained.AllScreenshotPaths, path => Assert.True(File.Exists(ScreenshotPublicationJournal.StagingPath(path))));
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
+    /// <summary>Direct AI capture publishes before decoding and removes transient files with their durable intent.</summary>
+    /// <param name="keep">Whether the synthetic capture should remain in the gallery after analysis.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Analysis_DirectCapturePublishesBeforeDecoderAndHonorsRetention(bool keep)
+    {
+        var directory = CreateTemporaryDirectory();
+        var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable(TestApiKeyVariable, "sk-test-only-key-1234567890", EnvironmentVariableTarget.Process);
+        try
+        {
+            var store = CreateStore(directory);
+            store.SaveSettings(store.LoadSettings() with
+            {
+                OpenAiEnabled = true,
+                AiApiKeyName = TestApiKeyVariable,
+                ScreenshotsEnabled = true,
+                KeepScreenshots = keep
+            });
+            var captureService = new StagedCaptureService();
+            var decoded = false;
+            var service = new OpenAiAnalysisService(store, captureService, new SuccessfulDecoder(paths =>
+            {
+                decoded = true;
+                Assert.NotEmpty(paths);
+                Assert.All(paths, path => Assert.True(File.Exists(path)));
+                Assert.All(paths, path => Assert.False(File.Exists(ScreenshotPublicationJournal.StagingPath(path))));
+                Assert.Equal(2, store.LoadScreenshotCaptureTimes(paths, CancellationToken.None).Count);
+                Assert.Equal(keep ? 2 : 0,
+                    store.GetScreenshotGallery(DateOnly.FromDateTime(captureService.Capture!.CapturedAt!.Value.LocalDateTime)).Items.Count);
+            }));
+
+            await service.AnalyzeCurrentScreenAsync(activity: null, origin: "snapshot.manual");
+
+            Assert.True(decoded);
+            var capture = Assert.IsType<ScreenshotCaptureResult>(captureService.Capture);
+            Assert.All(capture.AllScreenshotPaths, path => Assert.Equal(keep, File.Exists(path)));
+            Assert.All(capture.AllScreenshotPaths, path => Assert.False(File.Exists(ScreenshotPublicationJournal.StagingPath(path))));
+            Assert.Equal(keep ? 2 : 0, store.GetScreenshotGallery(DateOnly.FromDateTime(capture.CapturedAt!.Value.LocalDateTime)).Items.Count);
+            var recoveryErrors = new List<Exception>();
+            new ScreenshotPublicationJournal(store).Recover(recoveryErrors.Add);
+            Assert.Empty(recoveryErrors);
+            Assert.Empty(Directory.EnumerateFiles(Path.Combine(directory, "pending-screenshot-publications"), "*.json"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(TestApiKeyVariable, previousApiKey, EnvironmentVariableTarget.Process);
+            DeleteTemporaryDirectory(directory);
+        }
+    }
+
+    // root is the disposable test-only workspace for completed but unpublished images.
+    private static ScreenshotCaptureResult CreateStagedCapture(string root)
+    {
+        var capturedAt = DateTimeOffset.Now;
+        var day = ScreenshotStorageLayout.GetDayDirectory(root, capturedAt);
+        Directory.CreateDirectory(day);
+        var captureId = Guid.NewGuid().ToString("N");
+        var paths = Enumerable.Range(1, 2).Select(monitor =>
+            Path.Combine(day, $"{captureId}_1.0.0_manual_monitor-{monitor}.webp")).ToArray();
+        foreach (var path in paths) File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(path), [1, 2, 3]);
+        return new ScreenshotCaptureResult(captureId, paths, paths, ScreenshotCaptureOrigins.Manual, CapturedAt: capturedAt);
+    }
+
     private static LocalStore CreateStore(string dataDirectory)
     {
         var store = new LocalStore(dataDirectory);
@@ -686,7 +996,7 @@ public sealed class ScreenshotDeletionTests
             new FakeHardwareTelemetryService(),
             analysis ?? new UnexpectedAnalysisService(),
             new StartupService(),
-            new BuildInformationService());
+            new BuildInformationService(), startScheduledSnapshotTimer: false);
 
     private static string CreateTemporaryDirectory()
     {
@@ -731,10 +1041,27 @@ public sealed class ScreenshotDeletionTests
             throw new InvalidOperationException("The deletion tests must not analyze a historical snapshot.");
     }
 
-    private sealed class SuccessfulDecoder : IAIDecoder
+    private sealed class StagedCaptureService : IScreenCaptureService
+    {
+        internal ScreenshotCaptureResult? Capture { get; private set; }
+
+        /// <inheritdoc />
+        public ScreenshotCaptureResult CaptureByMode(string directory, string captureMode, string captureOrigin,
+            Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
+        {
+            var decision = authorizeCapture(ScreenshotCaptureContext.Unavailable);
+            if (decision != ScreenshotCaptureDecision.Allowed) throw new ScreenshotCapturePreconditionException(decision);
+            Capture = CreateStagedCapture(directory);
+            return Capture;
+        }
+    }
+
+    // onDecode verifies publication at the provider boundary without reading images or making network calls.
+    private sealed class SuccessfulDecoder(Action<IReadOnlyList<string>>? onDecode = null) : IAIDecoder
     {
         public string Provider => "openai";
 
+        /// <inheritdoc />
         public Task<AiProviderResult> DecodeAsync(
             string prompt,
             IReadOnlyList<string> screenshotPaths,
@@ -742,8 +1069,10 @@ public sealed class ScreenshotDeletionTests
             string apiKey,
             string correlationId,
             AiProviderRequestOptions? requestOptions = null,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(new AiProviderResult(
+            CancellationToken cancellationToken = default)
+        {
+            onDecode?.Invoke(screenshotPaths);
+            return Task.FromResult(new AiProviderResult(
                 "## Activity\n\n- Coding.",
                 new AiUsageMetrics(),
                 "response-id",
@@ -753,5 +1082,6 @@ public sealed class ScreenshotDeletionTests
                 200,
                 1,
                 null));
+        }
     }
 }

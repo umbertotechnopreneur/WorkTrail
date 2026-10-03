@@ -10,7 +10,7 @@ These instructions apply to every change in this repository.
 
 ## Product and documentation
 
-- Follow the [MeUp style guide](docs/assets/meup/README.md). Keep a common README structure and author signature across MailMeUp, PromptMeUp, and WorkTrail while giving each a distinct accent and concrete benefit.
+- Follow the [MeUp style guide](docs/assets/meup/README.md). Keep a common README structure and author signature across AgentInbox, PromptMeUp, and WorkTrail while giving each a distinct accent and concrete benefit.
 - Lead README and original project copy with what WorkTrail does for the reader. Use plain English, short sentences, concrete actions, useful examples, and "you"; use "I", "me", and "my" for the solo maintainer, never company-style "we".
 - Avoid filler, hype, vague promises, corporate language, and AI-sounding prose. Never promise unlimited capacity or untested compatibility. Preserve exact commands, UI labels, privacy facts, limitations, contributor credits, and the distinction between implemented, tested, and planned behavior.
 - Preserve third-party quotations, licenses, attribution, and historical records. Keep UI strings separate from business logic and detailed validation procedures out of the product README.
@@ -65,6 +65,8 @@ dotnet build .\WorkTrail\WorkTrail.csproj -p:Platform=x64
 - `WorkTrail/`: Windows-first WinUI 3 app (`net10.0-windows10.0.19041.0`, x64/ARM64).
 - `scripts/`: repository utilities. `.github/`: governance, workflows, Copilot context, and tasks.
 - Track active work in `.github/tasks/todo.md` and completed work in `.github/tasks/archive.md`.
+- When preparing or updating a PR, record notable implemented user or contributor changes in `CHANGELOG.md` under `Unreleased`, in the same PR. Use the final diff and completed task records as evidence; do not copy open tasks, private plans, or claim unverified fixes. Internal-only changes may omit an entry when the PR explains why.
+- Keep changelog entries concise and group them under Added, Changed, Fixed, Removed, or Security as applicable. Keep durable engineering lessons in `.github/tasks/lessons.md`; validation details belong in the PR and technical task records. Update entries if the PR scope changes. Move `Unreleased` entries to a dated version only during an explicitly authorized release; never infer a release from a merge or local build.
 - Keep repository-wide rules here; `.github/copilot-instructions.md` is only a pointer and need not be reread when this file is already current in context.
 
 ## Licensing

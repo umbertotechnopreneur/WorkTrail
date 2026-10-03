@@ -9,6 +9,38 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Inspect the converted controls in the installed app's UI Automation tree and
+  exercise the theme, capture, gallery and export paths on an isolated Windows desktop.
+  Update `docs/UI_AUTOMATION.md` by UI surface only after the relevant interactions pass.
+
+- [ ] Drain pending hardware requests before disposing tracking and its snapshot gate.
+  Attempt every runtime shutdown step even after one fails, and protect the normal WinUI
+  close handler with error reporting and logging shutdown. Verify close during collection
+  and injected disposal failures using synthetic services before a separately approved live run.
+- [ ] Restore previously enabled advanced sensors after the application is ready, so UAC
+  consent or its timeout cannot hold the initial window. Keep fresh installation consent explicit.
+- [ ] Preserve PawnIO's pending-reboot requirement across WorkTrail restarts until Windows
+  has rebooted or the loaded driver is positively verified. Registry package version alone
+  must not authorize activation after installer exit code 3010.
+- [ ] Bound gallery memory with paged metadata and selected-capture detail loading while
+  retaining all hardware, OCR, and AI data in SQLite. Measure large synthetic days before
+  claiming a memory improvement; live profiling requires separate owner authorization.
+
+- [ ] Finish final synthetic Core validation of the implemented screenshot publication,
+  deletion recovery, shared retention inventory, and cancellable SQLite transaction.
+  The previous run passed 150 of 151 cases and exposed duplicate raw/stored progress;
+  the fix and final publication cleanup review are complete, with a rerun awaiting owner
+  approval. Keep real screenshots untouched and preserve failed recovery intents.
+- [ ] Visually accept the export title bar, grouping help dialog, and temporary Excel
+  previews at supported Windows scaling levels and themes. Confirm worksheet layout
+  in Excel. A live paid Batch submission, interruption/recovery, and cloud cancellation
+  require separate owner authorization; automated validation uses simulated responses.
+
+- [ ] Visually accept monthly retention at Windows scaling levels in light, dark, and high
+  contrast themes, including Free/Premium choices, a missed monthly cleanup after startup,
+  and shutdown while the shared progress dialog is active. Package installation remains
+  separately authorized.
+
 - [ ] Visually accept the astronomical agenda's 17-country holiday filters, Latin
   saints, per-entry artwork and same-window settings at Windows x64 scale levels;
   confirm sunrise ordering, reference marker and polar-day presentation. Local

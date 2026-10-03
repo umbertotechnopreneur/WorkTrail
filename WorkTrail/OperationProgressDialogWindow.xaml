@@ -38,6 +38,7 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <ScrollViewer
                 HorizontalScrollBarVisibility="Disabled"
@@ -61,6 +62,13 @@
                 Grid.Row="2"
                 HorizontalAlignment="Stretch"
                 IsIndeterminate="True" />
+            <Button
+                x:Name="CancelOperationButton"
+                Grid.Row="3"
+                MinWidth="110"
+                HorizontalAlignment="Right"
+                AutomationProperties.AutomationId="OperationProgress.Cancel"
+                Click="CancelOperationButton_Click" />
         </Grid>
     </Grid>
 </Window>

@@ -37,6 +37,7 @@ public static class SettingsCatalog
     public static IReadOnlyList<SettingDescriptor> Definitions { get; } =
     [
         Boolean("screenshots.enabled", "Allow application-initiated screenshot capture."),
+        Boolean("screenshots.notifications", "Show Windows notifications with a temporary preview after successful captures."),
         Boolean("screenshots.keep", "Keep screenshots after analysis."),
         Choice("screenshots.mode", "Select all displays or only the active window.", ScreenshotModes),
         Text("screenshots.directory", "Directory used for WorkTrail screenshot artifacts.", "path"),
@@ -67,7 +68,7 @@ public static class SettingsCatalog
         Boolean("ai.show_cost_guardrail", "Include local cost guardrail state in status output."),
         Choice("language", "Application language.", ProductLanguageCatalog.UiChoices, requiresRestart: true),
         Choice("theme", "Application color theme.", Themes),
-        Choice("position", "Player flyout anchor.", FlyoutAnchors),
+        Choice("position", "Main window anchor.", FlyoutAnchors),
         Boolean("window.titlebar.auto_hide", "Automatically hide title bars in all windows when the pointer leaves."),
         Boolean("window.snapping.enabled", "Snap within 5 pixels of WorkTrail windows or monitor edges; leaving the monitor disables snapping for that drag."),
         Integer("window.main.opacity_percent", "Player window opacity from 25 through 100 percent."),
@@ -80,8 +81,6 @@ public static class SettingsCatalog
         Boolean("window.world_clocks.show_in_taskbar", "Show the world-clock window in the Windows taskbar."),
         Boolean("window.world_map.show_in_taskbar", "Show the world-map window in the Windows taskbar."),
         Boolean("window.lunar_phase.show_in_taskbar", "Show the lunar-phase window in the Windows taskbar."),
-        Boolean("taskbar.widget.visible", "Show the compact control in the Windows taskbar."),
-        Choice("taskbar.widget.position", "Taskbar control anchor.", TaskbarAnchors),
         Text("activity.span_label", "Short local activity label, limited to 20 characters."),
         Text("activity.label.save", "Create or update a label using an Id, Name, Icon and Color JSON object; empty Id creates a label.", "json"),
         Text("activity.label.delete", "Delete a label by ID; deleting the selected label clears selection."),
@@ -102,8 +101,8 @@ public static class SettingsCatalog
         Text("active_hours.sunday.breaks", "Informational Sunday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
         Boolean("startup.enabled", "Start WorkTrail after Windows sign-in."),
         Boolean("tracking.start_on_launch", "Start tracking on the next application launch.", requiresRestart: true),
-        Integer("retention.screenshots_days", "Days to retain WorkTrail-owned screenshot artifacts."),
-        Integer("retention.data_days", "Days to retain completed local activity files."),
+        Integer("retention.screenshots_days", "Calendar-month screenshot retention: 30, 60 or 90 selects 1, 2 or 3 months. Free is limited to 30."),
+        Integer("retention.data_days", "Calendar-month activity retention: 30, 60 or 90 selects 1, 2 or 3 months. Free is limited to 30."),
         Boolean("plugins.word.enabled", "Enable safe Microsoft Word context details."),
         Boolean("plugins.excel.enabled", "Enable safe Microsoft Excel context details."),
         Boolean("plugins.vscode.enabled", "Enable safe Visual Studio Code context details."),
@@ -123,6 +122,7 @@ public static class SettingsCatalog
         value = normalizedKey switch
         {
             "screenshots.enabled" => settings.ScreenshotsEnabled,
+            "screenshots.notifications" => settings.ScreenshotNotificationsEnabled,
             "screenshots.keep" => settings.KeepScreenshots,
             "screenshots.mode" => settings.ScreenshotCaptureMode,
             "screenshots.directory" => settings.ScreenshotDirectory,
@@ -166,8 +166,6 @@ public static class SettingsCatalog
             "window.world_clocks.show_in_taskbar" => settings.WorldClockWindowShowInTaskbar,
             "window.world_map.show_in_taskbar" => settings.WorldMapWindowShowInTaskbar,
             "window.lunar_phase.show_in_taskbar" => settings.LunarPhaseWindowShowInTaskbar,
-            "taskbar.widget.visible" => settings.TaskbarWidgetVisible,
-            "taskbar.widget.position" => settings.TaskbarWidgetPosition,
             "activity.span_label" => settings.SpanLabel,
             "activity.label.save" => settings.ActivityLabels ?? [],
             "activity.label.delete" => string.Empty,
@@ -253,6 +251,7 @@ public static class SettingsCatalog
             switch (key)
             {
                 case "screenshots.enabled" when TryBoolean(value, out var screenshots): current = current with { ScreenshotsEnabled = screenshots }; break;
+                case "screenshots.notifications" when TryBoolean(value, out var screenshotNotifications): current = current with { ScreenshotNotificationsEnabled = screenshotNotifications }; break;
                 case "screenshots.keep" when TryBoolean(value, out var keep): current = current with { KeepScreenshots = keep }; break;
                 case "screenshots.mode" when Canonical(ScreenshotModes, value) is { } screenshotMode: current = current with { ScreenshotCaptureMode = screenshotMode }; break;
                 case "screenshots.directory" when TryDirectory(value, allowEmpty: false, out var screenshotDirectory): current = current with { ScreenshotDirectory = screenshotDirectory }; break;
@@ -295,8 +294,6 @@ public static class SettingsCatalog
                 case "window.world_clocks.show_in_taskbar" when TryBoolean(value, out var worldClockShowInTaskbar): current = current with { WorldClockWindowShowInTaskbar = worldClockShowInTaskbar }; break;
                 case "window.world_map.show_in_taskbar" when TryBoolean(value, out var worldMapShowInTaskbar): current = current with { WorldMapWindowShowInTaskbar = worldMapShowInTaskbar }; break;
                 case "window.lunar_phase.show_in_taskbar" when TryBoolean(value, out var lunarPhaseShowInTaskbar): current = current with { LunarPhaseWindowShowInTaskbar = lunarPhaseShowInTaskbar }; break;
-                case "taskbar.widget.visible" when TryBoolean(value, out var taskbarVisible): current = current with { TaskbarWidgetVisible = taskbarVisible }; break;
-                case "taskbar.widget.position" when Canonical(TaskbarAnchors, value) is { } taskbarPosition: current = current with { TaskbarWidgetPosition = taskbarPosition }; break;
                 case "activity.span_label" when value is not null && value.Length <= 20: current = current with { SpanLabel = value }; break;
                 case "activity.label.save" when ActivityLabelCatalog.TrySave(current, value, out var savedLabels): current = savedLabels; break;
                 case "activity.label.delete" when ActivityLabelCatalog.TryDelete(current, value, out var deletedLabels): current = deletedLabels; break;
@@ -304,8 +301,8 @@ public static class SettingsCatalog
                 case "activity.label.select" when (current.ActivityLabels ?? []).FirstOrDefault(label => label.Id == value) is { } selectedLabel: current = current with { SpanLabel = selectedLabel.Name }; break;
                 case "startup.enabled" when TryBoolean(value, out var startup): current = current with { StartWithWindows = startup }; break;
                 case "tracking.start_on_launch" when TryBoolean(value, out var startOnLaunch): current = current with { StartTrackingOnLaunch = startOnLaunch }; break;
-                case "retention.screenshots_days" when TryInteger(value, 0, 3650, out var screenshotDays): current = current with { ScreenshotRetentionDays = screenshotDays }; break;
-                case "retention.data_days" when TryInteger(value, 0, 3650, out var dataDays): current = current with { DataRetentionDays = dataDays }; break;
+                case "retention.screenshots_days" when TryInteger(value, 30, 90, out var screenshotDays) && screenshotDays is 30 or 60 or 90: current = current with { ScreenshotRetentionDays = screenshotDays }; break;
+                case "retention.data_days" when TryInteger(value, 30, 90, out var dataDays) && dataDays is 30 or 60 or 90: current = current with { DataRetentionDays = dataDays }; break;
                 case "plugins.word.enabled" when TryBoolean(value, out var word): current = current with { EnableWordDetailPlugin = word }; break;
                 case "plugins.excel.enabled" when TryBoolean(value, out var excel): current = current with { EnableExcelDetailPlugin = excel }; break;
                 case "plugins.vscode.enabled" when TryBoolean(value, out var vscode): current = current with { EnableVsCodeDetailPlugin = vscode }; break;
@@ -368,10 +365,13 @@ public static class SettingsCatalog
             Theme = Canonical(Themes, settings.Theme) ?? "system",
             MainWindowOpacityPercent = Math.Clamp(settings.MainWindowOpacityPercent, 25, 100),
             WorldClockWindowOpacityPercent = Math.Clamp(settings.WorldClockWindowOpacityPercent, 25, 100),
+            // The Premium taskbar widget is unavailable in v1; persisted visibility cannot enable it.
+            TaskbarWidgetVisible = false,
             TaskbarWidgetPosition = Canonical(TaskbarAnchors, settings.TaskbarWidgetPosition) ?? TaskbarWidgetPositions.Left,
             SpanLabel = settings.SpanLabel is { Length: <= 20 } ? settings.SpanLabel.Trim() : string.Empty,
-            DataRetentionDays = Math.Clamp(settings.DataRetentionDays, 0, 3650),
-            ScreenshotRetentionDays = Math.Clamp(settings.ScreenshotRetentionDays, 0, 3650),
+            // Existing day settings now represent fixed month choices; cleanup uses AddMonths, never AddDays.
+            DataRetentionDays = RetentionPolicy.NormalizeDays(settings.DataRetentionDays),
+            ScreenshotRetentionDays = RetentionPolicy.NormalizeDays(settings.ScreenshotRetentionDays),
             OpenAiDailyLimit = Math.Clamp(settings.OpenAiDailyLimit, MinimumAiDailyLimit, MaximumAiDailyLimit),
             OpenAiDailyCostUsd = Math.Max(0m, settings.OpenAiDailyCostUsd),
             EstimatedCostPerAnalysisUsd = Math.Clamp(settings.EstimatedCostPerAnalysisUsd, 0m, 1_000m),

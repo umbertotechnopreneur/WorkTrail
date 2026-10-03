@@ -80,6 +80,7 @@ public sealed partial class MainWindow : Window
     private bool _isTracking;
     private const int PendingSnapshotDeleteSeconds = 30;
     private bool _pendingSnapshotDeleteInProgress;
+    private bool _manualScreenshotCaptureInProgress;
     private int _lastSessionRefreshInProgress;
     private DateTimeOffset _nextLastSessionRefreshAt = DateTimeOffset.MinValue;
     private bool _startupAiWarningShown;
@@ -376,6 +377,7 @@ public sealed partial class MainWindow : Window
         CaptureMenu.IsEnabled = isReady;
         OperationsMenuItem.IsEnabled = isReady;
         TakeScreenshotButton.IsEnabled = isReady
+            && !_manualScreenshotCaptureInProgress
             && !_pendingSnapshotDeleteInProgress
             && DeleteSnapshotButton.Visibility != Visibility.Visible;
         DeleteSnapshotButton.IsEnabled = isReady && DeleteSnapshotButton.Visibility == Visibility.Visible;
@@ -383,8 +385,15 @@ public sealed partial class MainWindow : Window
 
     #endregion
 
+    /// <summary>Refreshes the dashboard while its owning window is still open.</summary>
+    /// <param name="cancellationToken">Cancels the requested application queries.</param>
     private async Task RefreshDashboardAsync(CancellationToken cancellationToken = default)
     {
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (_dashboardSubscription is not null)
         {
             _dashboardRefreshCoordinator.RequestRefresh();
@@ -392,6 +401,11 @@ public sealed partial class MainWindow : Window
         }
 
         var state = await _viewModel.RefreshAsync(cancellationToken);
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (state.Succeeded && state.Value is not null)
         {
             UpdatePlayer(state.Value);
@@ -440,9 +454,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>Refreshes the month-to-date AI spend at a bounded cadence while the integration is active.</summary>
+    /// <summary>Refreshes visible month-to-date AI spend at a bounded cadence while the window is open.</summary>
     private async Task RefreshAiMonthlySpendAsync()
     {
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (!_showAiMonthlySpend || !AiState.Enabled)
         {
             AiMonthlySpendPanel.Visibility = Visibility.Collapsed;
@@ -462,7 +481,7 @@ public sealed partial class MainWindow : Window
             // not turn the one-second dashboard cadence into a request loop.
             _nextAiSpendRefreshAt = DateTimeOffset.UtcNow.Add(AiSpendFailureRetryInterval);
             var result = await _application.GetAiPricingOverviewAsync(_lifecycle.Token);
-            if (result.Succeeded && result.Value is not null)
+            if (!_dashboardSurfaceClosed && result.Succeeded && result.Value is not null)
             {
                 UpdateAiMonthlySpend(result.Value);
                 _nextAiSpendRefreshAt = DateTimeOffset.UtcNow.Add(AiSpendRefreshInterval);
@@ -525,6 +544,8 @@ public sealed partial class MainWindow : Window
                 T("Dialog.Ok")));
     }
 
+    /// <summary>Displays pending application notifications on the open dashboard.</summary>
+    /// <param name="cancellationToken">Cancels the notification request.</param>
     private async Task DrainApplicationNotificationsAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _notificationDrainInProgress, 1) != 0)
@@ -535,7 +556,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var result = await _application.DrainApplicationNotificationsAsync(cancellationToken);
-            if (!result.Succeeded || result.Value is null)
+            if (_dashboardSurfaceClosed || !result.Succeeded || result.Value is null)
             {
                 return;
             }
@@ -614,25 +635,53 @@ public sealed partial class MainWindow : Window
             T("Sensors.OpenFailed"));
 
     /// <summary>Captures a screenshot manually when the user clicks the "Take snapshot" button.</summary>
+    /// <param name="sender">The capture button.</param>
+    /// <param name="e">The click event.</param>
     private async void TakeScreenshotButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!_workspaceUiReady || !TakeScreenshotButton.IsEnabled)
+        if (_dashboardSurfaceClosed || !_workspaceUiReady || _manualScreenshotCaptureInProgress || !TakeScreenshotButton.IsEnabled)
         {
             return;
         }
 
+        _manualScreenshotCaptureInProgress = true;
         TakeScreenshotButton.IsEnabled = false;
-        var result = await _application.CaptureManualScreenshotAsync(CancellationToken.None);
-        if (!result.Succeeded)
+        var cancellationToken = _lifecycle.Token;
+        try
         {
-            await RefreshDashboardAsync();
-            return;
+            var result = await _application.CaptureManualScreenshotAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshDashboardAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result.Succeeded)
+            {
+                await RefreshLastSessionIfDueAsync(force: true);
+            }
         }
-
-        await RefreshDashboardAsync();
-
-        // Refresh the last session to show the newly captured screenshot.
-        await RefreshLastSessionIfDueAsync(force: true);
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Closing the window also ends its pending UI work.
+        }
+        catch (Exception)
+        {
+            if (!_dashboardSurfaceClosed)
+            {
+                _dialogs.Notifications.ShowWarning(
+                    MainNotificationBanner,
+                    T("Operations.Status.RuntimeUnavailable.Title"),
+                    T("Operations.Status.RuntimeUnavailable.Message"));
+            }
+        }
+        finally
+        {
+            _manualScreenshotCaptureInProgress = false;
+            if (!_dashboardSurfaceClosed)
+            {
+                TakeScreenshotButton.IsEnabled = _workspaceUiReady
+                    && !_pendingSnapshotDeleteInProgress
+                    && DeleteSnapshotButton.Visibility != Visibility.Visible;
+            }
+        }
     }
 
     /// <summary>Opens the detached screenshot scheduling window.</summary>
@@ -1724,11 +1773,13 @@ public sealed partial class MainWindow : Window
         SetPlayerSectionVisibility(MainWindowLayoutSection.PendingSnapshot, PendingSnapshotPanel, isVisible: true);
     }
 
+    /// <summary>Hides the delete countdown without enabling a capture that is still running.</summary>
+    /// <param name="enableCapture">Whether the current capture state permits a new screenshot.</param>
     private void HidePendingSnapshotDeleteUi(bool enableCapture)
     {
         SetPlayerSectionVisibility(MainWindowLayoutSection.PendingSnapshot, PendingSnapshotPanel, isVisible: false);
         DeleteSnapshotButton.Visibility = Visibility.Collapsed;
-        TakeScreenshotButton.IsEnabled = _workspaceUiReady && enableCapture;
+        TakeScreenshotButton.IsEnabled = _workspaceUiReady && enableCapture && !_manualScreenshotCaptureInProgress;
         AutomationProperties.SetName(PendingSnapshotPanel, string.Empty);
         AutomationProperties.SetHelpText(DeleteSnapshotButton, string.Empty);
     }
@@ -1904,8 +1955,14 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Refreshes the visible latest-session projection at a bounded cadence.</summary>
+    /// <param name="force">Refresh even when the normal display interval has not elapsed.</param>
     private async Task RefreshLastSessionIfDueAsync(bool force = false)
     {
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (!force && (DetailsPanel.Visibility != Visibility.Visible || DateTimeOffset.Now < _nextLastSessionRefreshAt))
         {
             return;
@@ -1918,11 +1975,15 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var lastSession = await _viewModel.RefreshLastSessionAsync(CancellationToken.None);
-            if (lastSession.Succeeded)
+            var lastSession = await _viewModel.RefreshLastSessionAsync(_lifecycle.Token);
+            if (!_dashboardSurfaceClosed && lastSession.Succeeded)
             {
                 UpdateLastSession(lastSession.Value);
             }
+        }
+        catch (OperationCanceledException) when (_lifecycle.IsCancellationRequested)
+        {
+            // There is no preview to refresh once its window has closed.
         }
         finally
         {

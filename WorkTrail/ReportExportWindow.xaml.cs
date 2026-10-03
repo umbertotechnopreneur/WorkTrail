@@ -25,10 +25,8 @@ internal sealed partial class ReportExportWindow : Window
     private readonly TaskCompletionSource<bool> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _operation;
-    private CancellationTokenSource? _previewCancellation;
     private ReportExportSetup? _setup;
-    private ReportExportPreview? _preview;
-    private string? _selectedPreviewTableName;
+    private string _summary = "";
     private bool _applying = true;
     private bool _busy;
     private bool _closed;
@@ -42,21 +40,27 @@ internal sealed partial class ReportExportWindow : Window
         _strings = strings;
         InitializeComponent();
         TitlePremiumBadge.Text = strings.Translate("Premium.Badge");
+        TimesheetPremiumBadge.Text = strings.Translate("Premium.Badge");
+        TimesheetRate.ValueChanged += (_, _) => ResetTimesheetSelection();
         Title = T("Export.Title");
         RootGrid.RequestedTheme = theme;
         UiLocalization.Apply(RootGrid, strings);
+        UiLocalization.SetAccessibleLabel(ExcelPreviewCopyButton, T("Timesheet.CopyPreviewPath"));
+        ToolTipService.SetToolTip(ExcelPreviewCopyButton, T("Timesheet.CopyPreviewPath"));
+        GroupingInfoLink.Content = T("Export.MoreInformation");
+        UiLocalization.SetAccessibleLabel(GroupingInfoLink, T("Export.MoreInformation"));
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WindowHandle));
         _titleBar = new CustomTitleBarController(this, appWindow, RootGrid, TitleDragRegion,
-            TitleBarLeftInsetColumn, TitleBarRightInsetColumn, static () => Array.Empty<FrameworkElement>(), useTallTitleBar: false);
+            TitleBarLeftInsetColumn, TitleBarRightInsetColumn, static () => Array.Empty<FrameworkElement>(), useTallTitleBar: false, allowAutoHide: false);
         _placement = new WindowPlacementService(application, this, appWindow, WindowStateKeys.ReportExport, 1160, 820, 24, ownerAppWindow.Id);
         WindowInteropService.SetOwner(WindowHandle, ownerHandle);
         if (appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = true; presenter.IsMaximizable = true; presenter.IsMinimizable = false;
-            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: false);
+            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: true);
         }
-        foreach (var item in new[] { ExportTab, ContentsTab, SummaryTab })
+        foreach (var item in new[] { ExportTab, ContentsTab, SummaryTab, TimesheetTab })
         {
             item.Content = T((string)item.Tag);
             UiLocalization.SetAccessibleLabel(item, (string)item.Content);
@@ -64,11 +68,19 @@ internal sealed partial class ReportExportWindow : Window
         FromPicker.Header = T("Export.From"); ToPicker.Header = T("Export.To");
         UiLocalization.SetAccessibleLabel(FromPicker, T("Export.From"));
         UiLocalization.SetAccessibleLabel(ToPicker, T("Export.To"));
+        UiLocalization.SetAccessibleLabel(TodayButton, T("Export.Today"));
+        UiLocalization.SetAccessibleLabel(WeekButton, T("Export.Week"));
+        UiLocalization.SetAccessibleLabel(MonthButton, T("Export.Month"));
         FormatCombo.ItemsSource = new[] { "Excel .xlsx", "CSV .zip", "JSON .json" };
+        WorkbookThemeCombo.ItemsSource = new[] { T("Export.ThemeWorkTrail"), T("Export.ThemeGreen"), T("Export.ThemeBlue") };
+        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme"));
         DescriptionCombo.ItemsSource = new[] { T("Export.Brief"), T("Export.CompleteText"), T("Export.Both") };
         SeparatorCombo.ItemsSource = new[] { ";", "," };
         GroupingCombo.ItemsSource = new[] { T("Export.ByDay"), T("Export.ByApplication"), T("Export.WholePeriod") };
         GroupingCombo.SelectedIndex = 0;
+        TimesheetGroupingCombo.ItemsSource = new[] { T("Timesheet.ByDay"), T("Timesheet.ByWeek") };
+        TimesheetGroupingCombo.SelectedIndex = 0;
+        UiLocalization.SetAccessibleLabel(TimesheetGroupingCombo, T("Timesheet.Grouping"));
         Navigation.SelectedItem = ExportTab;
         ExportButton.IsEnabled = false;
         appWindow.Closing += (_, args) =>
@@ -77,7 +89,7 @@ internal sealed partial class ReportExportWindow : Window
         };
         Closed += (_, _) =>
         {
-            _closed = true; _lifetime.Cancel(); _previewCancellation?.Cancel(); _operation?.Cancel();
+            _closed = true; _lifetime.Cancel(); _operation?.Cancel();
             _messages.CloseActive(); _titleBar.Dispose(); _completion.TrySetResult(true);
         };
     }
@@ -111,7 +123,7 @@ internal sealed partial class ReportExportWindow : Window
             DevicesCombo.ItemsSource = new[] { T("Export.AllDevices") }.Concat(_setup.Installations.Select(item => item.FriendlyName)).ToArray();
             ApplyOptions(_setup.Options with { Language = _strings.Language });
             ExportButton.IsEnabled = true;
-            await RefreshPreviewAsync();
+            await LoadTimesheetJobsAsync();
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception) { if (!_closed) ShowStatus("Export.Failed", InfoBarSeverity.Error); }
@@ -125,6 +137,7 @@ internal sealed partial class ReportExportWindow : Window
         TimeZoneText.Text = options.TimeZoneId;
         DevicesCombo.SelectedIndex = 0;
         FormatCombo.SelectedIndex = (int)options.Format;
+        WorkbookThemeCombo.SelectedIndex = (int)options.Theme;
         DescriptionCombo.SelectedIndex = (int)options.DescriptionMode;
         SeparatorCombo.SelectedIndex = options.CsvSeparator == ";" ? 0 : 1;
         DaysCheck.IsChecked = options.IncludeDays; ApplicationsCheck.IsChecked = options.IncludeApplications;
@@ -146,6 +159,7 @@ internal sealed partial class ReportExportWindow : Window
             ToInclusive = DateOnly.FromDateTime(to.DateTime),
             Language = _strings.Language,
             Format = (ReportExportFormat)FormatCombo.SelectedIndex,
+            Theme = (ReportWorkbookTheme)WorkbookThemeCombo.SelectedIndex,
             InstallationId = DevicesCombo.SelectedIndex > 0 ? _setup.Installations[DevicesCombo.SelectedIndex - 1].InstallationId : null,
             IncludeDays = DaysCheck.IsChecked == true,
             IncludeApplications = ApplicationsCheck.IsChecked == true,
@@ -162,120 +176,101 @@ internal sealed partial class ReportExportWindow : Window
         };
     }
 
-    private async void OptionsChanged(object sender, RoutedEventArgs e)
+    // sender identifies a range, device or file-content control.
+    // e describes the change; file formatting must not discard a paid AI draft.
+    private void OptionsChanged(object sender, RoutedEventArgs e)
     {
         if (_applying || _closed || _setup is null || _busy) return;
-        ResetSummary();
+        var sourcesChanged = ReferenceEquals(sender, FromPicker) || ReferenceEquals(sender, ToPicker)
+            || ReferenceEquals(sender, DevicesCombo) || ReferenceEquals(sender, this);
+        if (sourcesChanged)
+        {
+            ResetSummary();
+            ResetTimesheetSelection();
+        }
+        else ResetExcelPreview();
         UpdateFormatHelp();
-        await RefreshPreviewAsync(debounce: true);
     }
 
     private void DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) => OptionsChanged(sender, new RoutedEventArgs());
 
-    private void UpdateFormatHelp() => FormatHelp.Text = T(FormatCombo.SelectedIndex switch
-    { 1 => "Export.CsvHelp", 2 => "Export.JsonHelp", _ => "Export.ExcelHelp" });
+    private void UpdateFormatHelp()
+    {
+        FormatHelp.Text = T(FormatCombo.SelectedIndex switch
+        { 1 => "Export.CsvHelp", 2 => "Export.JsonHelp", _ => "Export.ExcelHelp" });
+        SeparatorCombo.Visibility = FormatCombo.SelectedIndex == (int)ReportExportFormat.Csv
+            ? Visibility.Visible : Visibility.Collapsed;
+        DescriptionCombo.IsEnabled = DescriptionsCheck.IsChecked == true;
+    }
 
     private void SummaryOptionsChanged(object sender, RoutedEventArgs e) { if (!_applying) ResetSummary(); }
 
     private void ResetSummary()
     {
-        SummaryText.Text = "";
+        ResetExcelPreview();
+        _summary = "";
+        SummaryTextBox.Text = "";
         IncludeSummaryCheck.IsChecked = false;
     }
 
-    private void SummaryText_TextChanged(object sender, TextChangedEventArgs e)
+    // sender is the editable draft that will be passed to export.
+    // args describes a text change; edits invalidate an existing workbook sample without sending AI requests.
+    private void SummaryTextBox_TextChanged(object sender, TextChangedEventArgs args)
     {
-        if (IncludeSummaryCheck is not null && string.IsNullOrWhiteSpace(SummaryText.Text)) IncludeSummaryCheck.IsChecked = false;
+        if (_closed || sender is not TextBox editor) return;
+        _summary = editor.Text;
+        ResetExcelPreview();
     }
 
-    private async Task RefreshPreviewAsync(bool debounce = false)
-    {
-        _previewCancellation?.Cancel();
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _previewCancellation = cancellation;
-        _preview = null;
-        PreviewRows.Children.Clear(); FileNameText.Text = ""; MetricsText.Text = ""; RowsText.Text = "";
-        SheetsCombo.ItemsSource = null;
-        BusyBar.Visibility = Visibility.Visible;
-        try
-        {
-            if (debounce) await Task.Delay(350, cancellation.Token);
-            var result = await _application.PreviewReportExportAsync(CollectOptions(), cancellation.Token);
-            if (_closed || cancellation.IsCancellationRequested) return;
-            if (!result.Succeeded || result.Value is null) { ShowStatus(result.MessageKey, InfoBarSeverity.Error); return; }
-            _preview = result.Value;
-            FileNameText.Text = _preview.SuggestedFileName + _preview.Extension;
-            var time = TimeSpan.FromSeconds(_preview.ActiveSeconds);
-            MetricsText.Text = _strings.Format("Export.Metrics", (int)time.TotalHours, time.Minutes, _preview.CaptureCount, _preview.DescriptionCount);
-            SheetsCombo.ItemsSource = _preview.Tables.Select(table => T("Export.Table." + table.Name)).ToArray();
-            // Retain the table identity across refreshes, including cancelled requests and localized captions.
-            // If its content was excluded, select the first available table (Summary).
-            var selectedTableIndex = _preview.Tables.ToList().FindIndex(table => table.Name == _selectedPreviewTableName);
-            SheetsCombo.SelectedIndex = selectedTableIndex >= 0 ? selectedTableIndex : 0;
-            StatusBar.IsOpen = false;
-        }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-        catch (Exception) { if (!_closed && !cancellation.IsCancellationRequested) ShowStatus("Export.Failed", InfoBarSeverity.Error); }
-        finally
-        {
-            if (ReferenceEquals(_previewCancellation, cancellation))
-            { _previewCancellation = null; if (!_closed && !_busy) BusyBar.Visibility = Visibility.Collapsed; }
-        }
-    }
-
-    private void Sheets_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        PreviewRows.Children.Clear();
-        if (_preview is null || SheetsCombo.SelectedIndex < 0) return;
-        var table = _preview.Tables[SheetsCombo.SelectedIndex];
-        _selectedPreviewTableName = table.Name;
-        AddPreviewRow(table.Columns, true);
-        foreach (var row in table.Rows) AddPreviewRow(row, false);
-        RowsText.Text = _strings.Format("Export.Rows", table.Rows.Count, table.RowCount);
-    }
-
-    private void AddPreviewRow(IReadOnlyList<string> values, bool header)
-    {
-        var grid = new Grid
-        {
-            BorderThickness = new Thickness(0, 0, 0, 1),
-            BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["DividerStrokeColorDefaultBrush"]
-        };
-        for (var index = 0; index < values.Count; index++)
-        {
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(172) });
-            var text = new TextBlock
-            {
-                Text = values[index],
-                Margin = new Thickness(8),
-                TextWrapping = TextWrapping.Wrap,
-                MaxLines = header ? 2 : 4,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                IsTextSelectionEnabled = true
-            };
-            if (header) text.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-            Grid.SetColumn(text, index); grid.Children.Add(text);
-        }
-        PreviewRows.Children.Add(grid);
-    }
-
+    // sender is the wizard navigation control.
+    // args identifies the destination; only switching report types invalidates the workbook sample.
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (ExportPage is null) return;
+        if (ExportPage is null || TimesheetPage is null) return;
         ExportPage.Visibility = ReferenceEquals(args.SelectedItem, ExportTab) ? Visibility.Visible : Visibility.Collapsed;
         ContentsPage.Visibility = ReferenceEquals(args.SelectedItem, ContentsTab) ? Visibility.Visible : Visibility.Collapsed;
         var summary = ReferenceEquals(args.SelectedItem, SummaryTab);
+        var timesheet = ReferenceEquals(args.SelectedItem, TimesheetTab);
+        if (timesheet != (TimesheetPage.Visibility == Visibility.Visible))
+            ResetExcelPreview();
+        if (SummaryEditorPanel is not null)
+        {
+            SummaryEditorPanel.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
+            ExcelPreviewExpander.Visibility = summary ? Visibility.Collapsed : Visibility.Visible;
+            ReportWelcomePanel.Visibility = ReferenceEquals(args.SelectedItem, ExportTab) ? Visibility.Visible : Visibility.Collapsed;
+            ReportTabHelpPanel.Visibility = ReportWelcomePanel.Visibility;
+            ContentsDetailsPage.Visibility = ReferenceEquals(args.SelectedItem, ContentsTab) ? Visibility.Visible : Visibility.Collapsed;
+            ExcelPreviewStatusPanel.Visibility = !summary && _excelPreviewPath is not null
+                ? Visibility.Visible : Visibility.Collapsed;
+            UpdateReportColumns(BodyGrid.ActualWidth);
+        }
+        TimesheetPage.Visibility = timesheet ? Visibility.Visible : Visibility.Collapsed;
+        UpdateTimesheetPanels();
+        ExportButton.Visibility = timesheet ? Visibility.Collapsed : Visibility.Visible;
+        SaveButton.Visibility = timesheet ? Visibility.Collapsed : Visibility.Visible;
+        if (timesheet) TimesheetRange.Text = $"{FromPicker.Date:d} — {ToPicker.Date:d} · {TimeZoneText.Text}";
         SummaryPage.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
-        SummaryPreview.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
-        TablePreview.Visibility = summary ? Visibility.Collapsed : Visibility.Visible;
-        PreviewTitle.Text = T(summary ? "Export.Editable.Header" : "Export.Preview");
     }
 
-    private void BodyGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void BodyGrid_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateReportColumns(e.NewSize.Width);
+
+    // width is the available report width; narrow windows stack content while summaries reserve more space for editing.
+    private void UpdateReportColumns(double width)
     {
-        var stacked = e.NewSize.Width < 740;
-        PreviewColumn.Width = new GridLength(stacked ? 0 : 3, stacked ? GridUnitType.Pixel : GridUnitType.Star);
-        Grid.SetColumn(PreviewPanel, stacked ? 0 : 1); Grid.SetRow(PreviewPanel, stacked ? 1 : 0);
+        if (ResultsPanel is null) return;
+        var stacked = width < 740;
+        var summary = ReferenceEquals(Navigation.SelectedItem, SummaryTab);
+        EditorColumn.Width = new GridLength(summary && !stacked ? 2 : 1, GridUnitType.Star);
+        PreviewColumn.Width = new GridLength(stacked ? 0 : summary ? 3 : 1, stacked ? GridUnitType.Pixel : GridUnitType.Star);
+        Grid.SetColumn(ResultsPanel, stacked ? 0 : 1); Grid.SetRow(ResultsPanel, stacked ? 1 : 0);
+    }
+
+    // sender is the scrolling report surface beneath the fixed title bar.
+    // args provides the visible height so the draft fills the page without expanding to fit all its text.
+    private void BodyScrollViewer_SizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        if (SummaryEditorPanel is not null)
+            SummaryEditorPanel.Height = Math.Max(420, args.NewSize.Height - 40);
     }
 
     private void SetPeriod(DateOnly from, DateOnly to)
@@ -295,7 +290,6 @@ internal sealed partial class ReportExportWindow : Window
     private void Today_Click(object sender, RoutedEventArgs e) { if (_setup is { } setup) SetPeriod(setup.Options.ToInclusive, setup.Options.ToInclusive); }
     private void Week_Click(object sender, RoutedEventArgs e) { if (_setup is { } setup) SetPeriod(setup.Options.ToInclusive.AddDays(-6), setup.Options.ToInclusive); }
     private void Month_Click(object sender, RoutedEventArgs e) { if (_setup is { } setup) SetPeriod(new(setup.Options.ToInclusive.Year, setup.Options.ToInclusive.Month, 1), setup.Options.ToInclusive); }
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshPreviewAsync();
 
     private async void Save_Click(object sender, RoutedEventArgs e) => await RunAsync(async token =>
     {
@@ -324,6 +318,7 @@ internal sealed partial class ReportExportWindow : Window
             DetailedCheck.IsChecked == true, SummaryExcerptCheck.IsChecked == true, SummaryFullDescriptionCheck.IsChecked == true,
             SummaryOcrCheck.IsChecked == true, SummaryTitlesCheck.IsChecked == true);
         var result = await _application.GenerateReportSummaryAsync(request, token);
+        if (_closed) return;
         if (!result.Succeeded || result.Value is null)
         {
             var size = result.Issues.FirstOrDefault(issue => issue.Code == "export.summary_too_large");
@@ -336,7 +331,11 @@ internal sealed partial class ReportExportWindow : Window
             else ShowStatus(result.MessageKey, InfoBarSeverity.Error);
             return;
         }
-        SummaryText.Text = result.Value.Text;
+        _summary = result.Value.Text;
+        SummaryTextBox.Text = _summary;
+        SummaryTextBox.SelectionStart = 0;
+        SummaryTextBox.SelectionLength = 0;
+        ResetExcelPreview();
         ProviderText.Text = result.Value.Provider + " · " + result.Value.Model;
         IncludeSummaryCheck.IsChecked = true;
         ShowStatus("Export.SummaryReady", InfoBarSeverity.Success);
@@ -348,15 +347,17 @@ internal sealed partial class ReportExportWindow : Window
         if (!access.Succeeded || access.Value is null) { ShowStatus("Premium.Error", InfoBarSeverity.Error); return; }
         if (!FeatureCatalog.IsAllowed(ProductFeature.ReportExport, access.Value)) { await ShowUpgradeAsync(); return; }
         var options = CollectOptions();
-        var preview = await _application.PreviewReportExportAsync(options, token);
-        if (!preview.Succeeded || preview.Value is null) { ShowStatus(preview.MessageKey, InfoBarSeverity.Error); return; }
-        var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary, SuggestedFileName = preview.Value.SuggestedFileName };
-        picker.FileTypeChoices.Add(T("Export.Title"), [preview.Value.Extension]);
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            SuggestedFileName = ReportExportFileNames.SuggestedFileName(options)
+        };
+        picker.FileTypeChoices.Add(T("Export.Title"), [ReportExportFileNames.Extension(options.Format)]);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WindowHandle);
         var destination = await picker.PickSaveFileAsync();
         if (destination is null || token.IsCancellationRequested) return;
         var result = await _application.ExportReportAsync(new(options, destination.Path,
-            IncludeSummaryCheck.IsChecked == true ? SummaryText.Text : null, Overwrite: true), token);
+            IncludeSummaryCheck.IsChecked == true ? _summary : null, Overwrite: true), token);
         if (result.Code == "feature.premium_required") { await ShowUpgradeAsync(); return; }
         if (!result.Succeeded || result.Value is null) { ShowStatus(result.MessageKey, InfoBarSeverity.Error); return; }
         StatusBar.Message = _strings.Format("Export.SavedTo", result.Value.Path);
@@ -369,9 +370,11 @@ internal sealed partial class ReportExportWindow : Window
     private async Task RunAsync(Func<CancellationToken, Task> action)
     {
         if (_busy || _closed || _setup is null) return;
-        _previewCancellation?.Cancel();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _operation = cancellation; _busy = true;
+        ExcelPreviewGenerateButton.IsEnabled = false;
+        ExcelPreviewOpenButton.IsEnabled = false;
+        ExcelPreviewCopyButton.IsEnabled = false;
         Navigation.IsEnabled = false; ExportButton.IsEnabled = false; SaveButton.IsEnabled = false;
         CancelButton.Visibility = Visibility.Visible; BusyBar.Visibility = Visibility.Visible; StatusBar.IsOpen = false;
         try { await action(cancellation.Token); }
@@ -383,6 +386,9 @@ internal sealed partial class ReportExportWindow : Window
             if (!_closed)
             {
                 Navigation.IsEnabled = true; ExportButton.IsEnabled = true; SaveButton.IsEnabled = true;
+                ExcelPreviewGenerateButton.IsEnabled = true;
+                ExcelPreviewOpenButton.IsEnabled = _excelPreviewPath is not null;
+                ExcelPreviewCopyButton.IsEnabled = _excelPreviewPath is not null;
                 CancelButton.Visibility = Visibility.Collapsed; BusyBar.Visibility = Visibility.Collapsed;
                 if (_closeAfterCancel) Close();
             }

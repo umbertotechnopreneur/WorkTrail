@@ -129,15 +129,15 @@ public sealed class WinUiSurfaceContractTests
         Assert.DoesNotContain(options.Descendants(), element => HasName(element, "SaveOptionsButton"));
         Assert.Contains("RegisterAutoSaveHandlers();", optionsSource, StringComparison.Ordinal);
         Assert.Contains("QueueAutoSave", optionsSource, StringComparison.Ordinal);
-        var openFolderButton = options.Descendants().Single(element => HasName(element, "OpenScreenshotFolderButton"));
+        var retention = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        var openFolderButton = retention.Descendants().Single(element => HasName(element, "OpenFolderButton"));
         Assert.Null(openFolderButton.Attribute("Content"));
         Assert.Contains(openFolderButton.Descendants(), element => element.Name.LocalName == "FontIcon" && element.Attribute("Glyph")?.Value == "\uE8A7");
-        var keepScreenshots = options.Descendants().Single(element => HasName(element, "KeepScreenshotsSwitch"));
+        var keepScreenshots = retention.Descendants().Single(element => HasName(element, "KeepScreenshotsSwitch"));
         Assert.Equal("Right", keepScreenshots.Attribute("HorizontalAlignment")?.Value);
         Assert.Equal("0", keepScreenshots.Attribute("MinWidth")?.Value);
         Assert.Contains(options.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.Startup");
-        Assert.Contains(options.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.Snapshots");
-        foreach (var compactSwitchName in new[] { "StartWithWindowsSwitch", "StartTrackingOnLaunchSwitch", "ScreenshotsEnabledSwitch" })
+        foreach (var compactSwitchName in new[] { "StartWithWindowsSwitch", "StartTrackingOnLaunchSwitch" })
         {
             var compactSwitch = options.Descendants().Single(element => HasName(element, compactSwitchName));
             Assert.Equal("1", compactSwitch.Attribute("Grid.Column")?.Value);
@@ -157,15 +157,15 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains(window.Descendants(), element => element.Name.LocalName == "SensorOptionsControl");
         var sensors = options.Descendants().Single(element => HasName(element, "HardwareSensorsSection"));
         var slider = sensors.Descendants().Single(element => HasName(element, "HardwareSamplingSlider"));
-        Assert.Equal(3, sensors.Descendants().Count(element => element.Name.LocalName == "ToggleSwitch"));
+        Assert.Equal(2, sensors.Descendants().Count(element => element.Name.LocalName == "ToggleSwitch"));
         Assert.DoesNotContain(sensors.Descendants(), element => element.Name.LocalName is "Expander" or "Border");
         Assert.Equal("0", slider.Attribute("Minimum")?.Value);
         Assert.Equal("3", slider.Attribute("Maximum")?.Value);
         Assert.Equal("1", slider.Attribute("StepFrequency")?.Value);
         Assert.Equal("False", slider.Attribute("IsThumbToolTipEnabled")?.Value);
-        Assert.Contains(sensors.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Sensors.SaveSnapshots.Description");
+        Assert.DoesNotContain(sensors.Descendants(), element => HasName(element, "HardwareSaveSnapshotsSwitch"));
         Assert.Contains(sensors.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Sensors.Enabled.Description");
-        foreach (var key in new[] { "sensors.enabled", "sensors.advanced", "sensors.save_snapshots", "sensors.sampling_profile" })
+        foreach (var key in new[] { "sensors.enabled", "sensors.advanced", "sensors.sampling_profile" })
         {
             Assert.Contains(key, source, StringComparison.Ordinal);
         }
@@ -177,7 +177,7 @@ public sealed class WinUiSurfaceContractTests
         Assert.True(activation.IndexOf("if (_busy", StringComparison.Ordinal) < activation.IndexOf("_application.EnableAdvancedHardwareTelemetryAsync", StringComparison.Ordinal));
         Assert.Contains("HardwareSensorsEnabled: true, HardwareUseAdvancedSensors: true", activation, StringComparison.Ordinal);
         Assert.Contains("var enabled = HardwareSensorsEnabledSwitch.IsOn && !_busy;", source, StringComparison.Ordinal);
-        foreach (var control in new[] { "HardwareAdvancedSwitch", "HardwareSaveSnapshotsSwitch", "HardwareSamplingSlider" })
+        foreach (var control in new[] { "HardwareAdvancedSwitch", "HardwareSamplingSlider" })
         {
             Assert.Contains($"{control}.IsEnabled = enabled;", source, StringComparison.Ordinal);
         }
@@ -1020,10 +1020,11 @@ public sealed class WinUiSurfaceContractTests
         var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
         var languagePicker = options.Descendants().Single(element => element.Attributes().Any(attribute => attribute.Name.LocalName == "Name" && attribute.Value == "LanguageBox"));
         var searchLanguagePicker = options.Descendants().Single(element => HasName(element, "SearchLanguageBox"));
-        var ocrLanguagePicker = options.Descendants().Single(element => HasName(element, "OcrLanguageBox"));
+        var retention = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        var ocrLanguagePicker = retention.Descendants().Single(element => HasName(element, "OcrLanguageBox"));
         string?[] uiChoices = ["system", "zh-Hans", "en-US", "fr-FR", "de-DE", "it-IT", "ko-KR", "pt-BR", "pt-PT", "es-ES", "vi-VN"];
         string?[] searchChoices = ["system", "en-US", "it-IT", "fr-FR", "de-DE", "es-ES", "zh-Hans", "vi-VN", "ko-KR", "pt-PT", "pt-BR"];
-        string?[] ocrChoices = ["system", "en-US", "it-IT", "fr-FR", "de-DE", "es-ES", "zh-CN", "ko-KR", "pt-PT", "pt-BR"];
+        string[] ocrChoices = ["system", "en-US", "it-IT", "fr-FR", "de-DE", "es-ES", "zh-CN", "ko-KR", "pt-PT", "pt-BR"];
 
         Assert.Equal("Options.Language", languagePicker.Attribute("Tag")?.Value);
         Assert.Equal(
@@ -1036,39 +1037,20 @@ public sealed class WinUiSurfaceContractTests
             searchLanguagePicker.Descendants()
                 .Where(element => element.Name.LocalName == "ComboBoxItem")
                 .Select(element => element.Attribute("Tag")?.Value));
-        Assert.Equal(
-            ocrChoices,
-            ocrLanguagePicker.Descendants()
-                .Where(element => element.Name.LocalName == "ComboBoxItem")
-                .Select(element => element.Attribute("Tag")?.Value));
+        Assert.Equal("Options.Ocr.Language", ocrLanguagePicker.Attribute("Tag")?.Value);
+        Assert.Equal(ocrChoices, WorkTrail.Application.SettingsCatalog.Definitions.Single(setting => setting.Key == "ocr.language").AllowedValues);
         Assert.Equal("🌐 System", languagePicker.Descendants().Single(element => element.Name.LocalName == "ComboBoxItem" && element.Attribute("Tag")?.Value == "system").Attribute("Content")?.Value);
         Assert.Equal("🇮🇹 Italian · Italiano", languagePicker.Descendants().Single(element => element.Name.LocalName == "ComboBoxItem" && element.Attribute("Tag")?.Value == "it-IT").Attribute("Content")?.Value);
     }
 
     [Fact]
-    public void TaskbarWidgetOptions_ExposeOptInVisibilityAndSupportedAnchors()
+    public void TaskbarWidgetOptions_AreAbsentInV1()
     {
         var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
         var source = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml.cs"));
-        var visibilitySwitch = options.Descendants().Single(element => HasName(element, "TaskbarWidgetVisibleSwitch"));
-        var positionPicker = options.Descendants().Single(element => HasName(element, "TaskbarWidgetPositionBox"));
-        var positions = positionPicker
-            .Descendants()
-            .Where(element => element.Name.LocalName == "ComboBoxItem")
-            .Select(element => element.Attribute("Tag")?.Value)
-            .OfType<string>()
-            .ToArray();
-
-        Assert.Contains(options.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.TaskbarWidget");
-        Assert.Contains(options.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.TaskbarWidget.Description");
-        Assert.Equal("TaskbarWidgetVisibleSwitch_Toggled", visibilitySwitch.Attribute("Toggled")?.Value);
-        Assert.Null(visibilitySwitch.Attribute("IsOn"));
-        Assert.Equal("False", positionPicker.Attribute("IsEnabled")?.Value);
-        Assert.Equal(["left", "right"], positions);
-        Assert.Contains("QueueAutoSave(\"taskbar.widget.visible\"", source, StringComparison.Ordinal);
-        Assert.Contains("TaskbarWidgetPositionBox.IsEnabled = TaskbarWidgetVisibleSwitch.IsOn;", source, StringComparison.Ordinal);
+        Assert.DoesNotContain(options.Descendants(), element => element.Attribute("Tag")?.Value.Contains("TaskbarWidget", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain("taskbar.widget.", source, StringComparison.Ordinal);
     }
-
     [Fact]
     public void TaskbarSurface_UsesAnAlphaCapableWpfHost()
     {
@@ -1137,34 +1119,20 @@ public sealed class WinUiSurfaceContractTests
     }
 
     [Fact]
-    public void MainWindow_RemainsReachableWhenTaskbarWidgetAttaches()
+    public void MainWindow_RemainsReachableWithoutTaskbarWidgetActivation()
     {
         var appSource = File.ReadAllText(RepositoryFile("WorkTrail", "App.xaml.cs"));
         var startUiStart = appSource.IndexOf("private async void StartUi", StringComparison.Ordinal);
         var startUiEnd = appSource.IndexOf("private async void MainWindow_WorldClocksRequested", StringComparison.Ordinal);
-        var applyWidgetStart = appSource.IndexOf("private void ApplyTaskbarWidgetSettings", StringComparison.Ordinal);
-        var applyWidgetEnd = appSource.IndexOf("private void DisposeTaskbarWidget", StringComparison.Ordinal);
-
         Assert.True(startUiStart >= 0 && startUiEnd > startUiStart, "App.StartUi source contract was not found.");
-        Assert.True(applyWidgetStart >= 0 && applyWidgetEnd > applyWidgetStart, "Taskbar widget settings lifecycle contract was not found.");
         var startUiSource = appSource[startUiStart..startUiEnd];
-        var applyWidgetSource = appSource[applyWidgetStart..applyWidgetEnd];
         Assert.Contains("_window.EnsureNotificationAreaIcon();", startUiSource, StringComparison.Ordinal);
         Assert.Contains("_window.ShowFlyout();", startUiSource, StringComparison.Ordinal);
         Assert.Contains("await CompleteUiStartupAsync(application, options, initialSettings.Value);", startUiSource, StringComparison.Ordinal);
-        Assert.Contains("private async Task CompleteUiStartupAsync", startUiSource, StringComparison.Ordinal);
         Assert.DoesNotContain("GetAwaiter().GetResult()", startUiSource, StringComparison.Ordinal);
-        Assert.True(
-            startUiSource.LastIndexOf("_window.ShowFlyout();", StringComparison.Ordinal) < startUiSource.IndexOf("ApplyTaskbarWidgetSettings(settings);", StringComparison.Ordinal),
-            "MainWindow must remain reachable before optional taskbar-widget initialization.");
-        Assert.Contains("if (!settings.TaskbarWidgetVisible)", applyWidgetSource, StringComparison.Ordinal);
-        Assert.Contains("new TaskbarWidgetSurface", applyWidgetSource, StringComparison.Ordinal);
-        Assert.Contains("taskbarWidgetSurface.Attach(settings.TaskbarWidgetPosition)", applyWidgetSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("TaskbarWidgetSurface", appSource, StringComparison.Ordinal);
         Assert.DoesNotContain("HideTopLevelWindow", startUiSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("FirstRun", startUiSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("AlwaysShowInTaskbar", startUiSource, StringComparison.Ordinal);
     }
-
     [Fact]
     public void ScreenshotWindow_SavesPlacementBeforeItsNativeHandleIsDestroyed()
     {

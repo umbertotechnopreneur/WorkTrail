@@ -24,6 +24,9 @@ public sealed partial class SensorsWindow : Window
     private readonly SensorTraceHistory _history = new();
     private readonly Dictionary<string, SensorTrackControl> _tracks = new(StringComparer.Ordinal);
     private IReadOnlyList<SensorMonitorRow> _rows = [];
+    private DateTimeOffset _snapshotTimestamp;
+    private double _measuredWidth = -1;
+    private double _observedRowHeight;
     private int _pageIndex;
     private string _snapshotStatus = string.Empty;
     private AppSettings _settings;
@@ -64,6 +67,7 @@ public sealed partial class SensorsWindow : Window
     internal void ApplySettings(AppSettings settings)
     {
         if (_closed) return;
+        _measuredWidth = -1;
         _settings = settings;
         _strings = new LocalizationService(settings.UiLanguage);
         RootGrid.RequestedTheme = settings.Theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
@@ -132,16 +136,9 @@ public sealed partial class SensorsWindow : Window
                 TracksHost.Children.Remove(_tracks[removed]);
                 _tracks.Remove(removed);
             }
-            for (var index = 0; index < rows.Count; index++)
-            {
-                var row = rows[index];
-                if (!_tracks.TryGetValue(row.Id, out var control))
-                {
-                    control = new SensorTrackControl();
-                    _tracks.Add(row.Id, control);
-                }
-                control.Apply(row, _history.Update(row, snapshot.Timestamp), snapshot.Timestamp, _strings);
-            }
+            // Every device keeps its trace, while controls and trace copies belong to the visible page.
+            foreach (var row in rows) _history.Record(row, snapshot.Timestamp);
+            _snapshotTimestamp = snapshot.Timestamp;
             _rows = rows;
             RenderPage();
             // Ordinary partial readings are explained in the footer tooltip; failures remain visible.
@@ -176,6 +173,7 @@ public sealed partial class SensorsWindow : Window
         _tracks.Clear();
         _rows = [];
         _pageIndex = 0;
+        _observedRowHeight = 0;
         TracksHost.Children.Clear();
         TracksHost.RowDefinitions.Clear();
         PageNavigation.Visibility = Visibility.Collapsed;
@@ -212,11 +210,33 @@ public sealed partial class SensorsWindow : Window
             TemperatureHeaderColumn.Width = new GridLength(layout.TemperatureWidth);
             TracksHost.Width = width;
             if (_rows.Count == 0) return;
-            var rowHeight = _tracks.Values.Max(track => track.MeasureForViewport(width));
+            if (Math.Abs(_measuredWidth - width) > 0.5)
+            {
+                _observedRowHeight = 0;
+                _measuredWidth = width;
+            }
+            var rowHeight = Math.Max(layout.RowHeight, _observedRowHeight);
             var pageSize = SensorMonitorLayout.PageSize(TracksViewport.ActualHeight, rowHeight, _rows.Count);
-            var pageCount = (_rows.Count + pageSize - 1) / pageSize;
-            _pageIndex = Math.Clamp(_pageIndex, 0, pageCount - 1);
-            var visible = _rows.Skip(_pageIndex * pageSize).Take(pageSize).Select(row => _tracks[row.Id]).ToArray();
+            SensorTrackControl[] visible;
+            int pageCount;
+            while (true)
+            {
+                pageCount = (_rows.Count + pageSize - 1) / pageSize;
+                _pageIndex = Math.Clamp(_pageIndex, 0, pageCount - 1);
+                visible = _rows.Skip(_pageIndex * pageSize).Take(pageSize).Select(row =>
+                {
+                    if (!_tracks.TryGetValue(row.Id, out var control))
+                        _tracks.Add(row.Id, control = new SensorTrackControl());
+                    control.Apply(row, _history.GetPoints(row.Id), _snapshotTimestamp, _strings);
+                    return control;
+                }).ToArray();
+                // Visible measurements can shrink the page until it fits; hidden controls are never measured.
+                rowHeight = Math.Max(rowHeight, visible.Max(track => track.MeasureForViewport(width)));
+                _observedRowHeight = rowHeight;
+                var fittedSize = SensorMonitorLayout.PageSize(TracksViewport.ActualHeight, rowHeight, _rows.Count);
+                if (fittedSize == pageSize) break;
+                pageSize = fittedSize;
+            }
             if (!TracksHost.Children.SequenceEqual(visible))
             {
                 // Reparent only when the page changes; every device keeps receiving samples while off-page.
