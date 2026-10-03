@@ -1,0 +1,22 @@
+{
+  "origin": "Two factual examples supplied explicitly by the owner in the task request",
+  "verified_on": "2026-09-24",
+  "verification": "Both linked Vatican News pages were opened and confirmed the name and recurring month/day. No biography, image, or article body was copied.",
+  "license_note": "Vatican News retains its website copyright. These supplied name/date/link facts are not an assertion that the website is open data or licensed Apache-2.0/CC0.",
+  "records": [
+    {
+      "Month": 9,
+      "Day": 24,
+      "Name": "Beata Vergine Maria della Mercede",
+      "Source": "https://www.vaticannews.va/en/saints/09/24/b--v--mary-of-the--mercy.html",
+      "event_key": "OwnerOurLadyOfMercy"
+    },
+    {
+      "Month": 10,
+      "Day": 4,
+      "Name": "San Francesco d’Assisi",
+      "Source": "https://www.vaticannews.va/it/santo-del-giorno/10/04/san-francesco-d-assisi.html",
+      "event_key": "StFrancisAssisi"
+    }
+  ]
+}

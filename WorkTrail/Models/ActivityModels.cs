@@ -143,7 +143,10 @@ public sealed record AppSettings(
     bool WindowSnappingEnabled = true,
     IReadOnlyList<WorkTrail.Application.ActivityLabelDefinition>? ActivityLabels = null,
     DateTimeOffset? LastRetentionCleanupAt = null,
-    bool ScreenshotNotificationsEnabled = true);
+    bool ScreenshotNotificationsEnabled = true,
+    string AstronomyAgendaCityId = "",
+    IReadOnlyList<string>? AstronomyAgendaCountryCodes = null,
+    bool AstronomyAgendaShowSaints = true);
 
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,

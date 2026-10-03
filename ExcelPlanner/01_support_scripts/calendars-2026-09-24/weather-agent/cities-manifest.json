@@ -1,0 +1,56 @@
+{
+  "generated_utc": "2026-09-23T21:04:43",
+  "output_file": "Cities.csv",
+  "source_headers": [
+    "Code",
+    "City",
+    "WindowsId",
+    "IanaId"
+  ],
+  "rows": 206,
+  "unique_codes": 206,
+  "headers": [
+    "Code",
+    "City",
+    "WindowsId",
+    "IanaId",
+    "Latitude",
+    "Longitude",
+    "CountryCode"
+  ],
+  "ordered_codes_preserved": true,
+  "original_four_columns_preserved": true,
+  "coordinates_valid": true,
+  "country_codes_valid": true,
+  "missing_codes": 0,
+  "ambiguous_codes": 0,
+  "validation_errors": 0,
+  "api_calls": 0,
+  "source_sha256": "9e44f6d0ef9ba10dd101ce76d16d1a0879e098569b5211a5cca09d1170ff2498",
+  "catalog_sha256": "43549bdecff714e9a2b4995b5e0337a6046f440a91485a1035b2de2a7d242670",
+  "output_sha256": "8982254ff7fd13470150293427b2dd7cfbff72184fccf6aba953a258f6242d0c",
+  "encoding": "utf-8-sig",
+  "delimiter": ";",
+  "line_ending": "CRLF",
+  "decimal_separator": ".",
+  "timestamp_semantics": "UTC",
+  "mapping": "Code = city.id (exact BINARY comparison)",
+  "appended_fields": {
+    "Latitude": "city.latitude",
+    "Longitude": "city.longitude",
+    "CountryCode": "city.country_code"
+  },
+  "source_values_unchanged": true,
+  "catalog_unchanged": true,
+  "query_types": {
+    "Code": "text",
+    "City": "text",
+    "WindowsId": "text",
+    "IanaId": "text",
+    "Latitude": "number",
+    "Longitude": "number",
+    "CountryCode": "text"
+  },
+  "query_number_culture": "en-US",
+  "query_migration": "Require all seven headers in this order; retain Code as the join key."
+}

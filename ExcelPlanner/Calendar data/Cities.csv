@@ -1,0 +1,207 @@
+﻿Code;City;WindowsId;IanaId;Latitude;Longitude;CountryCode
+hanoi;Hanoi;SE Asia Standard Time;Asia/Bangkok;21.0245;105.84117;VN
+mumbai;Mumbai;India Standard Time;Asia/Kolkata;19.07282592774;72.88261413574219;IN
+minsk;Minsk;Belarus Standard Time;Europe/Minsk;53.90019;27.56653;BY
+rome;Rome;W. Europe Standard Time;Europe/Rome;41.89193;12.51133;IT
+london;London;GMT Standard Time;Europe/London;51.50853;-0.12574;GB
+new-york;New York;Eastern Standard Time;America/New_York;40.7142691;-74.0059729;US
+los-angeles;Los Angeles;Pacific Standard Time;America/Los_Angeles;34.05223;-118.24368;US
+abu-dhabi;Abu Dhabi;Arabian Standard Time;Asia/Dubai;24.45118;54.39696;AE
+abuja;Abuja;W. Central Africa Standard Time;Africa/Lagos;9.05785;7.49508;NG
+accra;Accra;Greenwich Standard Time;Africa/Accra;5.55602;-0.1969;GH
+addis-ababa;Addis Ababa;E. Africa Standard Time;Africa/Addis_Ababa;9.02497;38.74689;ET
+adelaide;Adelaide;Cen. Australia Standard Time;Australia/Adelaide;-34.92866;138.59863;AU
+algiers;Algiers;W. Central Africa Standard Time;Africa/Algiers;36.73225;3.08746;DZ
+amman;Amman;Jordan Standard Time;Asia/Amman;31.95522;35.94503;JO
+amsterdam;Amsterdam;W. Europe Standard Time;Europe/Amsterdam;52.37403;4.88969;NL
+andorra-la-vella;Andorra la Vella;W. Europe Standard Time;Europe/Andorra;42.50779;1.52109;AD
+ankara;Ankara;Turkey Standard Time;Europe/Istanbul;39.91987;32.85427;TR
+antananarivo;Antananarivo;E. Africa Standard Time;Indian/Antananarivo;-18.91368;47.53613;MG
+arequipa;Arequipa;SA Pacific Standard Time;America/Lima;-16.39899;-71.53747;PE
+ashgabat;Ashgabat;West Asia Standard Time;Asia/Ashgabat;37.95;58.38333;TM
+astana;Astana;Central Asia Standard Time;Asia/Almaty;51.1801;71.44598;KZ
+asuncion;Asunción;Paraguay Standard Time;America/Asuncion;-25.28646;-57.647;PY
+athens;Athens;GTB Standard Time;Europe/Athens;37.98376;23.72784;GR
+baghdad;Baghdad;Arabic Standard Time;Asia/Baghdad;33.34058;44.40088;IQ
+baku;Baku;Azerbaijan Standard Time;Asia/Baku;40.37767;49.89201;AZ
+bamako;Bamako;Greenwich Standard Time;Africa/Bamako;12.60915;-7.97522;ML
+bandung;Bandung;SE Asia Standard Time;Asia/Jakarta;-6.92222;107.60694;ID
+bangkok;Bangkok;SE Asia Standard Time;Asia/Bangkok;13.75398;100.50144;TH
+barcelona;Barcelona;Romance Standard Time;Europe/Madrid;41.38879;2.15899;ES
+beijing;Beijing;China Standard Time;Asia/Shanghai;39.9075;116.39723;CN
+beirut;Beirut;Middle East Standard Time;Asia/Beirut;33.89332;35.50157;LB
+bekasi;Bekasi;SE Asia Standard Time;Asia/Jakarta;-6.2349;106.9896;ID
+belgrade;Belgrade;Central Europe Standard Time;Europe/Belgrade;44.80401;20.46513;RS
+belem;Belém;SA Eastern Standard Time;America/Belem;-1.45583;-48.50444;BR
+berlin;Berlin;W. Europe Standard Time;Europe/Berlin;52.52437;13.41053;DE
+bern;Bern;W. Europe Standard Time;Europe/Zurich;46.94809;7.44744;CH
+bien-hoa;Biên Hòa;SE Asia Standard Time;Asia/Ho_Chi_Minh;10.94469;106.82432;VN
+bogota;Bogotá;SA Pacific Standard Time;America/Bogota;4.60971;-74.08175;CO
+bologna;Bologna;W. Europe Standard Time;Europe/Rome;44.49381;11.33875;IT
+brasilia;Brasília;E. South America Standard Time;America/Sao_Paulo;-15.77972;-47.92972;BR
+bratislava;Bratislava;Central Europe Standard Time;Europe/Bratislava;48.14816;17.10674;SK
+brazzaville;Brazzaville;W. Central Africa Standard Time;Africa/Brazzaville;-4.26613;15.28318;CG
+brisbane;Brisbane;E. Australia Standard Time;Australia/Brisbane;-27.46794;153.02809;AU
+brno;Brno;Central Europe Standard Time;Europe/Prague;49.19522;16.60796;CZ
+bruges;Brugge;Romance Standard Time;Europe/Brussels;51.20892;3.22424;BE
+brussels;Brussels;Romance Standard Time;Europe/Brussels;50.85045;4.34878;BE
+bucharest;Bucharest;GTB Standard Time;Europe/Bucharest;44.43225;26.10626;RO
+budapest;Budapest;Central Europe Standard Time;Europe/Budapest;47.49835;19.04045;HU
+buenos-aires;Buenos Aires;Argentina Standard Time;America/Argentina/Buenos_Aires;-34.61315;-58.37723;AR
+cairo;Cairo;Egypt Standard Time;Africa/Cairo;30.06263;31.24967;EG
+cali;Cali;SA Pacific Standard Time;America/Bogota;3.43054;-76.5199;CO
+canberra;Canberra;AUS Eastern Standard Time;Australia/Sydney;-35.28346;149.12807;AU
+caracas;Caracas;Venezuela Standard Time;America/Caracas;10.48801;-66.87919;VE
+cartagena;Cartagena;SA Pacific Standard Time;America/Bogota;10.39817;-75.49328;CO
+chelyabinsk;Chelyabinsk;Ekaterinburg Standard Time;Asia/Yekaterinburg;55.1611;61.42877;RU
+chicago;Chicago;Central Standard Time;America/Chicago;41.85003;-87.65005;US
+chisinau;Chisinau;E. Europe Standard Time;Europe/Chisinau;47.00902;28.85938;MD
+conakry;Conakry;Greenwich Standard Time;Africa/Conakry;9.53795;-13.67729;GN
+copenhagen;Copenhagen;Romance Standard Time;Europe/Copenhagen;55.67594;12.56553;DK
+curitiba;Curitiba;E. South America Standard Time;America/Sao_Paulo;-25.42778;-49.27306;BR
+cusco;Cusco;SA Pacific Standard Time;America/Lima;-13.53188;-71.96701;PE
+cordoba-argentina;Córdoba;Argentina Standard Time;America/Argentina/Cordoba;-31.40648;-64.18853;AR
+can-tho;Cần Thơ;SE Asia Standard Time;Asia/Ho_Chi_Minh;10.03711;105.78825;VN
+da-nang;Da Nang;SE Asia Standard Time;Asia/Ho_Chi_Minh;16.06778;108.22083;VN
+dakar;Dakar;Greenwich Standard Time;Africa/Dakar;14.6937;-17.44406;SN
+dallas;Dallas;Central Standard Time;America/Chicago;32.78306;-96.80667;US
+damascus;Damascus;Syria Standard Time;Asia/Damascus;33.5102;36.29128;SY
+darwin;Darwin;AUS Central Standard Time;Australia/Darwin;-12.46113;130.84185;AU
+denpasar;Denpasar;Singapore Standard Time;Asia/Makassar;-8.65;115.21667;ID
+depok;Depok;SE Asia Standard Time;Asia/Jakarta;-6.4;106.81861;ID
+dhaka;Dhaka;Bangladesh Standard Time;Asia/Dhaka;23.7104;90.40744;BD
+domegge-di-cadore;Domegge di Cadore;W. Europe Standard Time;Europe/Rome;46.45666;12.40724;IT
+dublin;Dublin;GMT Standard Time;Europe/Dublin;53.33306;-6.24889;IE
+edinburgh;Edinburgh;GMT Standard Time;Europe/London;55.95206;-3.19648;GB
+ferrara;Ferrara;W. Europe Standard Time;Europe/Rome;44.83804;11.62057;IT
+florence;Florence;W. Europe Standard Time;Europe/Rome;43.77925;11.24626;IT
+fortaleza;Fortaleza;SA Eastern Standard Time;America/Fortaleza;-3.71722;-38.54306;BR
+gold-coast;Gold Coast;E. Australia Standard Time;Australia/Brisbane;-28.00029;153.43088;AU
+guatemala-city;Guatemala City;Central America Standard Time;America/Guatemala;14.64072;-90.51327;GT
+haiphong;Haiphong;SE Asia Standard Time;Asia/Bangkok;20.86481;106.68345;VN
+harare;Harare;South Africa Standard Time;Africa/Harare;-17.82772;31.05337;ZW
+havana;Havana;Cuba Standard Time;America/Havana;23.13302;-82.38304;CU
+helsinki;Helsinki;FLE Standard Time;Europe/Helsinki;60.16952;24.93545;FI
+ho-chi-minh-city;Ho Chi Minh City;SE Asia Standard Time;Asia/Ho_Chi_Minh;10.82302;106.62965;VN
+hobart;Hobart;Tasmania Standard Time;Australia/Hobart;-42.87936;147.32941;AU
+hong-kong;Hong Kong;China Standard Time;Asia/Hong_Kong;22.27832;114.17469;HK
+houston;Houston;Central Standard Time;America/Chicago;29.76328;-95.36327;US
+hue;Huế;SE Asia Standard Time;Asia/Bangkok;16.4619;107.59546;VN
+jakarta;Jakarta;SE Asia Standard Time;Asia/Jakarta;-6.21462;106.84513;ID
+kabul;Kabul;Afghanistan Standard Time;Asia/Kabul;34.52813;69.17233;AF
+kampala;Kampala;E. Africa Standard Time;Africa/Kampala;0.31628;32.58219;UG
+kathmandu;Kathmandu;Nepal Standard Time;Asia/Kathmandu;27.70169;85.3206;NP
+kazan;Kazan;Russian Standard Time;Europe/Moscow;55.78874;49.12214;RU
+khartoum;Khartoum;Sudan Standard Time;Africa/Khartoum;15.55177;32.53241;SD
+kigali;Kigali;South Africa Standard Time;Africa/Kigali;-1.94995;30.05885;RW
+kingston;Kingston;SA Pacific Standard Time;America/Jamaica;17.99702;-76.79358;JM
+kinshasa;Kinshasa;W. Central Africa Standard Time;Africa/Kinshasa;-4.32758;15.31357;CD
+krakow;Kraków;Central European Standard Time;Europe/Warsaw;50.06143;19.93658;PL
+krasnoyarsk;Krasnoyarsk;North Asia Standard Time;Asia/Krasnoyarsk;56.03742;92.93136;RU
+kuala-lumpur;Kuala Lumpur;Singapore Standard Time;Asia/Kuala_Lumpur;3.1412;101.68653;MY
+kyiv;Kyiv;FLE Standard Time;Europe/Kyiv;50.45466;30.5238;UA
+la-paz;La Paz;SA Western Standard Time;America/La_Paz;-16.5;-68.15;BO
+lilongwe;Lilongwe;South Africa Standard Time;Africa/Blantyre;-13.96692;33.78725;MW
+lima;Lima;SA Pacific Standard Time;America/Lima;-12.04318;-77.02824;PE
+lisbon;Lisbon;GMT Standard Time;Europe/Lisbon;38.72509;-9.1498;PT
+ljubljana;Ljubljana;Central Europe Standard Time;Europe/Ljubljana;46.05108;14.50513;SI
+lome;Lomé;Greenwich Standard Time;Africa/Lome;6.12874;1.22154;TG
+luanda;Luanda;W. Central Africa Standard Time;Africa/Luanda;-8.83682;13.23432;AO
+lusaka;Lusaka;South Africa Standard Time;Africa/Lusaka;-15.40669;28.28713;ZM
+luxembourg;Luxembourg;W. Europe Standard Time;Europe/Luxembourg;49.60982;6.13268;LU
+lyon;Lyon;Romance Standard Time;Europe/Paris;45.74906;4.84789;FR
+madrid;Madrid;Romance Standard Time;Europe/Madrid;40.4165;-3.70256;ES
+managua;Managua;Central America Standard Time;America/Managua;12.13282;-86.2504;NI
+manaus;Manaus;SA Western Standard Time;America/Manaus;-3.10194;-60.025;BR
+manila;Manila;Singapore Standard Time;Asia/Manila;14.6042;120.9822;PH
+maputo;Maputo;South Africa Standard Time;Africa/Maputo;-25.96553;32.58322;MZ
+medan;Medan;SE Asia Standard Time;Asia/Jakarta;3.58333;98.66667;ID
+medellin;Medellín;SA Pacific Standard Time;America/Bogota;6.245;-75.57151;CO
+melbourne;Melbourne;AUS Eastern Standard Time;Australia/Melbourne;-37.814;144.96332;AU
+mendoza;Mendoza;Argentina Standard Time;America/Argentina/Mendoza;-32.88946;-68.84582;AR
+mexico-city;Mexico City;Central Standard Time (Mexico);America/Mexico_City;19.42847;-99.12766;MX
+mogadishu;Mogadishu;E. Africa Standard Time;Africa/Mogadishu;2.03711;45.34375;SO
+monaco;Monaco;W. Europe Standard Time;Europe/Monaco;43.73718;7.42145;MC
+monrovia;Monrovia;Greenwich Standard Time;Africa/Monrovia;6.30054;-10.7969;LR
+montevideo;Montevideo;Montevideo Standard Time;America/Montevideo;-34.90328;-56.18816;UY
+moscow;Moscow;Russian Standard Time;Europe/Moscow;55.75204;37.61781;RU
+munich;Munich;W. Europe Standard Time;Europe/Berlin;48.13743;11.57549;DE
+n-djamena;N'Djamena;W. Central Africa Standard Time;Africa/Ndjamena;12.10672;15.0444;TD
+nairobi;Nairobi;E. Africa Standard Time;Africa/Nairobi;-1.28333;36.81667;KE
+nay-pyi-taw;Nay Pyi Taw;Myanmar Standard Time;Asia/Yangon;19.745;96.12972;MM
+newcastle-australia;Newcastle;AUS Eastern Standard Time;Australia/Sydney;-32.92953;151.7801;AU
+niamey;Niamey;W. Central Africa Standard Time;Africa/Niamey;13.51366;2.1098;NE
+nizhny-novgorod;Nizhniy Novgorod;Russian Standard Time;Europe/Moscow;56.32867;44.00205;RU
+nouakchott;Nouakchott;Greenwich Standard Time;Africa/Nouakchott;18.08581;-15.9785;MR
+novosibirsk;Novosibirsk;N. Central Asia Standard Time;Asia/Novosibirsk;55.02259;82.93175;RU
+oslo;Oslo;W. Europe Standard Time;Europe/Oslo;59.91273;10.74609;NO
+ottawa;Ottawa;Eastern Standard Time;America/Toronto;45.41117;-75.69812;CA
+ouagadougou;Ouagadougou;Greenwich Standard Time;Africa/Ouagadougou;12.36566;-1.53388;BF
+palembang;Palembang;SE Asia Standard Time;Asia/Jakarta;-2.91673;104.7458;ID
+paris;Paris;Romance Standard Time;Europe/Paris;48.85341;2.3488;FR
+perth;Perth;W. Australia Standard Time;Australia/Perth;-31.95224;115.8614;AU
+philadelphia;Philadelphia;Eastern Standard Time;America/New_York;39.95238;-75.16362;US
+phnom-penh;Phnom Penh;SE Asia Standard Time;Asia/Phnom_Penh;11.56245;104.91601;KH
+phoenix;Phoenix;US Mountain Standard Time;America/Phoenix;33.44838;-112.07404;US
+podgorica;Podgorica;Central Europe Standard Time;Europe/Podgorica;42.44124;19.26309;ME
+port-au-prince;Port-au-Prince;Haiti Standard Time;America/Port-au-Prince;18.54349;-72.33881;HT
+porto;Porto;GMT Standard Time;Europe/Lisbon;41.1485;-8.61097;PT
+porto-alegre;Porto Alegre;E. South America Standard Time;America/Sao_Paulo;-30.03283;-51.23019;BR
+prague;Prague;Central Europe Standard Time;Europe/Prague;50.08804;14.42076;CZ
+pretoria;Pretoria;South Africa Standard Time;Africa/Johannesburg;-25.74486;28.18783;ZA
+pyongyang;Pyongyang;North Korea Standard Time;Asia/Pyongyang;39.03385;125.75432;KP
+quito;Quito;SA Pacific Standard Time;America/Guayaquil;-0.22985;-78.52495;EC
+rabat;Rabat;Morocco Standard Time;Africa/Casablanca;34.01325;-6.83255;MA
+recife;Recife;SA Eastern Standard Time;America/Recife;-8.05389;-34.88111;BR
+reykjavik;Reykjavík;Greenwich Standard Time;Atlantic/Reykjavik;64.13548;-21.89541;IS
+riga;Riga;FLE Standard Time;Europe/Riga;56.946;24.10589;LV
+rio-de-janeiro;Rio de Janeiro;E. South America Standard Time;America/Sao_Paulo;-22.90642;-43.18223;BR
+riyadh;Riyadh;Arab Standard Time;Asia/Riyadh;24.68773;46.72185;SA
+rosario;Rosario;Argentina Standard Time;America/Argentina/Cordoba;-32.94682;-60.63932;AR
+saint-petersburg;Saint Petersburg;Russian Standard Time;Europe/Moscow;59.93863;30.31413;RU
+salvador;Salvador;Bahia Standard Time;America/Bahia;-12.97563;-38.49096;BR
+samara;Samara;Russia Time Zone 3;Europe/Samara;53.20767;50.13553;RU
+san-antonio;San Antonio;Central Standard Time;America/Chicago;29.42412;-98.49363;US
+san-diego;San Diego;Pacific Standard Time;America/Los_Angeles;32.71571;-117.16472;US
+san-jose;San Jose;Pacific Standard Time;America/Los_Angeles;37.33939;-121.89496;US
+san-marino;San Marino;W. Europe Standard Time;Europe/San_Marino;43.93667;12.44639;SM
+sanaa;Sanaa;Arab Standard Time;Asia/Aden;15.35452;44.20646;YE
+santiago;Santiago;Pacific SA Standard Time;America/Santiago;-33.45694;-70.64827;CL
+santo-domingo;Santo Domingo;SA Western Standard Time;America/Santo_Domingo;18.47186;-69.89232;DO
+sarajevo;Sarajevo;Central European Standard Time;Europe/Sarajevo;43.84864;18.35644;BA
+semarang;Semarang;SE Asia Standard Time;Asia/Jakarta;-6.99306;110.42083;ID
+seoul;Seoul;Korea Standard Time;Asia/Seoul;37.566;126.9784;KR
+seville;Sevilla;Romance Standard Time;Europe/Madrid;37.38283;-5.97317;ES
+singapore;Singapore;Singapore Standard Time;Asia/Singapore;1.28967;103.85007;SG
+skopje;Skopje;Central European Standard Time;Europe/Skopje;41.99646;21.43141;MK
+sofia;Sofia;FLE Standard Time;Europe/Sofia;42.69751;23.32415;BG
+stockholm;Stockholm;W. Europe Standard Time;Europe/Stockholm;59.32938;18.06871;SE
+sucre;Sucre;SA Western Standard Time;America/La_Paz;-19.03332;-65.26274;BO
+surabaya;Surabaya;SE Asia Standard Time;Asia/Jakarta;-7.24917;112.75083;ID
+sydney;Sydney;AUS Eastern Standard Time;Australia/Sydney;-33.8678499639382;151.207323074341;AU
+sao-paulo;São Paulo;E. South America Standard Time;America/Sao_Paulo;-23.5475;-46.63611;BR
+taipei;Taipei;Taipei Standard Time;Asia/Taipei;25.05306;121.52639;TW
+tallinn;Tallinn;FLE Standard Time;Europe/Tallinn;59.43696;24.75353;EE
+tangerang;Tangerang;SE Asia Standard Time;Asia/Jakarta;-6.17806;106.63;ID
+tashkent;Tashkent;West Asia Standard Time;Asia/Tashkent;41.26465;69.21627;UZ
+tbilisi;Tbilisi;Georgian Standard Time;Asia/Tbilisi;41.69143;44.83412;GE
+tehran;Tehran;Iran Standard Time;Asia/Tehran;35.69439;51.42151;IR
+thanh-hoa;Thanh Hóa;SE Asia Standard Time;Asia/Bangkok;19.8;105.76667;VN
+thuan-an;Thuận An;SE Asia Standard Time;Asia/Ho_Chi_Minh;10.9239;106.71428;VN
+tirana;Tirana;Central Europe Standard Time;Europe/Tirane;41.32744;19.81866;AL
+tokyo;Tokyo;Tokyo Standard Time;Asia/Tokyo;35.6895;139.69171;JP
+toronto;Toronto;Eastern Standard Time;America/Toronto;43.706431;-79.398642;CA
+tripoli;Tripoli;Libya Standard Time;Africa/Tripoli;32.88743;13.18733;LY
+ufa;Ufa;Ekaterinburg Standard Time;Asia/Yekaterinburg;54.74306;55.96779;RU
+vaduz;Vaduz;W. Europe Standard Time;Europe/Vaduz;47.14151;9.52154;LI
+valletta;Valletta;W. Europe Standard Time;Europe/Malta;35.89968;14.5148;MT
+valparaiso;Valparaíso;Pacific SA Standard Time;America/Santiago;-33.036;-71.62963;CL
+vatican-city;Vatican City;W. Europe Standard Time;Europe/Rome;41.902916;12.453389;VA
+vienna;Vienna;W. Europe Standard Time;Europe/Vienna;48.20849;16.37208;AT
+vilnius;Vilnius;FLE Standard Time;Europe/Vilnius;54.68916;25.2798;LT
+vinh;Vinh;SE Asia Standard Time;Asia/Bangkok;18.67337;105.69232;VN
+warsaw;Warsaw;Central European Standard Time;Europe/Warsaw;52.22977;21.01178;PL
+yaounde;Yaoundé;W. Central Africa Standard Time;Africa/Douala;3.86667;11.51667;CM
+yekaterinburg;Yekaterinburg;Ekaterinburg Standard Time;Asia/Yekaterinburg;56.85733;60.61529;RU
+yerevan;Yerevan;Caucasus Standard Time;Asia/Yerevan;40.17765;44.5126;AM
+zagreb;Zagreb;Central European Standard Time;Europe/Zagreb;45.81444;15.97798;HR

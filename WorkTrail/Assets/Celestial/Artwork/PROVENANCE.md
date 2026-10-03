@@ -1,5 +1,26 @@
 # Celestial interface artwork
 
+## Holiday calendar artwork (v1)
+
+- Created 2026-09-24 with built-in ImageGen as transparent, square, decorative agenda thumbnails. They are illustrative—not photographs, observations, or claims about a cultural practice—and retain their generated RGBA output without local pixel edits.
+- `holiday-buddhist-vesak-v1.png` — Vesak and Buddhist observances. SHA-256: `1d33736ad129fc5e1eae5f92f8549da20ed4949c4c2cdd8f33c2eb249199a0b9`.
+- `holiday-carnival-v1.png` — Carnival and local festival. SHA-256: `9e4e82d7721300150bace439e2496a6d05492c00fa8d342f7e089c544557cba9`.
+- `holiday-christian-easter-v1.png` — Easter-cycle and Christian observances. SHA-256: `f6635af43bfdc9bf2adb5b14af269c8d933a3f1fdc9cee3c056cf6ceab9e7301`.
+- `holiday-christmas-new-year-v1.png` — Christmas and civil New Year observances. SHA-256: `22f10b5f87b5316fbcce88eac6f4f937442450f97fd033569cc02b21dfccb168`.
+- `holiday-civic-commemoration-v1.png` — national, civic, and constitutional commemorations. SHA-256: `bdb53134165834f02d52dabedf672af2d267e2921fb9ad2af744db96f9b2d2d2`.
+- `holiday-harvest-thanksgiving-v1.png` — harvest and Thanksgiving observances. SHA-256: `85bc259e7ec1d10299d328248939997374e2a4a048b3726c98edf7bf6a29a447`.
+- `holiday-in-holi-v1.png` — Holi. SHA-256: `14f768b7532e419739b196e4594f0d5864fc26d98845ab757a7679eddd725a2f`.
+- `holiday-islamic-eid-v1.png` — Eid and Islamic observances. SHA-256: `7a5542dad4f39f6a8d7043c93b3ab9f488a4008c88813306735b36952718d0b9`.
+- `holiday-kr-seollal-chuseok-v1.png` — Seollal. SHA-256: `5f29f7871ca896d286eac936b8f957b14ea7825d71c700e10eb96ad6d683b8d0`.
+- `holiday-local-patron-v1.png` — patronal and local religious observance. SHA-256: `fd9a31102f51cd2144b47158e7fc8e4b707bb2e1e6447133d7e940a5179e4753`.
+- `holiday-lunar-new-year-tet-v1.png` — Lunar New Year and Tet. SHA-256: `9fe1b31ac08a16a3d1309f1697170252ad205f344f7d1ce1ef11215c6177e3b9`.
+- `holiday-mid-autumn-chuseok-v1.png` — Mid-Autumn Festival and Chuseok. SHA-256: `edca1b421640776918fd7a900bf1a897b29f75e42828988e5716b89e4241744d`.
+- `holiday-nordic-midsummer-v1.png` — Midsummer; retained for a later Nordic calendar source, which is not in the current JSON. SHA-256: `ed2d08ed63f270d6cea22dc540ed9938427539622076722e61acd6faaaea2fcb`.
+- `holiday-remembrance-v1.png` — memorial, mourning, and remembrance observances. SHA-256: `be03eba766994800edca15883fe0884a30b46d9240ecd2730ff6b1c3df761147`.
+- `holiday-us-civic-v1.png` — United States civic observances. SHA-256: `4a15e7e01bec8be93d4def971b42d4e1be37bcc83e83be5398b9f7fd1b3761b8`.
+- `holiday-womens-day-v1.png` — International Women's Day and related observances. SHA-256: `01466719dd1623ccaff34c7dc03b228eabbdd25278ecdbd8eac050901e6e5d79`.
+- `holiday-workers-day-v1.png` — Labour, Labor, and May Day observances. SHA-256: `0d14a8523b3741b5ad75cc3a9c4c055e266596a292d3ac87890b3ad883c1fb73`.
+
 ## moonset-v1.png
 
 - Created 2026-09-20 using built-in ImageGen, with moon-horizon-v1.png as a style reference.

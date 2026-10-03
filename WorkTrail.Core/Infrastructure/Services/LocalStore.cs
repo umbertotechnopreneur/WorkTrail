@@ -89,6 +89,17 @@ public sealed class LocalStore
     /// <summary>Gets the absolute path of the current SQLite history store.</summary>
     internal string ActivityDatabasePath => _activity.DatabasePath;
 
+    /// <summary>Imports the reviewed calendar asset into normalized tables of the existing activity database.</summary>
+    internal void EnsureCelestialCalendar(CelestialCalendarDataset dataset) => _activity.EnsureCelestialCalendar(dataset);
+
+    /// <summary>Reads national calendar entries for a bounded local-date interval.</summary>
+    internal IReadOnlyList<CelestialCalendarHoliday> LoadCalendarHolidays(DateOnly start, DateOnly end) =>
+        _activity.LoadCalendarHolidays(start, end);
+
+    /// <summary>Reads fixed-date Latin sanctoral entries from the activity database.</summary>
+    internal IReadOnlyList<CelestialCalendarSaint> LoadCalendarSaints(DateOnly date) =>
+        _activity.LoadCalendarSaints(date);
+
     /// <summary>Lists local and imported installation profiles without exposing settings persistence.</summary>
     internal IReadOnlyList<InstallationProfile> GetInstallationProfiles()
     {

@@ -1,0 +1,8 @@
+﻿Code;ObservedUtc;FetchedUtc;TemperatureC;FeelsLikeC;Description;WindMs;Status;Source
+hanoi;2026-09-23T20:56:17;2026-09-23T20:56:24;26;26;poche nuvole;0.53;fetched;OpenWeather
+mumbai;2026-09-23T20:56:25;2026-09-23T20:56:24;29.01;35.67;pioggia leggera;2.57;fetched;OpenWeather
+minsk;2026-09-23T20:56:25;2026-09-23T20:56:24;8.75;6.84;nubi sparse;3.29;fetched;OpenWeather
+rome;2026-09-23T20:56:25;2026-09-23T20:56:24;20.8;20.35;cielo sereno;0.51;fetched;OpenWeather
+london;2026-09-23T20:55:23;2026-09-23T20:56:24;15.99;15.37;nubi sparse;3.6;fetched;OpenWeather
+new-york;2026-09-23T20:55:32;2026-09-23T20:56:25;20.04;19.35;cielo coperto;10.28;fetched;OpenWeather
+los-angeles;2026-09-23T20:52:04;2026-09-23T20:56:25;28.61;30.53;cielo sereno;5.66;fetched;OpenWeather
