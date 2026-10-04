@@ -2998,8 +2998,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         try
         {
             var normalized = _utilities.NormalizeDirectory(directory);
+            // A valid configured screenshot path may not exist until the first capture is saved.
+            Directory.CreateDirectory(normalized);
+            var shellDirectory = ResolveShellVisibleDirectory(normalized);
+            Directory.CreateDirectory(shellDirectory);
             // Shell invocation remains behind the application boundary, never in a UI or CLI renderer.
-            Process.Start(new ProcessStartInfo { FileName = normalized, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = shellDirectory, UseShellExecute = true });
             await Task.CompletedTask;
             return OperationResult<string>.Success(code, messageKey, normalized);
         }
@@ -3008,6 +3012,33 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return OperationResult<string>.Failure("shell.open.failed", "FolderOpenFailed");
         }
     }, cancellationToken);
+
+    // normalizedDirectory is the canonical configured path seen from the application process.
+    private static string ResolveShellVisibleDirectory(string normalizedDirectory)
+    {
+        var localAppData = Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        var relativeDirectory = Path.GetRelativePath(localAppData, normalizedDirectory);
+        if (Path.IsPathRooted(relativeDirectory) ||
+            relativeDirectory.Equals("..", StringComparison.Ordinal) ||
+            relativeDirectory.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+        {
+            return normalizedDirectory;
+        }
+
+        try
+        {
+            // MSIX redirects LocalAppData writes under LocalCache\Local, but Explorer runs outside that redirect.
+            var localCache = Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path;
+            return Path.GetFullPath(Path.Combine(localCache, "Local", relativeDirectory));
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+                UnauthorizedAccessException or
+                System.Runtime.InteropServices.COMException)
+        {
+            return normalizedDirectory;
+        }
+    }
 
     private AiStatus BuildAiStatus()
     {

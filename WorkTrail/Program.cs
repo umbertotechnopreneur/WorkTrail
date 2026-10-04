@@ -17,8 +17,47 @@ public static class Program
     private static App? _application;
 
     /// <summary>Redirects long-lived activations before XAML, services, or windows are initialized.</summary>
+    /// <param name="arguments">The bootstrap arguments supplied by Windows or the command line.</param>
     [STAThread]
     public static void Main(string[] arguments)
+    {
+        // Register managed failure boundaries before WinRT, services or the XAML application can fail.
+        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+        try
+        {
+            Run(arguments);
+        }
+        catch (Exception exception)
+        {
+            ApplicationErrorService.Report(exception, "ProcessStartup");
+            Environment.ExitCode = 1;
+        }
+    }
+
+    /// <summary>Logs and displays a terminal managed failure before the runtime ends the process.</summary>
+    /// <param name="sender">The application domain that raised the failure.</param>
+    /// <param name="eventArgs">The unhandled exception object supplied by the runtime.</param>
+    private static void CurrentDomain_UnhandledException(object? sender, System.UnhandledExceptionEventArgs eventArgs)
+    {
+        var exception = eventArgs.ExceptionObject as Exception
+            ?? new InvalidOperationException("The runtime reported an unknown unhandled failure.");
+        ApplicationErrorService.Report(exception, "AppDomain");
+    }
+
+    /// <summary>Reports unobserved task failures without turning error reporting into another process failure.</summary>
+    /// <param name="sender">The task scheduler that raised the notification.</param>
+    /// <param name="eventArgs">The aggregate exception and observed state.</param>
+    private static void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs eventArgs)
+    {
+        eventArgs.SetObserved();
+        ApplicationErrorService.Report(eventArgs.Exception, "TaskScheduler", deferDialog: true);
+    }
+
+    /// <summary>Initializes WinRT and launches or redirects the application.</summary>
+    /// <param name="arguments">The validated-by-routing bootstrap arguments.</param>
+    /// <exception cref="Exception">Activation, service initialization or WinUI startup failed.</exception>
+    private static void Run(string[] arguments)
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
@@ -60,19 +99,29 @@ public static class Program
         return LaunchOptions.Parse(arguments).Mode is not (LaunchMode.Cli or LaunchMode.Help or LaunchMode.Version);
     }
 
+    /// <summary>Routes repeated Windows activations and reports callback failures centrally.</summary>
+    /// <param name="sender">The registered Windows application instance.</param>
+    /// <param name="activation">The activation payload owned by this callback.</param>
     private static void MainInstance_Activated(object? sender, AppActivationArguments activation)
     {
-        // Consume the WinRT payload before returning from its callback; queues must retain only managed values.
-        var request = CaptureRedirectedActivation(activation);
-        lock (ActivationGate)
+        try
         {
-            if (_application is null)
+            // Consume the WinRT payload before returning from its callback; queues must retain only managed values.
+            var request = CaptureRedirectedActivation(activation);
+            lock (ActivationGate)
             {
-                PendingActivations.Enqueue(request);
-                return;
-            }
+                if (_application is null)
+                {
+                    PendingActivations.Enqueue(request);
+                    return;
+                }
 
-            _application.HandleRedirectedActivation(request);
+                _application.HandleRedirectedActivation(request);
+            }
+        }
+        catch (Exception exception)
+        {
+            ApplicationErrorService.Report(exception, "RedirectedActivation");
         }
     }
 

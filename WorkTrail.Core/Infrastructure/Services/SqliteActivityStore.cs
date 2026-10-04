@@ -13,7 +13,7 @@ namespace WorkTrail.Services;
 internal sealed partial class SqliteActivityStore
 {
     internal const string DatabaseFileName = "activity.sqlite3";
-    /// <summary>Defines the current persisted SQLite contract, shared with portable archive validation.</summary>
+    /// <summary>Labels newly created databases without restricting access to existing beta data.</summary>
     internal const int SchemaVersion = 12;
     private const long FixedEstimatedRowBytes = 96;
 
@@ -2637,6 +2637,10 @@ internal sealed partial class SqliteActivityStore
         }
     }
 
+    /// <summary>Creates missing objects without validating or replacing an existing beta database.</summary>
+    /// <param name="databaseExisted">Whether the database file existed before opening the store.</param>
+    /// <exception cref="TimeoutException">Another process holds the database initialization lock.</exception>
+    /// <exception cref="SqliteException">SQLite cannot open or initialize the database.</exception>
     private void InitializeSchema(bool databaseExisted)
     {
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(_databasePath.ToUpperInvariant())))[..32];
@@ -2659,25 +2663,8 @@ internal sealed partial class SqliteActivityStore
             }
 
             using var connection = OpenConnection();
-            var version = ReadSchemaVersion(connection);
-            if (version == 0)
-            {
-                if (databaseExisted || ReadApplicationSchemaObjects(connection).Count > 0)
-                {
-                    throw new InvalidOperationException(
-                        "An unversioned activity database is not supported; remove it before starting WorkTrail.");
-                }
-
-                CreateSchema(connection);
-                version = ReadSchemaVersion(connection);
-            }
-
-            if (version != SchemaVersion)
-            {
-                throw new InvalidOperationException($"Unsupported activity database schema version {version}; expected {SchemaVersion}.");
-            }
-
-            ValidateSchema(connection);
+            // Existing tables, indexes, triggers and history are retained; actual SQLite failures still propagate.
+            CreateSchema(connection, databaseExisted);
             using var journal = connection.CreateCommand();
             journal.CommandText = "PRAGMA journal_mode = WAL;";
             journal.ExecuteScalar();
@@ -2691,15 +2678,10 @@ internal sealed partial class SqliteActivityStore
         }
     }
 
-    private static int ReadSchemaVersion(SqliteConnection connection)
-    {
-        using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA user_version;";
-        return Convert.ToInt32(command.ExecuteScalar());
-    }
-
-    /// <summary>Validates a portable archive database against the only supported current schema.</summary>
-    internal static void ValidateArchiveDatabaseSchema(string databasePath)
+    /// <summary>Checks that an archive database can be opened without imposing a schema/version gate.</summary>
+    /// <param name="databasePath">The extracted archive database to open without changing its data.</param>
+    /// <exception cref="SqliteException">SQLite cannot open the archive database.</exception>
+    internal static void EnsureArchiveDatabaseReadable(string databasePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -2709,18 +2691,13 @@ internal sealed partial class SqliteActivityStore
             Pooling = false
         }.ToString());
         connection.Open();
-
-        var version = ReadSchemaVersion(connection);
-        if (version != SchemaVersion)
-        {
-            throw new InvalidDataException(
-                $"Unsupported archive database schema version {version}; expected {SchemaVersion}.");
-        }
-
-        ValidateSchema(connection);
     }
 
-    private static void CreateSchema(SqliteConnection connection)
+    /// <summary>Adds missing database objects while leaving existing definitions and rows intact.</summary>
+    /// <param name="connection">The open activity database connection.</param>
+    /// <param name="databaseExisted">Whether to preserve the database's existing informational version.</param>
+    /// <exception cref="SqliteException">SQLite rejects an object declaration or the transaction.</exception>
+    private static void CreateSchema(SqliteConnection connection, bool databaseExisted)
     {
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -2728,8 +2705,18 @@ internal sealed partial class SqliteActivityStore
         command.CommandText = ActivitySchemaSql + AiSchemaSql + ScreenshotTextSchemaSql + AiPricingSchemaSql
             + ScreenshotIntervalTelemetrySchemaSql + AiReprocessingSchemaSql + InstallationArchiveSchemaSql
             + SearchRevisionSchemaSql
-            + CaptureHardwareSnapshotSchemaSql + CalendarSchemaSql
-            + $"PRAGMA user_version = {SchemaVersion};";
+            + CaptureHardwareSnapshotSchemaSql + CalendarSchemaSql;
+        command.CommandText = command.CommandText
+            .Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", StringComparison.Ordinal)
+            .Replace("CREATE VIRTUAL TABLE ", "CREATE VIRTUAL TABLE IF NOT EXISTS ", StringComparison.Ordinal)
+            .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ", StringComparison.Ordinal)
+            .Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", StringComparison.Ordinal)
+            .Replace("CREATE TRIGGER ", "CREATE TRIGGER IF NOT EXISTS ", StringComparison.Ordinal);
+        if (!databaseExisted)
+        {
+            // Version metadata describes a fresh database; it is never checked to admit an existing one.
+            command.CommandText += $"PRAGMA user_version = {SchemaVersion};";
+        }
         command.ExecuteNonQuery();
         transaction.Commit();
     }

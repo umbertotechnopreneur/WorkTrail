@@ -994,7 +994,9 @@ public sealed partial class ScreenshotWindow : Window
 
     private async void HeaderSection_OpenFolderRequested(object? sender, EventArgs e)
     {
-        var result = await _application.OpenScreenshotFolderAsync(_lifetimeCancellation.Token);
+        var selected = GetSelectedItem();
+        var directory = System.IO.Path.GetDirectoryName(selected.Path) ?? string.Empty;
+        var result = await _application.OpenScreenshotFolderAsync(directory, _lifetimeCancellation.Token);
         ShowActionResult(result, "Screenshots.Action.FolderOpened");
     }
 

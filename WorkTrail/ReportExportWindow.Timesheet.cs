@@ -13,7 +13,6 @@ internal sealed partial class ReportExportWindow
     private bool _applyingTimesheet;
     private bool _refreshingTimesheet;
     private DispatcherTimer? _timesheetTimer;
-    private string? _excelPreviewPath;
 
     private void UpdateTimesheetPanels()
     {
@@ -25,18 +24,8 @@ internal sealed partial class ReportExportWindow
         TimesheetEmptyInfo.Visibility = timesheet && _timesheetView is not null && !hasJobs ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void ResetExcelPreview()
-    {
-        if (ExcelPreviewStatusPanel is null) return;
-        _excelPreviewPath = null;
-        ExcelPreviewPath.Text = "";
-        ExcelPreviewFilePanel.Visibility = Visibility.Collapsed;
-        ExcelPreviewStatusPanel.Visibility = Visibility.Collapsed;
-    }
-
     private void ResetTimesheetSelection()
     {
-        ResetExcelPreview();
         if (_applyingTimesheet || _timesheetView is null) return;
         _timesheetView = _timesheetView with { Selected = null };
         _applyingTimesheet = true;
@@ -59,71 +48,64 @@ internal sealed partial class ReportExportWindow
         ResetTimesheetSelection();
     }
 
-    // sender identifies the explicit generate button.
-    // args describes the click; Excel opens only after a separate request.
+    // sender identifies the explicit limited-preview command.
+    // args describes the click that acknowledges the limit, generates the workbook and opens it.
+    // Cancellation exceptions flow to RunAsync so the shared cancellation status remains consistent.
     private async void ExcelPreview_Click(object sender, RoutedEventArgs args) => await RunAsync(async token =>
     {
-        ResetExcelPreview();
-        ExcelPreviewStatusPanel.Visibility = Visibility.Visible;
-        ExcelPreviewStatus.Text = T("Timesheet.PreviewGenerating");
-        ExcelPreviewProgress.Visibility = Visibility.Visible;
         try
         {
+            await _messages.ShowInformativeAsync(this,
+                DialogRequest.Informative(T("Timesheet.PreviewLimit.Title"), T("Timesheet.PreviewLimit.Message"), T("Dialog.Ok")));
+            if (_closed) return;
+            token.ThrowIfCancellationRequested();
+
             var timesheet = ReferenceEquals(Navigation.SelectedItem, TimesheetTab);
             var id = timesheet && _timesheetView?.Selected is { } selected ? selected.Id : (Guid?)null;
-            var result = await _application.OpenReportFilePreviewAsync(new(CollectOptions(),
+            var generated = await _application.OpenReportFilePreviewAsync(new(CollectOptions(),
                 IncludeSummaryCheck.IsChecked == true ? _summary : null, timesheet && id is null ? CollectTimesheetOptions() : null, id), token);
             if (_closed) return;
-            if (!result.Succeeded || result.Value is null)
+            if (!generated.Succeeded || generated.Value is null)
             {
-                ExcelPreviewStatus.Text = T(result.MessageKey);
-                ShowStatus(result.MessageKey, InfoBarSeverity.Error);
+                await ShowPreviewFailureAsync(generated.MessageKey);
                 return;
             }
-            _excelPreviewPath = result.Value.Path;
-            ExcelPreviewPath.Text = _excelPreviewPath;
-            ExcelPreviewStatus.Text = T("Timesheet.PreviewReady");
-            ExcelPreviewFilePanel.Visibility = Visibility.Visible;
+
+            var opened = await _application.OpenReportFilePreviewAsync(
+                new(CollectOptions(), Action: ReportFilePreviewAction.Open, PreviewPath: generated.Value.Path), token);
+            if (_closed) return;
+            if (!opened.Succeeded)
+            {
+                await ShowPreviewFailureAsync(opened.MessageKey);
+                return;
+            }
+
+            ShowStatus("Timesheet.PreviewOpened", InfoBarSeverity.Success);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            if (!_closed) ExcelPreviewStatus.Text = T("Export.Cancelled");
             throw;
         }
         catch (Exception)
         {
-            if (!_closed) ExcelPreviewStatus.Text = T("Export.Failed");
-            throw;
+            if (!_closed) await ShowPreviewFailureAsync("Export.Failed");
         }
-        finally { if (!_closed) ExcelPreviewProgress.Visibility = Visibility.Collapsed; }
     });
 
-    // sender identifies a report option that changes the generated workbook.
-    // args describes the click; the existing file is hidden until regenerated with current choices.
-    private void ExcelPreviewOptionsChanged(object sender, RoutedEventArgs args) => ResetExcelPreview();
-
-    // sender identifies the open command for the completed workbook.
-    // args describes the click; this action reuses the file and never regenerates data.
-    private async void ExcelPreviewOpen_Click(object sender, RoutedEventArgs args) =>
-        await RunExcelPreviewActionAsync(ReportFilePreviewAction.Open);
-
-    // sender identifies the clipboard icon for the completed workbook.
-    // args describes the click; the runtime copies only its absolute path.
-    private async void ExcelPreviewCopy_Click(object sender, RoutedEventArgs args) =>
-        await RunExcelPreviewActionAsync(ReportFilePreviewAction.CopyPath);
-
-    // action selects opening the existing file or copying its path, without creating another preview.
-    private Task RunExcelPreviewActionAsync(ReportFilePreviewAction action) => RunAsync(async token =>
+    // messageKey identifies the localized reason why preview generation or opening failed.
+    // Dialog exceptions fall back to the standard inline export failure status.
+    private async Task ShowPreviewFailureAsync(string messageKey)
     {
-        if (_excelPreviewPath is not { } path) return;
-        var result = await _application.OpenReportFilePreviewAsync(new(CollectOptions(), Action: action, PreviewPath: path), token);
-        if (_closed) return;
-        var message = result.Succeeded
-            ? action == ReportFilePreviewAction.CopyPath ? "Timesheet.PreviewPathCopied" : "Timesheet.PreviewOpened"
-            : result.MessageKey;
-        ExcelPreviewStatus.Text = T(message);
-        ShowStatus(message, result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error);
-    });
+        try
+        {
+            await _messages.ShowInformativeAsync(this,
+                DialogRequest.Informative(T("Export.Title"), T(messageKey), T("Dialog.Ok")));
+        }
+        catch (Exception)
+        {
+            ShowStatus("Export.Failed", InfoBarSeverity.Error);
+        }
+    }
 
     // sender identifies the grouping help link.
     // args describes the local explanation request; it never opens a website.
@@ -208,9 +190,6 @@ internal sealed partial class ReportExportWindow
     // view contains only bounded UI rows and job metadata; the complete data stays in Core.
     private void RenderTimesheet(TimesheetBatchView view)
     {
-        if (ReferenceEquals(Navigation.SelectedItem, TimesheetTab)
-            && (_timesheetView?.Selected?.Id != view.Selected?.Id
-                || _timesheetView?.Selected?.ResultsSaved != view.Selected?.ResultsSaved)) ResetExcelPreview();
         _timesheetView = view;
         UpdateTimesheetPanels();
         _applyingTimesheet = true;

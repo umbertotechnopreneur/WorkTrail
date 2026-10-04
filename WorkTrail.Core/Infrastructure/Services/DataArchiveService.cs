@@ -707,8 +707,8 @@ internal sealed class DataArchiveService
                 throw new InvalidDataException("The extracted archive database length is invalid.");
             }
 
-            // Archives carry the same current database contract as the local store.
-            SqliteActivityStore.ValidateArchiveDatabaseSchema(databasePath);
+            // Beta archives are opened on demand without rejecting an informational schema version.
+            SqliteActivityStore.EnsureArchiveDatabaseReadable(databasePath);
             EnsureDatabaseContainsNoAbsoluteScreenshotPaths(databasePath, cancellationToken);
             var summary = ReadDatabaseSummary(databasePath, cancellationToken);
             ValidateManifestSummary(manifest, summary);
@@ -721,6 +721,10 @@ internal sealed class DataArchiveService
         }
     }
 
+    /// <summary>Checks archive integrity and stored data without an exact schema/version preflight.</summary>
+    /// <param name="databasePath">The archive database opened read-only.</param>
+    /// <param name="cancellationToken">Cancels the retained data checks.</param>
+    /// <exception cref="InvalidDataException">Database integrity or stored archive data is invalid.</exception>
     private void ValidateArchiveDatabase(string databasePath, CancellationToken cancellationToken)
     {
         using var connection = OpenDatabase(databasePath, readOnly: true);
@@ -732,25 +736,6 @@ internal sealed class DataArchiveService
                 throw new InvalidDataException("The archive database integrity check failed.");
             }
         }
-
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "PRAGMA user_version;";
-            if (Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) != SqliteActivityStore.SchemaVersion)
-            {
-                throw new InvalidDataException("The archive database schema version is unsupported.");
-            }
-        }
-
-        ValidateColumns(connection, "activity_samples", ["id", .. ActivityColumns]);
-        ValidateColumns(connection, "ai_request_usage", AiRequestColumns);
-        ValidateColumns(connection, "ai_analysis_results", AiAnalysisColumns);
-        ValidateColumns(connection, "installation_profiles", InstallationColumns);
-        ValidateColumns(connection, "screenshot_captures", ScreenshotCaptureColumns);
-        ValidateColumns(connection, "screenshot_text_snapshots", ScreenshotSnapshotColumns);
-        ValidateColumns(connection, "screenshot_interval_telemetry", ScreenshotTelemetryColumns);
-        ValidateColumns(connection, "capture_hardware_snapshots", CaptureHardwareSnapshotColumns);
-        ValidateColumns(connection, "ai_analysis_artifacts", AiArtifactColumns);
 
         foreach (var profile in ReadInstallationProfiles(connection))
         {
