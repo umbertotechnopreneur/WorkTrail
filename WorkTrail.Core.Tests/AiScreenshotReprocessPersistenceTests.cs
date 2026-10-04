@@ -429,8 +429,9 @@ public sealed class AiScreenshotReprocessPersistenceTests
         }
     }
 
+    /// <summary>Opens an older beta database without rewriting its informational version.</summary>
     [Fact]
-    public void SchemaVersionSix_IsRejectedWithoutMutation()
+    public void SchemaVersionSix_IsOpenedWithoutRewritingItsVersion()
     {
         var directory = CreateTemporaryDirectory();
         try
@@ -443,9 +444,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
                 command.ExecuteNonQuery();
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(directory));
-
-            Assert.Contains("Unsupported activity database schema version 6; expected 12", exception.Message, StringComparison.Ordinal);
+            _ = new LocalStore(directory);
             using var check = OpenDatabase(directory);
             using var version = check.CreateCommand();
             version.CommandText = "PRAGMA user_version;";

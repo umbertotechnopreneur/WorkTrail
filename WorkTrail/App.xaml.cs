@@ -70,16 +70,27 @@ public partial class App : Microsoft.UI.Xaml.Application
             ?? throw new InvalidOperationException("The WinUI dispatcher queue is unavailable.");
         _services = LoggingBootstrapper.CreateServiceProvider();
         _logger = _services.GetRequiredService<ILogger<App>>();
+        ApplicationErrorService.Configure(_logger);
+        UnhandledException += Application_UnhandledException;
         _windowsNotifications = new WindowsToastNotificationService(
             _services.GetRequiredService<ILoggerFactory>().CreateLogger<WindowsToastNotificationService>());
         InitializeComponent();
         WindowPlacementService.PersistenceFailed += WindowPlacementService_PersistenceFailed;
         WindowPlacementService.SnappingFailed += WindowPlacementService_SnappingFailed;
-        UnhandledException += (_, eventArgs) => _logger.LogCritical(eventArgs.Exception, "Unhandled WinUI exception.");
         _logger.LogInformation("WorkTrail process started. Architecture={Architecture}", RuntimeInformation.ProcessArchitecture);
     }
 
+    /// <summary>Reports recoverable WinUI failures instead of leaving an invisible or terminated UI process.</summary>
+    /// <param name="sender">The WinUI application that raised the failure.</param>
+    /// <param name="eventArgs">The managed exception and WinUI handling state.</param>
+    private void Application_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs eventArgs)
+    {
+        eventArgs.Handled = true;
+        ApplicationErrorService.Report(eventArgs.Exception, "WinUI", _uiLanguage);
+    }
+
     /// <summary>Routes launch modes to the CLI, background runtime, or WinUI player.</summary>
+    /// <param name="args">The Windows launch event routed by the composition root.</param>
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         try
@@ -123,8 +134,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
         catch (Exception exception)
         {
-            _logger.LogCritical(exception, "Launch failed before the main window was created.");
-            throw;
+            ApplicationErrorService.Report(exception, "Launch", _uiLanguage);
         }
     }
 
@@ -225,6 +235,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
     }
 
+    /// <summary>Starts or restores the UI and reports startup failures before a main window is available.</summary>
+    /// <param name="options">The requested UI launch options.</param>
     private async void StartUi(LaunchOptions options)
     {
         if (_window is not null)
@@ -298,6 +310,10 @@ public partial class App : Microsoft.UI.Xaml.Application
             }
 
             await CompleteUiStartupAsync(application, options, initialSettings.Value);
+        }
+        catch (Exception exception)
+        {
+            ApplicationErrorService.Report(exception, "UiStartup", options.Language ?? _uiLanguage);
         }
         finally
         {
@@ -636,7 +652,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _worldClockWindow.ProjectionChanged += WorldClockWindow_ProjectionChanged;
             _worldClockWindow.SettingsSaved += ApplyAstronomyWindowSettings;
             _worldClockWindow.Closed += WorldClockWindow_Closed;
-            AttachAstronomyContextMenu(_worldClockWindow);
+            AttachAstronomyContextMenu(_worldClockWindow, WindowStateKeys.WorldClocks);
             _worldClockWindow.Activate();
         }
         catch (Exception exception)
@@ -716,12 +732,72 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private async void WorldClockWindow_CelestialWindowRequested(string key) => await ShowCelestialWindowAsync(key);
 
-    private void AttachAstronomyContextMenu(Window window)
+    /// <summary>Attaches the shared astronomy menu to a window and binds it to that window's settings key.</summary>
+    /// <param name="window">The window that owns the context menu.</param>
+    /// <param name="windowKey">The persisted state key for the owning window.</param>
+    private void AttachAstronomyContextMenu(Window window, string windowKey)
     {
+        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
+            Microsoft.UI.Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(window)));
         window.Content.ContextFlyout = AstronomyWindowMenu.Create(
             () => new LocalizationService(_uiLanguage),
             OpenAstronomyWindowFromMenu,
+            () => _window?.ShowFlyout(),
+            () => appWindow.IsShownInSwitchers,
+            showInTaskbar => SetAstronomyWindowShownInTaskbarAsync(windowKey, showInTaskbar),
             window.Close);
+    }
+
+    /// <summary>Persists taskbar visibility for one astronomy settings group and refreshes every open projection.</summary>
+    /// <param name="windowKey">The state key of the window whose menu was used.</param>
+    /// <param name="showInTaskbar">Whether the settings group should appear in the taskbar and system switchers.</param>
+    /// <returns><see langword="true"/> when the setting was persisted and applied; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The supplied window key has no astronomy taskbar setting.</exception>
+    private async Task<bool> SetAstronomyWindowShownInTaskbarAsync(string windowKey, bool showInTaskbar)
+    {
+        var settingKey = windowKey switch
+        {
+            WindowStateKeys.WorldMap => "window.world_map.show_in_taskbar",
+            WindowStateKeys.LunarPhase => "window.lunar_phase.show_in_taskbar",
+            WindowStateKeys.WorldClocks or WindowStateKeys.LocalSky or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap
+                => "window.world_clocks.show_in_taskbar",
+            _ => throw new ArgumentOutOfRangeException(nameof(windowKey), windowKey, "Unsupported astronomy window key.")
+        };
+
+        try
+        {
+            var application = StartOrConnectRuntime();
+            var result = await application.PatchSettingsAsync(
+                new SettingsPatch(new Dictionary<string, string?>
+                {
+                    [settingKey] = showInTaskbar ? "true" : "false"
+                }),
+                CancellationToken.None);
+            if (!result.Succeeded || result.Value is null)
+            {
+                _logger.LogWarning(
+                    "Astronomy taskbar visibility could not be saved. WindowKey={WindowKey} Code={Code}",
+                    windowKey,
+                    result.Code);
+                return false;
+            }
+
+            if (_window is not null)
+            {
+                await _window.ApplyExternalSettingsAsync(result.Value);
+            }
+            else
+            {
+                ApplyWorldClockWindowSettings(result.Value);
+            }
+
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Astronomy taskbar visibility could not be changed. WindowKey={WindowKey}", windowKey);
+            return false;
+        }
     }
 
     private async void OpenAstronomyWindowFromMenu(string key)
@@ -757,7 +833,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             created = new CelestialWindow(application, _dialogs, settings.Value, key);
             if (key is WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap)
             {
-                AttachAstronomyContextMenu(created);
+                AttachAstronomyContextMenu(created, key);
             }
 
             _celestialWindows.Add(key, created);
@@ -820,7 +896,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             {
                 _lunarPhaseWindow = new LunarPhaseWindow(application, _dialogs, settings.Value);
                 createdWindow = _lunarPhaseWindow;
-                AttachAstronomyContextMenu(_lunarPhaseWindow);
+                AttachAstronomyContextMenu(_lunarPhaseWindow, WindowStateKeys.LunarPhase);
                 _lunarPhaseWindow.Closed += (sender, _) =>
                 {
                     if (ReferenceEquals(_lunarPhaseWindow, sender)) _lunarPhaseWindow = null;
@@ -836,7 +912,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             {
                 _worldMapWindow = new WorldMapWindow(application, _dialogs, settings.Value);
                 createdWindow = _worldMapWindow;
-                AttachAstronomyContextMenu(_worldMapWindow);
+                AttachAstronomyContextMenu(_worldMapWindow, WindowStateKeys.WorldMap);
                 _worldMapWindow.Closed += (sender, _) =>
                 {
                     if (ReferenceEquals(_worldMapWindow, sender)) _worldMapWindow = null;

@@ -321,8 +321,9 @@ public sealed class LocalSearchAndOcrIntegrationTests
         }
     }
 
+    /// <summary>Reopens an otherwise usable beta database without rejecting its old informational version.</summary>
     [Fact]
-    public void ActivitySchema_RejectsSupersededDatabaseVersion()
+    public void ActivitySchema_AllowsSupersededDatabaseVersion()
     {
         var dataDirectory = CreateDataDirectory();
         try
@@ -337,8 +338,12 @@ public sealed class LocalSearchAndOcrIntegrationTests
                 command.ExecuteNonQuery();
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-            Assert.Contains("Unsupported activity database schema version 5; expected 12", exception.Message, StringComparison.Ordinal);
+            _ = new LocalStore(dataDirectory);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "PRAGMA user_version;";
+            Assert.Equal(5L, Convert.ToInt64(checkCommand.ExecuteScalar()));
         }
         finally
         {

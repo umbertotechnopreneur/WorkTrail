@@ -2,6 +2,37 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-03
+
+### One-command Debug MSIX installation
+
+- Added `InstallDebugMsix` to the general script to clear `artifacts`, build, sign, install, and verify a local Debug MSIX. It requires an explicit four-part version, chooses a trusted matching certificate, and cleans project output while preserving the new package.
+- The owner granted a feature-freeze exception limited to this script command.
+- Built, signed, installed, and verified Debug x64 version 1.0.6.3 with a valid package signature and `Ok` registration status.
+
+### Create the screenshot folder before opening it
+
+- Create the configured screenshot directory before passing it to Windows Explorer. This covers both the maintenance action and the folder button in the screenshot gallery when no capture has created the directory yet.
+- The maintenance action creates and opens the configured directory; the gallery action opens the directory containing the selected screenshot.
+- Resolve MSIX LocalAppData virtualization to the shell-visible `LocalCache\Local` path before opening Explorer; retain the canonical configured path for unpackaged execution.
+- Included the fixes in installed Debug x64 package version 1.0.6.3. Verified that the resolved physical directory exists and contains the retained screenshots; native button clicks remain for owner confirmation.
+
+### Best-effort beta database opening and global error reporting
+
+- Removed exact schema/version preflights from activity database opening and archive
+  database access. Initialization adds missing objects without replacing existing
+  definitions or history; existing informational database versions are preserved.
+- Routed startup, repeated activation, WinUI, unobserved task and application-domain
+  exceptions through a shared reporter. It writes a synchronously flushed emergency
+  log and shows a localized native error dialog even before a main window exists.
+  Concurrent failures do not stack dialogs, and task acknowledgement does not block GC.
+- Updated the beta database agreement and existing regression cases for retained history,
+  old/unversioned databases, additional objects, missing objects and actual SQLite failures.
+- Reviewed source and focused diffs manually. Built and installed the signed Debug x64
+  MSIX 1.0.6.0; Windows reports the installed package status as Ok. Cleaned build output
+  while retaining the installer. Formatting, hooks, tests, application launch,
+  native-dialog interaction and the owner's actual database remain unverified.
+
 ## 2026-10-02
 
 ### Explicit Excel preview actions

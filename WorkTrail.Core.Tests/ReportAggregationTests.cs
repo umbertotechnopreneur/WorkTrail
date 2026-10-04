@@ -3,7 +3,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using WorkTrail.Application;
@@ -841,24 +840,36 @@ public sealed class ReportAggregationTests
         }
     }
 
-    [Fact]
-    public void ActivityHistory_FailsOnSchemaVersionMismatch()
+    /// <summary>Preserves real activity history while opening unversioned, old or newer beta databases.</summary>
+    /// <param name="version">The informational database version that must not block opening.</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10)]
+    [InlineData(99)]
+    public void ActivityHistory_OpensDifferentVersionsAndPreservesHistory(int version)
     {
         var dataDirectory = CreateDataDirectory();
         try
         {
+            var store = new LocalStore(dataDirectory);
+            store.AppendSample(Sample(store, new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero), 60, "Beta editor"));
+            var databasePath = Path.Combine(dataDirectory, "activity.sqlite3");
+            using (var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = $"PRAGMA user_version = {version};";
+                command.ExecuteNonQuery();
+            }
+
             _ = new LocalStore(dataDirectory);
-            var databasePath = Path.Combine(dataDirectory, "activity.sqlite3");
-            using (var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False"))
-            {
-                connection.Open();
-                using var command = connection.CreateCommand();
-                command.CommandText = "PRAGMA user_version = 99;";
-                command.ExecuteNonQuery();
-            }
-
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-            Assert.Contains("schema version", exception.Message, StringComparison.OrdinalIgnoreCase);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "SELECT application FROM activity_samples;";
+            Assert.Equal("Beta editor", checkCommand.ExecuteScalar());
+            checkCommand.CommandText = "PRAGMA user_version;";
+            Assert.Equal((long)version, Convert.ToInt64(checkCommand.ExecuteScalar()));
         }
         finally
         {
@@ -866,8 +877,9 @@ public sealed class ReportAggregationTests
         }
     }
 
+    /// <summary>Retains unrelated data when adding missing activity objects to an unversioned beta database.</summary>
     [Fact]
-    public void ActivityHistory_FailsWhenAnUnversionedDatabaseIsNotEmpty()
+    public void ActivityHistory_OpensUnversionedDatabaseWithoutRemovingExistingData()
     {
         var dataDirectory = CreateDataDirectory();
         try
@@ -877,50 +889,62 @@ public sealed class ReportAggregationTests
             {
                 connection.Open();
                 using var command = connection.CreateCommand();
-                command.CommandText = "CREATE TABLE unrelated_data (id INTEGER PRIMARY KEY);";
+                command.CommandText = "CREATE TABLE unrelated_data (id INTEGER PRIMARY KEY); INSERT INTO unrelated_data VALUES (42);";
                 command.ExecuteNonQuery();
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-            Assert.Contains("unversioned activity database", exception.Message, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            DeleteDataDirectory(dataDirectory);
-        }
-    }
-
-    [Fact]
-    public void ActivityHistory_FailsWhenVersionMatchesButSchemaDoesNot()
-    {
-        var dataDirectory = CreateDataDirectory();
-        try
-        {
-            var databasePath = Path.Combine(dataDirectory, "activity.sqlite3");
-            using (var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False"))
-            {
-                connection.Open();
-                using var command = connection.CreateCommand();
-                command.CommandText = "CREATE TABLE activity_samples (id INTEGER PRIMARY KEY); PRAGMA user_version = 7;";
-                command.ExecuteNonQuery();
-            }
-
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-            Assert.Contains("unsupported activity database schema", exception.Message, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            DeleteDataDirectory(dataDirectory);
-        }
-    }
-
-    [Fact]
-    public void ActivityHistory_RejectsVersionOneWithoutMutatingIt()
-    {
-        var dataDirectory = CreateDataDirectory();
-        try
-        {
             _ = new LocalStore(dataDirectory);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "SELECT id FROM unrelated_data;";
+            Assert.Equal(42L, Convert.ToInt64(checkCommand.ExecuteScalar()));
+        }
+        finally
+        {
+            DeleteDataDirectory(dataDirectory);
+        }
+    }
+
+    /// <summary>Exposes a real SQLite failure without replacing data when a required operation cannot run.</summary>
+    [Fact]
+    public void ActivityHistory_ReportsActualSqliteFailureWithoutReplacingData()
+    {
+        var dataDirectory = CreateDataDirectory();
+        try
+        {
+            var databasePath = Path.Combine(dataDirectory, "activity.sqlite3");
+            using (var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = "CREATE TABLE activity_samples (id INTEGER PRIMARY KEY); INSERT INTO activity_samples VALUES (42); PRAGMA user_version = 7;";
+                command.ExecuteNonQuery();
+            }
+
+            var exception = Assert.Throws<SqliteException>(() => new LocalStore(dataDirectory));
+            Assert.Equal(1, exception.SqliteErrorCode);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "SELECT id FROM activity_samples;";
+            Assert.Equal(42L, Convert.ToInt64(checkCommand.ExecuteScalar()));
+        }
+        finally
+        {
+            DeleteDataDirectory(dataDirectory);
+        }
+    }
+
+    /// <summary>Recreates missing AI objects while preserving retained activity rows in a beta database.</summary>
+    [Fact]
+    public void ActivityHistory_CreatesMissingObjectsWithoutRemovingHistory()
+    {
+        var dataDirectory = CreateDataDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            store.AppendSample(Sample(store, new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero), 60, "Retained editor"));
             var databasePath = Path.Combine(dataDirectory, "activity.sqlite3");
             using (var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False"))
             {
@@ -936,12 +960,14 @@ public sealed class ReportAggregationTests
                 command.ExecuteNonQuery();
             }
 
-            var before = SHA256.HashData(File.ReadAllBytes(databasePath));
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-            var after = SHA256.HashData(File.ReadAllBytes(databasePath));
-
-            Assert.Contains("schema version 1", exception.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(before, after);
+            _ = new LocalStore(dataDirectory);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "SELECT application FROM activity_samples;";
+            Assert.Equal("Retained editor", checkCommand.ExecuteScalar());
+            checkCommand.CommandText = "SELECT COUNT(*) FROM ai_request_usage;";
+            Assert.Equal(0L, Convert.ToInt64(checkCommand.ExecuteScalar()));
         }
         finally
         {
@@ -949,8 +975,9 @@ public sealed class ReportAggregationTests
         }
     }
 
+    /// <summary>Initializes an existing empty file instead of rejecting its missing version metadata.</summary>
     [Fact]
-    public void ActivityHistory_RejectsAnExistingEmptyDatabaseWithoutInitializingIt()
+    public void ActivityHistory_InitializesAnExistingEmptyDatabase()
     {
         var dataDirectory = CreateDataDirectory();
         try
@@ -958,10 +985,12 @@ public sealed class ReportAggregationTests
             var databasePath = Path.Combine(dataDirectory, "activity.sqlite3");
             File.WriteAllBytes(databasePath, []);
 
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-
-            Assert.Contains("unversioned activity database", exception.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(0, new FileInfo(databasePath).Length);
+            _ = new LocalStore(dataDirectory);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "SELECT COUNT(*) FROM activity_samples;";
+            Assert.Equal(0L, Convert.ToInt64(checkCommand.ExecuteScalar()));
         }
         finally
         {
@@ -969,8 +998,9 @@ public sealed class ReportAggregationTests
         }
     }
 
+    /// <summary>Opens a usable beta database without deleting additional objects or their data.</summary>
     [Fact]
-    public void ActivityHistory_FailsWhenVersionedSchemaContainsUnsupportedObjects()
+    public void ActivityHistory_PreservesAdditionalDatabaseObjects()
     {
         var dataDirectory = CreateDataDirectory();
         try
@@ -981,12 +1011,16 @@ public sealed class ReportAggregationTests
             {
                 connection.Open();
                 using var command = connection.CreateCommand();
-                command.CommandText = "CREATE TABLE unsupported_data (id INTEGER PRIMARY KEY);";
+                command.CommandText = "CREATE TABLE unsupported_data (id INTEGER PRIMARY KEY); INSERT INTO unsupported_data VALUES (42);";
                 command.ExecuteNonQuery();
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-            Assert.Contains("unsupported schema objects", exception.Message, StringComparison.OrdinalIgnoreCase);
+            _ = new LocalStore(dataDirectory);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "SELECT id FROM unsupported_data;";
+            Assert.Equal(42L, Convert.ToInt64(checkCommand.ExecuteScalar()));
         }
         finally
         {
@@ -994,8 +1028,9 @@ public sealed class ReportAggregationTests
         }
     }
 
+    /// <summary>Retains valid existing constraint definitions rather than rejecting exact SQL differences.</summary>
     [Fact]
-    public void ActivityHistory_FailsWhenAiSchemaKeepsNamesButChangesAConstraint()
+    public void ActivityHistory_AllowsExistingConstraintDifferences()
     {
         var dataDirectory = CreateDataDirectory();
         try
@@ -1017,8 +1052,13 @@ public sealed class ReportAggregationTests
                 command.ExecuteNonQuery();
             }
 
-            var exception = Assert.Throws<InvalidOperationException>(() => new LocalStore(dataDirectory));
-            Assert.Contains("ai_request_usage schema does not match", exception.Message, StringComparison.OrdinalIgnoreCase);
+            _ = new LocalStore(dataDirectory);
+            using var check = new SqliteConnection($"Data Source={databasePath};Pooling=False");
+            check.Open();
+            using var checkCommand = check.CreateCommand();
+            checkCommand.CommandText = "SELECT sql FROM sqlite_schema WHERE name = 'ai_request_usage';";
+            var sql = Assert.IsType<string>(checkCommand.ExecuteScalar());
+            Assert.Contains("CHECK (success IN (0, 1, 2))", sql, StringComparison.Ordinal);
         }
         finally
         {

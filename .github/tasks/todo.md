@@ -56,7 +56,7 @@ the action needs authorization. Remove the item when it is complete.
 - [ ] Register the notification-area icon for the application lifetime. Its primary action
   must restore Main, and shutdown must remove it cleanly.
 - [ ] Treat a missing, incompatible, or corrupt local search index as a rebuildable cache.
-  Rebuild it without blocking application startup or weakening database validation.
+  Rebuild it without blocking application startup or replacing stored activity data.
 - [ ] Repair the current pre-release profile's stored screenshot roots once outside product
   code, then verify that Screenshot gallery opens the restored files. Do not add migration,
   fallback aliases, legacy product names, or compatibility code.
