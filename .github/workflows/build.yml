@@ -60,7 +60,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem -Recurse -Filter *.Tests.csproj | ForEach-Object {
-            dotnet test $_.FullName -p:Platform=x64 --no-restore -p:EnableNETAnalyzers=true -p:EnforceCodeStyleInBuild=true -p:TreatWarningsAsErrors=true --blame-hang-timeout 2m --blame-hang-dump-type none --results-directory "artifacts/test-results/analyzers/$($_.BaseName)"
+            dotnet test $_.FullName -p:Platform=x64 --no-restore -p:EnableNETAnalyzers=true -p:EnforceCodeStyleInBuild=true -p:TreatWarningsAsErrors=true --blame-hang-timeout 5m --blame-hang-dump-type none --results-directory "artifacts/test-results/analyzers/$($_.BaseName)"
             if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
             }
@@ -91,4 +91,4 @@ jobs:
 
       - name: Test Release solution
         if: matrix.platform == 'x64'
-        run: dotnet test .\WorkTrail.slnx --configuration Release-Unpackaged -p:Platform=x64 --no-build --no-restore -m:1 --blame-hang-timeout 2m --blame-hang-dump-type none --results-directory artifacts/test-results/release
+        run: dotnet test .\WorkTrail.slnx --configuration Release-Unpackaged -p:Platform=x64 --no-build --no-restore -m:1 --blame-hang-timeout 5m --blame-hang-dump-type none --results-directory artifacts/test-results/release

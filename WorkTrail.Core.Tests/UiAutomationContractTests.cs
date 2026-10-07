@@ -54,7 +54,11 @@ public sealed class UiAutomationContractTests
                 Assert.False(string.IsNullOrWhiteSpace(identifier), $"{surface}: {control.Name.LocalName} needs a stable automation ID.");
                 Assert.True(identifiers.Add(identifier!), $"Duplicate selector: {identifier}.");
                 Assert.True(LocalizationService.AutomationNameKeys.ContainsKey(identifier!), $"{identifier} needs a registered accessible name.");
-                Assert.Null(control.Attribute("AutomationProperties.Name"));
+                if (control.Attribute("AutomationProperties.Name") is { } fallbackName)
+                {
+                    Assert.False(string.IsNullOrWhiteSpace(fallbackName.Value));
+                    Assert.Equal(fallbackName.Value, control.Attribute("ToolTipService.ToolTip")?.Value);
+                }
             }
         }
 

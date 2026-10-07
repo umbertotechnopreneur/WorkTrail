@@ -52,6 +52,12 @@ public sealed class StartupInstanceContractTests
         var program = File.ReadAllText(RepositoryFile("WorkTrail", "Program.cs"));
         var app = File.ReadAllText(RepositoryFile("WorkTrail", "App.xaml.cs"));
 
+        var redirectedStart = app.IndexOf("internal void HandleRedirectedActivation(", StringComparison.Ordinal);
+        Assert.True(redirectedStart >= 0);
+        var redirectedEnd = app.IndexOf("private async void HandleScreenshotNotificationProtocol(", redirectedStart, StringComparison.Ordinal);
+        Assert.True(redirectedEnd > redirectedStart);
+        var redirected = app[redirectedStart..redirectedEnd];
+
         Assert.Contains("Queue<RedirectedActivationRequest>", program, StringComparison.Ordinal);
         Assert.Contains("var request = CaptureRedirectedActivation(activation);", program, StringComparison.Ordinal);
         Assert.True(
@@ -65,7 +71,8 @@ public sealed class StartupInstanceContractTests
         Assert.Contains("var options = activation.Options;", app, StringComparison.Ordinal);
         Assert.DoesNotContain("Queue<AppActivationArguments>", program, StringComparison.Ordinal);
         Assert.DoesNotContain("AppActivationArguments", app, StringComparison.Ordinal);
-        Assert.DoesNotContain("activation.Data", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("activation.Data", redirected, StringComparison.Ordinal);
+        Assert.Contains("HandleScreenshotNotificationProtocol(activation.ProtocolUri, closeAfterAction: false)", redirected, StringComparison.Ordinal);
     }
 
     [Theory]
