@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Spectre.Console;
 using Xunit;
