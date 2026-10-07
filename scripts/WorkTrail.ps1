@@ -101,7 +101,7 @@ if ($PSBoundParameters.ContainsKey('ReleaseVersion') -and [string]::IsNullOrEmpt
 if (-not [string]::IsNullOrEmpty($ReleaseVersion)) {
     if ($ReleaseVersion -cnotmatch '^(?<major>[1-9][0-9]{0,4})\.(?<minor>0|[1-9][0-9]{0,4})\.(?<patch>0|[1-9][0-9]{0,4})(?:\.(?<revision>0|[1-9][0-9]{0,4}))?$' -or
         [int]$Matches.major -gt 65534 -or [int]$Matches.minor -gt 65534 -or [int]$Matches.patch -gt 65534 -or
-        (-not [string]::IsNullOrEmpty($Matches.revision) -and [int]$Matches.revision -gt 65534)) {
+        (-not [string]::IsNullOrEmpty($Matches['revision']) -and [int]$Matches['revision'] -gt 65534)) {
         throw 'ReleaseVersion must be X.Y.Z or X.Y.Z.W with each component in the MSIX range and without leading zeros.'
     }
 

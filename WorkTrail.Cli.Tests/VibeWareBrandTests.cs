@@ -2,6 +2,7 @@
 
 using System.Text.RegularExpressions;
 using Spectre.Console;
+using Xunit;
 
 namespace WorkTrail.Cli.Tests;
 
