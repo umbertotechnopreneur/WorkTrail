@@ -22,6 +22,13 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
     private AppSettings? _savedSettings;
 
     /// <summary>Creates the label-management surface using the current settings and access snapshots.</summary>
+    /// <param name="application">The facade that manages labels and opens product links.</param>
+    /// <param name="settings">The current label and UI settings.</param>
+    /// <param name="access">The current feature-access snapshot.</param>
+    /// <param name="theme">The owner's presentation theme.</param>
+    /// <param name="strings">The owner's localized strings.</param>
+    /// <param name="ownerAppWindow">The owning window used for placement.</param>
+    /// <param name="ownerHandle">The native owning window handle.</param>
     internal ActivityLabelsDialogWindow(
         IWorkTrailApplication application,
         AppSettings settings,
@@ -54,8 +61,8 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
         LabelsFeatureGate.UiLanguage = settings.UiLanguage;
         LabelsFeatureGate.Access = access;
         LabelsEditor.ApplySettings(application, settings);
-        LabelsEditor.ShowUpgradeAsync = () => _messages.ShowInformativeAsync(this,
-            DialogRequest.Informative(strings.Translate("Premium.UpgradeTitle"), strings.Translate("Labels.FreeLimit"), strings.Translate("Dialog.Ok")));
+        LabelsEditor.ShowUpgradeAsync = () => _messages.ShowPremiumUpgradeAsync(
+            application, this, strings.Translate, "Labels.FreeLimit");
         LabelsEditor.SettingsSaved += saved => _savedSettings = saved;
         LabelsEditor.BusyChanged += busy => CloseButton.IsEnabled = !busy;
         appWindow.Closing += (_, args) =>

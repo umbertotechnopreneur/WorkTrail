@@ -729,6 +729,8 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Persists a confirmed schedule and starts or stops its timer from the main runtime owner.</summary>
+    /// <param name="sender">The schedule window that owns any validation dialog.</param>
+    /// <param name="eventArgs">The confirmed schedule and screenshot interval.</param>
     private async void ScheduleWindow_ScheduleConfirmed(object? sender, ScheduleConfigurationEventArgs eventArgs)
     {
         var activeHoursByDay = eventArgs.ActiveHours.ToDictionary(day => day.Day, StringComparer.Ordinal);
@@ -745,8 +747,15 @@ public sealed partial class MainWindow : Window
         var saveResult = await _application.PatchSettingsAsync(patch, CancellationToken.None);
         if (!saveResult.Succeeded || saveResult.Value is null)
         {
-            await _dialogs.ShowInformativeAsync(sender as Window ?? this, DialogRequest.Informative(
-                T(saveResult.Code == "feature.premium_required" ? "Premium.UpgradeTitle" : "Schedule.WindowTitle"), T(saveResult.MessageKey), T("Dialog.Ok")));
+            if (saveResult.Code == "feature.premium_required")
+            {
+                await _dialogs.ShowPremiumUpgradeAsync(_application, sender as Window ?? this, T);
+            }
+            else
+            {
+                await _dialogs.ShowInformativeAsync(sender as Window ?? this, DialogRequest.Informative(
+                    T("Schedule.WindowTitle"), T(saveResult.MessageKey), T("Dialog.Ok")));
+            }
             return;
         }
 

@@ -189,7 +189,7 @@
                 IsEnabled="False"
                 Label="Zoom out"
                 Tag="Screenshots.Toolbar.ZoomOut"
-                ToolTipService.ToolTip="Zoom out">
+                AutomationProperties.Name="Zoom out" ToolTipService.ToolTip="Zoom out">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE71F;" />
                 </AppBarButton.Icon>
@@ -200,7 +200,7 @@
                 IsEnabled="False"
                 Label="Reset zoom to 100%"
                 Tag="Screenshots.Toolbar.ZoomReset"
-                ToolTipService.ToolTip="Reset zoom to 100%">
+                AutomationProperties.Name="Reset zoom to 100%" ToolTipService.ToolTip="Reset zoom to 100%">
                 <AppBarButton.Icon>
                     <FontIcon
                         x:Name="ZoomPercentIcon"
@@ -217,7 +217,7 @@
                 IsEnabled="False"
                 Label="Zoom in"
                 Tag="Screenshots.Toolbar.ZoomIn"
-                ToolTipService.ToolTip="Zoom in">
+                AutomationProperties.Name="Zoom in" ToolTipService.ToolTip="Zoom in">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE8A3;" />
                 </AppBarButton.Icon>
@@ -229,7 +229,7 @@
                 IsEnabled="False"
                 Label="Show snapshot details"
                 Tag="Screenshots.Details.Show"
-                ToolTipService.ToolTip="Show snapshot details">
+                AutomationProperties.Name="Show snapshot details" ToolTipService.ToolTip="Show snapshot details">
                 <AppBarToggleButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE8A0;" />
                 </AppBarToggleButton.Icon>
@@ -241,7 +241,7 @@
                 IsEnabled="False"
                 Label="Save selected image"
                 Tag="Screenshots.Toolbar.Save"
-                ToolTipService.ToolTip="Save selected image">
+                AutomationProperties.Name="Save selected image" ToolTipService.ToolTip="Save selected image">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
                 </AppBarButton.Icon>
@@ -252,7 +252,7 @@
                 IsEnabled="False"
                 Label="Share with another app"
                 Tag="Screenshots.Toolbar.Share"
-                ToolTipService.ToolTip="Share with another app">
+                AutomationProperties.Name="Share with another app" ToolTipService.ToolTip="Share with another app">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE72D;" />
                 </AppBarButton.Icon>
@@ -262,7 +262,7 @@
                 Click="OpenFolderButton_Click"
                 Label="Open containing folder"
                 Tag="Screenshots.Toolbar.OpenFolder"
-                ToolTipService.ToolTip="Open containing folder">
+                AutomationProperties.Name="Open containing folder" ToolTipService.ToolTip="Open containing folder">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE8B7;" />
                 </AppBarButton.Icon>
@@ -275,7 +275,7 @@
                 IsEnabled="False"
                 Label="Delete screenshot"
                 Tag="Screenshots.Toolbar.DeleteScreenshot"
-                ToolTipService.ToolTip="Delete screenshot">
+                AutomationProperties.Name="Delete screenshot" ToolTipService.ToolTip="Delete screenshot">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" />
                 </AppBarButton.Icon>
@@ -287,7 +287,7 @@
                 IsEnabled="False"
                 Label="Delete analysis data"
                 Tag="Screenshots.Toolbar.DeleteAnalysis"
-                ToolTipService.ToolTip="Delete analysis data">
+                AutomationProperties.Name="Delete analysis data" ToolTipService.ToolTip="Delete analysis data">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE823;" />
                 </AppBarButton.Icon>

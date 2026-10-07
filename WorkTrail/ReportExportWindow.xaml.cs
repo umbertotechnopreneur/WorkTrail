@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using WorkTrail.Application;
 using WorkTrail.Services;
 using Windows.Storage.Pickers;
@@ -33,6 +32,11 @@ internal sealed partial class ReportExportWindow : Window
     private bool _loaded;
     private bool _closeAfterCancel;
 
+    // application provides report operations without exposing Core implementation details.
+    // theme selects the visual theme applied to the export window.
+    // strings provides localized text and formatting for the active language.
+    // ownerAppWindow identifies the application window that owns this modal surface.
+    // ownerHandle provides the native owner required by Windows pickers and dialogs.
     internal ReportExportWindow(IWorkTrailApplication application, ElementTheme theme, LocalizationService strings,
         AppWindow ownerAppWindow, IntPtr ownerHandle)
     {
@@ -40,13 +44,10 @@ internal sealed partial class ReportExportWindow : Window
         _strings = strings;
         InitializeComponent();
         TitlePremiumBadge.Text = strings.Translate("Premium.Badge");
-        TimesheetPremiumBadge.Text = strings.Translate("Premium.Badge");
         TimesheetRate.ValueChanged += (_, _) => ResetTimesheetSelection();
         Title = T("Export.Title");
         RootGrid.RequestedTheme = theme;
         UiLocalization.Apply(RootGrid, strings);
-        UiLocalization.SetAccessibleLabel(ExcelPreviewCopyButton, T("Timesheet.CopyPreviewPath"));
-        ToolTipService.SetToolTip(ExcelPreviewCopyButton, T("Timesheet.CopyPreviewPath"));
         GroupingInfoLink.Content = T("Export.MoreInformation");
         UiLocalization.SetAccessibleLabel(GroupingInfoLink, T("Export.MoreInformation"));
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -73,7 +74,7 @@ internal sealed partial class ReportExportWindow : Window
         UiLocalization.SetAccessibleLabel(MonthButton, T("Export.Month"));
         FormatCombo.ItemsSource = new[] { "Excel .xlsx", "CSV .zip", "JSON .json" };
         WorkbookThemeCombo.ItemsSource = new[] { T("Export.ThemeWorkTrail"), T("Export.ThemeGreen"), T("Export.ThemeBlue") };
-        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme"));
+        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme.Header"));
         DescriptionCombo.ItemsSource = new[] { T("Export.Brief"), T("Export.CompleteText"), T("Export.Both") };
         SeparatorCombo.ItemsSource = new[] { ";", "," };
         GroupingCombo.ItemsSource = new[] { T("Export.ByDay"), T("Export.ByApplication"), T("Export.WholePeriod") };
@@ -188,7 +189,6 @@ internal sealed partial class ReportExportWindow : Window
             ResetSummary();
             ResetTimesheetSelection();
         }
-        else ResetExcelPreview();
         UpdateFormatHelp();
     }
 
@@ -207,7 +207,6 @@ internal sealed partial class ReportExportWindow : Window
 
     private void ResetSummary()
     {
-        ResetExcelPreview();
         _summary = "";
         SummaryTextBox.Text = "";
         IncludeSummaryCheck.IsChecked = false;
@@ -219,11 +218,10 @@ internal sealed partial class ReportExportWindow : Window
     {
         if (_closed || sender is not TextBox editor) return;
         _summary = editor.Text;
-        ResetExcelPreview();
     }
 
     // sender is the wizard navigation control.
-    // args identifies the destination; only switching report types invalidates the workbook sample.
+    // args identifies the destination whose report page must become visible.
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (ExportPage is null || TimesheetPage is null) return;
@@ -231,18 +229,13 @@ internal sealed partial class ReportExportWindow : Window
         ContentsPage.Visibility = ReferenceEquals(args.SelectedItem, ContentsTab) ? Visibility.Visible : Visibility.Collapsed;
         var summary = ReferenceEquals(args.SelectedItem, SummaryTab);
         var timesheet = ReferenceEquals(args.SelectedItem, TimesheetTab);
-        if (timesheet != (TimesheetPage.Visibility == Visibility.Visible))
-            ResetExcelPreview();
         if (SummaryEditorPanel is not null)
         {
+            ExcelPreviewGenerateButton.Visibility = Visibility.Visible;
             SummaryEditorPanel.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
-            ExcelPreviewExpander.Visibility = summary ? Visibility.Collapsed : Visibility.Visible;
             ReportWelcomePanel.Visibility = ReferenceEquals(args.SelectedItem, ExportTab) ? Visibility.Visible : Visibility.Collapsed;
             ReportTabHelpPanel.Visibility = ReportWelcomePanel.Visibility;
             ContentsDetailsPage.Visibility = ReferenceEquals(args.SelectedItem, ContentsTab) ? Visibility.Visible : Visibility.Collapsed;
-            ExcelPreviewStatusPanel.Visibility = !summary && _excelPreviewPath is not null
-                ? Visibility.Visible : Visibility.Collapsed;
-            UpdateReportColumns(BodyGrid.ActualWidth);
         }
         TimesheetPage.Visibility = timesheet ? Visibility.Visible : Visibility.Collapsed;
         UpdateTimesheetPanels();
@@ -250,19 +243,6 @@ internal sealed partial class ReportExportWindow : Window
         SaveButton.Visibility = timesheet ? Visibility.Collapsed : Visibility.Visible;
         if (timesheet) TimesheetRange.Text = $"{FromPicker.Date:d} — {ToPicker.Date:d} · {TimeZoneText.Text}";
         SummaryPage.Visibility = summary ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void BodyGrid_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateReportColumns(e.NewSize.Width);
-
-    // width is the available report width; narrow windows stack content while summaries reserve more space for editing.
-    private void UpdateReportColumns(double width)
-    {
-        if (ResultsPanel is null) return;
-        var stacked = width < 740;
-        var summary = ReferenceEquals(Navigation.SelectedItem, SummaryTab);
-        EditorColumn.Width = new GridLength(summary && !stacked ? 2 : 1, GridUnitType.Star);
-        PreviewColumn.Width = new GridLength(stacked ? 0 : summary ? 3 : 1, stacked ? GridUnitType.Pixel : GridUnitType.Star);
-        Grid.SetColumn(ResultsPanel, stacked ? 0 : 1); Grid.SetRow(ResultsPanel, stacked ? 1 : 0);
     }
 
     // sender is the scrolling report surface beneath the fixed title bar.
@@ -280,11 +260,14 @@ internal sealed partial class ReportExportWindow : Window
         _applying = false; OptionsChanged(this, new RoutedEventArgs());
     }
 
+    // sender is the footer whose actions reflow as the window narrows.
+    // e provides the available footer width for the responsive arrangement.
     private void FooterGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var stacked = e.NewSize.Width < 900;
-        Grid.SetColumnSpan(PreferenceActions, stacked ? 3 : 1);
+        Grid.SetColumnSpan(PreferenceActions, stacked ? 4 : 1);
         Grid.SetRow(CloseButton, stacked ? 1 : 0);
+        Grid.SetRow(ExcelPreviewGenerateButton, stacked ? 1 : 0);
         Grid.SetRow(ExportButton, stacked ? 1 : 0);
     }
     private void Today_Click(object sender, RoutedEventArgs e) { if (_setup is { } setup) SetPeriod(setup.Options.ToInclusive, setup.Options.ToInclusive); }
@@ -308,6 +291,8 @@ internal sealed partial class ReportExportWindow : Window
         catch (Exception) { ShowStatus("ProductLinkUnavailable", InfoBarSeverity.Error); }
     }
 
+    // sender identifies the summary generation command.
+    // e describes the click that starts summary generation.
     private async void Generate_Click(object sender, RoutedEventArgs e) => await RunAsync(async token =>
     {
         var status = await _application.GetAiStatusAsync(token);
@@ -335,7 +320,6 @@ internal sealed partial class ReportExportWindow : Window
         SummaryTextBox.Text = _summary;
         SummaryTextBox.SelectionStart = 0;
         SummaryTextBox.SelectionLength = 0;
-        ResetExcelPreview();
         ProviderText.Text = result.Value.Provider + " · " + result.Value.Model;
         IncludeSummaryCheck.IsChecked = true;
         ShowStatus("Export.SummaryReady", InfoBarSeverity.Success);
@@ -364,17 +348,16 @@ internal sealed partial class ReportExportWindow : Window
         StatusBar.Severity = InfoBarSeverity.Success; StatusBar.IsOpen = true;
     });
 
-    private Task ShowUpgradeAsync() => _messages.ShowInformativeAsync(this,
-        DialogRequest.Informative(T("Export.UpgradeTitle"), T("Export.UpgradeMessage"), T("Dialog.Ok")));
+    private Task ShowUpgradeAsync() => _messages.ShowPremiumUpgradeAsync(
+        _application, this, T, "Export.UpgradeMessage");
 
+    // action performs one cancellable report operation while shared controls are disabled.
     private async Task RunAsync(Func<CancellationToken, Task> action)
     {
         if (_busy || _closed || _setup is null) return;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _operation = cancellation; _busy = true;
         ExcelPreviewGenerateButton.IsEnabled = false;
-        ExcelPreviewOpenButton.IsEnabled = false;
-        ExcelPreviewCopyButton.IsEnabled = false;
         Navigation.IsEnabled = false; ExportButton.IsEnabled = false; SaveButton.IsEnabled = false;
         CancelButton.Visibility = Visibility.Visible; BusyBar.Visibility = Visibility.Visible; StatusBar.IsOpen = false;
         try { await action(cancellation.Token); }
@@ -387,8 +370,6 @@ internal sealed partial class ReportExportWindow : Window
             {
                 Navigation.IsEnabled = true; ExportButton.IsEnabled = true; SaveButton.IsEnabled = true;
                 ExcelPreviewGenerateButton.IsEnabled = true;
-                ExcelPreviewOpenButton.IsEnabled = _excelPreviewPath is not null;
-                ExcelPreviewCopyButton.IsEnabled = _excelPreviewPath is not null;
                 CancelButton.Visibility = Visibility.Collapsed; BusyBar.Visibility = Visibility.Collapsed;
                 if (_closeAfterCancel) Close();
             }

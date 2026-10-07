@@ -233,7 +233,7 @@
                     Click="PreviousTimelineButton_Click"
                     Style="{StaticResource TimelineNavigationButtonStyle}"
                     Tag="Screenshots.Timeline.Previous"
-                    ToolTipService.ToolTip="Previous screenshots"
+                    AutomationProperties.Name="Previous screenshots" ToolTipService.ToolTip="Previous screenshots"
                     Visibility="Collapsed">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
@@ -277,7 +277,7 @@
                     Click="NextTimelineButton_Click"
                     Style="{StaticResource TimelineNavigationButtonStyle}"
                     Tag="Screenshots.Timeline.Next"
-                    ToolTipService.ToolTip="Next screenshots"
+                    AutomationProperties.Name="Next screenshots" ToolTipService.ToolTip="Next screenshots"
                     Visibility="Collapsed">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
@@ -295,7 +295,7 @@
             Background="Transparent"
             BorderBrush="Transparent"
             Tag="Screenshots.Timeline.Hide"
-            ToolTipService.ToolTip="Hide screenshot strip"
+            AutomationProperties.Name="Hide screenshot strip" ToolTipService.ToolTip="Hide screenshot strip"
             Visibility="Collapsed">
             <FontIcon
                 x:Name="FilmstripChevronIcon"

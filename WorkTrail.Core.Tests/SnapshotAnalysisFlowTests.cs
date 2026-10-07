@@ -313,7 +313,7 @@ public sealed class SnapshotAnalysisFlowTests
                 OpenAiEnabled = false,
                 ScreenshotDirectory = dataDirectory
             });
-            var capture = new ArtifactCaptureService(dataDirectory);
+            var capture = new ArtifactCaptureService();
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
             await using var application = CreateApplication(
                 store,
@@ -890,7 +890,7 @@ public sealed class SnapshotAnalysisFlowTests
             var captureTask = application.CaptureScreenshotAsync(
                 new CaptureScreenshotRequest("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual),
                 cancellation.Token);
-            await analysis.Entered;
+            await analysis.Entered.WaitAsync(TimeSpan.FromSeconds(10));
             cancellation.Cancel();
             var result = await captureTask;
 
@@ -927,8 +927,10 @@ public sealed class SnapshotAnalysisFlowTests
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
             await using var application = CreateApplication(store, captureService, analysis);
             var captureId = Guid.NewGuid().ToString("N");
-            var rawPath = Path.Combine(dataDirectory, $"{captureId}_1.0.0_scheduled_monitor-1-raw.webp");
-            var storedPath = Path.Combine(dataDirectory, $"{captureId}_1.0.0_scheduled_monitor-1.webp");
+            var dayDirectory = ScreenshotStorageLayout.GetDayDirectory(dataDirectory, DateTimeOffset.UtcNow);
+            Directory.CreateDirectory(dayDirectory);
+            var rawPath = Path.Combine(dayDirectory, $"{captureId}_1.0.0_scheduled_monitor-1-raw.webp");
+            var storedPath = Path.Combine(dayDirectory, $"{captureId}_1.0.0_scheduled_monitor-1.webp");
             await File.WriteAllBytesAsync(rawPath, [1, 2, 3]);
             await File.WriteAllBytesAsync(storedPath, [4, 5, 6]);
             var capture = new ScreenshotCaptureResult(
@@ -1028,24 +1030,29 @@ public sealed class SnapshotAnalysisFlowTests
             CallCount++;
             LastCaptureOrigin = captureOrigin;
             LastCaptureMode = captureMode;
-            Result = CreateResult(captureOrigin);
+            Result = CreateResult(captureOrigin, directory);
             return Result;
         }
 
-        private ScreenshotCaptureResult CreateResult(string captureOrigin)
+        /// <summary>Stages a synthetic capture using the authorized root and current dated storage layout.</summary>
+        private ScreenshotCaptureResult CreateResult(string captureOrigin, string? directory = null)
         {
             var captureId = Guid.NewGuid().ToString("N");
-            var path = Path.Combine(_directory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
+            var capturedAt = DateTimeOffset.UtcNow;
+            var dayDirectory = ScreenshotStorageLayout.GetDayDirectory(directory ?? _directory, capturedAt);
+            Directory.CreateDirectory(dayDirectory);
+            var path = Path.Combine(dayDirectory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
+            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(path), [1, 2, 3]);
             return new ScreenshotCaptureResult(
                 captureId,
                 [path],
                 [path],
                 captureOrigin,
-                CapturedAt: DateTimeOffset.UtcNow);
+                CapturedAt: capturedAt);
         }
     }
 
-    private sealed class ArtifactCaptureService(string directory) : IScreenCaptureService
+    private sealed class ArtifactCaptureService : IScreenCaptureService
     {
         public string? RawPath { get; private set; }
 
@@ -1060,17 +1067,20 @@ public sealed class SnapshotAnalysisFlowTests
         {
             Authorize(authorizeCapture);
             var captureId = Guid.NewGuid().ToString("N");
-            RawPath = Path.Combine(directory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1-raw.webp");
-            StoredPath = Path.Combine(directory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
-            File.WriteAllBytes(RawPath, [1, 2, 3]);
-            File.WriteAllBytes(StoredPath, [4, 5, 6]);
-            return new ScreenshotCaptureResult(captureId, [RawPath], [StoredPath], captureOrigin);
+            var capturedAt = DateTimeOffset.UtcNow;
+            var dayDirectory = ScreenshotStorageLayout.GetDayDirectory(requestedDirectory, capturedAt);
+            Directory.CreateDirectory(dayDirectory);
+            RawPath = Path.Combine(dayDirectory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1-raw.webp");
+            StoredPath = Path.Combine(dayDirectory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
+            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(RawPath), [1, 2, 3]);
+            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(StoredPath), [4, 5, 6]);
+            return new ScreenshotCaptureResult(captureId, [RawPath], [StoredPath], captureOrigin, CapturedAt: capturedAt);
         }
     }
 
     private static void Authorize(Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
     {
-        var decision = authorizeCapture(ScreenshotCaptureContext.Unavailable);
+        var decision = authorizeCapture(new ScreenshotCaptureContext("allowed-app", "Allowed", "Work", "Allowed window"));
         if (decision != ScreenshotCaptureDecision.Allowed)
         {
             throw new ScreenshotCapturePreconditionException(decision);

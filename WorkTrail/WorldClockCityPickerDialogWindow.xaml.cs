@@ -192,6 +192,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         _lifetimeCancellation.Dispose();
     }
 
+    // closeWhenAdded determines whether a successful addition closes the picker.
     private async Task AddSelectedCityAsync(bool closeWhenAdded)
     {
         if (IsClosing || _isAdding || CityComboBox.SelectedItem is not WorldClockCityPickerOption option)
@@ -215,8 +216,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
             {
                 if (result.Code == "feature.clock_limit")
                 {
-                    await _messages.ShowInformativeAsync(this, DialogRequest.Informative(
-                        _strings.Translate("Premium.UpgradeTitle"), ResultMessage(result.MessageKey), _strings.Translate("Dialog.Ok")));
+                    await _messages.ShowPremiumUpgradeAsync(_application, this, _strings.Translate, result.MessageKey);
                     return;
                 }
                 // The picker remains usable after a rejected mutation so the user can select another city.

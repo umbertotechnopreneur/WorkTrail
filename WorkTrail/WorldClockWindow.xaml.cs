@@ -1012,7 +1012,7 @@ public sealed partial class WorldClockWindow : Window
             var selectedIds = _snapshot?.Clocks.Select(clock => clock.CityId).ToHashSet(StringComparer.Ordinal) ?? [];
             if (catalogResult.Value.AddDeniedMessageKey is { } deniedMessage)
             {
-                await _dialogs.ShowInformativeAsync(this, DialogRequest.Informative(T("Premium.UpgradeTitle"), T(deniedMessage), T("Dialog.Ok")));
+                await _dialogs.ShowPremiumUpgradeAsync(_application, this, T, deniedMessage);
                 return;
             }
             var options = catalogResult.Value.Cities.Where(city => !selectedIds.Contains(city.Id)).ToArray();

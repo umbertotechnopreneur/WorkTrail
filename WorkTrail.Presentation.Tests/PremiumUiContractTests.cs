@@ -79,7 +79,7 @@ public sealed class PremiumUiContractTests
         var archives = File.ReadAllText(PathFor("WorkTrail", "Controls", "InstallationTransferOperationsControl.xaml.cs"));
         Assert.Equal(2, archives.Split("if (!await EnsureArchiveAccessAsync())", StringSplitOptions.None).Length - 1);
         Assert.Contains("ProductFeature.DataTransfer", archives, StringComparison.Ordinal);
-        Assert.Contains("Context.Dialogs.ShowInformativeAsync", archives, StringComparison.Ordinal);
+        Assert.Contains("Context.Dialogs.ShowPremiumUpgradeAsync", archives, StringComparison.Ordinal);
         var labels = File.ReadAllText(PathFor("WorkTrail", "Controls", "ActivityLabelsEditor.cs"));
         Assert.Contains("result.Code == \"feature.label_limit\"", labels, StringComparison.Ordinal);
         Assert.Contains("button.BorderThickness = new Thickness(0);", labels, StringComparison.Ordinal);

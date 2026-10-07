@@ -158,15 +158,18 @@ public sealed class SearchSurfaceContractTests
     {
         var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
         var source = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml.cs"));
+        var retention = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        var retentionSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml.cs"));
         var localization = File.ReadAllText(RepositoryFile("WorkTrail", "UiLocalization.cs"));
 
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchOptionsView"));
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchLanguageBox"));
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchSynonymsSwitch"));
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchTypoToleranceSwitch"));
-        Assert.Contains(options.Descendants(), element => HasName(element, "OcrEnabledSwitch"));
+        Assert.Contains(retention.Descendants(), element => HasName(element, "OcrEnabledSwitch"));
+        Assert.DoesNotContain(options.Descendants(), element => HasName(element, "OcrEnabledSwitch"));
         Assert.DoesNotContain(options.Descendants(), element => HasName(element, "SearchEnabledSwitch"));
-        Assert.Contains("QueueAutoSave(\"ocr.enabled\"", source, StringComparison.Ordinal);
+        Assert.Contains("QueueStorageSave(\"ocr.enabled\"", retentionSource, StringComparison.Ordinal);
         Assert.Contains("QueueAutoSave(", source, StringComparison.Ordinal);
         Assert.Contains("\"search.synonyms\"", source, StringComparison.Ordinal);
         Assert.Contains("SearchIndexingRequested?.Invoke", source, StringComparison.Ordinal);

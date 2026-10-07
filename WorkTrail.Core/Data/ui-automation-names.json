@@ -78,10 +78,6 @@
   "Report.TimesheetTitles": "Export.Titles",
   "Report.Timesheet_Submit": "Timesheet.Submit",
   "Report.Timesheet_OpenPreview": "Timesheet.GeneratePreview",
-  "Report.ExcelPreviewExpander": "Timesheet.PreviewTitle",
-  "Report.ExcelPreviewPath": "Timesheet.PreviewPath",
-  "Report.ExcelPreviewOpen": "Timesheet.OpenPreview",
-  "Report.ExcelPreviewCopy": "Timesheet.CopyPreviewPath",
   "Report.TimesheetJobs": "Timesheet.Jobs.Header",
   "Report.TimesheetPreviousButton": "Timesheet.PreviousPage",
   "Report.TimesheetNextButton": "Timesheet.NextPage",
@@ -194,5 +190,5 @@
   "Gallery.Details.AllSensors": "Hardware.AllSensors",
   "Settings.ScreenshotNotificationsSwitch": "Options.ScreenshotNotifications.Header",
   "Report.TimesheetGrouping": "Timesheet.Grouping",
-  "Report.WorkbookTheme": "Export.ExcelTheme"
+  "Report.WorkbookTheme": "Export.ExcelTheme.Header"
 }
