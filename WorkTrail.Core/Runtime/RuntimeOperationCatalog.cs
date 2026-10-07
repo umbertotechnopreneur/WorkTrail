@@ -56,8 +56,14 @@ internal enum RuntimeOperation
     HardwareAdvancedEnableV1,
     [RuntimeOperationWireName("screenshot.capture")]
     ScreenshotCapture,
+    [RuntimeOperationWireName("screenshot.vip.capture.v1")]
+    ScreenshotVipCaptureV1,
     [RuntimeOperationWireName("screenshot.manual.capture")]
     ScreenshotManualCapture,
+    [RuntimeOperationWireName("screenshot.vip.note.save.v1")]
+    ScreenshotVipNoteSaveV1,
+    [RuntimeOperationWireName("screenshot.vip.dates.v1")]
+    ScreenshotVipDatesV1,
     [RuntimeOperationWireName("screenshot.manual.delete")]
     ScreenshotManualDelete,
     [RuntimeOperationWireName("screenshot.analyze")]

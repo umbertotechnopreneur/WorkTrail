@@ -26,7 +26,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private readonly ServiceProvider _services;
     private readonly ILogger<App> _logger;
     private readonly MicaDialogService _dialogs = new();
-    private readonly IWindowsToastNotificationService _windowsNotifications;
+    private readonly WindowsToastNotificationService _windowsNotifications;
     private readonly AtomicResetService _atomicReset = new();
     private readonly DispatcherQueue _dispatcherQueue;
     private MainWindow? _window;
@@ -276,6 +276,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.DebugOobeResetRequested += MainWindow_DebugOobeResetRequested;
 #endif
             _window.WorldClocksRequested += MainWindow_WorldClocksRequested;
+            _window.TrayAstronomyRequested += MainWindow_TrayAstronomyRequested;
             _window.SensorsRequested += MainWindow_SensorsRequested;
             _window.SearchRequested += MainWindow_SearchRequested;
             _window.ScreenshotGalleryRequested += MainWindow_ScreenshotGalleryRequested;
@@ -684,8 +685,10 @@ public partial class App : Microsoft.UI.Xaml.Application
         foreach (var window in _celestialWindows.Values) window.ApplySettings(settings);
     }
 
+    // settings contains current presentation and automatic-notification preferences.
     private void ApplyTitleBarSettings(AppSettings settings)
     {
+        _windowsNotifications.IsEnabled = settings.NotificationsEnabled;
         _uiLanguage = settings.UiLanguage;
         CustomTitleBarController.ApplyAutoHideSetting(settings.AutoHideTitleBar);
         _applicationFacade?.ConfigureWindowSnapping(settings.WindowSnappingEnabled);
@@ -715,6 +718,23 @@ public partial class App : Microsoft.UI.Xaml.Application
             strings.Translate("Operations.Status.Failed.Title"),
             strings.Translate("WorldClock.PlacementFailed"),
             strings.Translate("Dialog.Ok")));
+    }
+
+    // command identifies an existing astronomy surface requested by the native tray menu.
+    private async void MainWindow_TrayAstronomyRequested(TrayIconMenuCommand command)
+    {
+        switch (command)
+        {
+            case TrayIconMenuCommand.AstronomicalCalendar:
+                await ShowCelestialWindowAsync(WindowStateKeys.AstronomyAgenda);
+                break;
+            case TrayIconMenuCommand.DayNightMap:
+                await ShowAstronomyWindowAsync(isLunarPhase: false);
+                break;
+            case TrayIconMenuCommand.DayNightGlobe:
+                await ShowCelestialWindowAsync(WindowStateKeys.CelestialMap);
+                break;
+        }
     }
 
     private async void WorldClockWindow_WorldMapRequested(object? sender, EventArgs args) =>
@@ -1101,6 +1121,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.DebugOobeResetRequested -= MainWindow_DebugOobeResetRequested;
 #endif
             _window.WorldClocksRequested -= MainWindow_WorldClocksRequested;
+            _window.TrayAstronomyRequested -= MainWindow_TrayAstronomyRequested;
             _window.SensorsRequested -= MainWindow_SensorsRequested;
             _window.SearchRequested -= MainWindow_SearchRequested;
             _window.ScreenshotGalleryRequested -= MainWindow_ScreenshotGalleryRequested;

@@ -24,4 +24,10 @@ public sealed partial class ScreenshotGalleryViewControl : UserControl
 
     /// <summary>Gets the loading indicator.</summary>
     public ProgressRing LoadingRing => GalleryProgressRing;
+
+    /// <summary>Gets the reusable VIP strip displayed above the selected image.</summary>
+    public ScreenshotTimelineControl FeaturedTimeline => VipTimeline;
+
+    /// <summary>Gets the header and timeline for VIP captures in the current date.</summary>
+    public StackPanel FeaturedSection => VipSection;
 }

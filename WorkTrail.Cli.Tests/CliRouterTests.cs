@@ -455,6 +455,14 @@ public sealed class CliRouterTests
         /// <inheritdoc />
         public Task<OperationResult<PendingManualScreenshotState>> CaptureManualScreenshotAsync(CancellationToken cancellationToken) => Unsupported<PendingManualScreenshotState>();
         /// <inheritdoc />
+        /// <param name="request">The VIP capture identity and user note.</param>
+        /// <param name="cancellationToken">Cancels the request.</param>
+        public Task<OperationResult<bool>> SaveVipScreenshotNoteAsync(VipScreenshotNoteRequest request, CancellationToken cancellationToken) => Unsupported<bool>();
+        /// <inheritdoc />
+        /// <param name="request">The inclusive local date range.</param>
+        /// <param name="cancellationToken">Cancels the request.</param>
+        public Task<OperationResult<IReadOnlyList<DateOnly>>> GetVipScreenshotDatesAsync(VipScreenshotDatesRequest request, CancellationToken cancellationToken) => Unsupported<IReadOnlyList<DateOnly>>();
+        /// <inheritdoc />
         public Task<OperationResult<bool>> DeletePendingManualScreenshotAsync(CancellationToken cancellationToken) => Unsupported<bool>();
         public Task<OperationResult<AiAnalysis>> AnalyzeCapturedScreenshotAsync(AnalyzeCapturedScreenshotRequest request, CancellationToken cancellationToken) => Unsupported<AiAnalysis>();
         public Task<OperationResult<string>> DeleteScreenshotAsync(string screenshotPath, CancellationToken cancellationToken) => Unsupported<string>();

@@ -32,11 +32,19 @@ public sealed record StartTrackingRequest(bool SafeMode = false, string? Source 
 /// <param name="Keep">Whether retained screenshot artifacts should remain after optional analysis.</param>
 /// <param name="CaptureOrigin">The stable origin recorded with the capture.</param>
 /// <param name="DeferAiAnalysis">Whether AI analysis must wait for an explicit later request.</param>
+/// <param name="IsVip">Whether this retained manual capture is explicitly important to the user.</param>
 public sealed record CaptureScreenshotRequest(
     string? Mode,
     bool Keep,
     string CaptureOrigin,
-    bool DeferAiAnalysis = false);
+    bool DeferAiAnalysis = false,
+    bool IsVip = false);
+
+/// <summary>Requests a plain-text note for an existing VIP capture.</summary>
+public sealed record VipScreenshotNoteRequest(string CaptureId, string Note);
+
+/// <summary>Requests VIP indicators for an inclusive range of local calendar dates.</summary>
+public sealed record VipScreenshotDatesRequest(DateOnly From, DateOnly To);
 
 /// <summary>Requests AI analysis for an already captured screenshot without taking a second capture.</summary>
 public sealed record AnalyzeCapturedScreenshotRequest(
@@ -136,6 +144,8 @@ public sealed record ScreenshotTextSnapshot(
 /// <param name="CpuUsagePercent">The average CPU usage persisted for the capture interval, or <see langword="null"/> when telemetry was unavailable.</param>
 /// <param name="GpuUsagePercent">The average GPU usage persisted for the capture interval, or <see langword="null"/> when telemetry was unavailable.</param>
 /// <param name="HasRemovableAnalysisData">Whether OCR, AI-provider analysis, or interval telemetry is currently persisted for this artifact.</param>
+/// <param name="IsVip">Whether the user explicitly marked this retained manual capture as important.</param>
+/// <param name="UserNote">The plain-text note shared by all artifacts of the capture.</param>
 public sealed record ScreenshotGalleryItem(
     DateTimeOffset CapturedAt,
     string Path,
@@ -155,7 +165,9 @@ public sealed record ScreenshotGalleryItem(
     int? GpuUsagePercent = null,
     InstallationProfile? Installation = null,
     bool HasRemovableAnalysisData = false,
-    SystemSnapshot? HardwareSnapshot = null);
+    SystemSnapshot? HardwareSnapshot = null,
+    bool IsVip = false,
+    string UserNote = "");
 
 /// <summary>Contains telemetry averaged between the previous retained screenshot and the current capture.</summary>
 public sealed record ScreenshotIntervalTelemetry(
@@ -794,6 +806,16 @@ public interface IWorkTrailApplication : IAsyncDisposable
 
     /// <summary>Captures a manual screenshot and starts its runtime-owned deletion window.</summary>
     Task<OperationResult<PendingManualScreenshotState>> CaptureManualScreenshotAsync(CancellationToken cancellationToken);
+
+    /// <summary>Persists a user note without changing the capture's VIP status.</summary>
+    /// <param name="request">The existing VIP capture identity and plain-text note.</param>
+    /// <param name="cancellationToken">Cancels the serialized database update.</param>
+    Task<OperationResult<bool>> SaveVipScreenshotNoteAsync(VipScreenshotNoteRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Lists local dates that contain retained VIP screenshots.</summary>
+    /// <param name="request">The inclusive local date range.</param>
+    /// <param name="cancellationToken">Cancels the bounded gallery projection.</param>
+    Task<OperationResult<IReadOnlyList<DateOnly>>> GetVipScreenshotDatesAsync(VipScreenshotDatesRequest request, CancellationToken cancellationToken);
 
     /// <summary>Deletes the manual screenshot that is still inside its runtime-owned deletion window.</summary>
     Task<OperationResult<bool>> DeletePendingManualScreenshotAsync(CancellationToken cancellationToken);

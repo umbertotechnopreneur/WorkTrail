@@ -738,17 +738,18 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <controls:FeatureGate x:Name="PlayerLabelFeatureGate" Feature="ActivityLabels" ShowTitle="False" ShowHint="False" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <controls:ActivityLabelSelector x:Name="PlayerLabelSelector" />
+                                        <controls:ActivityLabelSelector x:Name="PlayerLabelSelector" ManageRequested="PlayerLabelSelector_ManageRequested" />
                                     </controls:FeatureGate>
-                                    <Button AutomationProperties.AutomationId="Main.ManageLabelsButton" x:Name="ManageLabelsButton" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Padding="8,4" FontSize="12" Click="ManageLabelsButton_Click">
+                                    <Button AutomationProperties.AutomationId="Main.VipSnapshotButton" x:Name="VipSnapshotButton" Grid.Row="1" Width="155" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                            IsEnabled="{Binding IsEnabled, ElementName=TakeScreenshotButton}" Style="{StaticResource AccentButtonStyle}"
+                                            Padding="8,4" FontSize="12" Click="VipSnapshotButton_Click">
                                         <Grid ColumnSpacing="6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <FontIcon Glyph="&#xE8EC;" FontSize="14" Foreground="{ThemeResource PlayerAccentTextBrush}" AutomationProperties.AccessibilityView="Raw" />
-                                            <TextBlock Grid.Column="1" Tag="Labels.Manage" Text="Manage labels" TextWrapping="Wrap" />
+                                            <FontIcon Glyph="&#xE722;" FontSize="14" AutomationProperties.AccessibilityView="Raw" />
+                                            <TextBlock Grid.Column="1" Tag="Snapshot.Vip.Take" Text="VIP snapshot" TextWrapping="Wrap" />
                                         </Grid>
                                     </Button>
                                 </Grid>

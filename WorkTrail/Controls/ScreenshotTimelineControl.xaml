@@ -3,11 +3,13 @@
     x:Class="WorkTrail.Controls.ScreenshotTimelineControl"
     x:Name="TimelineControlRoot"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:WorkTrail.Controls">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="VipFrameBrush" Color="#B78012" />
                     <AcrylicBrush
                         x:Key="ScreenshotFilmstripBackdropBrush"
                         FallbackColor="#DCF4F7FA"
@@ -16,6 +18,7 @@
                         TintOpacity="0.05" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="VipFrameBrush" Color="#FFD166" />
                     <AcrylicBrush
                         x:Key="ScreenshotFilmstripBackdropBrush"
                         FallbackColor="#D2141920"
@@ -24,6 +27,7 @@
                         TintOpacity="0.12" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
+                    <StaticResource x:Key="VipFrameBrush" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="ScreenshotFilmstripBackdropBrush" ResourceKey="SystemColorWindowColorBrush" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
@@ -166,7 +170,14 @@
                                 Stretch="Uniform"
                                 Unloaded="TimelineImage_Unloaded" />
                         </Border>
+                        <Border Width="80" Height="46" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                BorderBrush="{ThemeResource VipFrameBrush}" BorderThickness="2" CornerRadius="5"
+                                IsHitTestVisible="False" Visibility="{Binding VipVisibility}" />
                     </Grid>
+                    <Border HorizontalAlignment="Right" VerticalAlignment="Top" Padding="3,2" CornerRadius="3"
+                            Background="{ThemeResource LayerFillColorDefaultBrush}" Visibility="{Binding VipVisibility}">
+                        <controls:VipBadge Text="{Binding VipLabel}" />
+                    </Border>
                     <StackPanel
                         Grid.Row="1"
                         HorizontalAlignment="Center"

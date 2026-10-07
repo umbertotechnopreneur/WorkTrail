@@ -31,6 +31,9 @@ public sealed partial class ScreenshotDetailsControl : UserControl
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(emptyAiDescriptionText);
         ArgumentException.ThrowIfNullOrWhiteSpace(privacyStatusText);
+        VipDetailsSection.Visibility = state?.IsVip == true ? Visibility.Visible : Visibility.Collapsed;
+        VipNoteText.Text = state?.UserNote ?? string.Empty;
+        VipNoteLabel.Visibility = VipNoteText.Visibility = string.IsNullOrWhiteSpace(state?.UserNote) ? Visibility.Collapsed : Visibility.Visible;
 
         CapturedAtSummaryText.Text = state is null ? "--" : $"{state.CapturedDate} · {state.CapturedTime}";
         ActivityIndexValueText.Text = state?.ActivityIndex ?? "--";

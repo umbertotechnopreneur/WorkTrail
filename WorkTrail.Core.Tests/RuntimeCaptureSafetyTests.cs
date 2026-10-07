@@ -17,6 +17,81 @@ namespace WorkTrail.Core.Tests;
 [Collection(ProcessEnvironmentCollection.Name)]
 public sealed class RuntimeCaptureSafetyTests
 {
+    /// <summary>VIP importance and its user note survive reopening; deleting the last artifact removes its calendar indicator.</summary>
+    [Fact]
+    public async Task VipCapture_PersistsNoteAndClearsCalendarAfterDeletion()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with { ScreenshotsEnabled = true, ScreenshotDirectory = dataDirectory, OpenAiEnabled = false };
+            store.SaveSettings(settings);
+            var capture = new BoundaryCaptureService(dataDirectory);
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture, startTimer: false);
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true, IsVip: true), CancellationToken.None);
+            Assert.True(result.Succeeded);
+            var retained = Assert.IsType<ScreenshotCaptureResult>(result.Value);
+            var note = "An important decision, recorded by me.";
+            Assert.True((await application.SaveVipScreenshotNoteAsync(new(retained.CaptureId, note), CancellationToken.None)).Succeeded);
+            var date = DateOnly.FromDateTime(retained.CapturedAt!.Value.LocalDateTime);
+            var reopened = new LocalStore(dataDirectory);
+            var item = Assert.Single(reopened.GetScreenshotGallery(date).Items);
+            Assert.True(item.IsVip);
+            Assert.Equal(ScreenshotCaptureOrigins.Manual, item.CaptureOrigin);
+            Assert.Equal(note, item.UserNote);
+            Assert.Contains(date, reopened.GetVipScreenshotDates(new(date, date), CancellationToken.None));
+            Assert.True((await application.DeleteScreenshotAsync(item.Path, CancellationToken.None)).Succeeded);
+            Assert.Empty(reopened.GetVipScreenshotDates(new(date, date), CancellationToken.None));
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>Ordinary manual captures are never promoted by trying to save a VIP note.</summary>
+    [Fact]
+    public async Task OrdinaryCapture_RejectsVipNoteWithoutChangingImportance()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with { ScreenshotsEnabled = true, ScreenshotDirectory = dataDirectory, OpenAiEnabled = false };
+            store.SaveSettings(settings);
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), new BoundaryCaptureService(dataDirectory), startTimer: false);
+            var result = await application.CaptureScreenshotAsync(new("all-screens", true, ScreenshotCaptureOrigins.Manual, true), CancellationToken.None);
+            Assert.True(result.Succeeded);
+            var capture = Assert.IsType<ScreenshotCaptureResult>(result.Value);
+            var saved = await application.SaveVipScreenshotNoteAsync(new(capture.CaptureId, "Not a VIP capture"), CancellationToken.None);
+            Assert.False(saved.Succeeded);
+            Assert.Equal("snapshot.vip.note.missing", saved.Code);
+            Assert.False(Assert.Single(store.GetScreenshotGallery(DateOnly.FromDateTime(capture.CapturedAt!.Value.LocalDateTime)).Items).IsVip);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>Only retained manual captures can be marked VIP, before any pixel acquisition occurs.</summary>
+    /// <param name="keep">Whether the request retains the capture.</param>
+    /// <param name="origin">The requested capture origin.</param>
+    [Theory]
+    [InlineData(false, ScreenshotCaptureOrigins.Manual)]
+    [InlineData(true, ScreenshotCaptureOrigins.Scheduled)]
+    public async Task VipCapture_RejectsInvalidOriginOrRetention(bool keep, string origin)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var capture = new BoundaryCaptureService(dataDirectory);
+            await using var application = CreateApplication(store, new SettingsSnapshot(store.LoadSettings()), capture, startTimer: false);
+            var result = await application.CaptureScreenshotAsync(new("all-screens", keep, origin, true, true), CancellationToken.None);
+            Assert.False(result.Succeeded);
+            Assert.Equal("snapshot.vip.capture.invalid", result.Code);
+            Assert.Equal(0, capture.PixelReadCount);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
     /// <summary>Verifies that privacy rules are reevaluated immediately before pixels are read.</summary>
     [Fact]
     public async Task Capture_RechecksPrivacyImmediatelyBeforePixels()

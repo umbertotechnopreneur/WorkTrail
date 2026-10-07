@@ -98,6 +98,35 @@ internal sealed class MicaDialogService
         }
     }
 
+    /// <summary>Shows a cancellable five-second presentation countdown before a VIP capture.</summary>
+    /// <param name="application">The facade used for window placement.</param>
+    /// <param name="owner">The owner of the queued countdown dialog.</param>
+    /// <param name="strings">The owner's localized strings.</param>
+    /// <param name="cancellationToken">Cancels the countdown when the owner shuts down.</param>
+    internal Task<bool> ShowVipCountdownAsync(IWorkTrailApplication application, Window owner, LocalizationService strings, CancellationToken cancellationToken) =>
+        RunModalSessionAsync(owner, false, async (ownerAppWindow, ownerHandle) =>
+        {
+            if (cancellationToken.IsCancellationRequested) return false;
+            var theme = owner.Content is FrameworkElement root ? root.ActualTheme : ElementTheme.Default;
+            var dialog = new VipSnapshotCountdownWindow(application, strings, theme, ownerAppWindow, ownerHandle);
+            var completed = await ShowDialogWindowAsync(dialog, dialog.WindowHandle,
+                () => dialog.ShowAsync(cancellationToken), dialog.DisposePlacement);
+            return completed && !cancellationToken.IsCancellationRequested;
+        });
+
+    /// <summary>Shows the saved VIP screenshot and an optional note in a dedicated Acrylic window.</summary>
+    /// <param name="application">The facade used for image reads and note persistence.</param>
+    /// <param name="owner">The window that owns the modal surface.</param>
+    /// <param name="capture">The already retained VIP capture.</param>
+    /// <param name="strings">The owner's current UI strings.</param>
+    internal Task ShowVipSnapshotAsync(IWorkTrailApplication application, Window owner, ScreenshotCaptureResult capture, LocalizationService strings) =>
+        RunModalSessionAsync(owner, async (ownerAppWindow, ownerHandle) =>
+        {
+            var theme = owner.Content is FrameworkElement root ? root.ActualTheme : ElementTheme.Default;
+            var dialog = new VipSnapshotNoteWindow(application, capture, strings, theme, ownerAppWindow, ownerHandle);
+            await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
+        });
+
     /// <summary>Shows one queued standard WinUI OK/Cancel confirmation.</summary>
     /// <returns><see langword="true"/> only when the user explicitly chooses OK; dismissal safely cancels.</returns>
     internal async Task<bool> ConfirmAsync(Window owner, DialogRequest request)
@@ -326,6 +355,12 @@ internal sealed class MicaDialogService
     {
         switch (_activeWindow)
         {
+            case VipSnapshotCountdownWindow countdownWindow:
+                countdownWindow.CloseForShutdown();
+                break;
+            case VipSnapshotNoteWindow vipWindow:
+                vipWindow.CloseForShutdown();
+                break;
             case OperationProgressDialogWindow progressWindow:
                 progressWindow.CloseForShutdown();
                 break;
@@ -338,6 +373,11 @@ internal sealed class MicaDialogService
         }
     }
 
+    // owner identifies the window that owns this queued dialog.
+    // request contains the localized content and button labels.
+    // defaultButton identifies the safe keyboard default.
+    // atomicReset selects the existing reset illustration.
+    // content supplies optional custom dialog content.
     private async Task<ContentDialogResult> RunContentDialogSessionAsync(
         Window owner,
         DialogRequest request,

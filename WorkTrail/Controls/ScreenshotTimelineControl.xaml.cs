@@ -71,7 +71,7 @@ public sealed partial class ScreenshotTimelineControl : UserControl
             throw new ArgumentOutOfRangeException(nameof(selectedIndex), selectedIndex, "An empty timeline must use selection index -1.");
         }
 
-        if (items.Count > 0 && (selectedIndex < 0 || selectedIndex >= items.Count))
+        if (items.Count > 0 && (selectedIndex < -1 || selectedIndex >= items.Count))
         {
             throw new ArgumentOutOfRangeException(nameof(selectedIndex), selectedIndex, "The selected screenshot must exist in the timeline.");
         }
@@ -95,6 +95,8 @@ public sealed partial class ScreenshotTimelineControl : UserControl
         QueueNavigationAvailabilityUpdate();
     }
 
+    // item supplies the persisted capture provenance and importance.
+    // index identifies the item in this displayed strip.
     private ScreenshotTimelineEntry CreateEntry(ScreenshotGalleryItem item, int index)
     {
         if (!Path.IsPathFullyQualified(item.Path))
@@ -108,9 +110,22 @@ public sealed partial class ScreenshotTimelineControl : UserControl
         return new ScreenshotTimelineEntry(
             item.Path,
             _strings.Format("Screenshots.Timeline.Time", localTime),
-            $"{_strings.Format("Screenshots.Timeline.ItemAccessible", index + 1, localTime)} · {installation.FriendlyName} · {installation.MachineName}",
+            $"{_strings.Format("Screenshots.Timeline.ItemAccessible", index + 1, localTime)} · {installation.FriendlyName} · {installation.MachineName}" +
+                (item.IsVip ? " · " + _strings.Translate("Snapshot.Vip.Badge") : string.Empty),
             InstallationAppearance.CreateAccentBrush(installation.Color),
-            InstallationAppearance.GetIconGlyph(installation.Icon));
+            InstallationAppearance.GetIconGlyph(installation.Icon),
+            item.IsVip ? Visibility.Visible : Visibility.Collapsed,
+            _strings.Translate("Snapshot.Vip.Badge"));
+    }
+
+    /// <summary>Reflects the full gallery's selection without issuing a second selection request.</summary>
+    /// <param name="selectedIndex">The strip index, or -1 when the gallery selection is outside this strip.</param>
+    public void SetSelectedIndex(int selectedIndex)
+    {
+        _updatingSelection = true;
+        try { FilmstripList.SelectedIndex = selectedIndex; }
+        finally { _updatingSelection = false; }
+        BringSelectionIntoView();
     }
 
     private void FilmstripList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -604,7 +619,9 @@ public sealed partial class ScreenshotTimelineControl : UserControl
         string TimeText,
         string AutomationName,
         SolidColorBrush InstallationBrush,
-        string InstallationGlyph);
+        string InstallationGlyph,
+        Visibility VipVisibility,
+        string VipLabel);
 
     private sealed record ThumbnailLoadRegistration(
         ScreenshotTimelineEntry Entry,

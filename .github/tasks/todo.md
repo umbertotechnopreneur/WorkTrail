@@ -9,6 +9,16 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Validate the expanded tray menu on Windows: show all already-open windows from hidden
+  and minimized states, pause/resume tracking and notifications, restart to verify the saved
+  notification preference, and open VIP capture, clocks, astronomy views, Settings, and About.
+  Build, automated checks, and native interaction require owner authorization.
+
+- [ ] Validate the VIP snapshot flow on an isolated Windows desktop: cancel the five-second
+  countdown, capture multiple monitors without the player, save or skip a note, reopen the
+  gallery, select VIP and ordinary images, and verify calendar crowns after deletion.
+  Installation and native UI interaction require owner authorization.
+
 - [ ] Inspect the converted controls in the installed app's UI Automation tree and
   exercise the theme, capture, gallery and export paths on an isolated Windows desktop.
   Update `docs/UI_AUTOMATION.md` by UI surface only after the relevant interactions pass.
