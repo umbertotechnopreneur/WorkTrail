@@ -176,6 +176,8 @@ public sealed partial class MainWindow : Window
         ApplyMainAccessibility();
         AiState.PropertyChanged += AiState_PropertyChanged;
         _trayIcon.ExitRequested += TrayIcon_ExitRequested;
+        _trayIcon.CommandRequested += TrayIcon_CommandRequested;
+        _trayIcon.MenuStateProvider = CreateTrayMenuState;
         UpdateOpenAiMenuAccessibility();
         SystemBackdrop = new DesktopAcrylicBackdrop();
         _appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)));
@@ -234,6 +236,8 @@ public sealed partial class MainWindow : Window
         Activated += MainWindow_Activated;
     }
 
+    // sender identifies the window whose activation changed.
+    // args indicates whether the main window gained or lost activation.
     private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
         if (args.WindowActivationState == WindowActivationState.Deactivated
@@ -242,13 +246,22 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        // Snapshot lifecycle-owned handles on this dispatcher. Core owns visibility/focus policy, including IPC races.
-        var mainHandle = WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64();
-        var peers = WindowPlacementService.GetOpenPeerWindowHandles(mainHandle);
-        if (peers.Count == 0) return;
+        await RevealOpenWindowsAsync(showMainWindow: false);
+    }
+
+    // showMainWindow restores the main window before revealing its already-open peers.
+    private async Task RevealOpenWindowsAsync(bool showMainWindow)
+    {
+        if (_dashboardSurfaceClosed || _revealingOpenWindows) return;
         _revealingOpenWindows = true;
         try
         {
+            // Guard before activating the main window so its activation callback cannot start a second reveal.
+            if (showMainWindow) ShowFlyout();
+            // Snapshot lifecycle-owned handles on this dispatcher. Core owns visibility/focus policy, including IPC races.
+            var mainHandle = WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64();
+            var peers = WindowPlacementService.GetOpenPeerWindowHandles(mainHandle);
+            if (peers.Count == 0) return;
             var result = await _application.RevealOpenWindowsAsync(new WindowRevealRequest(mainHandle, peers), _lifecycle.Token);
             if (!result.Succeeded && !_dashboardSurfaceClosed) ShowWindowRevealFailure();
         }
@@ -556,7 +569,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var result = await _application.DrainApplicationNotificationsAsync(cancellationToken);
-            if (_dashboardSurfaceClosed || !result.Succeeded || result.Value is null)
+            if (_dashboardSurfaceClosed || !_notificationsEnabled || !result.Succeeded || result.Value is null)
             {
                 return;
             }
@@ -810,22 +823,28 @@ public sealed partial class MainWindow : Window
     private async void TitleBarCloseButton_Click(object sender, RoutedEventArgs e) => await RequestCloseAsync();
 
     /// <summary>Forwards the play/pause action to the player view model.</summary>
-    private async void TrackingButton_Click(object sender, RoutedEventArgs e)
+    // sender identifies the player tracking action.
+    // e contains the button click.
+    private async void TrackingButton_Click(object sender, RoutedEventArgs e) => await ToggleTrackingAsync();
+
+    /// <summary>Runs the same tracking action for the player and the tray menu.</summary>
+    private async Task<bool> ToggleTrackingAsync()
     {
         if (!_workspaceUiReady)
         {
-            return;
+            return false;
         }
 
         var state = await _viewModel.ToggleTrackingAsync(CancellationToken.None);
         if (state.Succeeded && state.Value is not null)
         {
             UpdatePlayer(state.Value);
-            return;
+            return true;
         }
 
         // Tracking failures are reported through the non-blocking Windows toast queue.
         await DrainApplicationNotificationsAsync();
+        return false;
     }
 
     /// <summary>Loads persisted settings into presentation-only flyout controls.</summary>
@@ -1381,7 +1400,9 @@ public sealed partial class MainWindow : Window
 
     private bool _labelsDialogOpen;
 
-    private void ManageLabelsButton_Click(object sender, RoutedEventArgs e) =>
+    // sender identifies the player label selector.
+    // e contains the request to manage labels without selecting one.
+    private void PlayerLabelSelector_ManageRequested(object? sender, EventArgs e) =>
         OptionsControl_ManageLabelsRequested(sender, EventArgs.Empty);
 
     private async void OptionsControl_ManageLabelsRequested(object? sender, EventArgs e)
@@ -2111,6 +2132,8 @@ public sealed partial class MainWindow : Window
     /// <summary>Applies presentation settings already validated and persisted by the application layer.</summary>
     private void ApplySettings(AppSettings settings)
     {
+        _notificationsEnabled = settings.NotificationsEnabled;
+        _dialogs.Notifications.SetEnabled(settings.NotificationsEnabled);
         var isInitialSettings = !_hasAppliedSettings;
         var showAiMonthlySpendChanged = _showAiMonthlySpend != settings.ShowAiMonthlySpend;
         var positionChangedByUser = _hasAppliedSettings
@@ -2119,8 +2142,8 @@ public sealed partial class MainWindow : Window
         PlayerLabelSelector.ApplySettings(_application, settings);
         PlayerLabelFeatureGate.UiLanguage = settings.UiLanguage;
         UpdateTitlePremiumBadge();
-        AutomationProperties.SetName(ManageLabelsButton, T("Labels.Manage"));
-        ToolTipService.SetToolTip(ManageLabelsButton, T("Labels.Manage"));
+        AutomationProperties.SetName(VipSnapshotButton, T("Snapshot.Vip.Take"));
+        ToolTipService.SetToolTip(VipSnapshotButton, T("Snapshot.Vip.Take"));
         UpdateDebugFeatureMenu();
         _theme = settings.Theme;
         _position = settings.FlyoutPosition;
@@ -2665,6 +2688,8 @@ public sealed partial class MainWindow : Window
         _titleBar.Dispose();
         _placement.Dispose();
         _trayIcon.ExitRequested -= TrayIcon_ExitRequested;
+        _trayIcon.CommandRequested -= TrayIcon_CommandRequested;
+        _trayIcon.MenuStateProvider = null;
         _trayIcon.Dispose();
         if (_optionsControl is not null)
         {

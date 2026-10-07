@@ -28,7 +28,7 @@
   "Tracking.Toggle": "TrackingActionStart",
   "Capture.TakeScreenshot": "Snapshot.Take",
   "Main.DeleteSnapshotButton": "Snapshot.Delete",
-  "Main.ManageLabelsButton": "Labels.Manage",
+  "Main.VipSnapshotButton": "Snapshot.Vip.Take",
   "Main.ActivityScoreButton": "Activity.Show",
   "Main.DetailsButton": "LastSession.Show",
   "Main.ScreenshotPreviewButton": "ScreenshotUnavailableHint",

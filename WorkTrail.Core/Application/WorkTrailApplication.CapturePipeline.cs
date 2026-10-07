@@ -9,12 +9,15 @@ namespace WorkTrail.Application;
 public sealed partial class WorkTrailApplication
 {
     private readonly ScreenshotPublicationJournal _screenshotPublications;
+    private int _screenshotCaptureFailureNotificationActive;
 
     // capture contains only published, privacy-approved images; notify once for each monitor image.
     // cancellationToken stops optional notification work when capture is being cancelled.
     private async Task NotifyScreenshotCaptureAsync(ScreenshotCaptureResult capture, CancellationToken cancellationToken)
     {
-        if (_screenshotNotifications is null || !_settingsSnapshot.Value.ScreenshotNotificationsEnabled) return;
+        // A completed capture ends the failure episode even when successful-capture notifications are disabled.
+        Interlocked.Exchange(ref _screenshotCaptureFailureNotificationActive, 0);
+        if (_screenshotNotifications is null || !_settingsSnapshot.Value.NotificationsEnabled || !_settingsSnapshot.Value.ScreenshotNotificationsEnabled) return;
         var paths = capture.StoredScreenshotPaths.Count > 0 ? capture.StoredScreenshotPaths : capture.AnalysisScreenshotPaths;
         try
         {

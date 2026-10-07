@@ -65,7 +65,7 @@ public sealed class ScreenshotNotificationService : IScreenshotNotificationServi
         ArgumentException.ThrowIfNullOrWhiteSpace(screenshotPath);
         lock (_gate)
         {
-            if (_disposed || !_settings.Value.ScreenshotNotificationsEnabled) return;
+            if (_disposed || !_settings.Value.NotificationsEnabled || !_settings.Value.ScreenshotNotificationsEnabled) return;
             string? thumbnail = null;
             try
             {
@@ -78,7 +78,7 @@ public sealed class ScreenshotNotificationService : IScreenshotNotificationServi
                 thumbnail = Path.Combine(_directory, Guid.NewGuid().ToString("N") + ".png");
                 WriteThumbnail(screenshotPath, thumbnail);
                 var settings = _settings.Value;
-                if (!settings.ScreenshotNotificationsEnabled)
+                if (!settings.NotificationsEnabled || !settings.ScreenshotNotificationsEnabled)
                 {
                     File.Delete(thumbnail);
                     return;

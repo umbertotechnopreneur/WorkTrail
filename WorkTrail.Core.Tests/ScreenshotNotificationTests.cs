@@ -13,6 +13,28 @@ namespace WorkTrail.Core.Tests;
 
 public sealed class ScreenshotNotificationTests
 {
+    /// <summary>The global pause persists independently of capture, tracking startup, and per-screenshot notices.</summary>
+    [Fact]
+    public void GlobalNotificationPausePreservesCaptureAndScreenshotPreference()
+    {
+        var settings = new AppSettings(ScreenshotsEnabled: true, KeepScreenshots: true, StartTrackingOnLaunch: true);
+        var result = SettingsCatalog.Apply(settings,
+            new SettingsPatch(new Dictionary<string, string?> { ["notifications.enabled"] = "false" }));
+        Assert.True(result.Succeeded);
+        var persisted = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(result.Value));
+        Assert.NotNull(persisted);
+        Assert.False(persisted.NotificationsEnabled);
+        Assert.True(persisted.ScreenshotNotificationsEnabled);
+        Assert.True(persisted.ScreenshotsEnabled);
+        Assert.True(persisted.KeepScreenshots);
+        Assert.True(persisted.StartTrackingOnLaunch);
+        var resumed = SettingsCatalog.Apply(persisted,
+            new SettingsPatch(new Dictionary<string, string?> { ["notifications.enabled"] = "true" }));
+        Assert.True(resumed.Succeeded);
+        Assert.True(resumed.Value!.NotificationsEnabled);
+        Assert.Equal(settings.ScreenshotNotificationsEnabled, resumed.Value.ScreenshotNotificationsEnabled);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

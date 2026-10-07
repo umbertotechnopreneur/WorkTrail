@@ -132,6 +132,22 @@ public sealed class LocalStore
         string origin) =>
         _activity.RegisterScreenshotCapture(captureId, installationId, capturedAt, origin);
 
+    /// <summary>Marks one retained manual capture as important.</summary>
+    /// <param name="captureId">The shared capture identity.</param>
+    internal void RegisterVipScreenshot(string captureId) => _activity.RegisterVipScreenshot(captureId);
+
+    /// <summary>Updates the user note for one existing VIP capture.</summary>
+    /// <param name="request">The capture identity and plain-text note.</param>
+    internal bool SaveVipScreenshotNote(VipScreenshotNoteRequest request) => _activity.SaveVipScreenshotNote(request);
+
+    /// <summary>Returns VIP dates only when their screenshot files remain in the retained gallery.</summary>
+    /// <param name="request">The inclusive local date range.</param>
+    /// <param name="cancellationToken">Cancels the bounded gallery checks.</param>
+    internal IReadOnlyList<DateOnly> GetVipScreenshotDates(VipScreenshotDatesRequest request, CancellationToken cancellationToken) =>
+        _activity.GetVipScreenshotDates(request, cancellationToken)
+            .Where(date => GetScreenshotGallery(date, cancellationToken).Items.Any(item => item.IsVip))
+            .ToArray();
+
     private void InitializeInstallationMetadata(AppSettings settings, bool activityDatabaseExisted)
     {
         var observedAt = DateTimeOffset.UtcNow;
@@ -943,7 +959,9 @@ public sealed class LocalStore
                 source.Telemetry?.GpuUsagePercent,
                 source.Provenance.Installation,
                 analysis is not null || textSnapshot is not null || source.Telemetry is not null || hardwareSnapshot is not null,
-                HardwareSnapshot: hardwareSnapshot));
+                HardwareSnapshot: hardwareSnapshot,
+                IsVip: source.Provenance.IsVip,
+                UserNote: source.Provenance.UserNote));
         }
 
         return new ScreenshotGallery(date, items, unavailableArtifacts);

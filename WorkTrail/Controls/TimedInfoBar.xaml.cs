@@ -10,7 +10,7 @@ using Windows.UI.ViewManagement;
 
 namespace WorkTrail.Controls;
 
-/// <summary>Renders one opaque, closable InfoBar with a timeout indicator inside its frame.</summary>
+/// <summary>Renders one compact, closable toast with a severity icon.</summary>
 public sealed partial class TimedInfoBar : UserControl
 {
     private const float BannerElevation = 18f;
@@ -34,10 +34,10 @@ public sealed partial class TimedInfoBar : UserControl
     /// <summary>Occurs when the banner is closed manually, programmatically, or because its host unloads.</summary>
     internal event EventHandler? Dismissed;
 
-    /// <summary>Gets the determinate indicator updated by the centralized banner service.</summary>
-    internal ProgressBar CountdownIndicator => CountdownProgress;
-
     /// <summary>Displays a banner without owning its timeout lifecycle.</summary>
+    /// <param name="title">The notification heading.</param>
+    /// <param name="message">Optional supporting text.</param>
+    /// <param name="severity">The notification's icon and color category.</param>
     internal void Present(string title, string message, InfoBarSeverity severity)
     {
         _transitionGeneration++;
@@ -46,7 +46,14 @@ public sealed partial class TimedInfoBar : UserControl
         BannerInfoBar.Title = title;
         BannerInfoBar.Message = message;
         BannerInfoBar.Severity = severity;
-        CountdownProgress.Value = CountdownProgress.Maximum;
+        // Informational messages share the green palette while retaining their native information icon.
+        var state = severity switch
+        {
+            InfoBarSeverity.Warning => "Warning",
+            InfoBarSeverity.Error => "Error",
+            _ => "Success"
+        };
+        VisualStateManager.GoToState(this, state, useTransitions: false);
         var animate = AnimationsAreEnabled();
         BannerSurface.Opacity = 1d;
         Visibility = Visibility.Visible;
@@ -58,7 +65,7 @@ public sealed partial class TimedInfoBar : UserControl
         }
     }
 
-    /// <summary>Closes the current banner and clears its decorative countdown.</summary>
+    /// <summary>Closes the current banner with its existing fade transition.</summary>
     internal void Dismiss()
     {
         if (!_isPresented || _isDismissing)
@@ -123,7 +130,6 @@ public sealed partial class TimedInfoBar : UserControl
         _isPresented = false;
         _isDismissing = false;
         BannerSurface.Opacity = 0d;
-        CountdownProgress.Value = CountdownProgress.Minimum;
         _allowCloseCommit = true;
         try
         {
