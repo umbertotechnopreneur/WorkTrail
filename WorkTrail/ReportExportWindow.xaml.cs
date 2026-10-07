@@ -44,7 +44,6 @@ internal sealed partial class ReportExportWindow : Window
         _strings = strings;
         InitializeComponent();
         TitlePremiumBadge.Text = strings.Translate("Premium.Badge");
-        TimesheetPremiumBadge.Text = strings.Translate("Premium.Badge");
         TimesheetRate.ValueChanged += (_, _) => ResetTimesheetSelection();
         Title = T("Export.Title");
         RootGrid.RequestedTheme = theme;
@@ -75,7 +74,7 @@ internal sealed partial class ReportExportWindow : Window
         UiLocalization.SetAccessibleLabel(MonthButton, T("Export.Month"));
         FormatCombo.ItemsSource = new[] { "Excel .xlsx", "CSV .zip", "JSON .json" };
         WorkbookThemeCombo.ItemsSource = new[] { T("Export.ThemeWorkTrail"), T("Export.ThemeGreen"), T("Export.ThemeBlue") };
-        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme"));
+        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme.Header"));
         DescriptionCombo.ItemsSource = new[] { T("Export.Brief"), T("Export.CompleteText"), T("Export.Both") };
         SeparatorCombo.ItemsSource = new[] { ";", "," };
         GroupingCombo.ItemsSource = new[] { T("Export.ByDay"), T("Export.ByApplication"), T("Export.WholePeriod") };

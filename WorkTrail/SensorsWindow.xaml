@@ -11,12 +11,12 @@
                 <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0"/>
             </Grid.ColumnDefinitions>
             <Button AutomationProperties.AutomationId="Sensors.BackButton" x:Name="BackButton" Grid.Column="1" Margin="8,0,0,0" Click="BackButton_Click" Visibility="Collapsed"
-                Tag="Sensors.Back" ToolTipService.ToolTip="Back to sensors"
+                Tag="Sensors.Back" AutomationProperties.Name="Back to sensors" ToolTipService.ToolTip="Back to sensors"
                 Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}">
                 <FontIcon Glyph="&#xE72B;" FontSize="17" AutomationProperties.AccessibilityView="Raw"/>
             </Button>
             <TextBlock x:Name="HeaderText" Grid.Column="2" Margin="16,0,12,0" TextTrimming="CharacterEllipsis" Style="{StaticResource WorkTrailTitleBarLabelStyle}"/>
-            <Button AutomationProperties.AutomationId="Sensors.OptionsButton" x:Name="OptionsButton" Grid.Column="3" Click="OptionsButton_Click" Tag="Sensors.Options.Open" ToolTipService.ToolTip="Sensor options" Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}">
+            <Button AutomationProperties.AutomationId="Sensors.OptionsButton" x:Name="OptionsButton" Grid.Column="3" Click="OptionsButton_Click" Tag="Sensors.Options.Open" AutomationProperties.Name="Sensor options" ToolTipService.ToolTip="Sensor options" Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}">
                 <FontIcon Glyph="&#xE712;" FontSize="19" AutomationProperties.AccessibilityView="Raw"/>
             </Button>
         </Grid>
@@ -44,12 +44,12 @@
                 <TextBlock Tag="Sensors.TemperatureHint" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <StackPanel x:Name="PageNavigation" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Visibility="Collapsed">
                     <Button AutomationProperties.AutomationId="Sensors.PreviousPageButton" x:Name="PreviousPageButton" Width="28" Height="28" MinWidth="28" MinHeight="28" Padding="0" Background="Transparent" BorderThickness="0" Click="PreviousPageButton_Click"
-                        Tag="Sensors.PreviousPage" ToolTipService.ToolTip="Previous devices">
+                        Tag="Sensors.PreviousPage" AutomationProperties.Name="Previous devices" ToolTipService.ToolTip="Previous devices">
                         <FontIcon Glyph="&#xE76B;" FontSize="12" AutomationProperties.AccessibilityView="Raw"/>
                     </Button>
                     <TextBlock x:Name="PageText" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <Button AutomationProperties.AutomationId="Sensors.NextPageButton" x:Name="NextPageButton" Width="28" Height="28" MinWidth="28" MinHeight="28" Padding="0" Background="Transparent" BorderThickness="0" Click="NextPageButton_Click"
-                        Tag="Sensors.NextPage" ToolTipService.ToolTip="Next devices">
+                        Tag="Sensors.NextPage" AutomationProperties.Name="Next devices" ToolTipService.ToolTip="Next devices">
                         <FontIcon Glyph="&#xE76C;" FontSize="12" AutomationProperties.AccessibilityView="Raw"/>
                     </Button>
                 </StackPanel>

@@ -248,7 +248,6 @@
                         <StackPanel x:Name="TimesheetPage" Visibility="Collapsed" Spacing="14">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <TextBlock Tag="Timesheet.Title" Style="{StaticResource SubtitleTextBlockStyle}" />
-                                <controls:PremiumBadge x:Name="TimesheetPremiumBadge" />
                             </StackPanel>
                             <TextBlock x:Name="TimesheetRange" TextWrapping="Wrap" />
                             <ComboBox x:Name="TimesheetGroupingCombo" AutomationProperties.AutomationId="Report.TimesheetGrouping"

@@ -1573,7 +1573,7 @@
   "Timesheet.ByWeek": "One row per week",
   "Timesheet.Grouping.Header": "Report rows",
   "Workbook.Grouping": "Report rows",
-  "Export.ExcelTheme": "Excel theme",
+  "Export.ExcelTheme.Header": "Excel theme",
   "Export.ExcelThemeHelp": "Applies to the preview and final workbook, including saved batches. In Excel, use Page Layout > Themes to change colors and fonts later.",
   "Export.ThemeWorkTrail": "WorkTrail · purple",
   "Export.ThemeGreen": "Spreadsheet · green",

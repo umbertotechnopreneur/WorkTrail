@@ -1573,7 +1573,7 @@
   "Timesheet.ByWeek": "Eine Zeile je Woche",
   "Timesheet.Grouping.Header": "Berichtszeilen",
   "Workbook.Grouping": "Berichtszeilen",
-  "Export.ExcelTheme": "Excel-Design",
+  "Export.ExcelTheme.Header": "Excel-Design",
   "Export.ExcelThemeHelp": "Gilt für die Vorschau und die fertige Arbeitsmappe, auch für gespeicherte Stapel. In Excel ändern Sie Farben und Schriften über Seitenlayout > Designs.",
   "Export.ThemeWorkTrail": "WorkTrail · Violett",
   "Export.ThemeGreen": "Tabellenblatt · Grün",

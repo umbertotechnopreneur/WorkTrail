@@ -352,7 +352,7 @@
                             BorderThickness="0"
                             Click="OpenOcrTextButton_Click"
                             Tag="Screenshots.OcrText.Details.Open"
-                            ToolTipService.ToolTip="Open OCR text in a new window">
+                            AutomationProperties.Name="Open OCR text in a new window" ToolTipService.ToolTip="Open OCR text in a new window">
                             <StackPanel Orientation="Horizontal" Spacing="7">
                                 <TextBlock Tag="Screenshots.OcrText.Details.Action" Text="Open OCR text" />
                                 <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="13" Glyph="&#xE8A7;" />

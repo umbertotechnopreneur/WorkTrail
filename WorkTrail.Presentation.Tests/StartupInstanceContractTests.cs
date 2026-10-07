@@ -58,7 +58,8 @@ public sealed class StartupInstanceContractTests
             program.IndexOf("var request = CaptureRedirectedActivation(activation);", StringComparison.Ordinal)
             < program.IndexOf("PendingActivations.Enqueue(request);", StringComparison.Ordinal));
         Assert.Contains("Array.AsReadOnly(options.RemainingArguments.ToArray())", program, StringComparison.Ordinal);
-        Assert.Contains("internal sealed record RedirectedActivationRequest(LaunchOptions Options, ExtendedActivationKind Kind);", program, StringComparison.Ordinal);
+        Assert.Contains("internal sealed record RedirectedActivationRequest(LaunchOptions Options, ExtendedActivationKind Kind, string? ProtocolUri = null);", program, StringComparison.Ordinal);
+        Assert.Contains("protocol.Uri.AbsoluteUri", program, StringComparison.Ordinal);
         Assert.Contains("HandleRedirectedActivation(RedirectedActivationRequest activation)", app, StringComparison.Ordinal);
         Assert.Contains("HandleRedirectedActivationOnUiThread(RedirectedActivationRequest activation)", app, StringComparison.Ordinal);
         Assert.Contains("var options = activation.Options;", app, StringComparison.Ordinal);

@@ -41,6 +41,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Fixed
 
+- Icon-only Windows controls declare accessible names matching their tooltips, the Excel theme selector shows its localized header, and the export window keeps a single Premium badge in its title bar.
 - Timesheet amounts recalculate from the editable hourly rate; missing or invalid rates leave amounts blank instead of implying zero charges.
 - Switching between ordinary export tabs preserves the generated preview, while changing report type or source data invalidates it.
 - Automatic batch metadata refreshes no longer disable the export wizard or overwrite a newer job selection.

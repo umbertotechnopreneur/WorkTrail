@@ -1573,7 +1573,7 @@
   "Timesheet.ByWeek": "Một dòng mỗi tuần",
   "Timesheet.Grouping.Header": "Dòng báo cáo",
   "Workbook.Grouping": "Dòng báo cáo",
-  "Export.ExcelTheme": "Chủ đề Excel",
+  "Export.ExcelTheme.Header": "Chủ đề Excel",
   "Export.ExcelThemeHelp": "Áp dụng cho bản xem trước và tệp cuối cùng, kể cả các lô đã lưu. Trong Excel, đổi màu và phông chữ qua Bố trí Trang > Chủ đề.",
   "Export.ThemeWorkTrail": "WorkTrail · tím",
   "Export.ThemeGreen": "Bảng tính · xanh lá",

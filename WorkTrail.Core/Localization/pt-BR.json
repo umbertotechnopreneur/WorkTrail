@@ -1573,7 +1573,7 @@
   "Timesheet.ByWeek": "Uma linha por semana",
   "Timesheet.Grouping.Header": "Linhas do relatório",
   "Workbook.Grouping": "Linhas do relatório",
-  "Export.ExcelTheme": "Tema do Excel",
+  "Export.ExcelTheme.Header": "Tema do Excel",
   "Export.ExcelThemeHelp": "Aplica-se à prévia e ao arquivo final, incluindo lotes salvos. No Excel, altere cores e fontes em Layout da Página > Temas.",
   "Export.ThemeWorkTrail": "WorkTrail · roxo",
   "Export.ThemeGreen": "Planilha · verde",

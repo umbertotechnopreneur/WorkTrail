@@ -1573,7 +1573,7 @@
   "Timesheet.ByWeek": "Una riga per settimana",
   "Timesheet.Grouping.Header": "Righe del report",
   "Workbook.Grouping": "Righe del report",
-  "Export.ExcelTheme": "Tema Excel",
+  "Export.ExcelTheme.Header": "Tema Excel",
   "Export.ExcelThemeHelp": "Si applica all’anteprima e al file finale, anche per i batch salvati. In Excel puoi cambiare colori e caratteri da Layout di pagina > Temi.",
   "Export.ThemeWorkTrail": "WorkTrail · lilla",
   "Export.ThemeGreen": "Foglio di calcolo · verde",

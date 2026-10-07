@@ -1573,7 +1573,7 @@
   "Timesheet.ByWeek": "주마다 한 행",
   "Timesheet.Grouping.Header": "보고서 행",
   "Workbook.Grouping": "보고서 행",
-  "Export.ExcelTheme": "Excel 테마",
+  "Export.ExcelTheme.Header": "Excel 테마",
   "Export.ExcelThemeHelp": "저장된 배치 보고서를 포함하여 미리 보기와 최종 통합 문서에 적용됩니다. Excel에서 페이지 레이아웃 > 테마로 색상과 글꼴을 변경할 수 있습니다.",
   "Export.ThemeWorkTrail": "WorkTrail · 보라색",
   "Export.ThemeGreen": "스프레드시트 · 녹색",

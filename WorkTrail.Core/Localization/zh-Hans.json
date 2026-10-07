@@ -1573,7 +1573,7 @@
   "Timesheet.ByWeek": "每周一行",
   "Timesheet.Grouping.Header": "报告行",
   "Workbook.Grouping": "报告行",
-  "Export.ExcelTheme": "Excel 主题",
+  "Export.ExcelTheme.Header": "Excel 主题",
   "Export.ExcelThemeHelp": "适用于预览和最终工作簿，包括已保存的批处理报表。在 Excel 中，可通过“页面布局 > 主题”更改颜色和字体。",
   "Export.ThemeWorkTrail": "WorkTrail · 紫色",
   "Export.ThemeGreen": "电子表格 · 绿色",
