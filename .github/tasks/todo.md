@@ -136,6 +136,9 @@ the action needs authorization. Remove the item when it is complete.
 - [ ] Verify Free limits of three labels and three clocks, upgrade dialogs, Premium badges,
   downgrade behavior, preservation of existing over-limit catalogs, and stale-dialog handling
   after a profile change.
+- [ ] Verify the shared Premium prompt and Microsoft Store action from exports, timesheets,
+  labels, clocks, schedules, data transfer, and two-/three-month retention choices; closing
+  the prompt must preserve Free limits, and a Store launch failure must show a visible error.
 - [ ] Verify the label editor and player selector for creation, rename, icon/color, duplicate
   names, delete-active, no-label, restart, persistence failure, compact widths, long captions,
   and stable placement beside the timer.

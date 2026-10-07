@@ -81,6 +81,9 @@ internal sealed class OperationsSectionContext
             showInlineProgress: false);
     }
 
+    // operation runs one request through the shared application facade.
+    // showSuccess controls whether a successful result displays a notification.
+    // showInlineProgress controls the subsection's progress indicator.
     private async Task<OperationResult<T>?> ExecuteCoreAsync<T>(
         Func<IWorkTrailApplication, CancellationToken, Task<OperationResult<T>>> operation,
         bool showSuccess,
@@ -124,9 +127,7 @@ internal sealed class OperationsSectionContext
             }
             else if (result.Code == "feature.premium_required")
             {
-                await Dialogs.ShowInformativeAsync(OwnerWindow,
-                    DialogRequest.Informative(Translate("Premium.UpgradeTitle"),
-                        Translate("Premium.Required"), Translate("Dialog.Ok")));
+                await Dialogs.ShowPremiumUpgradeAsync(Application, OwnerWindow, Translate);
             }
             else
             {

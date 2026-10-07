@@ -349,8 +349,8 @@ internal sealed partial class ReportExportWindow : Window
         StatusBar.Severity = InfoBarSeverity.Success; StatusBar.IsOpen = true;
     });
 
-    private Task ShowUpgradeAsync() => _messages.ShowInformativeAsync(this,
-        DialogRequest.Informative(T("Export.UpgradeTitle"), T("Export.UpgradeMessage"), T("Dialog.Ok")));
+    private Task ShowUpgradeAsync() => _messages.ShowPremiumUpgradeAsync(
+        _application, this, T, "Export.UpgradeMessage");
 
     // action performs one cancellable report operation while shared controls are disabled.
     private async Task RunAsync(Func<CancellationToken, Task> action)

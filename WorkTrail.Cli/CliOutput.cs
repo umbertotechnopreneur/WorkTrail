@@ -124,8 +124,10 @@ public sealed class CliOutput(CliOptions options)
     /// <summary>Writes the branded header used by the interactive command center.</summary>
     public void WriteShellHeader()
     {
-        AnsiConsole.Write(new FigletText("WorkTrail").Color(Color.Teal));
-        AnsiConsole.MarkupLine($"[grey70]{Markup.Escape(Localize("shell.tagline"))}[/]");
+        var product = new Rows(
+            new FigletText("WorkTrail").Color(Color.Teal),
+            new Markup($"[grey70]{Markup.Escape(Localize("shell.tagline"))}[/]"));
+        AnsiConsole.Write(new VibeWareBrand(AnsiConsole.Console, product));
         AnsiConsole.WriteLine();
     }
 
@@ -333,8 +335,9 @@ public sealed class CliOutput(CliOptions options)
         }
 
         return new Rows(
-            new Rule("[bold cyan]WorkTrail CLI[/]").LeftJustified(),
-            new Markup($"[grey70]{Markup.Escape(Localize("help.tagline"))}[/]"),
+            new VibeWareBrand(AnsiConsole.Console, new Rows(
+                new Rule("[bold cyan]WorkTrail CLI[/]").LeftJustified(),
+                new Markup($"[grey70]{Markup.Escape(Localize("help.tagline"))}[/]"))),
             new Markup($"[grey]{Markup.Escape(Localize("usage"))}:[/] [teal]worktrail.exe -cli /command [arguments] [global options][/][grey]  ({Markup.Escape(Localize("help.slashOptional"))})[/]"),
             new Panel(commands).Header($"[bold]{Markup.Escape(Localize("commands"))}[/]").BorderColor(Color.Teal),
             new Panel(shortcuts).Header($"[bold]{Markup.Escape(Localize("help.quickSwitches"))}[/]").BorderColor(Color.Teal),

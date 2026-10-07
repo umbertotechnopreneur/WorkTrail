@@ -13,4 +13,7 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\WorkTrail\Assets\vibeware-symbol.rgb" LogicalName="WorkTrail.Cli.Assets.vibeware-symbol.rgb" />
+  </ItemGroup>
 </Project>

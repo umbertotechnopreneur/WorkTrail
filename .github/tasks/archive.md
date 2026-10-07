@@ -2,6 +2,19 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-04
+
+### Shared Premium upgrade prompt
+
+- Replaced purchase and Full-edition wording with "Switch to Premium" across all supported languages.
+- Reused one localized dialog with a highlighted Store action for export, timesheet, label,
+  clock, schedule, data-transfer, and retention restrictions. Free retention choices and
+  the add-clock action now reach the prompt without unlocking the restricted operation.
+- Routed Store activation through the application facade using WorkTrail's package family
+  identity, with a visible localized error if Windows cannot open the Store.
+- C# whitespace formatting and verification passed. Runtime dialog presentation, Store
+  navigation, and build/test validation remain unverified.
+
 ## 2026-10-03
 
 ### One-command Debug MSIX installation
