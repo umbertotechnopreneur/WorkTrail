@@ -20,6 +20,7 @@ jobs:
   lint:
     name: lint
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,7 +60,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem -Recurse -Filter *.Tests.csproj | ForEach-Object {
-            dotnet test $_.FullName -p:Platform=x64 --no-restore -p:EnableNETAnalyzers=true -p:EnforceCodeStyleInBuild=true -p:TreatWarningsAsErrors=true
+            dotnet test $_.FullName -p:Platform=x64 --no-restore -p:EnableNETAnalyzers=true -p:EnforceCodeStyleInBuild=true -p:TreatWarningsAsErrors=true --blame-hang-timeout 2m --blame-hang-dump-type none --results-directory "artifacts/test-results/analyzers/$($_.BaseName)"
             if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
             }
@@ -68,6 +69,7 @@ jobs:
   build:
     name: release build (${{ matrix.platform }})
     runs-on: windows-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -89,4 +91,4 @@ jobs:
 
       - name: Test Release solution
         if: matrix.platform == 'x64'
-        run: dotnet test .\WorkTrail.slnx --configuration Release-Unpackaged -p:Platform=x64 --no-build --no-restore -m:1
+        run: dotnet test .\WorkTrail.slnx --configuration Release-Unpackaged -p:Platform=x64 --no-build --no-restore -m:1 --blame-hang-timeout 2m --blame-hang-dump-type none --results-directory artifacts/test-results/release
