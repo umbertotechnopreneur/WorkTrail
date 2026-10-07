@@ -112,8 +112,22 @@ foreach ($platform in @('x64', 'ARM64')) {
     Write-Host "PASS: $platform deterministic release metadata and unchanged source state"
 }
 
+$revisionInfoPath = Join-Path $fixtureRoot 'revision/BuildInfo.json'
+$revisionManifestPath = Join-Path $fixtureRoot 'revision/Package.appxmanifest'
+$revisionResult = Invoke-TestScript -Path $entryPoint -Arguments @(
+    '-Action', 'BuildInfo', '-ReleaseVersion', '1.2.3.4', '-Configuration', 'Debug', '-Platform', 'x64',
+    '-VersionStatePath', $statePath, '-PackageManifestPath', $sourceManifest,
+    '-PackageManifestOutputPath', $revisionManifestPath, '-OutputPath', $revisionInfoPath)
+Assert-ReleaseTest ($revisionResult.ExitCode -eq 0) "Four-part package metadata failed: $($revisionResult.Output)"
+$revisionInfo = Get-Content -LiteralPath $revisionInfoPath -Raw | ConvertFrom-Json
+[xml]$revisionManifest = Get-Content -LiteralPath $revisionManifestPath -Raw
+Assert-ReleaseTest ($revisionInfo.semVer -ceq '1.2.3' -and $revisionInfo.packageVersion -ceq '1.2.3.4' -and
+    $revisionManifest.Package.Identity.Version -ceq '1.2.3.4') 'Four-part package metadata lost the explicit revision.'
+$script:passed++
+Write-Host 'PASS: explicit four-part package revision'
+
 $invalidIndex = 0
-foreach ($invalidVersion in @('', '0.1.2', '01.2.3', '1.2', '1.2.3.4', '1.2.3-beta', '65535.1.2', '1.65535.2', '1.2.65535', '65536.1.2', '1.65536.2', '1.2.65536')) {
+foreach ($invalidVersion in @('', '0.1.2', '01.2.3', '1.2', '1.2.3.4.5', '1.2.3.01', '1.2.3.65535', '1.2.3-beta', '65535.1.2', '1.65535.2', '1.2.65535', '65536.1.2', '1.65536.2', '1.2.65536')) {
     $invalidIndex++
     $output = Join-Path $fixtureRoot "invalid-$invalidIndex/BuildInfo.json"
     Assert-Rejected -Name "invalid release version '$invalidVersion'" -Path $entryPoint -ExpectedMessage 'ReleaseVersion must' -ForbiddenOutput $output -Arguments @(
