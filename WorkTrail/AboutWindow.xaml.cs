@@ -5,7 +5,6 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
 using WorkTrail.Application;
 using Windows.Graphics;
 using WorkTrail.Services;
@@ -15,11 +14,9 @@ namespace WorkTrail;
 /// <summary>Displays product information and delegates diagnostics actions to the application facade.</summary>
 public sealed partial class AboutWindow : Window
 {
-    private const int LogicalWindowWidth = 1000;
-    private const int LogicalWindowHeight = 740;
+    private const int LogicalWindowWidth = 860;
+    private const int LogicalWindowHeight = 520;
     private const int LogicalScreenMargin = 22;
-    private const string DarkHeroAsset = "ms-appx:///Assets/WorkTrailAboutHero.theme-dark.png";
-    private const string LightHeroAsset = "ms-appx:///Assets/WorkTrailAboutHero.theme-light.png";
     private readonly AppWindow _appWindow;
     private readonly CustomTitleBarController _titleBar;
     private readonly WindowPlacementService _placement;
@@ -27,7 +24,6 @@ public sealed partial class AboutWindow : Window
     private readonly LocalizationService _strings;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private ThirdPartyLicensesWindow? _licensesWindow;
-    private ElementTheme? _heroTheme;
 
     /// <summary>Creates and sizes the About window on the display that contains its owner.</summary>
     public AboutWindow(
@@ -58,7 +54,6 @@ public sealed partial class AboutWindow : Window
             TitleBarLeftInsetColumn,
             TitleBarRightInsetColumn,
             () => []);
-        _titleBar.ThemeChanged += TitleBar_ThemeChanged;
         _placement = new WindowPlacementService(
             _application,
             this,
@@ -83,7 +78,6 @@ public sealed partial class AboutWindow : Window
         _placement.Dispose();
         _lifetimeCancellation.Cancel();
         _licensesWindow?.Close();
-        _titleBar.ThemeChanged -= TitleBar_ThemeChanged;
         _titleBar.Dispose();
     }
 
@@ -91,7 +85,8 @@ public sealed partial class AboutWindow : Window
     {
         _placement.ApplyDefaultBounds(RootGrid);
         await _placement.RestoreOrCenterAsync(RootGrid, _lifetimeCancellation.Token);
-        UpdateThemeAssets();
+        // This fixed-size surface retains its saved position while adopting the compact content bounds.
+        _placement.ResizeForContent(RootGrid, LogicalWindowWidth, LogicalWindowHeight);
 
         try
         {
@@ -101,7 +96,7 @@ public sealed partial class AboutWindow : Window
                 throw new InvalidOperationException($"Build information is unavailable ({result.Code}).");
             }
 
-            VersionText.Text = result.Value.Build.SemVer;
+            VersionText.Text = result.Value.Build.PackageVersion;
             BuiltAtText.Text = result.Value.Build.BuiltAtLocal.ToString("g", _strings.Culture);
             CommitText.Text = result.Value.Build.GitCommitShort;
             DirtyIndicator.Visibility = result.Value.Build.GitDirty ? Visibility.Visible : Visibility.Collapsed;
@@ -130,8 +125,11 @@ public sealed partial class AboutWindow : Window
     private async void WebsiteButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("author");
 
-    private async void IssuesButton_Click(object sender, RoutedEventArgs e) =>
-        await RunProductLinkActionAsync("issues");
+    private async void VibeWareAboutButton_Click(object sender, RoutedEventArgs e) =>
+        await RunProductLinkActionAsync("vibeware");
+
+    private async void VibeWareManifestoButton_Click(object sender, RoutedEventArgs e) =>
+        await RunProductLinkActionAsync("vibeware-manifesto");
 
     private async void RepositoryButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("repository");
@@ -160,7 +158,8 @@ public sealed partial class AboutWindow : Window
 
     private async Task RunProductLinkActionAsync(string linkKey)
     {
-        IssuesButton.IsEnabled = false;
+        VibeWareAboutButton.IsEnabled = false;
+        VibeWareManifestoButton.IsEnabled = false;
         RepositoryButton.IsEnabled = false;
         CreatedByButton.IsEnabled = false;
         PrivacyButton.IsEnabled = false;
@@ -191,7 +190,8 @@ public sealed partial class AboutWindow : Window
         {
             if (!_lifetimeCancellation.IsCancellationRequested)
             {
-                IssuesButton.IsEnabled = true;
+                VibeWareAboutButton.IsEnabled = true;
+                VibeWareManifestoButton.IsEnabled = true;
                 RepositoryButton.IsEnabled = true;
                 CreatedByButton.IsEnabled = true;
                 PrivacyButton.IsEnabled = true;
@@ -233,20 +233,6 @@ public sealed partial class AboutWindow : Window
                 ShareLogButton.IsEnabled = true;
             }
         }
-    }
-
-    private void TitleBar_ThemeChanged(ElementTheme effectiveTheme) => UpdateThemeAssets();
-
-    private void UpdateThemeAssets()
-    {
-        var actualTheme = RootGrid.ActualTheme == ElementTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
-        if (_heroTheme == actualTheme)
-        {
-            return;
-        }
-
-        _heroTheme = actualTheme;
-        HeroImage.Source = new BitmapImage(new Uri(actualTheme == ElementTheme.Dark ? DarkHeroAsset : LightHeroAsset));
     }
 
     private void ConfigureWindowBehavior()

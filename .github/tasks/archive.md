@@ -2,6 +2,40 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-08
+
+### Compact About layout and current branding
+
+- Replaced obsolete About artwork with an original trail illustration and a native
+  WorkTrail title. Reduced the default window and banner height, updated the minimum
+  bounds, adopted the compact size after placement restoration, and retained scrolling
+  and a single-column layout for constrained displays.
+- Added the owner's original transparent VibeWare master, localized GitHub and canonical
+  manifesto links, and artwork provenance. The press-kit dark/light symbols have opaque
+  backgrounds and are excluded. Removed duplicate report/repository actions and updated
+  About copy in every supported language.
+- Centered the artwork, reduced the default height to 520, displayed the full package
+  version and named the licenses action for accessibility. C# formatting and verification
+  passed. Built, signed and installed Debug x64 MSIX 1.0.6.11 with `Ok` registration.
+- Reviewed the installed About in Italian at 150% scale in both light and dark themes:
+  the trail, transparent logo, text, metadata, diagnostics actions and footer fit without
+  clipping. Confirmed accessible button names and retained placement at the compact size.
+  Restored the owner's System theme after the review. Other scales, constrained work
+  areas, long translations, high contrast and diagnostic failure states remain unverified.
+
+### Process memory recovery guard
+
+- Added a ten-second process sampler with a 1 GiB limit for private or resident memory,
+  periodic managed-memory/handle diagnostics, and one native Windows acknowledgement
+  before restart. Recovery preserves tracking state, safe mode and runtime launch mode,
+  bounds runtime shutdown, flushes logs and records the successor's recovery activation.
+- Added localized warning/failure copy. All 14 synthetic recovery cases passed, and C#
+  formatting and verification passed. Built, signed and installed Debug x64 MSIX 1.0.6.8;
+  verified package version, architecture and `Ok` registration status. Build/test output
+  was cleaned and the installer retained. Normal installed-app startup and periodic
+  memory logging were observed. Native warning/restart behavior remains unverified.
+  This protection does not establish or repair the original leak or explain OS-wide hangs.
+
 ## 2026-10-07
 
 ### Repeated screenshot failure notifications

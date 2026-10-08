@@ -34,6 +34,8 @@ public sealed partial class WorkTrailApplication
             "store" => "ms-windows-store://pdp/?PFN=UmbertoGiacobbiDotBiz.WorkTrail_aa9ddh7dsmn36",
             "author" => ProductAuthorUrl,
             "repository" => ProductRepositoryUrl,
+            "vibeware" => "https://github.com/umbertotechnopreneur/VibeWare",
+            "vibeware-manifesto" => "https://umbertogiacobbi.biz/vibeware/manifesto/",
             "privacy" => ProductPrivacyUrl,
             "terms" => ProductTermsUrl,
             "report-summary" => ProductRepositoryUrl + "/blob/main/docs/AI_REPORT_SUMMARY.md",

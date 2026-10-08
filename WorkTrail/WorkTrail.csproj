@@ -58,15 +58,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\design\branding\recall-timeline\output\worktrail-recall-timeline-banner-theme-dark-readme-2400x800.png">
-      <Link>Assets\WorkTrailAboutHero.theme-dark.png</Link>
-      <TargetPath>Assets\WorkTrailAboutHero.theme-dark.png</TargetPath>
+    <Content Update="Assets\WorkTrailAboutHeroTrailV1.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\design\branding\recall-timeline\output\worktrail-recall-timeline-banner-theme-light-readme-2400x800.png">
-      <Link>Assets\WorkTrailAboutHero.theme-light.png</Link>
-      <TargetPath>Assets\WorkTrailAboutHero.theme-light.png</TargetPath>
+    <Content Include="Assets\VibeWareLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

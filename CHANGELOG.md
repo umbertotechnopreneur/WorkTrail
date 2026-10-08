@@ -11,6 +11,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
+- Process memory monitoring with a 1 GiB limit, a native Windows warning before restart, logged recovery events, and preservation of the tracking state.
 - VibeWare symbol in CLI output, with a tracked source asset.
 - VIP snapshots with a cancellable countdown, optional notes, a featured gallery strip, gold crown badges, and calendar indicators.
 - Windows screenshot notifications with image previews and a saved opt-out available in Settings or in the notification itself.
@@ -27,6 +28,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- About uses a compact layout, a trail banner, updated localized copy, the full package version, and transparent VibeWare branding with project and manifesto links.
 - Premium restrictions across exports, labels, clocks, schedules, data transfer, and retention share a localized upgrade prompt with a Microsoft Store action.
 - The tray menu provides notification and tracking toggles, VIP capture, clocks, astronomical views, Settings, About, and a command to reveal all already-open WorkTrail windows.
 - In-app toasts use compact severity-colored surfaces with icons and no countdown progress bar.
