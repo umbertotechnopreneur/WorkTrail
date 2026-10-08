@@ -32,6 +32,9 @@ public sealed record LaunchOptions(
     bool NoSplash,
     IReadOnlyList<string> RemainingArguments)
 {
+    /// <summary>Identifies a recovery launch requested by the process memory guard.</summary>
+    public bool MemoryRecovery { get; init; }
+
     /// <summary>Parses supported bootstrap switches without constructing services or windows.</summary>
     public static LaunchOptions Parse(IReadOnlyList<string> arguments)
     {
@@ -45,6 +48,7 @@ public sealed record LaunchOptions(
         var safeMode = false;
         var startWithWindows = false;
         var noSplash = false;
+        var memoryRecovery = false;
         var remaining = new List<string>();
         for (var index = 0; index < arguments.Count; index++)
         {
@@ -66,6 +70,7 @@ public sealed record LaunchOptions(
                 case "--safe-mode": safeMode = true; break;
                 case "--start-with-windows": startWithWindows = true; break;
                 case "--no-splash": noSplash = true; break;
+                case "--memory-recovery": memoryRecovery = true; break;
                 case "--language" when index + 1 < arguments.Count:
                     language = ProductLanguageCatalog.CanonicalUiChoice(arguments[++index])
                         ?? throw new ArgumentException($"Unsupported WorkTrail language '{arguments[index]}'.", nameof(arguments));
@@ -84,6 +89,9 @@ public sealed record LaunchOptions(
             mode = LaunchMode.Cli;
         }
 
-        return new LaunchOptions(mode, startTracking, paused, language, theme, position, safeMode, startWithWindows, noSplash, remaining);
+        return new LaunchOptions(mode, startTracking, paused, language, theme, position, safeMode, startWithWindows, noSplash, remaining)
+        {
+            MemoryRecovery = memoryRecovery
+        };
     }
 }

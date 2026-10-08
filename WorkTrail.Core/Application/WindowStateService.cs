@@ -119,7 +119,7 @@ public sealed class WindowStateService
             WindowStateKeys.AiScreenshotReprocessing => new(640, 560),
             WindowStateKeys.Screenshots => new(760, 540),
             WindowStateKeys.OcrText => new(560, 360),
-            WindowStateKeys.About => new(900, 700),
+            WindowStateKeys.About => new(640, 480),
             WindowStateKeys.Licenses => new(720, 520),
             WindowStateKeys.Search => new(560, 156),
             WindowStateKeys.SearchIndexing => new(560, 420),

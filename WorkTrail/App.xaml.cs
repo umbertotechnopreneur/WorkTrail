@@ -43,6 +43,8 @@ public partial class App : Microsoft.UI.Xaml.Application
     private RuntimeHost? _runtimeHost;
     private IWorkTrailApplication? _runtimeApplication;
     private IWorkTrailApplication? _applicationFacade;
+    private ProcessMemoryGuardService? _memoryGuard;
+    private LaunchOptions _memoryRecoveryLaunchOptions = LaunchOptions.Parse([]);
     private DispatcherQueueTimer? _retentionTimer;
     private bool _retentionCheckInProgress;
     private bool _retentionDeferredForSession;
@@ -62,6 +64,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private string _uiLanguage = "system";
     private int _shutdownStarted;
     private int _atomicResetStarted;
+    private int _memoryRestartStarted;
 
     /// <summary>Initializes the WinUI application object and its logging composition root.</summary>
     public App()
@@ -113,6 +116,8 @@ public partial class App : Microsoft.UI.Xaml.Application
                 "Launch requested. Mode={Mode} ActivationKind={ActivationKind}",
                 options.Mode,
                 activationKind);
+            if (options.MemoryRecovery)
+                _logger.LogWarning("WorkTrail memory recovery launch received. Event=memory.restart.launched");
             switch (options.Mode)
             {
                 case LaunchMode.Cli:
@@ -254,6 +259,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
 
         _uiStarting = true;
+        _memoryRecoveryLaunchOptions = options;
         try
         {
 
@@ -1176,7 +1182,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _searchWindow = null;
         }
 
-        if (Volatile.Read(ref _atomicResetStarted) != 0)
+        if (Volatile.Read(ref _atomicResetStarted) != 0 || Volatile.Read(ref _memoryRestartStarted) != 0)
         {
             return;
         }
@@ -1210,6 +1216,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     {
         try
         {
+            _memoryRecoveryLaunchOptions = options;
             var application = StartOrConnectRuntime();
             if (!ReferenceEquals(application, _runtimeApplication))
             {
@@ -1224,6 +1231,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 return;
             }
 
+            _uiLanguage = settings.Value.UiLanguage;
             var startup = await application.SetStartupEnabledAsync(
                 settings.Value.StartWithWindows,
                 CancellationToken.None);
@@ -1259,6 +1267,12 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
 
         var loggerFactory = _services.GetRequiredService<ILoggerFactory>();
+        _memoryGuard ??= new ProcessMemoryGuardService(
+            loggerFactory.CreateLogger<ProcessMemoryGuardService>(),
+            memory => _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.High,
+                () => _ = RestartForMemoryPressureAsync(memory)),
+            () => Volatile.Read(ref _uiLanguage));
+        _memoryGuard.Start();
         var observability = _services.GetRequiredService<ObservabilityHealth>();
         var installationId = WorkTrailApplicationFactory.LoadInstallationId();
         var host = new RuntimeHost(
@@ -1281,6 +1295,68 @@ public partial class App : Microsoft.UI.Xaml.Application
         _logger.LogInformation("Runtime ownership is held by another process; connecting through the named pipe.");
         _applicationFacade = new RuntimeClient(installationId, TimeSpan.FromSeconds(5), loggerFactory.CreateLogger<RuntimeClient>());
         return _applicationFacade;
+    }
+
+    private async Task RestartForMemoryPressureAsync(ProcessMemorySnapshot memory)
+    {
+        if (Volatile.Read(ref _shutdownStarted) != 0 || Volatile.Read(ref _atomicResetStarted) != 0
+            || Interlocked.CompareExchange(ref _memoryRestartStarted, 1, 0) != 0) return;
+
+        var wasTracking = false;
+        try
+        {
+            if (_applicationFacade is not null)
+            {
+                using var preparationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                try
+                {
+                    var dashboard = await _applicationFacade.GetDashboardAsync(preparationTimeout.Token)
+                        .WaitAsync(preparationTimeout.Token);
+                    wasTracking = dashboard.Succeeded && dashboard.Value?.IsTracking == true;
+                    if (!dashboard.Succeeded)
+                        _logger.LogWarning("Memory recovery could not read tracking state; recovery will start paused. Code={Code}", dashboard.Code);
+                    if (_runtimeHost is not null)
+                    {
+                        // Finish the current activity and cancel live capture/provider work before releasing runtime ownership.
+                        var paused = await _applicationFacade.PauseTrackingAsync(preparationTimeout.Token)
+                            .WaitAsync(preparationTimeout.Token);
+                        if (!paused.Succeeded)
+                            _logger.LogWarning("Memory recovery could not pause tracking. Code={Code}", paused.Code);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogWarning(exception, "Memory recovery preparation did not complete within its budget.");
+                }
+            }
+
+            var restartArguments = MemoryRecoveryLaunchPolicy.CreateArguments(
+                _memoryRecoveryLaunchOptions with { Language = _uiLanguage }, wasTracking);
+            _window?.CloseForShutdown();
+            try
+            {
+                // Bound cleanup under memory pressure; Windows restart terminates the old process before launching its successor.
+                await ShutdownRuntimeAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Memory recovery runtime shutdown did not complete; Windows restart will terminate this process.");
+            }
+            _logger.LogWarning(
+                "WorkTrail memory recovery restart requested. Event=memory.restart.requested PrivateBytes={PrivateBytes} WorkingSetBytes={WorkingSetBytes} ManagedBytes={ManagedBytes} ResumeTracking={ResumeTracking}",
+                memory.PrivateBytes, memory.WorkingSetBytes, memory.ManagedBytes, wasTracking);
+            // AppInstance.Restart can terminate immediately; close and flush diagnostics before invoking it.
+            await LoggingBootstrapper.ShutdownAsync(_services);
+            var failure = AppInstance.Restart(restartArguments);
+            throw new InvalidOperationException(new LocalizationService(_uiLanguage).Format("MemoryGuard.RestartFailed", failure));
+        }
+        catch (Exception exception)
+        {
+            // The independent emergency log and native dialog remain available even after normal logging has closed.
+            ApplicationErrorService.Report(exception, "MemoryRecoveryRestart", _uiLanguage);
+            await LoggingBootstrapper.ShutdownAsync(_services);
+            Exit();
+        }
     }
 
     private void StartRetentionMaintenance()
@@ -1347,6 +1423,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         {
             return;
         }
+        _memoryGuard?.Dispose();
+        _memoryGuard = null;
         if (_retentionTimer is not null)
         {
             _retentionTimer.Stop();

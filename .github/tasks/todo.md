@@ -9,6 +9,21 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Extend the compact About review to other supported scaling levels, constrained work
+  areas, long localized text, high contrast and diagnostic failure states. Debug x64 MSIX
+  1.0.6.11 was installed and visually reviewed in Italian at 150% in both light and dark
+  themes, using the original alpha logo; its compact size and retained position were
+  observed. The GitHub and canonical manifesto destinations were checked against their
+  public pages; native external-link activation remains unverified. Additional tests
+  require owner authorization.
+
+- [ ] After explicit native-test authorization, validate the installed process memory guard:
+  Windows warning acknowledgement, bounded runtime shutdown, active/paused tracking after
+  recovery, retained activity and durable memory/recovery events. Do not allocate excessive
+  memory in the owner's active profile. The October 8 log cannot establish the cause of the
+  reported 3 GB peak; correlate process samples with system memory and storage events
+  before attributing OS-wide hangs to WorkTrail. Live profiling requires separate approval.
+
 - [ ] Validate the expanded tray menu on Windows: show all already-open windows from hidden
   and minimized states, pause/resume tracking and notifications, restart to verify the saved
   notification preference, and open VIP capture, clocks, astronomy views, Settings, and About.
