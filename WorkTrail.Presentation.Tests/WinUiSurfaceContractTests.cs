@@ -303,7 +303,7 @@ public sealed class WinUiSurfaceContractTests
         Assert.DoesNotContain(pendingSnapshotPanel.Descendants(), element => element.Name.LocalName == "ProgressBar");
         Assert.DoesNotContain(pendingSnapshotPanel.Descendants(), element => element.Name.LocalName == "FontIcon" && element.Attribute("Glyph")?.Value == "\uE74D");
         Assert.Contains("TakeScreenshotButton.IsEnabled = false;", mainSource, StringComparison.Ordinal);
-        Assert.Contains("TakeScreenshotButton.IsEnabled = _workspaceUiReady && enableCapture;", mainSource, StringComparison.Ordinal);
+        Assert.Contains("TakeScreenshotButton.IsEnabled = _workspaceUiReady && enableCapture && !_manualScreenshotCaptureInProgress;", mainSource, StringComparison.Ordinal);
         Assert.Contains("HidePendingSnapshotDeleteUi(enableCapture: true);", mainSource, StringComparison.Ordinal);
         Assert.Contains("HidePendingSnapshotDeleteUi(enableCapture: false);", mainSource, StringComparison.Ordinal);
         Assert.Contains("FormatPendingSnapshotCountdown(remaining)", mainSource, StringComparison.Ordinal);
@@ -1222,7 +1222,7 @@ public sealed class WinUiSurfaceContractTests
         Assert.Equal("Options.Theme.light", options.Descendants().Single(element => HasName(element, "ThemeLightButton")).Attribute("Tag")?.Value);
         Assert.Equal("Options.Theme.dark", options.Descendants().Single(element => HasName(element, "ThemeDarkButton")).Attribute("Tag")?.Value);
         Assert.Equal("Options.AiConnection.Test", options.Descendants().Single(element => HasName(element, "TestConnectionButton")).Attribute("Tag")?.Value);
-        Assert.Contains("AutomationProperties.SetName(KeepScreenshotsSwitch, T(\"Options.KeepSnapshots.Header\"));", optionsSource, StringComparison.Ordinal);
+        Assert.Contains("AutomationProperties.SetName(KeepScreenshotsSwitch, _strings.Translate(\"Options.KeepSnapshots.Header\"));", retentionSource, StringComparison.Ordinal);
         Assert.Contains("BuiltInModelKeys", optionsSource, StringComparison.Ordinal);
         Assert.Contains("Options.Model.Description.{model.Key}", optionsSource, StringComparison.Ordinal);
         Assert.Contains("Explicitly loaded external model catalogs own their descriptive metadata.", optionsSource, StringComparison.Ordinal);

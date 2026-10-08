@@ -60,7 +60,7 @@ internal static class TimesheetExcelWriter
                     options.Sources.IncludeWindowTitles ? strings.Translate("Export.Titles") : null
                 }.OfType<string>())],
                 [workbook.T("DataHelp"), workbook.T("ArchiveHelp")], [workbook.T("Coverage"), workbook.T("CoverageHelp")],
-                [strings.Translate("Export.ExcelTheme"), workbook.T("ThemeHelp")]
+                [strings.Translate("Export.ExcelTheme.Header"), workbook.T("ThemeHelp")]
             }, metadata));
         var detailColumns = new List<ExcelReportColumn>
         {

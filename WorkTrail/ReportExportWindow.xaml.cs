@@ -44,7 +44,6 @@ internal sealed partial class ReportExportWindow : Window
         _strings = strings;
         InitializeComponent();
         TitlePremiumBadge.Text = strings.Translate("Premium.Badge");
-        TimesheetPremiumBadge.Text = strings.Translate("Premium.Badge");
         TimesheetRate.ValueChanged += (_, _) => ResetTimesheetSelection();
         Title = T("Export.Title");
         RootGrid.RequestedTheme = theme;
@@ -75,7 +74,7 @@ internal sealed partial class ReportExportWindow : Window
         UiLocalization.SetAccessibleLabel(MonthButton, T("Export.Month"));
         FormatCombo.ItemsSource = new[] { "Excel .xlsx", "CSV .zip", "JSON .json" };
         WorkbookThemeCombo.ItemsSource = new[] { T("Export.ThemeWorkTrail"), T("Export.ThemeGreen"), T("Export.ThemeBlue") };
-        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme"));
+        UiLocalization.SetAccessibleLabel(WorkbookThemeCombo, T("Export.ExcelTheme.Header"));
         DescriptionCombo.ItemsSource = new[] { T("Export.Brief"), T("Export.CompleteText"), T("Export.Both") };
         SeparatorCombo.ItemsSource = new[] { ";", "," };
         GroupingCombo.ItemsSource = new[] { T("Export.ByDay"), T("Export.ByApplication"), T("Export.WholePeriod") };
@@ -349,8 +348,8 @@ internal sealed partial class ReportExportWindow : Window
         StatusBar.Severity = InfoBarSeverity.Success; StatusBar.IsOpen = true;
     });
 
-    private Task ShowUpgradeAsync() => _messages.ShowInformativeAsync(this,
-        DialogRequest.Informative(T("Export.UpgradeTitle"), T("Export.UpgradeMessage"), T("Dialog.Ok")));
+    private Task ShowUpgradeAsync() => _messages.ShowPremiumUpgradeAsync(
+        _application, this, T, "Export.UpgradeMessage");
 
     // action performs one cancellable report operation while shared controls are disabled.
     private async Task RunAsync(Func<CancellationToken, Task> action)

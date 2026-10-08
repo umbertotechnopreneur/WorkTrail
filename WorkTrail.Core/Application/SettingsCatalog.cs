@@ -38,6 +38,7 @@ public static class SettingsCatalog
     [
         Boolean("screenshots.enabled", "Allow application-initiated screenshot capture."),
         Boolean("screenshots.notifications", "Show Windows notifications with a temporary preview after successful captures."),
+        Boolean("notifications.enabled", "Enable automatic in-app and Windows notifications without changing capture or tracking."),
         Boolean("screenshots.keep", "Keep screenshots after analysis."),
         Choice("screenshots.mode", "Select all displays or only the active window.", ScreenshotModes),
         Text("screenshots.directory", "Directory used for WorkTrail screenshot artifacts.", "path"),
@@ -123,6 +124,7 @@ public static class SettingsCatalog
         {
             "screenshots.enabled" => settings.ScreenshotsEnabled,
             "screenshots.notifications" => settings.ScreenshotNotificationsEnabled,
+            "notifications.enabled" => settings.NotificationsEnabled,
             "screenshots.keep" => settings.KeepScreenshots,
             "screenshots.mode" => settings.ScreenshotCaptureMode,
             "screenshots.directory" => settings.ScreenshotDirectory,
@@ -252,6 +254,7 @@ public static class SettingsCatalog
             {
                 case "screenshots.enabled" when TryBoolean(value, out var screenshots): current = current with { ScreenshotsEnabled = screenshots }; break;
                 case "screenshots.notifications" when TryBoolean(value, out var screenshotNotifications): current = current with { ScreenshotNotificationsEnabled = screenshotNotifications }; break;
+                case "notifications.enabled" when TryBoolean(value, out var notificationsEnabled): current = current with { NotificationsEnabled = notificationsEnabled }; break;
                 case "screenshots.keep" when TryBoolean(value, out var keep): current = current with { KeepScreenshots = keep }; break;
                 case "screenshots.mode" when Canonical(ScreenshotModes, value) is { } screenshotMode: current = current with { ScreenshotCaptureMode = screenshotMode }; break;
                 case "screenshots.directory" when TryDirectory(value, allowEmpty: false, out var screenshotDirectory): current = current with { ScreenshotDirectory = screenshotDirectory }; break;

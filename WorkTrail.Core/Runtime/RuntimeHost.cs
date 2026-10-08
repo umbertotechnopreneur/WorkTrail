@@ -322,10 +322,21 @@ public sealed class RuntimeClient : IWorkTrailApplication
         SendAsync<SystemSnapshot>(RuntimeOperation.HardwareAdvancedEnableV1, null, cancellationToken, HardwareAdvancedTimeout);
     /// <inheritdoc />
     public Task<OperationResult<ScreenshotCaptureResult>> CaptureScreenshotAsync(CaptureScreenshotRequest request, CancellationToken cancellationToken) =>
-        SendAsync<ScreenshotCaptureResult>(RuntimeOperation.ScreenshotCapture, request, cancellationToken, ScreenshotCaptureTimeout);
+        SendAsync<ScreenshotCaptureResult>(request.IsVip ? RuntimeOperation.ScreenshotVipCaptureV1 : RuntimeOperation.ScreenshotCapture,
+            request, cancellationToken, ScreenshotCaptureTimeout);
     /// <inheritdoc />
     public Task<OperationResult<PendingManualScreenshotState>> CaptureManualScreenshotAsync(CancellationToken cancellationToken) =>
         SendAsync<PendingManualScreenshotState>(RuntimeOperation.ScreenshotManualCapture, null, cancellationToken, ScreenshotCaptureTimeout);
+    /// <inheritdoc />
+    /// <param name="request">The existing VIP capture and its note.</param>
+    /// <param name="cancellationToken">Cancels the runtime request.</param>
+    public Task<OperationResult<bool>> SaveVipScreenshotNoteAsync(VipScreenshotNoteRequest request, CancellationToken cancellationToken) =>
+        SendAsync<bool>(RuntimeOperation.ScreenshotVipNoteSaveV1, request, cancellationToken);
+    /// <inheritdoc />
+    /// <param name="request">The inclusive local date range.</param>
+    /// <param name="cancellationToken">Cancels the runtime request.</param>
+    public Task<OperationResult<IReadOnlyList<DateOnly>>> GetVipScreenshotDatesAsync(VipScreenshotDatesRequest request, CancellationToken cancellationToken) =>
+        SendAsync<IReadOnlyList<DateOnly>>(RuntimeOperation.ScreenshotVipDatesV1, request, cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<bool>> DeletePendingManualScreenshotAsync(CancellationToken cancellationToken) => SendAsync<bool>(RuntimeOperation.ScreenshotManualDelete, null, cancellationToken);
     /// <inheritdoc />

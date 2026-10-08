@@ -24,7 +24,7 @@ public sealed class PremiumUiContractTests
         Assert.Contains(badge.Ancestors(), element => Name(element)?.EndsWith("DragRegion", StringComparison.Ordinal) == true);
     }
 
-    /// <summary>Labels stay left-aligned beside management, with no redundant history submenu.</summary>
+    /// <summary>The label selector owns management, leaving its second row for the VIP capture action.</summary>
     [Fact]
     public void MainWindow_KeepsLabelActionsTogetherAndHistoryActionsOnlyAtTopLevel()
     {
@@ -32,8 +32,11 @@ public sealed class PremiumUiContractTests
         var actions = document.Descendants().Single(element => Name(element) == "PlayerLabelActionsPanel");
         Assert.Equal("Right", actions.Attribute("HorizontalAlignment")?.Value);
         Assert.Equal("Center", actions.Attribute("VerticalAlignment")?.Value);
-        Assert.Contains(actions.Descendants(), element => Name(element) == "ManageLabelsButton"
-            && element.Attribute("Grid.Row")?.Value == "1" && element.Attribute("HorizontalAlignment")?.Value == "Right");
+        Assert.DoesNotContain(actions.Descendants(), element => Name(element) == "ManageLabelsButton");
+        Assert.Contains(actions.Descendants(), element => Name(element) == "VipSnapshotButton"
+            && element.Attribute("Grid.Row")?.Value == "1" && element.Attribute("Width")?.Value == "155");
+        Assert.Contains(actions.Descendants(), element => Name(element) == "PlayerLabelSelector"
+            && element.Attribute("ManageRequested")?.Value == "PlayerLabelSelector_ManageRequested");
         Assert.Contains(actions.Descendants(), element => Name(element) == "PlayerLabelFeatureGate" && element.Attribute("HorizontalAlignment")?.Value == "Right");
         Assert.DoesNotContain(actions.Descendants(), element => element.Name.LocalName == "PremiumBadge");
         Assert.DoesNotContain(document.Descendants(), element => Name(element) == "ActivityMenu");
@@ -79,7 +82,7 @@ public sealed class PremiumUiContractTests
         var archives = File.ReadAllText(PathFor("WorkTrail", "Controls", "InstallationTransferOperationsControl.xaml.cs"));
         Assert.Equal(2, archives.Split("if (!await EnsureArchiveAccessAsync())", StringSplitOptions.None).Length - 1);
         Assert.Contains("ProductFeature.DataTransfer", archives, StringComparison.Ordinal);
-        Assert.Contains("Context.Dialogs.ShowInformativeAsync", archives, StringComparison.Ordinal);
+        Assert.Contains("Context.Dialogs.ShowPremiumUpgradeAsync", archives, StringComparison.Ordinal);
         var labels = File.ReadAllText(PathFor("WorkTrail", "Controls", "ActivityLabelsEditor.cs"));
         Assert.Contains("result.Code == \"feature.label_limit\"", labels, StringComparison.Ordinal);
         Assert.Contains("button.BorderThickness = new Thickness(0);", labels, StringComparison.Ordinal);

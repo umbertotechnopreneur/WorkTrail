@@ -2,6 +2,115 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-08
+
+### Compact About layout and current branding
+
+- Replaced obsolete About artwork with an original trail illustration and a native
+  WorkTrail title. Reduced the default window and banner height, updated the minimum
+  bounds, adopted the compact size after placement restoration, and retained scrolling
+  and a single-column layout for constrained displays.
+- Added the owner's original transparent VibeWare master, localized GitHub and canonical
+  manifesto links, and artwork provenance. The press-kit dark/light symbols have opaque
+  backgrounds and are excluded. Removed duplicate report/repository actions and updated
+  About copy in every supported language.
+- Centered the artwork, reduced the default height to 520, displayed the full package
+  version and named the licenses action for accessibility. C# formatting and verification
+  passed. Built, signed and installed Debug x64 MSIX 1.0.6.11 with `Ok` registration.
+- Reviewed the installed About in Italian at 150% scale in both light and dark themes:
+  the trail, transparent logo, text, metadata, diagnostics actions and footer fit without
+  clipping. Confirmed accessible button names and retained placement at the compact size.
+  Restored the owner's System theme after the review. Other scales, constrained work
+  areas, long translations, high contrast and diagnostic failure states remain unverified.
+
+### Process memory recovery guard
+
+- Added a ten-second process sampler with a 1 GiB limit for private or resident memory,
+  periodic managed-memory/handle diagnostics, and one native Windows acknowledgement
+  before restart. Recovery preserves tracking state, safe mode and runtime launch mode,
+  bounds runtime shutdown, flushes logs and records the successor's recovery activation.
+- Added localized warning/failure copy. All 14 synthetic recovery cases passed, and C#
+  formatting and verification passed. Built, signed and installed Debug x64 MSIX 1.0.6.8;
+  verified package version, architecture and `Ok` registration status. Build/test output
+  was cleaned and the installer retained. Normal installed-app startup and periodic
+  memory logging were observed. Native warning/restart behavior remains unverified.
+  This protection does not establish or repair the original leak or explain OS-wide hangs.
+
+## 2026-10-07
+
+### Repeated screenshot failure notifications
+
+- Report only the first capture failure until a complete capture succeeds. Scheduled,
+  manual, and AI capture paths share this notification state; retries and local error
+  logging continue, including while successful-capture notifications are disabled.
+- C# formatting and verification passed. Built, signed, and installed Debug x64 MSIX
+  1.0.6.7; verified current-user version, architecture, and `Ok` registration status.
+  Project build output was cleaned and the installer retained. Automated tests and
+  native notification behavior remain unverified.
+
+## 2026-10-06
+
+### Tray menu shortcuts and open-window reveal
+
+- Added localized tray shortcuts for notification pause/resume, VIP capture, tracking
+  pause/resume, international clocks, the astronomical calendar, day/night map and globe,
+  Settings, and About, reusing existing application workflows.
+- Added Show all windows beside the visibility command. It restores the main window and
+  reveals its already-open peers through the existing facade, without creating windows.
+- Persisted global notification pause while preserving the screenshot-specific preference
+  and normal capture/tracking behavior. Native callbacks defer application work to the UI dispatcher.
+- Added a settings persistence regression case. C# formatting and verification passed.
+  Built, signed, and installed Debug x64 MSIX 1.0.6.6 with the expanded tray menu;
+  verified current-user version, architecture, and `Ok` registration status. Project
+  build output was cleaned and the installer retained. Tests and native interaction remain unverified.
+
+### Compact severity toasts
+
+- Removed the decorative countdown progress bar and compacted the shared toast surface.
+  Added green, amber, and red palettes for low-severity messages, warnings, and errors,
+  with native severity icons, matching borders and text, and high-contrast resources.
+- Preserved automatic dismissal, replacement protection, manual closing, and fade transitions;
+  the timeout no longer updates a visual progress indicator. Updated the existing surface
+  contract to reflect the new presentation. Included in built, signed, and installed
+  Debug x64 MSIX 1.0.6.6; tests and native interaction remain unverified.
+
+### VIP snapshots and capture notes
+
+- Moved label management into the player selector and used its second row for a VIP capture
+  button. Added a cancellable five-second Mica countdown and an Acrylic confirmation with preview
+  and an optional plain-text note, while reusing the existing multi-monitor capture pipeline.
+- Persisted VIP metadata by capture identity so all monitor artifacts share importance and
+  note. Archive transfer preserves it, and deleting the last retained artifact clears its
+  calendar indicator. Added dedicated runtime operations for VIP capture and metadata.
+- Added a featured VIP strip, separate gold borders and crown badges in the gallery, notes
+  in screenshot details, and calendar crowns even on dates with no recorded activity.
+- Added persistence/deletion regression cases and extended the multi-monitor archive case.
+- Debug x64 build passed with no warnings or errors; C# formatting and its verification passed.
+  The selected presentation checks passed 22 of 24 cases. The two failures match pre-existing
+  source inconsistencies on the base commit: duplicate report Premium badges and a missing
+  OCR action accessible name. Core validation awaits an approved retry after correcting a
+  dispatcher compilation error. Native Windows interaction remains unverified.
+- Built, signed, and installed Debug x64 MSIX version 1.0.6.4 with the VIP snapshot changes.
+  Verified current-user registration, version, architecture, and `Ok` package status;
+  the installer is retained and project build outputs were cleaned.
+- Refined both VIP dialog layouts and added localized explanations of immediate manual
+  capture and ordinary screenshot handling with VIP prominence in the gallery and calendar.
+  Built, signed, and installed these dialog refinements as Debug x64 MSIX 1.0.6.5.
+  Verified version, architecture, and `Ok` package status; native interaction remains unverified.
+
+## 2026-10-04
+
+### Shared Premium upgrade prompt
+
+- Replaced purchase and Full-edition wording with "Switch to Premium" across all supported languages.
+- Reused one localized dialog with a highlighted Store action for export, timesheet, label,
+  clock, schedule, data-transfer, and retention restrictions. Free retention choices and
+  the add-clock action now reach the prompt without unlocking the restricted operation.
+- Routed Store activation through the application facade using WorkTrail's package family
+  identity, with a visible localized error if Windows cannot open the Store.
+- C# whitespace formatting and verification passed. Runtime dialog presentation, Store
+  navigation, and build/test validation remain unverified.
+
 ## 2026-10-03
 
 ### One-command Debug MSIX installation

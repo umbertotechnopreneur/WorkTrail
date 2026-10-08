@@ -125,7 +125,7 @@ public sealed partial class RetentionOperationsControl : UserControl
         ScreenshotsEnabledSwitch.IsEnabled = ScreenshotModeBox.IsEnabled = OcrEnabledSwitch.IsEnabled = RetentionPreviewButton.IsEnabled;
         OcrLanguageBox.IsEnabled = RetentionPreviewButton.IsEnabled && _retentionStatus?.OcrEnabled == true;
         HardwareSaveSnapshotsSwitch.IsEnabled = RetentionPreviewButton.IsEnabled && _retentionStatus?.HardwareSensorsEnabled == true;
-        TwoMonthsButton.IsEnabled = ThreeMonthsButton.IsEnabled = RetentionPreviewButton.IsEnabled && _retentionStatus?.MaximumMonths == 3;
+        TwoMonthsButton.IsEnabled = ThreeMonthsButton.IsEnabled = RetentionPreviewButton.IsEnabled;
         TierBadge.Visibility = _retentionStatus?.MaximumMonths == 3 ? Visibility.Visible : Visibility.Collapsed;
         OneMonthButton.IsChecked = _retentionStatus?.DataRetentionDays == 30;
         TwoMonthsButton.IsChecked = _retentionStatus?.DataRetentionDays == 60;
@@ -179,6 +179,18 @@ public sealed partial class RetentionOperationsControl : UserControl
     {
         await _storageSaveQueue;
         var months = ReferenceEquals(sender, OneMonthButton) ? 1 : ReferenceEquals(sender, TwoMonthsButton) ? 2 : 3;
+        if (_retentionStatus is null || _loadingPolicy)
+        {
+            RenderRetentionStatus();
+            return;
+        }
+        if (months > _retentionStatus.MaximumMonths)
+        {
+            // An upgrade click must restore the saved choice without submitting a settings mutation.
+            RenderRetentionStatus();
+            await Context.Dialogs.ShowPremiumUpgradeAsync(Context.Application, Context.OwnerWindow, _strings.Translate);
+            return;
+        }
         var days = (months * 30).ToString(CultureInfo.InvariantCulture);
         var result = await Context.ExecuteAsync((application, token) => application.PatchSettingsAsync(
             new SettingsPatch(new Dictionary<string, string?> { ["retention.data_days"] = days, ["retention.screenshots_days"] = days }), token));

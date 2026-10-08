@@ -57,7 +57,7 @@
                     Click="TitleBarBackButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="QuickSetup.Back"
-                    ToolTipService.ToolTip="Back"
+                    AutomationProperties.Name="Back" ToolTipService.ToolTip="Back"
                     Visibility="Collapsed">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
@@ -73,7 +73,7 @@
                     IsTabStop="True"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="WorldClock.OpenWindow"
-                    ToolTipService.ToolTip="Show world clocks">
+                    AutomationProperties.Name="Show world clocks" ToolTipService.ToolTip="Show world clocks">
                     <SymbolIcon
                         AutomationProperties.AccessibilityView="Raw"
                         Symbol="Clock" />
@@ -85,7 +85,7 @@
                     Click="SensorsButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Sensors.Open"
-                    ToolTipService.ToolTip="Show hardware sensors">
+                    AutomationProperties.Name="Show hardware sensors" ToolTipService.ToolTip="Show hardware sensors">
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="17" Glyph="&#xE9D9;" />
                 </Button>
                 <Image
@@ -111,7 +111,7 @@
                     Click="TitleBarMoreButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Main.Menu.Open"
-                    ToolTipService.ToolTip="Open application menu">
+                    AutomationProperties.Name="Open application menu" ToolTipService.ToolTip="Open application menu">
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Key="M" Modifiers="Menu" />
                     </Button.KeyboardAccelerators>
@@ -127,7 +127,7 @@
                     Click="TitleBarSearchButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Search.Title"
-                    ToolTipService.ToolTip="Search history">
+                    AutomationProperties.Name="Search history" ToolTipService.ToolTip="Search history">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
                         FontFamily="Segoe Fluent Icons"
@@ -140,7 +140,7 @@
                     Click="MinimizeToTrayButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Main.Menu.MinimizeToTray"
-                    ToolTipService.ToolTip="Minimize to notification area"
+                    AutomationProperties.Name="Minimize to notification area" ToolTipService.ToolTip="Minimize to notification area"
                     Visibility="Collapsed">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
@@ -155,7 +155,7 @@
                     Click="TitleBarCloseButton_Click"
                     Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
                     Tag="Tray.CloseApplication"
-                    ToolTipService.ToolTip="Close app">
+                    AutomationProperties.Name="Close app" ToolTipService.ToolTip="Close app">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
                         FontFamily="Segoe Fluent Icons"
@@ -296,7 +296,7 @@
                             x:Name="MoreButton"
                             Background="Transparent"
                             BorderBrush="Transparent"
-                            ToolTipService.ToolTip="Open application menu"
+                            AutomationProperties.Name="Open application menu" ToolTipService.ToolTip="Open application menu"
                             Visibility="Collapsed">
                             <FontIcon
                                 AutomationProperties.AccessibilityView="Raw"
@@ -587,7 +587,7 @@
                                     Click="TrackingButton_Click"
                                     CornerRadius="37"
                                     Style="{StaticResource CircularActionButtonStyle}"
-                                    ToolTipService.ToolTip="Start tracking"
+                                    AutomationProperties.Name="Start tracking" ToolTipService.ToolTip="Start tracking"
                                     Translation="0,0,3">
                                     <Button.Shadow>
                                         <ThemeShadow/>
@@ -616,7 +616,7 @@
                                         CornerRadius="16"
                                         Style="{StaticResource CircularActionButtonStyle}"
                                         Tag="Snapshot.Take"
-                                        ToolTipService.ToolTip="Take snapshot">
+                                        AutomationProperties.Name="Take snapshot" ToolTipService.ToolTip="Take snapshot">
                                         <FontIcon
                                             AutomationProperties.AccessibilityView="Raw"
                                             FontFamily="Segoe Fluent Icons"
@@ -637,7 +637,7 @@
                                         Click="DeleteSnapshotButton_Click"
                                         CornerRadius="16"
                                         Style="{StaticResource CircularActionButtonStyle}"
-                                        ToolTipService.ToolTip="Delete snapshot"
+                                        AutomationProperties.Name="Delete snapshot" ToolTipService.ToolTip="Delete snapshot"
                                         Visibility="Collapsed">
                                         <FontIcon
                                             AutomationProperties.AccessibilityView="Raw"
@@ -738,17 +738,18 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <controls:FeatureGate x:Name="PlayerLabelFeatureGate" Feature="ActivityLabels" ShowTitle="False" ShowHint="False" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <controls:ActivityLabelSelector x:Name="PlayerLabelSelector" />
+                                        <controls:ActivityLabelSelector x:Name="PlayerLabelSelector" ManageRequested="PlayerLabelSelector_ManageRequested" />
                                     </controls:FeatureGate>
-                                    <Button AutomationProperties.AutomationId="Main.ManageLabelsButton" x:Name="ManageLabelsButton" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Padding="8,4" FontSize="12" Click="ManageLabelsButton_Click">
+                                    <Button AutomationProperties.AutomationId="Main.VipSnapshotButton" x:Name="VipSnapshotButton" Grid.Row="1" Width="155" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                            IsEnabled="{Binding IsEnabled, ElementName=TakeScreenshotButton}" Style="{StaticResource AccentButtonStyle}"
+                                            Padding="8,4" FontSize="12" Click="VipSnapshotButton_Click">
                                         <Grid ColumnSpacing="6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <FontIcon Glyph="&#xE8EC;" FontSize="14" Foreground="{ThemeResource PlayerAccentTextBrush}" AutomationProperties.AccessibilityView="Raw" />
-                                            <TextBlock Grid.Column="1" Tag="Labels.Manage" Text="Manage labels" TextWrapping="Wrap" />
+                                            <FontIcon Glyph="&#xE722;" FontSize="14" AutomationProperties.AccessibilityView="Raw" />
+                                            <TextBlock Grid.Column="1" Tag="Snapshot.Vip.Take" Text="VIP snapshot" TextWrapping="Wrap" />
                                         </Grid>
                                     </Button>
                                 </Grid>
@@ -838,7 +839,7 @@
                                 BorderThickness="0,1,0,0"
                                 Click="ActivityScoreButton_Click"
                                 CornerRadius="0"
-                                ToolTipService.ToolTip="Hide activity score">
+                                AutomationProperties.Name="Hide activity score" ToolTipService.ToolTip="Hide activity score">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -947,7 +948,7 @@
                             BorderThickness="0,1,0,0"
                             Click="DetailsButton_Click"
                             CornerRadius="0"
-                            ToolTipService.ToolTip="Show last session">
+                            AutomationProperties.Name="Show last session" ToolTipService.ToolTip="Show last session">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -1032,7 +1033,7 @@
                                     Click="ScreenshotPreviewButton_Click"
                                     PointerEntered="ScreenshotPreviewButton_PointerEntered"
                                     PointerExited="ScreenshotPreviewButton_PointerExited"
-                                    ToolTipService.ToolTip="No screen capture available yet">
+                                    AutomationProperties.Name="No screen capture available yet" ToolTipService.ToolTip="No screen capture available yet">
                                     <Border
                                         x:Name="ScreenshotPreviewSurface"
                                         Width="124"

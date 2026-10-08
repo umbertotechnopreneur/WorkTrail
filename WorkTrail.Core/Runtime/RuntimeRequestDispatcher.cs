@@ -68,7 +68,12 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.SystemSnapshot => ToResponse(request, await _application.CaptureSystemSnapshotAsync(cancellationToken)),
                 RuntimeOperation.HardwareAdvancedEnableV1 => ToResponse(request, await _application.EnableAdvancedHardwareTelemetryAsync(cancellationToken)),
                 RuntimeOperation.ScreenshotCapture => await DispatchScreenshotCaptureAsync(request, cancellationToken),
+                RuntimeOperation.ScreenshotVipCaptureV1 => await DispatchScreenshotCaptureAsync(request, cancellationToken),
                 RuntimeOperation.ScreenshotManualCapture => ToResponse(request, await _application.CaptureManualScreenshotAsync(cancellationToken)),
+                RuntimeOperation.ScreenshotVipNoteSaveV1 => ToResponse(request, await _application.SaveVipScreenshotNoteAsync(
+                    Read<VipScreenshotNoteRequest>(request.Payload) ?? throw new InvalidDataException("A VIP note payload is required."), cancellationToken)),
+                RuntimeOperation.ScreenshotVipDatesV1 => ToResponse(request, await _application.GetVipScreenshotDatesAsync(
+                    Read<VipScreenshotDatesRequest>(request.Payload) ?? throw new InvalidDataException("A VIP date range is required."), cancellationToken)),
                 RuntimeOperation.ScreenshotManualDelete => ToResponse(request, await _application.DeletePendingManualScreenshotAsync(cancellationToken)),
                 RuntimeOperation.ScreenshotAnalyze => await DispatchScreenshotAnalysisAsync(request, cancellationToken),
                 RuntimeOperation.ScreenshotLatest => ToResponse(request, await _application.GetLatestScreenshotAsync(cancellationToken)),

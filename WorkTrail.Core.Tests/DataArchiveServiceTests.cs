@@ -261,6 +261,8 @@ public sealed class DataArchiveServiceTests
             var sourcePathList = string.Join(';', sourcePaths);
             source.UpsertScreenshotIntervalTelemetry(captureId, sourcePaths,
                 new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, 12, 4));
+            source.RegisterVipScreenshot(captureId);
+            Assert.True(source.SaveVipScreenshotNote(new(captureId, "A decision worth keeping across installations.")));
             source.UpsertCaptureHardwareSnapshot(captureId, new SystemSnapshot(capturedAt, "partial",
             [
                 new HardwareDeviceSnapshot("/gpu/0", "Archive GPU", "GpuNvidia", capturedAt,
@@ -324,6 +326,15 @@ public sealed class DataArchiveServiceTests
             }
 
             Assert.Equal(sourcePathList, source.LoadAiAnalysis(captureId)!.ScreenshotPaths);
+            var vip = new SqliteActivityStore(target.ActivityDatabasePath).LoadScreenshotCaptures([captureId])[captureId];
+            Assert.True(vip.IsVip);
+            Assert.Equal("A decision worth keeping across installations.", vip.UserNote);
+            if (includeScreenshots)
+            {
+                var gallery = target.GetScreenshotGallery(DateOnly.FromDateTime(capturedAt.LocalDateTime));
+                Assert.Equal(2, gallery.Items.Count);
+                Assert.All(gallery.Items, item => { Assert.True(item.IsVip); Assert.Equal(vip.UserNote, item.UserNote); });
+            }
             Assert.Equal(sourcePaths[0], source.LoadScreenshotTextSnapshot(sourcePaths[0])!.SourceScreenshotPath);
             var repeat = importer.PreviewImport(new DataArchiveImportPreviewRequest(archivePath), CancellationToken.None);
             Assert.True(repeat.AlreadyImported);

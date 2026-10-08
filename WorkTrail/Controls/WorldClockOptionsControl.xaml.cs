@@ -307,6 +307,8 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    // snapshot supplies the current clocks and their tier-dependent limit.
+    // referenceCityId identifies the reference clock, if selected.
     private void RenderCities(WorldClockSnapshot? snapshot, string? referenceCityId)
     {
         CitiesHost.Children.Clear();
@@ -406,7 +408,8 @@ public sealed partial class WorldClockOptionsControl : UserControl
             _updatingControls = false;
         }
 
-        _canAddClock = snapshot.Clocks.Count < snapshot.MaximumClocks;
+        // Free users can reach the shared upgrade prompt at their limit; Premium keeps its capacity limit.
+        _canAddClock = snapshot.Clocks.Count < snapshot.MaximumClocks || snapshot.MaximumClocks == 3;
         AddClockButton.IsEnabled = !_busy && _canAddClock;
     }
 

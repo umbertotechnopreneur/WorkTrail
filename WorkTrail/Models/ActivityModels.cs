@@ -146,7 +146,8 @@ public sealed record AppSettings(
     bool ScreenshotNotificationsEnabled = true,
     string AstronomyAgendaCityId = "",
     IReadOnlyList<string>? AstronomyAgendaCountryCodes = null,
-    bool AstronomyAgendaShowSaints = true);
+    bool AstronomyAgendaShowSaints = true,
+    bool NotificationsEnabled = true);
 
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,

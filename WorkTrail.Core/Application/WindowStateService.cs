@@ -74,6 +74,11 @@ public static class WindowStateKeys
     /// <summary>Identifies the responsive label-management dialog.</summary>
     public const string ActivityLabels = "activity-labels";
 
+    /// <summary>Identifies the Mica note editor for an already retained VIP capture.</summary>
+    public const string VipSnapshotNote = "vip-snapshot-note";
+    /// <summary>The VIP capture countdown window.</summary>
+    public const string VipSnapshotCountdown = "vip-snapshot-countdown";
+
     /// <summary>Identifies the analytical export workspace.</summary>
     public const string ReportExport = "report-export";
 
@@ -114,7 +119,7 @@ public sealed class WindowStateService
             WindowStateKeys.AiScreenshotReprocessing => new(640, 560),
             WindowStateKeys.Screenshots => new(760, 540),
             WindowStateKeys.OcrText => new(560, 360),
-            WindowStateKeys.About => new(900, 700),
+            WindowStateKeys.About => new(640, 480),
             WindowStateKeys.Licenses => new(720, 520),
             WindowStateKeys.Search => new(560, 156),
             WindowStateKeys.SearchIndexing => new(560, 420),
@@ -131,6 +136,8 @@ public sealed class WindowStateService
             WindowStateKeys.WorldClockCityPicker => new(500, 560),
             WindowStateKeys.AiPricing => new(620, 430),
             WindowStateKeys.ActivityLabels => new(340, 280),
+            WindowStateKeys.VipSnapshotNote => new(500, 480),
+            WindowStateKeys.VipSnapshotCountdown => new(480, 440),
             WindowStateKeys.AiConnectionTest => new(480, 480),
             _ => throw new ArgumentException("The window key is not supported.", nameof(windowKey))
         };

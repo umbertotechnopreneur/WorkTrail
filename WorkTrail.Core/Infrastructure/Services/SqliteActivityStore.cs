@@ -264,6 +264,8 @@ internal sealed partial class SqliteActivityStore
         "ix_ai_reprocess_job_items_next",
         "installation_profiles",
         "screenshot_captures",
+        "screenshot_vip_metadata",
+        "tr_screenshot_vip_delete",
         "ix_screenshot_captures_installation",
         "ix_screenshot_captures_captured",
         "archive_imports",
@@ -614,9 +616,11 @@ internal sealed partial class SqliteActivityStore
         command.CommandText = $"""
             SELECT capture.capture_id, capture.installation_id, capture.captured_utc_ticks, capture.origin,
                    profile.machine_name, profile.friendly_name, profile.color, profile.icon,
-                   profile.first_seen_utc_ticks, profile.updated_utc_ticks, profile.profile_revision
+                   profile.first_seen_utc_ticks, profile.updated_utc_ticks, profile.profile_revision,
+                   vip.capture_id, vip.note
             FROM screenshot_captures AS capture
             JOIN installation_profiles AS profile ON profile.installation_id = capture.installation_id
+            LEFT JOIN screenshot_vip_metadata AS vip ON vip.capture_id = capture.capture_id
             WHERE capture.capture_id IN ({parameters});
             """;
         using var reader = command.ExecuteReader();
@@ -639,7 +643,9 @@ internal sealed partial class SqliteActivityStore
                 capture.CaptureId,
                 profile,
                 capture.CapturedAt,
-                capture.Origin);
+                capture.Origin,
+                IsVip: !reader.IsDBNull(11),
+                UserNote: reader.IsDBNull(12) ? string.Empty : reader.GetString(12));
             result.Add(provenance.CaptureId, provenance);
         }
 
@@ -2705,7 +2711,7 @@ internal sealed partial class SqliteActivityStore
         command.CommandText = ActivitySchemaSql + AiSchemaSql + ScreenshotTextSchemaSql + AiPricingSchemaSql
             + ScreenshotIntervalTelemetrySchemaSql + AiReprocessingSchemaSql + InstallationArchiveSchemaSql
             + SearchRevisionSchemaSql
-            + CaptureHardwareSnapshotSchemaSql + CalendarSchemaSql;
+            + CaptureHardwareSnapshotSchemaSql + CalendarSchemaSql + VipScreenshotSchemaSql;
         command.CommandText = command.CommandText
             .Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", StringComparison.Ordinal)
             .Replace("CREATE VIRTUAL TABLE ", "CREATE VIRTUAL TABLE IF NOT EXISTS ", StringComparison.Ordinal)
@@ -3664,7 +3670,9 @@ internal sealed record ScreenshotCaptureProvenance(
     string CaptureId,
     InstallationProfile Installation,
     DateTimeOffset CapturedAt,
-    string Origin);
+    string Origin,
+    bool IsVip = false,
+    string UserNote = "");
 
 /// <summary>One ordered durable mutation of the authoritative local search sources.</summary>
 internal sealed record SearchSourceChange(long Revision, string Kind, string EntityId, string Operation);

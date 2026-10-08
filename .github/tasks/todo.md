@@ -9,6 +9,31 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Extend the compact About review to other supported scaling levels, constrained work
+  areas, long localized text, high contrast and diagnostic failure states. Debug x64 MSIX
+  1.0.6.11 was installed and visually reviewed in Italian at 150% in both light and dark
+  themes, using the original alpha logo; its compact size and retained position were
+  observed. The GitHub and canonical manifesto destinations were checked against their
+  public pages; native external-link activation remains unverified. Additional tests
+  require owner authorization.
+
+- [ ] After explicit native-test authorization, validate the installed process memory guard:
+  Windows warning acknowledgement, bounded runtime shutdown, active/paused tracking after
+  recovery, retained activity and durable memory/recovery events. Do not allocate excessive
+  memory in the owner's active profile. The October 8 log cannot establish the cause of the
+  reported 3 GB peak; correlate process samples with system memory and storage events
+  before attributing OS-wide hangs to WorkTrail. Live profiling requires separate approval.
+
+- [ ] Validate the expanded tray menu on Windows: show all already-open windows from hidden
+  and minimized states, pause/resume tracking and notifications, restart to verify the saved
+  notification preference, and open VIP capture, clocks, astronomy views, Settings, and About.
+  Build, automated checks, and native interaction require owner authorization.
+
+- [ ] Validate the VIP snapshot flow on an isolated Windows desktop: cancel the five-second
+  countdown, capture multiple monitors without the player, save or skip a note, reopen the
+  gallery, select VIP and ordinary images, and verify calendar crowns after deletion.
+  Installation and native UI interaction require owner authorization.
+
 - [ ] Inspect the converted controls in the installed app's UI Automation tree and
   exercise the theme, capture, gallery and export paths on an isolated Windows desktop.
   Update `docs/UI_AUTOMATION.md` by UI surface only after the relevant interactions pass.
@@ -136,6 +161,9 @@ the action needs authorization. Remove the item when it is complete.
 - [ ] Verify Free limits of three labels and three clocks, upgrade dialogs, Premium badges,
   downgrade behavior, preservation of existing over-limit catalogs, and stale-dialog handling
   after a profile change.
+- [ ] Verify the shared Premium prompt and Microsoft Store action from exports, timesheets,
+  labels, clocks, schedules, data transfer, and two-/three-month retention choices; closing
+  the prompt must preserve Free limits, and a Store launch failure must show a visible error.
 - [ ] Verify the label editor and player selector for creation, rename, icon/color, duplicate
   names, delete-active, no-label, restart, persistence failure, compact widths, long captions,
   and stable placement beside the timer.

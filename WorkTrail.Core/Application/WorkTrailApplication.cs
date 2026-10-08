@@ -399,6 +399,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
 
     private Task<OperationResult<ScreenshotCaptureResult>> CaptureScreenshotCoreAsync(CaptureScreenshotRequest request, CancellationToken cancellationToken) => MutateAsync(async () =>
     {
+        if (request.IsVip && (!request.Keep || request.CaptureOrigin != ScreenshotCaptureOrigins.Manual))
+        {
+            return OperationResult<ScreenshotCaptureResult>.Failure("snapshot.vip.capture.invalid", "ScreenshotCaptureFailed");
+        }
         var settings = _settingsSnapshot.Value;
         var mode = request.Mode switch
         {
@@ -493,6 +497,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             if (request.Keep)
             {
                 PersistScreenshotIntervalTelemetry(result, telemetryIntervalStartedAt, DateTimeOffset.UtcNow);
+                if (request.IsVip)
+                {
+                    // Mark every monitor artifact through its shared capture identity before reporting success.
+                    _store.RegisterVipScreenshot(result.CaptureId);
+                }
             }
         }
         catch (Exception exception)
@@ -2377,9 +2386,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
 
         var current = validation.Value;
-        if (patch.Values.Count == 1 && patch.Values.ContainsKey("screenshots.notifications"))
+        if (patch.Values.Count == 1
+            && (patch.Values.ContainsKey("screenshots.notifications") || patch.Values.ContainsKey("notifications.enabled")))
         {
-            // Turning capture notices off must work even when unrelated AI or startup configuration is unavailable.
+            // Notification preferences must work even when unrelated AI or startup configuration is unavailable.
             PersistSettings(current);
             return OperationResult<AppSettings>.Success("settings.saved", "SettingsSaved", current);
         }
@@ -2519,7 +2529,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         var (state, settings) = _windowState.Save(windowKey, windowHandle);
         // Publish the committed settings before another serialized mutation can overwrite the saved placement.
         _settingsSnapshot.Replace(settings);
-        if (!settings.ScreenshotNotificationsEnabled) _screenshotNotifications?.Clear();
+        if (!settings.NotificationsEnabled || !settings.ScreenshotNotificationsEnabled) _screenshotNotifications?.Clear();
         await Task.CompletedTask;
         return OperationResult<WindowState>.Success("window.state.saved", "WindowStateSaved", state);
     }, cancellationToken);
@@ -2623,11 +2633,13 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         };
     }
 
+    // settings contains the validated preferences being committed to local storage and the runtime snapshot.
     private void PersistSettings(AppSettings settings)
     {
         var previous = _settingsSnapshot.Value;
         _store.SaveSettings(settings);
         _settingsSnapshot.Replace(settings);
+        if (!settings.NotificationsEnabled || !settings.ScreenshotNotificationsEnabled) _screenshotNotifications?.Clear();
         if (previous.OpenAiEnabled && !settings.OpenAiEnabled)
         {
             // Also cancel work that registered while the priority disable command was acquiring its lease.
@@ -3092,8 +3104,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             $"{gate.DailyAnalysisCount} / {settings.OpenAiDailyLimit}"));
     }
 
+    // exception describes the failed attempt, whose full details remain in the local log on every retry.
     private void EnqueueScreenshotCaptureFailure(Exception exception)
     {
+        // Keep retrying capture, but show only the first failure until a complete capture succeeds.
+        if (Interlocked.Exchange(ref _screenshotCaptureFailureNotificationActive, 1) != 0) return;
         var detail = $"{exception.GetType().Name}: {exception.Message}";
         EnqueueNotification(new ApplicationNotification(
             Guid.NewGuid(),
