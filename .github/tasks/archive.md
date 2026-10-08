@@ -4,6 +4,14 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-08
 
+### About layout contract checks
+
+- Updated the two existing About contract checks that failed in PR #58 after the compact
+  layout replaced the former fixed content, artwork and minimum bounds. Retained checks
+  for a fixed footer, disabled horizontal scrolling, diagnostics, licenses and product links.
+- Both targeted tests passed locally in Debug x64 with the CI analyzer and warning-as-error
+  settings. C# formatting and verification passed. Application code is unchanged.
+
 ### Compact About layout and current branding
 
 - Replaced obsolete About artwork with an original trail illustration and a native

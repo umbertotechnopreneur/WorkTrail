@@ -48,21 +48,34 @@ public sealed class WinUiSurfaceContractTests
             && element.Attribute("StretchDirection")?.Value == "DownOnly");
         Assert.Equal(2, options.Descendants().Count(element => element.Name.LocalName == "ScrollViewer"));
         Assert.Contains(options.Descendants(), element => element.Name.LocalName == "AdaptiveTrigger");
-        Assert.DoesNotContain(about.Descendants(), element => element.Name.LocalName == "ScrollViewer");
+        var aboutScroll = Assert.Single(about.Descendants(), element => element.Name.LocalName == "ScrollViewer");
+        Assert.Equal("Disabled", aboutScroll.Attribute("HorizontalScrollMode")?.Value);
+        Assert.Equal("Auto", aboutScroll.Attribute("VerticalScrollBarVisibility")?.Value);
+        var aboutFooter = about.Descendants().Single(element => element.Name.LocalName == "Grid"
+            && element.Elements().Any(child => HasName(child, "CloseButton")));
+        Assert.Same(aboutScroll.Parent, aboutFooter.Parent);
+        Assert.Equal("1", aboutFooter.Attribute("Grid.Row")?.Value);
+        var aboutRows = aboutFooter.Parent!.Elements().Single(element => element.Name.LocalName == "Grid.RowDefinitions");
+        Assert.Equal("Auto", aboutRows.Elements().Last().Attribute("Height")?.Value);
         Assert.DoesNotContain(about.Descendants(), element => element.Name.LocalName == "Expander");
-        Assert.Contains(about.Descendants(), element => HasName(element, "HeroImage") && element.Name.LocalName == "Image");
+        Assert.Contains(about.Descendants(), element => element.Name.LocalName == "ImageBrush"
+            && element.Attribute("ImageSource")?.Value == "ms-appx:///Assets/WorkTrailAboutHeroTrailV1.png"
+            && element.Attribute("AlignmentY")?.Value == "Center");
         Assert.DoesNotContain(about.Descendants(), element => element.Name.LocalName is "ThemeShadow" or "LinearGradientBrush");
         Assert.Contains(about.Descendants(), element => HasName(element, "CreatedByButton") && element.Attribute("Content")?.Value == "umbertogiacobbi.biz");
         Assert.DoesNotContain(about.Descendants(), element => element.Name.LocalName == "HyperlinkButton" || element.Attribute("NavigateUri") is not null);
         Assert.Contains(about.Descendants(), element => HasName(element, "ShowLogButton"));
         Assert.Contains(about.Descendants(), element => HasName(element, "ShareLogButton"));
-        Assert.Contains(about.Descendants(), element => HasName(element, "IssuesButton"));
         Assert.Contains(about.Descendants(), element => HasName(element, "LicensesButton"));
-        Assert.Contains(about.Descendants(), element => HasName(element, "FooterDetailsPanel") && element.Attribute("Grid.Column") is null);
         Assert.Contains(about.Descendants(), element => HasName(element, "RepositoryButton") && element.Attribute("Tag")?.Value == "About.Repository");
         Assert.Contains(about.Descendants(), element => HasName(element, "PrivacyButton") && element.Attribute("Tag")?.Value == "About.Privacy");
         Assert.Contains(about.Descendants(), element => HasName(element, "TermsButton") && element.Attribute("Tag")?.Value == "About.Terms");
-        Assert.Contains(about.Descendants(), element => element.Attribute("Tag")?.Value == "About.FavoriteMessage");
+        Assert.Contains(aboutFooter.Descendants(), element => HasName(element, "VibeWareAboutButton")
+            && element.Attribute("Tag")?.Value == "About.VibeWare.WhatIs");
+        Assert.Contains(aboutFooter.Descendants(), element => HasName(element, "VibeWareManifestoButton")
+            && element.Attribute("Tag")?.Value == "About.VibeWare.Manifesto");
+        Assert.Contains(aboutFooter.Descendants(), element => element.Name.LocalName == "BitmapImage"
+            && element.Attribute("UriSource")?.Value == "ms-appx:///Assets/VibeWareLogo.png");
         Assert.Contains(licenses.Descendants(), element => element.Name.LocalName == "DesktopAcrylicBackdrop");
         Assert.Contains(licenses.Descendants(), element => element.Name.LocalName == "ScrollViewer");
         Assert.Contains(licenses.Descendants(), element => element.Name.LocalName == "ItemsControl" && element.Attribute("ItemsSource")?.Value.Contains("LicenseRows", StringComparison.Ordinal) == true);
@@ -73,8 +86,8 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains(about.Descendants(), element => HasName(element, "DiagnosticsInfoBar"));
         Assert.Contains(about.Descendants(), element => HasName(element, "CloseButton") && element.Attribute("HorizontalAlignment")?.Value == "Right");
         Assert.DoesNotContain(about.Descendants(), element => element.Attribute("Text")?.Value == "•••");
-        Assert.Contains("private const int LogicalWindowWidth = 1000;", aboutSource, StringComparison.Ordinal);
-        Assert.Contains("private const int LogicalWindowHeight = 740;", aboutSource, StringComparison.Ordinal);
+        Assert.Contains("private const int LogicalWindowWidth = 860;", aboutSource, StringComparison.Ordinal);
+        Assert.Contains("private const int LogicalWindowHeight = 520;", aboutSource, StringComparison.Ordinal);
         Assert.Contains("_titleBar = new CustomTitleBarController(", aboutSource, StringComparison.Ordinal);
         Assert.DoesNotContain("SetTitleBar(TitleBarDragRegion);", aboutSource, StringComparison.Ordinal);
         Assert.Contains("presenter.IsResizable = false;", aboutSource, StringComparison.Ordinal);
@@ -651,7 +664,7 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains("WindowStateKeys.About", about, StringComparison.Ordinal);
         Assert.Contains("WindowStateKeys.Schedule", schedule, StringComparison.Ordinal);
         Assert.Contains("WindowStateKeys.SearchIndexing", searchIndexing, StringComparison.Ordinal);
-        Assert.Contains("WindowStateKeys.About => new(900, 700)", core, StringComparison.Ordinal);
+        Assert.Contains("WindowStateKeys.About => new(640, 480)", core, StringComparison.Ordinal);
         Assert.Contains("WindowStateKeys.Screenshots => new(760, 540)", core, StringComparison.Ordinal);
         Assert.Contains("_placement.Dispose();", worldClocks, StringComparison.Ordinal);
         Assert.Contains("_placement.Dispose();", screenshots, StringComparison.Ordinal);
