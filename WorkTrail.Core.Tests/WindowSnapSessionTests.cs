@@ -10,6 +10,67 @@ public sealed class WindowSnapSessionTests
 {
     private static readonly WindowSnapRectangle Monitor = new(0, 0, 1000, 1000);
 
+    /// <summary>Preview guides do not move the window; only the existing ten-pixel threshold enables snapping.</summary>
+    [Theory]
+    [InlineData(21, null, false, 21)]
+    [InlineData(20, 0, false, 20)]
+    [InlineData(11, 0, false, 11)]
+    [InlineData(10, 0, true, 0)]
+    [InlineData(0, 0, true, 0)]
+    public void Guides_PreviewWithoutChangingTheSnapThreshold(int left, int? coordinate, bool snapped, int expectedLeft)
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var result = session.Move(new(left, 200, left + 100, 300), []);
+        Assert.Equal(expectedLeft, result.Left);
+        Assert.Equal(coordinate.HasValue ? new WindowSnapGuide(coordinate.Value, snapped) : (WindowSnapGuide?)null,
+            session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+        Assert.Equal(snapped, session.IsSnapped);
+    }
+
+    /// <summary>Both guide orientations refer to the same peer edges selected for placement, including exact matches.</summary>
+    [Fact]
+    public void Guides_MatchSelectedPeerEdgesAndClearAfterEscape()
+    {
+        var monitor = new WindowSnapRectangle(-1000, -1000, 0, 0);
+        var session = new WindowSnapSession(monitor, monitor);
+        WindowSnapRectangle[] peers = [new(-600, -600, -400, -400)];
+        var result = session.Move(new(-605, -415, -505, -315), peers);
+        Assert.Equal(new WindowSnapRectangle(-600, -415, -500, -315), result);
+        Assert.Equal(new WindowSnapGuide(-600, true), session.VerticalGuide);
+        Assert.Equal(new WindowSnapGuide(-400, false), session.HorizontalGuide);
+        result = session.Move(new(-600, -400, -500, -300), peers);
+        Assert.Equal(new WindowSnapRectangle(-600, -400, -500, -300), result);
+        Assert.Equal(new WindowSnapGuide(-600, true), session.VerticalGuide);
+        Assert.Equal(new WindowSnapGuide(-400, true), session.HorizontalGuide);
+        session.Move(new(-1011, -400, -911, -300), peers);
+        Assert.True(session.IsSuppressed);
+        Assert.Null(session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+        session.Move(new(-600, -400, -500, -300), peers);
+        Assert.Null(session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+    }
+
+    /// <summary>Equidistant references produce stable placement and guides regardless of peer enumeration order.</summary>
+    [Fact]
+    public void Guides_SelectTheSameTargetRegardlessOfPeerOrder()
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var proposed = new WindowSnapRectangle(300, 200, 400, 300);
+        WindowSnapRectangle[] peers = [new(295, 150, 495, 350), new(305, 150, 505, 350)];
+        var result = session.Move(proposed, peers);
+        var guide = session.VerticalGuide;
+        Assert.Equal(295, result.Left);
+        Assert.Equal(new WindowSnapGuide(295, true), guide);
+        Array.Reverse(peers);
+        Assert.Equal(result, session.Move(proposed, peers));
+        Assert.Equal(guide, session.VerticalGuide);
+        session.Move(new(100, 500, 200, 600), peers);
+        Assert.Null(session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+    }
+
     /// <summary>All four edges snap within ten physical pixels, including outward overshoot, without resizing.</summary>
     [Theory]
     [InlineData(5, 200, 105, 300, 0, 200, 100, 300)]

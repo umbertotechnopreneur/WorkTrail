@@ -9,6 +9,11 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, validate native dragging with the installed primary-window
+  snap guides: check both guide orientations, preview/active opacity,
+  multiple monitors and DPI scales, disabled snapping, cancellation, window closure,
+  and exclusion of dialogs and About as both moving surfaces and peer targets.
+
 - [ ] Extend the compact About review to other supported scaling levels, constrained work
   areas, long localized text, high contrast and diagnostic failure states. Debug x64 MSIX
   1.0.6.11 was installed and visually reviewed in Italian at 150% in both light and dark

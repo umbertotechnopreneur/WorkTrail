@@ -12,10 +12,14 @@ public readonly record struct WindowSnapRectangle(int Left, int Top, int Right, 
     public int Height => checked(Bottom - Top);
 }
 
+/// <summary>Describes a nearby alignment in physical desktop pixels and whether it currently snaps.</summary>
+public readonly record struct WindowSnapGuide(int Coordinate, bool IsSnapped);
+
 /// <summary>Calculates ten-pixel edge snapping; leaving the starting monitor by more than ten pixels suppresses the remaining drag.</summary>
 public sealed class WindowSnapSession
 {
     private const int SnapDistance = 10;
+    private const int GuideDistance = 20;
     private readonly WindowSnapRectangle _monitorBounds;
     private readonly WindowSnapRectangle _workArea;
 
@@ -38,6 +42,15 @@ public sealed class WindowSnapSession
 
     /// <summary>Gets whether the last valid move matched an eligible edge, including an exact zero-distance match.</summary>
     public bool IsSnapped { get; private set; }
+
+    /// <summary>Gets the starting monitor's physical bounds for clipping transient guides.</summary>
+    public WindowSnapRectangle MonitorBounds => _monitorBounds;
+
+    /// <summary>Gets the vertical guide for the selected horizontal alignment, if nearby.</summary>
+    public WindowSnapGuide? VerticalGuide { get; private set; }
+
+    /// <summary>Gets the horizontal guide for the selected vertical alignment, if nearby.</summary>
+    public WindowSnapGuide? HorizontalGuide { get; private set; }
 
     /// <summary>
     /// Translates raw visible bounds toward nearby work-area or peer edges without resizing or clamping.
@@ -67,18 +80,20 @@ public sealed class WindowSnapSession
         if (IsSuppressed)
         {
             IsSnapped = false;
+            VerticalGuide = null;
+            HorizontalGuide = null;
             return proposedBounds;
         }
 
-        int? horizontal = null;
-        int? vertical = null;
-        Consider(ref horizontal, (long)_workArea.Left - proposedBounds.Left,
+        Alignment? horizontal = null;
+        Alignment? vertical = null;
+        Consider(ref horizontal, _workArea.Left, proposedBounds.Left,
             proposedBounds.Left, proposedBounds.Right, _monitorBounds.Left, _monitorBounds.Right);
-        Consider(ref horizontal, (long)_workArea.Right - proposedBounds.Right,
+        Consider(ref horizontal, _workArea.Right, proposedBounds.Right,
             proposedBounds.Left, proposedBounds.Right, _monitorBounds.Left, _monitorBounds.Right);
-        Consider(ref vertical, (long)_workArea.Top - proposedBounds.Top,
+        Consider(ref vertical, _workArea.Top, proposedBounds.Top,
             proposedBounds.Top, proposedBounds.Bottom, _monitorBounds.Top, _monitorBounds.Bottom);
-        Consider(ref vertical, (long)_workArea.Bottom - proposedBounds.Bottom,
+        Consider(ref vertical, _workArea.Bottom, proposedBounds.Bottom,
             proposedBounds.Top, proposedBounds.Bottom, _monitorBounds.Top, _monitorBounds.Bottom);
 
         foreach (var peer in peerBounds)
@@ -96,34 +111,44 @@ public sealed class WindowSnapSession
             }
         }
 
-        var deltaX = horizontal ?? 0;
-        var deltaY = vertical ?? 0;
-        IsSnapped = horizontal.HasValue || vertical.HasValue;
+        VerticalGuide = ToGuide(horizontal);
+        HorizontalGuide = ToGuide(vertical);
+        var deltaX = VerticalGuide is { IsSnapped: true } ? horizontal!.Value.Delta : 0;
+        var deltaY = HorizontalGuide is { IsSnapped: true } ? vertical!.Value.Delta : 0;
+        IsSnapped = VerticalGuide is { IsSnapped: true } || HorizontalGuide is { IsSnapped: true };
         return new WindowSnapRectangle(
             checked(proposedBounds.Left + deltaX), checked(proposedBounds.Top + deltaY),
             checked(proposedBounds.Right + deltaX), checked(proposedBounds.Bottom + deltaY));
     }
 
-    private static void ConsiderEdges(ref int? best, int first, int last, int targetFirst, int targetLast, int monitorFirst, int monitorLast)
+    private readonly record struct Alignment(int Delta, int Coordinate);
+
+    private static WindowSnapGuide? ToGuide(Alignment? alignment) => alignment is { } value
+        ? new WindowSnapGuide(value.Coordinate, Math.Abs(value.Delta) <= SnapDistance)
+        : null;
+
+    private static void ConsiderEdges(ref Alignment? best, int first, int last, int targetFirst, int targetLast, int monitorFirst, int monitorLast)
     {
-        Consider(ref best, (long)targetFirst - first, first, last, monitorFirst, monitorLast);
-        Consider(ref best, (long)targetLast - last, first, last, monitorFirst, monitorLast);
-        Consider(ref best, (long)targetLast - first, first, last, monitorFirst, monitorLast);
-        Consider(ref best, (long)targetFirst - last, first, last, monitorFirst, monitorLast);
+        Consider(ref best, targetFirst, first, first, last, monitorFirst, monitorLast);
+        Consider(ref best, targetLast, last, first, last, monitorFirst, monitorLast);
+        Consider(ref best, targetLast, first, first, last, monitorFirst, monitorLast);
+        Consider(ref best, targetFirst, last, first, last, monitorFirst, monitorLast);
     }
 
-    private static void Consider(ref int? best, long delta, int first, int last, int monitorFirst, int monitorLast)
+    private static void Consider(ref Alignment? best, int target, int edge, int first, int last, int monitorFirst, int monitorLast)
     {
-        if (Math.Abs(delta) > SnapDistance || first + delta < monitorFirst || last + delta > monitorLast)
+        var delta = (long)target - edge;
+        if (Math.Abs(delta) > GuideDistance || first + delta < monitorFirst || last + delta > monitorLast)
         {
             return;
         }
 
         // Compare in widened arithmetic because valid desktop rectangles may straddle extreme signed coordinates.
-        if (best is null || Math.Abs(delta) < Math.Abs(best.Value)
-            || (Math.Abs(delta) == Math.Abs(best.Value) && delta < best.Value))
+        if (best is null || Math.Abs(delta) < Math.Abs(best.Value.Delta)
+            || (Math.Abs(delta) == Math.Abs(best.Value.Delta) && delta < best.Value.Delta)
+            || (delta == best.Value.Delta && target < best.Value.Coordinate))
         {
-            best = (int)delta;
+            best = new Alignment((int)delta, target);
         }
     }
 

@@ -98,6 +98,7 @@ internal sealed class WindowSnappingService
         private readonly SubclassProcedure _callback;
         private readonly uint _threadId;
         private WindowSnapSession? _session;
+        private WindowSnapGuideOverlay? _guides;
         private NativeRectangle _anchorBounds;
         private NativePoint _anchorCursor;
         private bool _inMoveLoop;
@@ -146,6 +147,7 @@ internal sealed class WindowSnappingService
                 }
                 else if (message == EnterSizeMove)
                 {
+                    _guides?.Hide();
                     _faulted = false;
                     _inMoveLoop = true;
                     _hasMoveAnchor = false;
@@ -154,17 +156,35 @@ internal sealed class WindowSnappingService
                 }
                 else if (message == ExitSizeMove)
                 {
+                    _guides?.Hide();
                     _inMoveLoop = false;
                     _session = null;
-                    if (_pendingFailure is { } failure)
+                    try
                     {
-                        _pendingFailure = null;
-                        ReportFailure(failure);
+                        if (_faulted)
+                        {
+                            // Discard a failed painter so a later drag can retry fresh native resources.
+                            _guides?.Dispose();
+                            _guides = null;
+                        }
+                    }
+                    finally
+                    {
+                        if (_pendingFailure is { } failure)
+                        {
+                            _pendingFailure = null;
+                            ReportFailure(failure);
+                        }
                     }
                 }
                 else if (message == Moving && _inMoveLoop && !_faulted)
                 {
                     if (ApplyMove(lParam)) return new IntPtr(1);
+                }
+                else if (message == 0x001F || (message == 0x0006 && (wParam.ToInt64() & 0xFFFF) == 0))
+                {
+                    // Cancellation or activation of another surface must not leave desktop guides behind.
+                    _guides?.Hide();
                 }
             }
             catch (Exception exception)
@@ -172,6 +192,7 @@ internal sealed class WindowSnappingService
                 // Never unwind through Win32: stop snapping for this operation and surface the failure to the host.
                 // Native free movement remains available; the next drag retries fresh monitor/frame reads.
                 _faulted = true;
+                _guides?.Hide();
                 _preservePosition = true;
                 Trace.TraceError("Native window snapping failed: {0}", exception);
                 if (_inMoveLoop) _pendingFailure = exception;
@@ -185,6 +206,7 @@ internal sealed class WindowSnappingService
         {
             if (!Volatile.Read(ref _owner._enabled))
             {
+                _guides?.Hide();
                 // Off means native movement is untouched: no DWM reads or RECT rewrites.
                 // User-controlled free placement must also survive a queued DPI layout adjustment.
                 _preservePosition = true;
@@ -215,6 +237,7 @@ internal sealed class WindowSnappingService
             };
             if (_session is { IsSuppressed: true })
             {
+                _guides?.Hide();
                 // Once the user exceeds the monitor's snap margin, peers and DWM frames no longer participate in this drag.
                 _preservePosition = true;
                 Marshal.StructureToPtr(raw, rectanglePointer, false);
@@ -242,6 +265,14 @@ internal sealed class WindowSnappingService
 
             // Change the native proposal before Windows paints it; no SetWindowPos feedback loop or cumulative drift.
             Marshal.StructureToPtr(raw, rectanglePointer, false);
+            if (_session.VerticalGuide.HasValue || _session.HorizontalGuide.HasValue)
+            {
+                (_guides ??= new WindowSnapGuideOverlay(_handle)).Update(_session);
+            }
+            else
+            {
+                _guides?.Hide();
+            }
             return true;
         }
 
@@ -263,6 +294,7 @@ internal sealed class WindowSnappingService
         {
             if (_disposed) return;
             if (GetCurrentThreadId() != _threadId) throw new InvalidOperationException("Window snapping must be removed on its owning UI thread.");
+            _guides?.Dispose();
             if (!RemoveWindowSubclass(_handle, _callback, 1))
             {
                 throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to remove window snapping.");

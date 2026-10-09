@@ -2,6 +2,20 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-09
+
+### Primary-window snap guides
+
+- Added transient, click-through desktop guides using the selected snap targets, with
+  a twenty-pixel preview and the unchanged ten-pixel physical snapping threshold.
+- Limited snap registration and peer references to primary work surfaces, including
+  clocks and astronomy views; dialogs, About, licenses and temporary operations are excluded.
+- Added synthetic coverage for preview thresholds, negative monitor coordinates,
+  exact alignments, escape cleanup and deterministic peer selection. All 46 focused
+  tests passed in Debug x64; C# formatting and verification passed. The Debug x64
+  MSIX built and installed as 1.0.6.12 with Ok package status. Native dragging and
+  visual behavior remain unverified.
+
 ## 2026-10-08
 
 ### About layout contract checks
