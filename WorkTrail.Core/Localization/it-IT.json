@@ -328,7 +328,7 @@
   "CelestialImportantDatenew-year": "Capodanno",
   "Options.Window.Snapping.Header": "Aggancio delle finestre",
   "Options.Window.Snapping.Failed": "Aggancio delle finestre non disponibile. Puoi continuare a spostare la finestra liberamente; riprova al prossimo trascinamento.",
-  "Options.Window.Snapping.Description": "Aggancia entro 5 pixel alle altre finestre WorkTrail o ai bordi del monitor. Uscire dal monitor disattiva l'aggancio per il resto del trascinamento.",
+  "Options.Window.Snapping.Description": "Allinea le finestre principali WorkTrail mentre le sposti o ridimensioni. Aggancio entro 10 pixel logici e guide entro 20, proporzionali alla scala dello schermo. Uscire dal monitor disattiva l'aggancio fino al prossimo trascinamento.",
   "Operations.Privacy.Rules.Title": "Regole di esclusione salvate",
   "Operations.AllowCapture.Description": "Aggiunge un nuovo screenshot se la cattura schermo è abilitata nelle impostazioni. Senza spunta, il provider AI riceve solo il contesto testuale dell’attività corrente.",
   "Sensors.TemperatureUnavailable": "Non disponibile",

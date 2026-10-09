@@ -7,14 +7,17 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 ### Primary-window snap guides
 
 - Added transient, click-through desktop guides using the selected snap targets, with
-  a twenty-pixel preview and the unchanged ten-pixel physical snapping threshold.
+  DPI-scaled twenty/ten logical-pixel preview/snap distances for movement and resizing.
+- Resize snapping changes only dragged edges, retains opposite edges and respects native
+  minimum/maximum tracking dimensions. Pointer anchors prevent sticky snapped sizes.
+- Updated localized Settings guidance for movement, resizing and display-scaled thresholds.
 - Limited snap registration and peer references to primary work surfaces, including
   clocks and astronomy views; dialogs, About, licenses and temporary operations are excluded.
-- Added synthetic coverage for preview thresholds, negative monitor coordinates,
-  exact alignments, escape cleanup and deterministic peer selection. All 46 focused
-  tests passed in Debug x64; C# formatting and verification passed. The Debug x64
-  MSIX built and installed as 1.0.6.12 with Ok package status. Native dragging and
-  visual behavior remain unverified.
+- Added synthetic coverage for all resize directions, display scaling and DPI changes,
+  size constraints, preview thresholds, signed coordinates, escape cleanup and peer order.
+  All 64 focused tests passed in Debug x64 with code analyzers and warnings as errors;
+  C# formatting and verification passed. The Debug x64 MSIX built and installed as
+  1.0.6.14 with Ok package status. Native interaction and visual behavior remain unverified.
 
 ## 2026-10-08
 

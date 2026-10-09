@@ -335,7 +335,7 @@
   "CelestialEventDecemberSolstice": "Solstice de décembre",
   "Options.Window.Snapping.Header": "Accrochage des fenêtres",
   "Options.Window.Snapping.Failed": "L'accrochage des fenêtres est indisponible. Vous pouvez continuer à déplacer la fenêtre librement ; réessayez au prochain déplacement.",
-  "Options.Window.Snapping.Description": "Accroche les fenêtres à 5 pixels ou moins des autres fenêtres WorkTrail ou des bords du moniteur. Glisser hors du moniteur désactive l'accrochage jusqu'à la fin de ce déplacement.",
+  "Options.Window.Snapping.Description": "Alignez les fenêtres principales de WorkTrail en les déplaçant ou en les redimensionnant. Accrochage à 10 pixels logiques et guides à 20, adaptés à l'échelle de l'écran. Sortir du moniteur désactive l'accrochage jusqu'au prochain glissement.",
   "Operations.Privacy.Rules.Title": "Règles d’exclusion enregistrées",
   "Operations.AllowCapture.Description": "Ajoute une nouvelle capture si la capture d’écran est activée dans les paramètres. Sans coche, le fournisseur d’IA reçoit uniquement le contexte textuel de l’activité actuelle.",
   "Sensors.TemperatureUnavailable": "Non disponible",

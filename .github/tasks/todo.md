@@ -9,8 +9,9 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
-- [ ] After owner authorization, validate native dragging with the installed primary-window
-  snap guides: check both guide orientations, preview/active opacity,
+- [ ] After owner authorization, validate native movement and resizing with the installed
+  primary-window snap guides: check both guide orientations, preview/active opacity,
+  all eight resize directions, retained opposite edges and minimum/maximum sizes,
   multiple monitors and DPI scales, disabled snapping, cancellation, window closure,
   and exclusion of dialogs and About as both moving surfaces and peer targets.
 

@@ -335,7 +335,7 @@
   "CelestialEventDecemberSolstice": "Sonnenwende im Dezember",
   "Options.Window.Snapping.Header": "Fenster einrasten",
   "Options.Window.Snapping.Failed": "Das Einrasten von Fenstern ist nicht verfügbar. Sie können das Fenster weiterhin frei bewegen. Versuchen Sie es beim nächsten Ziehen erneut.",
-  "Options.Window.Snapping.Description": "Fenster rasten innerhalb von 5 Pixeln an anderen WorkTrail-Fenstern oder Bildschirmrändern ein. Ziehen über den Bildschirmrand hinaus deaktiviert das Einrasten für den Rest dieses Ziehvorgangs.",
+  "Options.Window.Snapping.Description": "Hauptfenster von WorkTrail beim Verschieben oder Ändern der Größe ausrichten. Einrasten innerhalb von 10 logischen Pixeln, Hilfslinien innerhalb von 20, angepasst an die Anzeigeskalierung. Außerhalb des Bildschirms bleibt das Einrasten bis zum nächsten Ziehen deaktiviert.",
   "Operations.Privacy.Rules.Title": "Gespeicherte Ausschlussregeln",
   "Operations.AllowCapture.Description": "Fügt einen neuen Screenshot hinzu, wenn die Bildschirmaufnahme in den Einstellungen aktiviert ist. Ohne Häkchen erhält der KI-Anbieter nur den Textkontext der aktuellen Aktivität.",
   "Sensors.TemperatureUnavailable": "Nicht verfügbar",

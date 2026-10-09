@@ -335,7 +335,7 @@
   "CelestialEventDecemberSolstice": "Điểm chí tháng 12",
   "Options.Window.Snapping.Header": "Hít cửa sổ",
   "Options.Window.Snapping.Failed": "Không thể sử dụng tính năng hít cửa sổ. Bạn vẫn có thể di chuyển cửa sổ tự do; hãy thử lại ở lần kéo tiếp theo.",
-  "Options.Window.Snapping.Description": "Tự động khớp vào các cửa sổ WorkTrail khác hoặc cạnh màn hình khi cách không quá 5 pixel. Kéo ra ngoài màn hình sẽ tắt tính năng này cho đến khi kết thúc lần kéo đó.",
+  "Options.Window.Snapping.Description": "Căn chỉnh các cửa sổ chính của WorkTrail khi di chuyển hoặc thay đổi kích thước. Khớp trong phạm vi 10 pixel logic và hiện đường dẫn trong phạm vi 20, theo tỷ lệ hiển thị. Kéo ra ngoài màn hình sẽ tắt tính năng này cho đến lần kéo tiếp theo.",
   "Operations.Privacy.Rules.Title": "Quy tắc loại trừ đã lưu",
   "Operations.AllowCapture.Description": "Thêm ảnh chụp mới nếu tính năng chụp màn hình được bật trong cài đặt. Khi bỏ chọn, nhà cung cấp AI chỉ nhận ngữ cảnh văn bản của hoạt động hiện tại.",
   "Sensors.TemperatureUnavailable": "Không có dữ liệu",
