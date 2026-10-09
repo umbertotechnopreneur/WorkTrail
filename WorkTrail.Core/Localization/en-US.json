@@ -328,7 +328,7 @@
   "CelestialImportantDatenew-year": "New Year's Day",
   "Options.Window.Snapping.Header": "Window snapping",
   "Options.Window.Snapping.Failed": "Window snapping is unavailable. You can continue moving the window freely; try again on the next drag.",
-  "Options.Window.Snapping.Description": "Snap within 5 pixels of other WorkTrail windows or monitor edges. Dragging outside the monitor disables snapping for the rest of that drag.",
+  "Options.Window.Snapping.Description": "Align primary WorkTrail windows while moving or resizing. Snap within 10 logical pixels; guides appear within 20. Distances follow display scaling. Leaving the monitor disables snapping until the next drag.",
   "Operations.Privacy.Rules.Title": "Saved exclusion rules",
   "Operations.AllowCapture.Description": "Adds a new screenshot if screen capture is enabled in settings. When unchecked, the AI provider receives only the current activity’s text context.",
   "Sensors.TemperatureUnavailable": "Not available",

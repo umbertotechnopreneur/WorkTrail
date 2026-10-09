@@ -36,7 +36,7 @@ internal sealed class WindowPlacementService : IDisposable
     private readonly WindowId _displayAnchorId;
     private readonly NativeWindowSubclassProc _subclassProc;
     private readonly nuint _subclassId;
-    private readonly IWindowSnappingRegistration _snapping;
+    private readonly IWindowSnappingRegistration? _snapping;
     private bool _restoreAttempted;
     private bool _subclassInstalled;
     private bool _disposed;
@@ -115,7 +115,16 @@ internal sealed class WindowPlacementService : IDisposable
         AttachXamlRoot();
         try
         {
-            _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
+            // Only independent work surfaces participate, both as moving windows and alignment targets.
+            // Dialogs, About, licenses and temporary operations retain native free movement.
+            if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks or WindowStateKeys.Sensors
+                or WindowStateKeys.WorldMap or WindowStateKeys.LunarPhase or WindowStateKeys.LocalSky
+                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap or WindowStateKeys.Search
+                or WindowStateKeys.Screenshots or WindowStateKeys.OcrText or WindowStateKeys.Schedule
+                or WindowStateKeys.ReportExport)
+            {
+                _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
+            }
         }
         catch
         {

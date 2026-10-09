@@ -335,7 +335,7 @@
   "CelestialEventDecemberSolstice": "12월 지점",
   "Options.Window.Snapping.Header": "창 맞추기",
   "Options.Window.Snapping.Failed": "창 맞추기를 사용할 수 없습니다. 창은 계속 자유롭게 이동할 수 있습니다. 다음 드래그에서 다시 시도하세요.",
-  "Options.Window.Snapping.Description": "다른 WorkTrail 창이나 모니터 가장자리에서 5픽셀 이내에 있으면 창을 맞춥니다. 모니터 밖으로 끌면 해당 드래그가 끝날 때까지 창 맞추기가 해제됩니다.",
+  "Options.Window.Snapping.Description": "WorkTrail 기본 창을 이동하거나 크기를 조절할 때 정렬합니다. 10논리 픽셀 이내에서 맞추고 20논리 픽셀 이내에서 안내선을 표시하며, 거리는 화면 배율에 따라 조정됩니다. 모니터 밖으로 끌면 다음 드래그까지 창 맞추기가 해제됩니다.",
   "Operations.Privacy.Rules.Title": "저장된 제외 규칙",
   "Operations.AllowCapture.Description": "설정에서 화면 캡처가 활성화되어 있으면 새 스크린샷을 추가합니다. 선택하지 않으면 AI 제공자는 현재 활동의 텍스트 맥락만 받습니다.",
   "Sensors.TemperatureUnavailable": "사용할 수 없음",

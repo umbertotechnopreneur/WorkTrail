@@ -335,7 +335,7 @@
   "CelestialEventDecemberSolstice": "十二月至点",
   "Options.Window.Snapping.Header": "窗口吸附",
   "Options.Window.Snapping.Failed": "窗口吸附不可用。你仍可自由移动窗口；请在下次拖动时重试。",
-  "Options.Window.Snapping.Description": "在距离其他 WorkTrail 窗口或显示器边缘 5 像素以内时自动吸附。拖出显示器后，本次拖动的剩余过程中将停用吸附。",
+  "Options.Window.Snapping.Description": "移动或调整 WorkTrail 主窗口大小时对齐窗口。距离 10 个逻辑像素以内时吸附，20 个逻辑像素以内时显示辅助线，并根据显示缩放调整距离。拖出显示器后，吸附将停用至下次拖动。",
   "Operations.Privacy.Rules.Title": "已保存的排除规则",
   "Operations.AllowCapture.Description": "如果设置中已启用屏幕截图，则添加一张新截图。取消勾选时，AI 提供商仅接收当前活动的文本上下文。",
   "Sensors.TemperatureUnavailable": "不可用",

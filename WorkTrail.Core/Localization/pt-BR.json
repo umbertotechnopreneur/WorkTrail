@@ -335,7 +335,7 @@
   "CelestialEventDecemberSolstice": "Solstício de dezembro",
   "Options.Window.Snapping.Header": "Encaixe de janelas",
   "Options.Window.Snapping.Failed": "O encaixe de janelas não está disponível. Você pode continuar movendo a janela livremente; tente novamente no próximo arrasto.",
-  "Options.Window.Snapping.Description": "Encaixa as janelas a até 5 pixels de outras janelas do WorkTrail ou das bordas do monitor. Arrastar para fora do monitor desativa o encaixe até o fim desse arrasto.",
+  "Options.Window.Snapping.Description": "Alinhe as janelas principais do WorkTrail ao mover ou redimensionar. Encaixe a até 10 pixels lógicos e guias a até 20, ajustados à escala da tela. Sair do monitor desativa o encaixe até o próximo arrasto.",
   "Operations.Privacy.Rules.Title": "Regras de exclusão salvas",
   "Operations.AllowCapture.Description": "Adiciona uma nova captura se a captura de tela estiver ativada nas configurações. Sem a seleção, o provedor de IA recebe apenas o contexto em texto da atividade atual.",
   "Sensors.TemperatureUnavailable": "Indisponível",

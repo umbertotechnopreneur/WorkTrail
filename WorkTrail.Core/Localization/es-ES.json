@@ -335,7 +335,7 @@
   "CelestialEventDecemberSolstice": "Solsticio de diciembre",
   "Options.Window.Snapping.Header": "Ajuste de ventanas",
   "Options.Window.Snapping.Failed": "El ajuste de ventanas no está disponible. Puedes seguir moviendo la ventana libremente; vuelve a intentarlo en el próximo arrastre.",
-  "Options.Window.Snapping.Description": "Ajusta las ventanas a otras ventanas de WorkTrail o a los bordes del monitor cuando estén a 5 píxeles o menos. Arrastrar fuera del monitor desactiva el ajuste durante el resto de ese arrastre.",
+  "Options.Window.Snapping.Description": "Alinea las ventanas principales de WorkTrail al moverlas o cambiar su tamaño. Ajuste a 10 píxeles lógicos y guías a 20, según la escala de la pantalla. Salir del monitor desactiva el ajuste hasta el siguiente arrastre.",
   "Operations.Privacy.Rules.Title": "Reglas de exclusión guardadas",
   "Operations.AllowCapture.Description": "Añade una nueva captura si la captura de pantalla está activada en los ajustes. Sin marcar, el proveedor de IA solo recibe el contexto de texto de la actividad actual.",
   "Sensors.TemperatureUnavailable": "No disponible",

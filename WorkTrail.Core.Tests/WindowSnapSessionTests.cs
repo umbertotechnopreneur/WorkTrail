@@ -10,6 +10,198 @@ public sealed class WindowSnapSessionTests
 {
     private static readonly WindowSnapRectangle Monitor = new(0, 0, 1000, 1000);
 
+    /// <summary>All eight resize directions move only their dragged edges and show only their applicable guides.</summary>
+    [Theory]
+    [InlineData(WindowSnapEdges.Left, 400, 405, 595, 595)]
+    [InlineData(WindowSnapEdges.Right, 405, 405, 600, 595)]
+    [InlineData(WindowSnapEdges.Top, 405, 400, 595, 595)]
+    [InlineData(WindowSnapEdges.Bottom, 405, 405, 595, 600)]
+    [InlineData(WindowSnapEdges.Top | WindowSnapEdges.Left, 400, 400, 595, 595)]
+    [InlineData(WindowSnapEdges.Top | WindowSnapEdges.Right, 405, 400, 600, 595)]
+    [InlineData(WindowSnapEdges.Bottom | WindowSnapEdges.Left, 400, 405, 595, 600)]
+    [InlineData(WindowSnapEdges.Bottom | WindowSnapEdges.Right, 405, 405, 600, 600)]
+    public void Resize_SnapsOnlyDraggedEdges(WindowSnapEdges edges, int left, int top, int right, int bottom)
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var result = session.Resize(new(405, 405, 595, 595), [new(400, 400, 600, 600)], edges);
+        Assert.Equal(new WindowSnapRectangle(left, top, right, bottom), result);
+        Assert.True(session.IsSnapped);
+        Assert.Equal((edges & (WindowSnapEdges.Left | WindowSnapEdges.Right)) != 0, session.VerticalGuide.HasValue);
+        Assert.Equal((edges & (WindowSnapEdges.Top | WindowSnapEdges.Bottom)) != 0, session.HorizontalGuide.HasValue);
+    }
+
+    /// <summary>Snap and preview distances scale with the display, including fractional scaling rounded up to physical pixels.</summary>
+    [Theory]
+    [InlineData(96, 10, 20)]
+    [InlineData(120, 13, 25)]
+    [InlineData(144, 15, 30)]
+    [InlineData(192, 20, 40)]
+    [InlineData(288, 30, 60)]
+    public void Dpi_ScalesMovementAndResizeThresholds(int dpi, int snapDistance, int guideDistance)
+    {
+        var session = new WindowSnapSession(Monitor, Monitor, (uint)dpi);
+        Assert.Equal(0, session.Move(new(snapDistance, 200, snapDistance + 100, 300), []).Left);
+        Assert.Equal(new WindowSnapGuide(0, true), session.VerticalGuide);
+        var preview = new WindowSnapRectangle(guideDistance, 200, guideDistance + 100, 300);
+        Assert.Equal(preview, session.Move(preview, []));
+        Assert.Equal(new WindowSnapGuide(0, false), session.VerticalGuide);
+        session.Move(new(guideDistance + 1, 200, guideDistance + 101, 300), []);
+        Assert.Null(session.VerticalGuide);
+
+        var raw = new WindowSnapRectangle(200, 200, 1000 - snapDistance, 400);
+        var resized = session.Resize(raw, [], WindowSnapEdges.Right);
+        Assert.Equal(raw with { Right = 1000 }, resized);
+        Assert.Equal(new WindowSnapGuide(1000, true), session.VerticalGuide);
+        raw = raw with { Right = 1000 - guideDistance };
+        Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
+        Assert.Equal(new WindowSnapGuide(1000, false), session.VerticalGuide);
+        raw = raw with { Right = raw.Right - 1 };
+        Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
+        Assert.Null(session.VerticalGuide);
+    }
+
+    /// <summary>Impossible snap targets are rejected before nearest-edge selection, so a legal alternative can win.</summary>
+    [Fact]
+    public void Resize_RespectsMinimumAndMaximumSize()
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var raw = new WindowSnapRectangle(405, 300, 605, 600);
+        Assert.Equal(raw, session.Resize(raw, [new(410, 200, 800, 700)], WindowSnapEdges.Left, minimumWidth: 200));
+        Assert.Null(session.VerticalGuide);
+        Assert.Equal(raw, session.Resize(raw, [new(400, 200, 800, 700)], WindowSnapEdges.Left, maximumWidth: 200));
+        Assert.Null(session.VerticalGuide);
+        Assert.Equal(raw with { Left = 400 }, session.Resize(raw,
+            [new(410, 200, 800, 700), new(400, 200, 800, 700)], WindowSnapEdges.Left, minimumWidth: 200));
+        Assert.Equal(new WindowSnapGuide(400, true), session.VerticalGuide);
+    }
+
+    /// <summary>Preview and release use raw dimensions; a formerly snapped size does not keep the edge sticky.</summary>
+    [Fact]
+    public void Resize_ReleasesEdgesAndClearsGuidesAfterEscape()
+    {
+        var session = new WindowSnapSession(Monitor, Monitor, 144);
+        var raw = new WindowSnapRectangle(200, 200, 985, 400);
+        Assert.Equal(1000, session.Resize(raw, [], WindowSnapEdges.Right).Right);
+        raw = raw with { Right = 984 };
+        Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
+        Assert.Equal(new WindowSnapGuide(1000, false), session.VerticalGuide);
+        raw = raw with { Right = 1016 };
+        Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
+        Assert.True(session.IsSuppressed);
+        Assert.Null(session.VerticalGuide);
+        session.UpdateDpi(192);
+        raw = raw with { Right = 985 };
+        Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
+        Assert.Null(session.VerticalGuide);
+    }
+
+    /// <summary>A DPI change updates an active operation's thresholds instead of retaining the old monitor scale.</summary>
+    [Fact]
+    public void Dpi_RefreshesAnActiveOperation()
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var raw = new WindowSnapRectangle(15, 200, 115, 400);
+        Assert.Equal(raw, session.Move(raw, []));
+        session.UpdateDpi(144);
+        Assert.Equal(0, session.Move(raw, []).Left);
+        session.UpdateDpi(96);
+        Assert.Equal(raw, session.Move(raw, []));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.UpdateDpi(0));
+    }
+
+    /// <summary>Resizing retains signed monitor coordinates and deterministically resolves equal-distance peers.</summary>
+    [Fact]
+    public void Resize_SupportsNegativeCoordinatesAndPeerOrder()
+    {
+        var monitor = new WindowSnapRectangle(-1000, -1000, 0, 0);
+        var session = new WindowSnapSession(monitor, monitor, 144);
+        var raw = new WindowSnapRectangle(-700, -700, -400, -400);
+        WindowSnapRectangle[] peers = [new(-605, -800, -405, -200), new(-595, -800, -395, -200)];
+        var result = session.Resize(raw, peers, WindowSnapEdges.Right);
+        Assert.Equal(raw with { Right = -405 }, result);
+        Assert.Equal(new WindowSnapGuide(-405, true), session.VerticalGuide);
+        Array.Reverse(peers);
+        Assert.Equal(result, session.Resize(raw, peers, WindowSnapEdges.Right));
+    }
+
+    /// <summary>Invalid directions and size constraints cannot generate malformed resize rectangles.</summary>
+    [Fact]
+    public void Resize_RejectsInvalidDirectionsAndConstraints()
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var raw = new WindowSnapRectangle(200, 200, 400, 400);
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Left | WindowSnapEdges.Right));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Top | WindowSnapEdges.Bottom));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], (WindowSnapEdges)16));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Right, minimumWidth: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Right, minimumHeight: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Right, minimumWidth: 200, maximumWidth: 199));
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Right, minimumHeight: 200, maximumHeight: 199));
+        Assert.Throws<ArgumentNullException>(() => session.Resize(raw, null!, WindowSnapEdges.Right));
+    }
+
+    /// <summary>Preview guides do not move the window; only the existing ten-pixel threshold enables snapping.</summary>
+    [Theory]
+    [InlineData(21, null, false, 21)]
+    [InlineData(20, 0, false, 20)]
+    [InlineData(11, 0, false, 11)]
+    [InlineData(10, 0, true, 0)]
+    [InlineData(0, 0, true, 0)]
+    public void Guides_PreviewWithoutChangingTheSnapThreshold(int left, int? coordinate, bool snapped, int expectedLeft)
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var result = session.Move(new(left, 200, left + 100, 300), []);
+        Assert.Equal(expectedLeft, result.Left);
+        Assert.Equal(coordinate.HasValue ? new WindowSnapGuide(coordinate.Value, snapped) : (WindowSnapGuide?)null,
+            session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+        Assert.Equal(snapped, session.IsSnapped);
+    }
+
+    /// <summary>Both guide orientations refer to the same peer edges selected for placement, including exact matches.</summary>
+    [Fact]
+    public void Guides_MatchSelectedPeerEdgesAndClearAfterEscape()
+    {
+        var monitor = new WindowSnapRectangle(-1000, -1000, 0, 0);
+        var session = new WindowSnapSession(monitor, monitor);
+        WindowSnapRectangle[] peers = [new(-600, -600, -400, -400)];
+        var result = session.Move(new(-605, -415, -505, -315), peers);
+        Assert.Equal(new WindowSnapRectangle(-600, -415, -500, -315), result);
+        Assert.Equal(new WindowSnapGuide(-600, true), session.VerticalGuide);
+        Assert.Equal(new WindowSnapGuide(-400, false), session.HorizontalGuide);
+        result = session.Move(new(-600, -400, -500, -300), peers);
+        Assert.Equal(new WindowSnapRectangle(-600, -400, -500, -300), result);
+        Assert.Equal(new WindowSnapGuide(-600, true), session.VerticalGuide);
+        Assert.Equal(new WindowSnapGuide(-400, true), session.HorizontalGuide);
+        session.Move(new(-1011, -400, -911, -300), peers);
+        Assert.True(session.IsSuppressed);
+        Assert.Null(session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+        session.Move(new(-600, -400, -500, -300), peers);
+        Assert.Null(session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+    }
+
+    /// <summary>Equidistant references produce stable placement and guides regardless of peer enumeration order.</summary>
+    [Fact]
+    public void Guides_SelectTheSameTargetRegardlessOfPeerOrder()
+    {
+        var session = new WindowSnapSession(Monitor, Monitor);
+        var proposed = new WindowSnapRectangle(300, 200, 400, 300);
+        WindowSnapRectangle[] peers = [new(295, 150, 495, 350), new(305, 150, 505, 350)];
+        var result = session.Move(proposed, peers);
+        var guide = session.VerticalGuide;
+        Assert.Equal(295, result.Left);
+        Assert.Equal(new WindowSnapGuide(295, true), guide);
+        Array.Reverse(peers);
+        Assert.Equal(result, session.Move(proposed, peers));
+        Assert.Equal(guide, session.VerticalGuide);
+        session.Move(new(100, 500, 200, 600), peers);
+        Assert.Null(session.VerticalGuide);
+        Assert.Null(session.HorizontalGuide);
+    }
+
     /// <summary>All four edges snap within ten physical pixels, including outward overshoot, without resizing.</summary>
     [Theory]
     [InlineData(5, 200, 105, 300, 0, 200, 100, 300)]
