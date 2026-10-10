@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- VBWR B
+
+  Project: WorkTrail
+  Repository: https://github.com/umbertotechnopreneur/WorkTrail
+  Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
+
+  VibeWare: Human intent, AI execution, and plenty of tokens
+  Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
+
+  Modified with AI: OpenAI Codex; added this header on 2026-10-10.
+  Human guidance: Umberto Giacobbi; requested VibeWare branding.
+
+  Copyright (c) 2026 Umberto Giacobbi
+  License: MIT - see LICENSE
+  SPDX-License-Identifier: MIT
+
+VBWR E -->
+
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:systemai="http://schemas.microsoft.com/appx/manifest/systemai/windows10" IgnorableNamespaces="uap uap5 desktop rescap systemai">
   <Identity Name="UmbertoGiacobbiDotBiz.WorkTrail" Publisher="CN=82BCDD1C-1D59-48A0-9BDF-6352BE319510" Version="0.0.1.0" />
   <Properties>

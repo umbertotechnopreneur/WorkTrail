@@ -1,4 +1,21 @@
 // SPDX-License-Identifier: MIT
+/* VBWR B
+ *
+ * Project: WorkTrail
+ * Repository: https://github.com/umbertotechnopreneur/WorkTrail
+ * Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
+ *
+ * VibeWare: Human intent, AI execution, and plenty of tokens
+ * Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
+ *
+ * Modified with AI: OpenAI Codex; added this header on 2026-10-10.
+ * Human guidance: Umberto Giacobbi; requested VibeWare branding.
+ *
+ * Copyright (c) 2026 Umberto Giacobbi
+ * License: MIT - see LICENSE
+ *
+ * VBWR E */
+
 
 using System;
 using System.Collections.Generic;
@@ -17,6 +34,88 @@ namespace WorkTrail.Core.Tests;
 [Collection(ProcessEnvironmentCollection.Name)]
 public sealed class RuntimeCaptureSafetyTests
 {
+    /// <summary>Each snapshot notifies once for its focused target, while all requested monitor artifacts remain available.</summary>
+    /// <param name="mode">Whether the snapshot contains all screens or only the active window.</param>
+    /// <param name="keep">Whether the snapshot retains images after the pipeline completes.</param>
+    /// <param name="isVip">Whether the retained snapshot is marked VIP.</param>
+    [Theory]
+    [InlineData("all-screens", true, false)]
+    [InlineData("all-screens", false, false)]
+    [InlineData("all-screens", true, true)]
+    [InlineData("active-window", true, false)]
+    [InlineData("active-window", false, false)]
+    public async Task CaptureNotification_ShowsFocusedImageOncePerSnapshot(string mode, bool keep, bool isVip)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false,
+                NotificationsEnabled = true,
+                ScreenshotNotificationsEnabled = true
+            };
+            store.SaveSettings(settings);
+            var notifications = new RecordingScreenshotNotifications();
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings),
+                new NotificationCaptureService(keep), startTimer: false, screenshotNotifications: notifications);
+
+            for (var snapshotIndex = 0; snapshotIndex < 2; snapshotIndex++)
+            {
+                var result = await application.CaptureScreenshotAsync(
+                    new(mode, keep, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true, IsVip: isVip), CancellationToken.None);
+                Assert.True(result.Succeeded);
+                var capture = Assert.IsType<ScreenshotCaptureResult>(result.Value);
+                Assert.Equal(mode == "all-screens" ? 2 : 1, capture.AnalysisScreenshotPaths.Count);
+                Assert.Equal(snapshotIndex + 1, notifications.Paths.Count);
+                Assert.Equal(capture.AnalysisScreenshotPaths[0], notifications.Paths[snapshotIndex]);
+                Assert.EndsWith(mode == "all-screens" ? "_monitor-2.webp" : "_active-window.webp", notifications.Paths[snapshotIndex]);
+                if (keep) Assert.All(capture.StoredScreenshotPaths, path => Assert.True(File.Exists(path)));
+            }
+            Assert.NotEqual(notifications.Paths[0], notifications.Paths[1]);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>Notification preferences suppress every preview without reducing a multi-monitor capture.</summary>
+    /// <param name="notificationsEnabled">Whether global notifications are enabled.</param>
+    /// <param name="screenshotNotificationsEnabled">Whether screenshot notifications are enabled.</param>
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task CaptureNotification_RespectsNotificationPreferences(bool notificationsEnabled, bool screenshotNotificationsEnabled)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false,
+                NotificationsEnabled = notificationsEnabled,
+                ScreenshotNotificationsEnabled = screenshotNotificationsEnabled
+            };
+            store.SaveSettings(settings);
+            var notifications = new RecordingScreenshotNotifications();
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings),
+                new NotificationCaptureService(keep: true), startTimer: false, screenshotNotifications: notifications);
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true), CancellationToken.None);
+
+            Assert.True(result.Succeeded);
+            var capture = Assert.IsType<ScreenshotCaptureResult>(result.Value);
+            Assert.Equal(2, capture.StoredScreenshotPaths.Count);
+            Assert.All(capture.StoredScreenshotPaths, path => Assert.True(File.Exists(path)));
+            Assert.Empty(notifications.Paths);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
     /// <summary>VIP importance and its user note survive reopening; deleting the last artifact removes its calendar indicator.</summary>
     [Fact]
     public async Task VipCapture_PersistsNoteAndClearsCalendarAfterDeletion()
@@ -351,7 +450,8 @@ public sealed class RuntimeCaptureSafetyTests
         IScreenCaptureService capture,
         bool startTimer,
         TrackingDomainService? tracking = null,
-        IScreenshotOcrService? screenshotOcr = null)
+        IScreenshotOcrService? screenshotOcr = null,
+        IScreenshotNotificationService? screenshotNotifications = null)
     {
         var utilities = new UtilityService();
         return new WorkTrailApplication(
@@ -365,7 +465,8 @@ public sealed class RuntimeCaptureSafetyTests
             new BuildInformationService(),
             screenshotOcr: screenshotOcr,
             settingsSnapshot: settings,
-            startScheduledSnapshotTimer: startTimer);
+            startScheduledSnapshotTimer: startTimer,
+            screenshotNotifications: screenshotNotifications);
     }
 
     private static ActivitySample Sample(DateTimeOffset timestamp, string context) => new(
@@ -400,6 +501,48 @@ public sealed class RuntimeCaptureSafetyTests
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(50));
             }
+        }
+    }
+
+    private sealed class RecordingScreenshotNotifications : IScreenshotNotificationService
+    {
+        internal List<string> Paths { get; } = [];
+
+        /// <inheritdoc />
+        public void Show(string screenshotPath) => Paths.Add(screenshotPath);
+
+        /// <inheritdoc />
+        public void Clear() { }
+
+        /// <inheritdoc />
+        public void Dispose() { }
+    }
+
+    private sealed class NotificationCaptureService(bool keep) : IScreenCaptureService
+    {
+        /// <inheritdoc />
+        public ScreenshotCaptureResult CaptureByMode(
+            string directory,
+            string captureMode,
+            string captureOrigin,
+            Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
+        {
+            var decision = authorizeCapture(new ScreenshotCaptureContext("allowed-app", "Allowed", "Work", "Allowed window"));
+            if (decision != ScreenshotCaptureDecision.Allowed) throw new ScreenshotCapturePreconditionException(decision);
+            var captureId = Guid.NewGuid().ToString("N");
+            var capturedAt = DateTimeOffset.UtcNow;
+            var day = ScreenshotStorageLayout.GetDayDirectory(directory, capturedAt);
+            Directory.CreateDirectory(day);
+            // The focused monitor is deliberately not monitor 1, matching the real capture ordering contract.
+            string[] stems = captureMode == "active-window" ? ["active-window"] : ["monitor-2", "monitor-1"];
+            var paths = new List<string>();
+            foreach (var stem in stems)
+            {
+                var path = Path.Combine(day, $"{captureId}_1.0.0_{captureOrigin}_{stem}.webp");
+                File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(path), [1, 2, 3]);
+                paths.Add(path);
+            }
+            return new ScreenshotCaptureResult(captureId, paths, keep ? paths : [], captureOrigin, CapturedAt: capturedAt);
         }
     }
 

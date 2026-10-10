@@ -47,6 +47,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Fixed
 
+- Each snapshot shows one Windows notification using the active-window or focused-monitor image, including multi-monitor captures.
 - Icon-only Windows controls declare accessible names matching their tooltips, the Excel theme selector shows its localized header, and the export window keeps a single Premium badge in its title bar.
 - Repeated screenshot capture failures show one notification until capture succeeds, while retries and local error logging continue.
 - Timesheet amounts recalculate from the editable hourly rate; missing or invalid rates leave amounts blank instead of implying zero charges.
