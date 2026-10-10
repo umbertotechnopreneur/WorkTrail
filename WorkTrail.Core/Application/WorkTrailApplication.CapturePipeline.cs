@@ -1,4 +1,21 @@
 // SPDX-License-Identifier: MIT
+/* VBWR B
+ *
+ * Project: WorkTrail
+ * Repository: https://github.com/umbertotechnopreneur/WorkTrail
+ * Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
+ *
+ * VibeWare: Human intent, AI execution, and plenty of tokens
+ * Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
+ *
+ * Modified with AI: OpenAI Codex; added this header on 2026-10-10.
+ * Human guidance: Umberto Giacobbi; requested VibeWare branding.
+ *
+ * Copyright (c) 2026 Umberto Giacobbi
+ * License: MIT - see LICENSE
+ *
+ * VBWR E */
+
 
 using Microsoft.Extensions.Logging;
 using WorkTrail.Services;
@@ -11,23 +28,20 @@ public sealed partial class WorkTrailApplication
     private readonly ScreenshotPublicationJournal _screenshotPublications;
     private int _screenshotCaptureFailureNotificationActive;
 
-    // capture contains only published, privacy-approved images; notify once for each monitor image.
+    // capture contains published, privacy-approved images with the focused target first; notify once per snapshot.
     // cancellationToken stops optional notification work when capture is being cancelled.
     private async Task NotifyScreenshotCaptureAsync(ScreenshotCaptureResult capture, CancellationToken cancellationToken)
     {
         // A completed capture ends the failure episode even when successful-capture notifications are disabled.
         Interlocked.Exchange(ref _screenshotCaptureFailureNotificationActive, 0);
         if (_screenshotNotifications is null || !_settingsSnapshot.Value.NotificationsEnabled || !_settingsSnapshot.Value.ScreenshotNotificationsEnabled) return;
-        var paths = capture.StoredScreenshotPaths.Count > 0 ? capture.StoredScreenshotPaths : capture.AnalysisScreenshotPaths;
+        var path = (capture.StoredScreenshotPaths.Count > 0 ? capture.StoredScreenshotPaths : capture.AnalysisScreenshotPaths).FirstOrDefault();
+        if (path is null) return;
         try
         {
             await RunCaptureWorkAsync(() =>
             {
-                foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
-                {
-                    if (cancellationToken.IsCancellationRequested) break;
-                    _screenshotNotifications.Show(path);
-                }
+                if (!cancellationToken.IsCancellationRequested) _screenshotNotifications.Show(path);
                 return true;
             }, cancellationToken).ConfigureAwait(false);
         }

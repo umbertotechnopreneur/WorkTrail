@@ -27,6 +27,15 @@ This is a compact historical index of durable WorkTrail milestones. It intention
   C# formatting and verification passed. The Debug x64 MSIX built and installed as
   1.0.6.14 with Ok package status. Native interaction and visual behavior remain unverified.
 
+### One screenshot notification per snapshot
+
+- Reused the capture pipeline's focused-target ordering to show one Windows preview for
+  each snapshot. Multi-monitor captures still retain every requested monitor image.
+- Added synthetic regression coverage for multiple successive snapshots, active-window
+  captures, VIP captures, transient images and both notification preferences. All 19
+  targeted tests passed in Debug x64 with CI analyzers and warnings treated as errors.
+  C# formatting and verification passed; installed Windows behavior is unverified.
+
 ## 2026-10-08
 
 ### About layout contract checks

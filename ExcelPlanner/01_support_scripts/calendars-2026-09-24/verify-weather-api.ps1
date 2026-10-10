@@ -1,3 +1,21 @@
+# VBWR B
+#
+# Project: WorkTrail
+# Repository: https://github.com/umbertotechnopreneur/WorkTrail
+# Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
+#
+# VibeWare: Human intent, AI execution, and plenty of tokens
+# Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
+#
+# Modified with AI: OpenAI Codex; added this header on 2026-10-10.
+# Human guidance: Umberto Giacobbi; requested VibeWare branding.
+#
+# Copyright (c) 2026 Umberto Giacobbi
+# License: MIT - see LICENSE
+# SPDX-License-Identifier: MIT
+#
+# VBWR E
+
 # A disposable, never-saved workbook verifies the live API path. No secret is emitted.
 param([Parameter(Mandatory)][string]$DataFolder,[Parameter(Mandatory)][string]$KeyFile,[Parameter(Mandatory)][string]$WorkbookPath,[switch]$Diagnose)
 $ErrorActionPreference='Stop'
