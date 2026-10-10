@@ -131,6 +131,7 @@ public sealed partial class ScreenshotWindow : Window
         InitializeComponent();
         ScreenshotViewer.Configure(_application, _lifetimeCancellation.Token);
         TimelineSection.Configure(_application, _lifetimeCancellation.Token);
+        GallerySection.FeaturedTimeline.Configure(_application, _lifetimeCancellation.Token);
         WireViewEvents();
         _appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)));
         _titleBar = new CustomTitleBarController(
@@ -165,6 +166,7 @@ public sealed partial class ScreenshotWindow : Window
         ScreenshotViewer.ImageLoadFailed += ScreenshotViewer_ImageLoadFailed;
         DetailsSection.OcrTextRequested += DetailsSection_OcrTextRequested;
         TimelineSection.SelectedIndexChanged += TimelineSection_SelectedIndexChanged;
+        GallerySection.FeaturedTimeline.SelectedIndexChanged += FeaturedTimeline_SelectedIndexChanged;
         DayOverviewSection.SelectedIndexChanged += DayOverviewSection_SelectedIndexChanged;
         FilmstripToggleButton.Click += FilmstripToggleButton_Click;
     }
@@ -455,12 +457,42 @@ public sealed partial class ScreenshotWindow : Window
         _selectedIndex = hasItems ? Math.Clamp(_selectedIndex, 0, _items.Count - 1) : 0;
         TimelineSection.SetItems(_items, hasItems ? _selectedIndex : -1, _strings.Language);
         DayOverviewSection.SetItems(_items, hasItems ? _selectedIndex : -1, _strings.Language);
+        RenderVipStrip();
         RenderSelectedScreenshot();
         SetDetailsPaneVisibility(hasItems && _detailsPaneOpenPreference);
         UpdateDetailsToggleAccessibility();
     }
 
     private int _selectedIndex;
+
+    private IReadOnlyList<ScreenshotGalleryItem> _featuredVipItems = Array.Empty<ScreenshotGalleryItem>();
+
+    private void RenderVipStrip()
+    {
+        _featuredVipItems = _items.Where(item => item.IsVip).OrderByDescending(item => item.CapturedAt).ToArray();
+        GallerySection.FeaturedSection.Visibility = _featuredVipItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        GallerySection.FeaturedTimeline.TimelineRoot.Visibility = _featuredVipItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var selected = -1;
+        if (_items.Count > 0)
+        {
+            for (var index = 0; index < _featuredVipItems.Count; index++)
+                if (_featuredVipItems[index].Path == _items[_selectedIndex].Path) selected = index;
+        }
+        GallerySection.FeaturedTimeline.SetItems(_featuredVipItems, selected, _strings.Language);
+    }
+
+    // selectedIndex identifies a retained artifact in the VIP strip, not in the full chronological list.
+    private void FeaturedTimeline_SelectedIndexChanged(int selectedIndex)
+    {
+        if (selectedIndex < 0 || selectedIndex >= _featuredVipItems.Count) return;
+        var path = _featuredVipItems[selectedIndex].Path;
+        for (var index = 0; index < _items.Count; index++)
+        {
+            if (!string.Equals(_items[index].Path, path, StringComparison.OrdinalIgnoreCase)) continue;
+            TimelineSection_SelectedIndexChanged(index);
+            return;
+        }
+    }
 
     private void TimelineSection_SelectedIndexChanged(int selectedIndex)
     {
@@ -497,6 +529,10 @@ public sealed partial class ScreenshotWindow : Window
         }
 
         var selected = _items[_selectedIndex];
+        var featuredIndex = -1;
+        for (var index = 0; index < _featuredVipItems.Count; index++)
+            if (string.Equals(_featuredVipItems[index].Path, selected.Path, StringComparison.OrdinalIgnoreCase)) featuredIndex = index;
+        GallerySection.FeaturedTimeline.SetSelectedIndex(featuredIndex);
         ScreenshotViewer.SetItem(selected, _selectedIndex, _items.Count, _strings.Language);
         RenderMetadata(selected);
     }
@@ -994,7 +1030,9 @@ public sealed partial class ScreenshotWindow : Window
 
     private async void HeaderSection_OpenFolderRequested(object? sender, EventArgs e)
     {
-        var result = await _application.OpenScreenshotFolderAsync(_lifetimeCancellation.Token);
+        var selected = GetSelectedItem();
+        var directory = System.IO.Path.GetDirectoryName(selected.Path) ?? string.Empty;
+        var result = await _application.OpenScreenshotFolderAsync(directory, _lifetimeCancellation.Token);
         ShowActionResult(result, "Screenshots.Action.FolderOpened");
     }
 
@@ -1077,6 +1115,7 @@ public sealed partial class ScreenshotWindow : Window
 
     private void ScreenshotWindow_Closed(object sender, WindowEventArgs args)
     {
+        GallerySection.FeaturedTimeline.SelectedIndexChanged -= FeaturedTimeline_SelectedIndexChanged;
         DetailsSection.OcrTextRequested -= DetailsSection_OcrTextRequested;
         ScreenshotViewer.ZoomStateChanged -= ScreenshotViewer_ZoomStateChanged;
         ScreenshotViewer.ImageLoadFailed -= ScreenshotViewer_ImageLoadFailed;

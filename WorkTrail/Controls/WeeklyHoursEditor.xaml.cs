@@ -429,6 +429,7 @@ public sealed partial class WeeklyHoursEditor : UserControl
         }
     }
 
+    /// <summary>Labels schedule cells in the selected language while keeping their test IDs invariant.</summary>
     private void UpdateLocalizedLabels()
     {
         foreach (var day in Days)
@@ -441,6 +442,9 @@ public sealed partial class WeeklyHoursEditor : UserControl
             for (var slot = 0; slot < SlotsPerDay; slot++)
             {
                 var name = _strings.Format("Schedule.Slot.Accessible", dayName, CreateSlotLabel(slot), CreateSlotLabel(slot + 1));
+                AutomationProperties.SetAutomationId(
+                    _daySlots[day][slot],
+                    $"Schedule.Weekly.Slot.{day}.{slot.ToString("D2", System.Globalization.CultureInfo.InvariantCulture)}");
                 AutomationProperties.SetName(_daySlots[day][slot], name);
                 ToolTipService.SetToolTip(_daySlots[day][slot], name);
             }

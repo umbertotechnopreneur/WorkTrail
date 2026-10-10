@@ -18,7 +18,7 @@ public sealed class ReportExportLocalizationContractTests
     {
         var window = XDocument.Load(RepositoryFile("WorkTrail", "ReportExportWindow.xaml"));
         var buttons = window.Descendants().Where(element => element.Name.LocalName == "Button").ToArray();
-        Assert.Equal(10, buttons.Length);
+        Assert.Contains(buttons, button => button.Attribute("Click")?.Value == "ExcelPreview_Click");
         Assert.Single(buttons, button => button.Attribute("Tag")?.Value == "Export.MoreInformation"
             && button.Attribute("Click")?.Value == "SummaryInfo_Click");
         Assert.All(buttons, button =>
@@ -33,13 +33,14 @@ public sealed class ReportExportLocalizationContractTests
         });
     }
 
-    /// <summary>Only primary actions use decorative, theme-aware icons; secondary actions stay text-only.</summary>
+    /// <summary>Primary actions and date shortcuts use decorative theme-aware icons.</summary>
     [Fact]
-    public void PrimaryActions_UseOnlyThreeColoredIconsAlongsideText()
+    public void PrimaryActions_UseDecorativeThemeAwareIconsAlongsideText()
     {
         var window = XDocument.Load(RepositoryFile("WorkTrail", "ReportExportWindow.xaml"));
         var buttons = window.Descendants().Where(element => element.Name.LocalName == "Button").ToArray();
-        var primaryTags = new[] { "Export.Generate", "Export.SavePreset", "Export.Action" };
+        var primaryTags = new[] { "Export.Generate", "Export.SavePreset", "Export.Action", "Export.Today", "Export.Week", "Export.Month",
+            "Timesheet.Submit", "Timesheet.PreviousPage", "Timesheet.NextPage", "Timesheet.Refresh", "Timesheet.Cancel", "Timesheet.Export" };
         foreach (var button in buttons)
         {
             var icons = button.Descendants().Where(element => element.Name.LocalName == "FontIcon").ToArray();
@@ -53,7 +54,13 @@ public sealed class ReportExportLocalizationContractTests
             Assert.StartsWith("{ThemeResource ", icon.Attribute("Foreground")!.Value);
             Assert.Equal("Segoe Fluent Icons", icon.Attribute("FontFamily")?.Value);
         }
-        Assert.Equal(3, window.Descendants().Count(element => element.Name.LocalName == "FontIcon"));
+        Assert.Equal(primaryTags.Length, buttons.Sum(button => button.Descendants().Count(element => element.Name.LocalName == "FontIcon")));
+        Assert.All(window.Descendants().Where(element => element.Name.LocalName == "FontIcon"), icon =>
+        {
+            Assert.Equal("Raw", icon.Attribute("AutomationProperties.AccessibilityView")?.Value);
+            Assert.StartsWith("{ThemeResource ", icon.Attribute("Foreground")!.Value);
+            Assert.Equal("Segoe Fluent Icons", icon.Attribute("FontFamily")?.Value);
+        });
     }
 
     /// <summary>Every tagged export caption or field header has nonempty text in each supported locale.</summary>

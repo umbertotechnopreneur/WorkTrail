@@ -19,6 +19,9 @@ pwsh -NoProfile -File .\scripts\WorkTrail.ps1 -Action CreateInstaller -Platform 
 
 .EXAMPLE
 pwsh -NoProfile -File .\scripts\WorkTrail.ps1 -Action CreateInstaller -Platform ARM64 -ReleaseVersion 1.2.3 -Unsigned -PackageOutputPath artifacts\releases\1.2.3\ARM64\packages -InstallerOutputPath artifacts\releases\1.2.3\WorkTrail-1.2.3-ARM64-unsigned.msix
+
+.EXAMPLE
+pwsh -NoProfile -File .\scripts\WorkTrail.ps1 -Action InstallDebugMsix -Platform x64 -ReleaseVersion 1.2.3.4
 #>
 [CmdletBinding()]
 param(
@@ -34,6 +37,7 @@ param(
         'ProbeTaskbar',
         'PublishUnpackaged',
         'PackageMsix',
+        'InstallDebugMsix',
         'CreateInstaller',
         'ProtectSecret',
         'ProtectSecretYubiKey',
@@ -95,13 +99,14 @@ if ($PSBoundParameters.ContainsKey('ReleaseVersion') -and [string]::IsNullOrEmpt
 }
 
 if (-not [string]::IsNullOrEmpty($ReleaseVersion)) {
-    if ($ReleaseVersion -cnotmatch '^(?<major>[1-9][0-9]{0,4})\.(?<minor>0|[1-9][0-9]{0,4})\.(?<patch>0|[1-9][0-9]{0,4})$' -or
-        [int]$Matches.major -gt 65534 -or [int]$Matches.minor -gt 65534 -or [int]$Matches.patch -gt 65534) {
-        throw 'ReleaseVersion must be X.Y.Z with major 1..65534 and minor/patch 0..65534, without leading zeros.'
+    if ($ReleaseVersion -cnotmatch '^(?<major>[1-9][0-9]{0,4})\.(?<minor>0|[1-9][0-9]{0,4})\.(?<patch>0|[1-9][0-9]{0,4})(?:\.(?<revision>0|[1-9][0-9]{0,4}))?$' -or
+        [int]$Matches.major -gt 65534 -or [int]$Matches.minor -gt 65534 -or [int]$Matches.patch -gt 65534 -or
+        (-not [string]::IsNullOrEmpty($Matches['revision']) -and [int]$Matches['revision'] -gt 65534)) {
+        throw 'ReleaseVersion must be X.Y.Z or X.Y.Z.W with each component in the MSIX range and without leading zeros.'
     }
 
-    if ($Action -notin @('PackageMsix', 'CreateInstaller', 'PublishUnpackaged', 'BuildInfo')) {
-        throw 'ReleaseVersion is supported only for PackageMsix, CreateInstaller, PublishUnpackaged, and BuildInfo.'
+    if ($Action -notin @('PackageMsix', 'InstallDebugMsix', 'CreateInstaller', 'PublishUnpackaged', 'BuildInfo')) {
+        throw 'ReleaseVersion is supported only for PackageMsix, InstallDebugMsix, CreateInstaller, PublishUnpackaged, and BuildInfo.'
     }
 }
 
@@ -1093,8 +1098,9 @@ function Assert-WorkTrailPackageIntegrity {
             throw "MSIX manifest publisher does not match the tracked manifest publisher '$expectedPublisher': $($PackageFile.FullName)"
         }
 
+        $expectedPackageVersion = if ($ReleaseVersion -match '^\d+\.\d+\.\d+\.\d+$') { $ReleaseVersion } else { "$ReleaseVersion.0" }
         if ($identity.Version -ne $packageBuildInfo.packageVersion -or
-            (-not [string]::IsNullOrEmpty($ReleaseVersion) -and $identity.Version -ne "$ReleaseVersion.0")) {
+            (-not [string]::IsNullOrEmpty($ReleaseVersion) -and $identity.Version -ne $expectedPackageVersion)) {
             throw "MSIX manifest/build information does not match the requested package version: $($PackageFile.FullName)"
         }
     }
@@ -1154,6 +1160,83 @@ function Invoke-WorkTrailMsixPackage {
     $signingState = if ($Unsigned) { 'Unsigned' } else { 'Signed' }
     Write-Host "$signingState MSIX package ready: $($packageFile.FullName)" -ForegroundColor Green
     Write-Host "Package dependency directory: $(Join-Path $packageFile.DirectoryName 'Dependencies')"
+}
+
+# Build, sign, install, and verify one local Debug MSIX without replacing existing artifacts.
+function Invoke-WorkTrailDebugMsixInstall {
+    if (-not $IsWindows) { throw 'Debug MSIX installation requires Windows.' }
+    if ((Get-WorkTrailPackageConfiguration) -ne 'Debug') {
+        throw 'InstallDebugMsix requires a Debug configuration.'
+    }
+    if ($ReleaseVersion -cnotmatch '^\d+\.\d+\.\d+\.\d+$') {
+        throw 'InstallDebugMsix requires a four-part -ReleaseVersion X.Y.Z.W.'
+    }
+    if ($SkipPackageBuild) { throw 'InstallDebugMsix must build a fresh MSIX.' }
+
+    $packageName = 'UmbertoGiacobbiDotBiz.WorkTrail'
+    $expectedVersion = [version]$ReleaseVersion
+    $installed = @(Get-AppxPackage -Name $packageName)
+    if ($installed.Count -gt 1) { throw 'More than one current-user WorkTrail package was found.' }
+    if ($installed.Count -eq 1 -and [version]$installed[0].Version -ge $expectedVersion) {
+        throw "The installed version is $($installed[0].Version). Choose a higher Debug MSIX version."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($PackageCertificateThumbprint)) {
+        $publisher = Get-WorkTrailPackagePublisher
+        $certificates = @(Get-ChildItem Cert:\CurrentUser\My | Where-Object {
+            $_.Subject -ceq $publisher -and $_.HasPrivateKey -and $_.Verify() -and
+            @($_.EnhancedKeyUsageList | Where-Object { $_.ObjectId -eq '1.3.6.1.5.5.7.3.3' }).Count -gt 0
+        })
+        if ($certificates.Count -ne 1) {
+            throw 'Expected one trusted current-user code-signing certificate for WorkTrail; supply -PackageCertificateThumbprint if there are several.'
+        }
+        $script:PackageCertificateThumbprint = $certificates[0].Thumbprint
+    }
+    $certificate = Resolve-WorkTrailPackageCertificate
+    if (-not $certificate.Verify() -or
+        @($certificate.EnhancedKeyUsageList | Where-Object { $_.ObjectId -eq '1.3.6.1.5.5.7.3.3' }).Count -eq 0) {
+        throw 'The signing certificate must be trusted and usable for code signing.'
+    }
+
+    $artifactsRoot = [System.IO.Path]::GetFullPath((Join-Path $script:RepositoryRoot 'artifacts'))
+    $repositoryPrefix = $script:RepositoryRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $artifactsRoot.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to delete an artifacts path outside the repository: $artifactsRoot"
+    }
+    if (Test-Path -LiteralPath $artifactsRoot) {
+        if (((Get-Item -LiteralPath $artifactsRoot -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Refusing to delete a linked artifacts directory: $artifactsRoot"
+        }
+        Remove-Item -LiteralPath $artifactsRoot -Recurse -Force
+    }
+
+    if ([string]::IsNullOrWhiteSpace($PackageOutputPath)) {
+        $invocationId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+        $script:PackageOutputPath = Join-Path $script:RepositoryRoot "artifacts\msix\debug\$ReleaseVersion\$($Platform.ToLowerInvariant())\$invocationId"
+    }
+    $null = Get-WorkTrailPackageOutputDirectory
+
+    try {
+        Invoke-WorkTrailMsixPackage
+        $packageFile = Get-WorkTrailPackageFile
+        Add-AppxPackage -Path $packageFile.FullName -ForceUpdateFromAnyVersion -ForceApplicationShutdown -ErrorAction Stop
+
+        $registered = Get-AppxPackage -Name $packageName
+        if ($null -eq $registered -or [version]$registered.Version -ne $expectedVersion -or
+            $registered.Status -ne 'Ok' -or $registered.Architecture.ToString() -ine $Platform) {
+            throw "The installed WorkTrail package did not report version $expectedVersion, $Platform, and Ok status."
+        }
+        Write-Output "Installed WorkTrail Debug MSIX $expectedVersion ($Platform): $($packageFile.FullName)"
+    }
+    finally {
+        $project = Join-Path $script:RepositoryRoot 'WorkTrail\WorkTrail.csproj'
+        $runtime = Get-WorkTrailRuntimeIdentifier -TargetPlatform $Platform
+        try {
+            & dotnet clean $project --configuration Debug --runtime $runtime "-p:Platform=$Platform" --verbosity quiet
+            if ($LASTEXITCODE -ne 0) { Write-Warning 'WorkTrail Debug build cleanup failed.' }
+        }
+        catch { Write-Warning "WorkTrail Debug build cleanup failed: $($_.Exception.Message)" }
+    }
 }
 
 function Get-WorkTrailPackageOutputDirectory {
@@ -1312,11 +1395,12 @@ function Invoke-WorkTrailBuildInfo {
         $semVer = "$major.$minor.$patch"
     }
     else {
-        # Release builds use the tag's version and never advance the local build counter.
-        $semVer = $ReleaseVersion
+        # Four-part local package versions retain a three-part product SemVer.
+        $releaseParts = $ReleaseVersion.Split('.')
+        $semVer = ($releaseParts[0..2] -join '.')
     }
 
-    $packageVersion = "$semVer.0"
+    $packageVersion = if ($ReleaseVersion -match '^\d+\.\d+\.\d+\.\d+$') { $ReleaseVersion } else { "$semVer.0" }
     $builtAtUtc = [DateTimeOffset]::UtcNow
     $builtAtLocal = [DateTimeOffset]::Now
 
@@ -2312,6 +2396,7 @@ function Invoke-WorkTrailAction {
         'ProbeTaskbar' { Invoke-WorkTrailTaskbarProbe }
         'PublishUnpackaged' { Invoke-WorkTrailUnpackagedPublish }
         'PackageMsix' { Invoke-WorkTrailMsixPackage }
+        'InstallDebugMsix' { Invoke-WorkTrailDebugMsixInstall }
         'CreateInstaller' { Invoke-WorkTrailInstallerCreation }
         'ProtectSecret' { Invoke-WorkTrailSecretTool }
         'ProtectSecretYubiKey' { Invoke-WorkTrailYubiKeySecretTool }

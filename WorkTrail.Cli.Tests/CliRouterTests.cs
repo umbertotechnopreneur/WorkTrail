@@ -434,6 +434,10 @@ public sealed class CliRouterTests
         public Task<OperationResult<ReportExportResult>> ExportReportAsync(ReportExportRequest request, CancellationToken cancellationToken) => Unsupported<ReportExportResult>();
         /// <inheritdoc />
         public Task<OperationResult<ReportSummaryResult>> GenerateReportSummaryAsync(ReportSummaryRequest request, CancellationToken cancellationToken) => Unsupported<ReportSummaryResult>();
+
+        public Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken) => Unsupported<TimesheetBatchView>();
+
+        public Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken) => Unsupported<ReportExportResult>();
         public Task<OperationResult<SystemSnapshot>> CaptureHardwareSnapshotAsync(CancellationToken cancellationToken) => CaptureSystemSnapshotAsync(cancellationToken);
 
         public Task<OperationResult<SystemSnapshot>> CaptureSystemSnapshotAsync(CancellationToken cancellationToken) => Unsupported<SystemSnapshot>();
@@ -450,6 +454,14 @@ public sealed class CliRouterTests
         }
         /// <inheritdoc />
         public Task<OperationResult<PendingManualScreenshotState>> CaptureManualScreenshotAsync(CancellationToken cancellationToken) => Unsupported<PendingManualScreenshotState>();
+        /// <inheritdoc />
+        /// <param name="request">The VIP capture identity and user note.</param>
+        /// <param name="cancellationToken">Cancels the request.</param>
+        public Task<OperationResult<bool>> SaveVipScreenshotNoteAsync(VipScreenshotNoteRequest request, CancellationToken cancellationToken) => Unsupported<bool>();
+        /// <inheritdoc />
+        /// <param name="request">The inclusive local date range.</param>
+        /// <param name="cancellationToken">Cancels the request.</param>
+        public Task<OperationResult<IReadOnlyList<DateOnly>>> GetVipScreenshotDatesAsync(VipScreenshotDatesRequest request, CancellationToken cancellationToken) => Unsupported<IReadOnlyList<DateOnly>>();
         /// <inheritdoc />
         public Task<OperationResult<bool>> DeletePendingManualScreenshotAsync(CancellationToken cancellationToken) => Unsupported<bool>();
         public Task<OperationResult<AiAnalysis>> AnalyzeCapturedScreenshotAsync(AnalyzeCapturedScreenshotRequest request, CancellationToken cancellationToken) => Unsupported<AiAnalysis>();
@@ -484,6 +496,7 @@ public sealed class CliRouterTests
             AiStatusReads++;
             return Success(new AiStatus(false, "openai", "gpt-5.6", "https://api.openai.com/v1/responses", "OPENAI_API_KEY", false, false, new AnalysisCostGate(true, null, 0m, 0, 0m)), "ai.status.loaded");
         }
+        public Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken) => Unsupported<string>();
         public Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken) => Unsupported<AiPricingOverview>();
         public Task<OperationResult<AiConnectionTestResult>> TestAiConnectionAsync(CancellationToken cancellationToken) => Unsupported<AiConnectionTestResult>();
         public Task<OperationResult<AiModelCatalogSnapshot>> GetAiModelCatalogAsync(CancellationToken cancellationToken) => Unsupported<AiModelCatalogSnapshot>();

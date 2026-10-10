@@ -27,12 +27,124 @@ internal sealed class MicaDialogService
         _ = await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Primary);
     }
 
+    /// <summary>Shows the shared Premium prompt and opens the product's Microsoft Store page on request.</summary>
+    /// <param name="application">The facade that opens the allowlisted Store link.</param>
+    /// <param name="owner">The window that owns the queued dialog.</param>
+    /// <param name="translate">The owner's current localized strings.</param>
+    /// <param name="messageKey">The explanation for the blocked action.</param>
+    /// <exception cref="ArgumentNullException">A required facade, owner, or translator is missing.</exception>
+    /// <exception cref="InvalidOperationException">The owner's UI thread or loaded content is unavailable.</exception>
+    internal async Task ShowPremiumUpgradeAsync(
+        IWorkTrailApplication application,
+        Window owner,
+        Func<string, string> translate,
+        string messageKey = "Premium.Required")
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(translate);
+        ValidateOwnerThread(owner);
+        using var lifetime = new CancellationTokenSource();
+        // Keep the launch tied to the owner even after the dialog releases its queue lease.
+        // sender identifies the owner window.
+        // args contains the window-closed notification.
+        void OwnerClosed(object sender, WindowEventArgs args) => lifetime.Cancel();
+        owner.Closed += OwnerClosed;
+        try
+        {
+            var content = new StackPanel { Spacing = 16, MinWidth = 280 };
+            content.Children.Add(new Controls.PremiumBadge
+            {
+                Text = translate("Premium.Badge"),
+                HorizontalAlignment = HorizontalAlignment.Left
+            });
+            content.Children.Add(new TextBlock
+            {
+                Text = translate(messageKey),
+                TextWrapping = TextWrapping.Wrap
+            });
+            var storeCaption = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            storeCaption.Children.Add(new FontIcon { Glyph = "\uE719", FontSize = 18 });
+            storeCaption.Children.Add(new TextBlock
+            {
+                Text = translate("Premium.StoreAction"),
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            content.Children.Add(storeCaption);
+            var request = DialogRequest.Confirmation(
+                translate("Premium.UpgradeTitle"), translate(messageKey),
+                translate("Premium.UpgradeTitle"), translate("Window.Close"));
+            // Highlight the Store action; opening its page does not authorize a purchase.
+            var choice = await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Primary, content: content);
+            if (choice != ContentDialogResult.Primary || lifetime.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var result = await application.OpenProductLinkAsync("store", lifetime.Token);
+            if (!result.Succeeded && !lifetime.IsCancellationRequested)
+            {
+                await ShowInformativeAsync(owner, DialogRequest.Informative(
+                    translate("Premium.UpgradeTitle"), translate("Premium.StoreUnavailable"), translate("Dialog.Ok")));
+            }
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        {
+            // Closing the owner cancels the purchase prompt without launching the Store.
+        }
+        finally
+        {
+            owner.Closed -= OwnerClosed;
+        }
+    }
+
+    /// <summary>Shows a cancellable five-second presentation countdown before a VIP capture.</summary>
+    /// <param name="application">The facade used for window placement.</param>
+    /// <param name="owner">The owner of the queued countdown dialog.</param>
+    /// <param name="strings">The owner's localized strings.</param>
+    /// <param name="cancellationToken">Cancels the countdown when the owner shuts down.</param>
+    internal Task<bool> ShowVipCountdownAsync(IWorkTrailApplication application, Window owner, LocalizationService strings, CancellationToken cancellationToken) =>
+        RunModalSessionAsync(owner, false, async (ownerAppWindow, ownerHandle) =>
+        {
+            if (cancellationToken.IsCancellationRequested) return false;
+            var theme = owner.Content is FrameworkElement root ? root.ActualTheme : ElementTheme.Default;
+            var dialog = new VipSnapshotCountdownWindow(application, strings, theme, ownerAppWindow, ownerHandle);
+            var completed = await ShowDialogWindowAsync(dialog, dialog.WindowHandle,
+                () => dialog.ShowAsync(cancellationToken), dialog.DisposePlacement);
+            return completed && !cancellationToken.IsCancellationRequested;
+        });
+
+    /// <summary>Shows the saved VIP screenshot and an optional note in a dedicated Acrylic window.</summary>
+    /// <param name="application">The facade used for image reads and note persistence.</param>
+    /// <param name="owner">The window that owns the modal surface.</param>
+    /// <param name="capture">The already retained VIP capture.</param>
+    /// <param name="strings">The owner's current UI strings.</param>
+    internal Task ShowVipSnapshotAsync(IWorkTrailApplication application, Window owner, ScreenshotCaptureResult capture, LocalizationService strings) =>
+        RunModalSessionAsync(owner, async (ownerAppWindow, ownerHandle) =>
+        {
+            var theme = owner.Content is FrameworkElement root ? root.ActualTheme : ElementTheme.Default;
+            var dialog = new VipSnapshotNoteWindow(application, capture, strings, theme, ownerAppWindow, ownerHandle);
+            await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
+        });
+
     /// <summary>Shows one queued standard WinUI OK/Cancel confirmation.</summary>
     /// <returns><see langword="true"/> only when the user explicitly chooses OK; dismissal safely cancels.</returns>
     internal async Task<bool> ConfirmAsync(Window owner, DialogRequest request)
     {
         ValidateDialogRequest(request, requiresCloseButton: true);
         return await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Close) == ContentDialogResult.Primary;
+    }
+
+    /// <summary>Shows a queued confirmation with caller-provided WinUI content.</summary>
+    /// <param name="owner">The window that owns the dialog.</param>
+    /// <param name="request">The localized title and button labels.</param>
+    /// <param name="content">The UI element displayed inside the dialog.</param>
+    /// <returns><see langword="true"/> only when the user explicitly chooses the primary action.</returns>
+    internal async Task<bool> ConfirmAsync(Window owner, DialogRequest request, object content)
+    {
+        ValidateDialogRequest(request, requiresCloseButton: true);
+        ArgumentNullException.ThrowIfNull(content);
+        return await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Close, content: content) == ContentDialogResult.Primary;
     }
 
     /// <summary>Shows the illustrated reset confirmation while preserving queued ownership and safe dismissal.</summary>
@@ -43,6 +155,14 @@ internal sealed class MicaDialogService
     }
 
     /// <summary>Runs one facade request only after its queued modal Mica progress surface is visible.</summary>
+    /// <param name="application">Shared facade that owns the operation and its progress.</param>
+    /// <param name="owner">Window whose modal queue hosts the progress surface.</param>
+    /// <param name="theme">Actual theme used by the owner.</param>
+    /// <param name="title">Localized heading of the progress surface.</param>
+    /// <param name="description">Localized explanation of the operation.</param>
+    /// <param name="operation">Request to run after the progress surface becomes visible.</param>
+    /// <param name="archiveOperationId">Archive job whose progress is displayed, if any.</param>
+    /// <param name="retentionOperationId">Retention job whose progress is displayed, if any.</param>
     internal async Task<OperationResult<T>> RunWithProgressAsync<T>(
         IWorkTrailApplication application,
         Window owner,
@@ -50,7 +170,8 @@ internal sealed class MicaDialogService
         string title,
         string description,
         Func<IWorkTrailApplication, CancellationToken, Task<OperationResult<T>>> operation,
-        Guid? archiveOperationId = null)
+        Guid? archiveOperationId = null,
+        Guid? retentionOperationId = null)
     {
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(operation);
@@ -76,7 +197,7 @@ internal sealed class MicaDialogService
                 async cancellationToken =>
                 {
                     operationResult = await operation(application, cancellationToken);
-                }, archiveOperationId);
+                }, archiveOperationId, retentionOperationId);
             await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
             return operationResult ?? throw new InvalidOperationException("The progress operation returned no result.");
         });
@@ -234,6 +355,12 @@ internal sealed class MicaDialogService
     {
         switch (_activeWindow)
         {
+            case VipSnapshotCountdownWindow countdownWindow:
+                countdownWindow.CloseForShutdown();
+                break;
+            case VipSnapshotNoteWindow vipWindow:
+                vipWindow.CloseForShutdown();
+                break;
             case OperationProgressDialogWindow progressWindow:
                 progressWindow.CloseForShutdown();
                 break;
@@ -246,11 +373,17 @@ internal sealed class MicaDialogService
         }
     }
 
+    // owner identifies the window that owns this queued dialog.
+    // request contains the localized content and button labels.
+    // defaultButton identifies the safe keyboard default.
+    // atomicReset selects the existing reset illustration.
+    // content supplies optional custom dialog content.
     private async Task<ContentDialogResult> RunContentDialogSessionAsync(
         Window owner,
         DialogRequest request,
         ContentDialogButton defaultButton,
-        bool atomicReset = false)
+        bool atomicReset = false,
+        object? content = null)
     {
         ValidateOwnerThread(owner);
         using var ownerLifetime = new CancellationTokenSource();
@@ -284,7 +417,7 @@ internal sealed class MicaDialogService
                     RequestedTheme = ownerContent.ActualTheme,
                     Language = ownerContent.Language
                 }
-                : CreateContentDialog(xamlRoot, ownerContent, request, defaultButton);
+                : CreateContentDialog(xamlRoot, ownerContent, request, defaultButton, content);
             _activeContentDialog = dialog;
             try
             {
@@ -428,14 +561,15 @@ internal sealed class MicaDialogService
         XamlRoot xamlRoot,
         FrameworkElement ownerContent,
         DialogRequest request,
-        ContentDialogButton defaultButton) =>
+        ContentDialogButton defaultButton,
+        object? content = null) =>
         new()
         {
             XamlRoot = xamlRoot,
             RequestedTheme = ownerContent.ActualTheme,
             Language = ownerContent.Language,
             Title = request.Title,
-            Content = request.Message,
+            Content = content ?? request.Message,
             PrimaryButtonText = request.PrimaryButtonText,
             CloseButtonText = request.CloseButtonText,
             DefaultButton = defaultButton

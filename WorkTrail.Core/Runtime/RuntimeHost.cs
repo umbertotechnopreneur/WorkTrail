@@ -289,6 +289,14 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public Task<OperationResult<ReportExportSetup>> GetReportExportSetupAsync(CancellationToken cancellationToken) =>
         SendAsync<ReportExportSetup>(RuntimeOperation.ReportExportSetupV1, null, cancellationToken, ReportQueryTimeout);
+
+    /// <inheritdoc />
+    public Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken) =>
+        SendAsync<TimesheetBatchView>(RuntimeOperation.TimesheetBatchV1, command, cancellationToken, DataArchiveTimeout);
+
+    /// <inheritdoc />
+    public Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken) =>
+        SendAsync<ReportExportResult>(RuntimeOperation.ReportFilePreviewV1, request, cancellationToken, DataArchiveTimeout);
     /// <inheritdoc />
     public Task<OperationResult<ReportExportPreview>> PreviewReportExportAsync(ReportExportOptions options, CancellationToken cancellationToken) =>
         SendAsync<ReportExportPreview>(RuntimeOperation.ReportExportPreviewV1, options, cancellationToken, DataArchiveTimeout);
@@ -314,10 +322,21 @@ public sealed class RuntimeClient : IWorkTrailApplication
         SendAsync<SystemSnapshot>(RuntimeOperation.HardwareAdvancedEnableV1, null, cancellationToken, HardwareAdvancedTimeout);
     /// <inheritdoc />
     public Task<OperationResult<ScreenshotCaptureResult>> CaptureScreenshotAsync(CaptureScreenshotRequest request, CancellationToken cancellationToken) =>
-        SendAsync<ScreenshotCaptureResult>(RuntimeOperation.ScreenshotCapture, request, cancellationToken, ScreenshotCaptureTimeout);
+        SendAsync<ScreenshotCaptureResult>(request.IsVip ? RuntimeOperation.ScreenshotVipCaptureV1 : RuntimeOperation.ScreenshotCapture,
+            request, cancellationToken, ScreenshotCaptureTimeout);
     /// <inheritdoc />
     public Task<OperationResult<PendingManualScreenshotState>> CaptureManualScreenshotAsync(CancellationToken cancellationToken) =>
         SendAsync<PendingManualScreenshotState>(RuntimeOperation.ScreenshotManualCapture, null, cancellationToken, ScreenshotCaptureTimeout);
+    /// <inheritdoc />
+    /// <param name="request">The existing VIP capture and its note.</param>
+    /// <param name="cancellationToken">Cancels the runtime request.</param>
+    public Task<OperationResult<bool>> SaveVipScreenshotNoteAsync(VipScreenshotNoteRequest request, CancellationToken cancellationToken) =>
+        SendAsync<bool>(RuntimeOperation.ScreenshotVipNoteSaveV1, request, cancellationToken);
+    /// <inheritdoc />
+    /// <param name="request">The inclusive local date range.</param>
+    /// <param name="cancellationToken">Cancels the runtime request.</param>
+    public Task<OperationResult<IReadOnlyList<DateOnly>>> GetVipScreenshotDatesAsync(VipScreenshotDatesRequest request, CancellationToken cancellationToken) =>
+        SendAsync<IReadOnlyList<DateOnly>>(RuntimeOperation.ScreenshotVipDatesV1, request, cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<bool>> DeletePendingManualScreenshotAsync(CancellationToken cancellationToken) => SendAsync<bool>(RuntimeOperation.ScreenshotManualDelete, null, cancellationToken);
     /// <inheritdoc />
@@ -379,6 +398,8 @@ public sealed class RuntimeClient : IWorkTrailApplication
     public Task<OperationResult<IReadOnlyList<ApplicationNotification>>> DrainApplicationNotificationsAsync(CancellationToken cancellationToken) => SendAsync<IReadOnlyList<ApplicationNotification>>(RuntimeOperation.NotificationsDrain, null, cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<AiStatus>> GetAiStatusAsync(CancellationToken cancellationToken) => SendAsync<AiStatus>(RuntimeOperation.AiStatus, null, cancellationToken);
+    /// <inheritdoc />
+    public Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken) => SendAsync<string>(RuntimeOperation.AiKeyGet, null, cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken) => SendAsync<AiPricingOverview>(RuntimeOperation.AiPricingOverview, null, cancellationToken, ReportQueryTimeout);
     /// <inheritdoc />

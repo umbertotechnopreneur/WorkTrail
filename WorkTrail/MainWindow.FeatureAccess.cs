@@ -12,7 +12,9 @@ public sealed partial class MainWindow
     private FeatureAccessSnapshot? _featureAccessState;
 #if DEBUG
     private MenuFlyoutItem? _debugFeatureProfileItem;
+    private MenuFlyoutItem? _debugResetOobeItem;
     private bool _featureProfileChanging;
+    private bool _debugOobeResetting;
 #endif
 
     private void InitializeFeatureAccessMenu()
@@ -20,8 +22,11 @@ public sealed partial class MainWindow
 #if DEBUG
         _debugFeatureProfileItem = new MenuFlyoutItem();
         _debugFeatureProfileItem.Click += DebugFeatureProfile_Click;
+        _debugResetOobeItem = new MenuFlyoutItem();
+        _debugResetOobeItem.Click += DebugResetOobe_Click;
         MainMenuFlyout.Items.Add(new MenuFlyoutSeparator());
         MainMenuFlyout.Items.Add(_debugFeatureProfileItem);
+        MainMenuFlyout.Items.Add(_debugResetOobeItem);
         UpdateDebugFeatureMenu();
 #endif
     }
@@ -41,6 +46,11 @@ public sealed partial class MainWindow
         _debugFeatureProfileItem.Text = T(_featureAccessState?.Tier == ProductTier.Premium
             ? "Premium.DebugSwitchFree" : "Premium.DebugSwitchPremium");
         _debugFeatureProfileItem.IsEnabled = !_featureProfileChanging && _featureAccessState is { CanSimulate: true };
+        if (_debugResetOobeItem is not null)
+        {
+            _debugResetOobeItem.Text = T("Debug.ResetOobe");
+            _debugResetOobeItem.IsEnabled = !_debugOobeResetting && !_dashboardSurfaceClosed;
+        }
 #endif
     }
 
@@ -64,6 +74,40 @@ public sealed partial class MainWindow
     }
 
 #if DEBUG
+    private async void DebugResetOobe_Click(object sender, RoutedEventArgs e)
+    {
+        if (_debugOobeResetting || _dashboardSurfaceClosed) return;
+        _debugOobeResetting = true;
+        UpdateDebugFeatureMenu();
+        try
+        {
+            var result = await _application.PatchSettingsAsync(
+                new SettingsPatch(new Dictionary<string, string?>
+                {
+                    ["quick_setup.completed"] = "false"
+                }),
+                _lifecycle.Token);
+            if (!result.Succeeded || result.Value is null)
+                throw new InvalidOperationException("Debug OOBE reset failed.");
+            if (_dashboardSurfaceClosed) return;
+
+            ApplySettings(result.Value);
+            DebugOobeResetRequested?.Invoke(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException) when (_lifecycle.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            if (!_dashboardSurfaceClosed)
+                await _dialogs.ShowInformativeAsync(this, DialogRequest.Informative(
+                    T("QuickSetup.Unavailable.Title"), T("QuickSetup.Unavailable.Message"), T("Dialog.Ok")));
+        }
+        finally
+        {
+            _debugOobeResetting = false;
+            UpdateDebugFeatureMenu();
+        }
+    }
+
     private async void DebugFeatureProfile_Click(object sender, RoutedEventArgs e)
     {
         if (_featureProfileChanging || _featureAccessState is not { CanSimulate: true } current) return;

@@ -46,7 +46,9 @@ public sealed record ScreenshotDetailsViewState(
     string? AnalysisTime,
     IReadOnlyList<SafeMarkdownBlock> AiDescription,
     string? OcrText,
-    HardwareSnapshotViewState Hardware);
+    HardwareSnapshotViewState Hardware,
+    bool IsVip = false,
+    string UserNote = "");
 
 /// <summary>Builds safe screenshot-detail and Markdown projections without presentation-framework dependencies.</summary>
 public static partial class ScreenshotDetailsProjection
@@ -104,7 +106,9 @@ public static partial class ScreenshotDetailsProjection
             item.AiAnalyzedAt?.ToLocalTime().ToString("g", culture),
             ParseMarkdown(item.AiDescriptionMarkdown),
             ocrText,
-            HardwareSnapshotProjection.Create(item.HardwareSnapshot, culture, translate));
+            HardwareSnapshotProjection.Create(item.HardwareSnapshot, culture, translate),
+            item.IsVip,
+            item.UserNote);
     }
 
     /// <summary>

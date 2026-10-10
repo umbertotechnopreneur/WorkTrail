@@ -9,6 +9,69 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, validate native movement and resizing with the installed
+  primary-window snap guides: check both guide orientations, preview/active opacity,
+  all eight resize directions, retained opposite edges and minimum/maximum sizes,
+  multiple monitors and DPI scales, disabled snapping, cancellation, window closure,
+  and exclusion of dialogs and About as both moving surfaces and peer targets.
+
+- [ ] Extend the compact About review to other supported scaling levels, constrained work
+  areas, long localized text, high contrast and diagnostic failure states. Debug x64 MSIX
+  1.0.6.11 was installed and visually reviewed in Italian at 150% in both light and dark
+  themes, using the original alpha logo; its compact size and retained position were
+  observed. The GitHub and canonical manifesto destinations were checked against their
+  public pages; native external-link activation remains unverified. Additional tests
+  require owner authorization.
+
+- [ ] After explicit native-test authorization, validate the installed process memory guard:
+  Windows warning acknowledgement, bounded runtime shutdown, active/paused tracking after
+  recovery, retained activity and durable memory/recovery events. Do not allocate excessive
+  memory in the owner's active profile. The October 8 log cannot establish the cause of the
+  reported 3 GB peak; correlate process samples with system memory and storage events
+  before attributing OS-wide hangs to WorkTrail. Live profiling requires separate approval.
+
+- [ ] Validate the expanded tray menu on Windows: show all already-open windows from hidden
+  and minimized states, pause/resume tracking and notifications, restart to verify the saved
+  notification preference, and open VIP capture, clocks, astronomy views, Settings, and About.
+  Build, automated checks, and native interaction require owner authorization.
+
+- [ ] Validate the VIP snapshot flow on an isolated Windows desktop: cancel the five-second
+  countdown, capture multiple monitors without the player, save or skip a note, reopen the
+  gallery, select VIP and ordinary images, and verify calendar crowns after deletion.
+  Installation and native UI interaction require owner authorization.
+
+- [ ] Inspect the converted controls in the installed app's UI Automation tree and
+  exercise the theme, capture, gallery and export paths on an isolated Windows desktop.
+  Update `docs/UI_AUTOMATION.md` by UI surface only after the relevant interactions pass.
+
+- [ ] Drain pending hardware requests before disposing tracking and its snapshot gate.
+  Attempt every runtime shutdown step even after one fails, and protect the normal WinUI
+  close handler with error reporting and logging shutdown. Verify close during collection
+  and injected disposal failures using synthetic services before a separately approved live run.
+- [ ] Restore previously enabled advanced sensors after the application is ready, so UAC
+  consent or its timeout cannot hold the initial window. Keep fresh installation consent explicit.
+- [ ] Preserve PawnIO's pending-reboot requirement across WorkTrail restarts until Windows
+  has rebooted or the loaded driver is positively verified. Registry package version alone
+  must not authorize activation after installer exit code 3010.
+- [ ] Bound gallery memory with paged metadata and selected-capture detail loading while
+  retaining all hardware, OCR, and AI data in SQLite. Measure large synthetic days before
+  claiming a memory improvement; live profiling requires separate owner authorization.
+
+- [ ] Finish final synthetic Core validation of the implemented screenshot publication,
+  deletion recovery, shared retention inventory, and cancellable SQLite transaction.
+  The previous run passed 150 of 151 cases and exposed duplicate raw/stored progress;
+  the fix and final publication cleanup review are complete, with a rerun awaiting owner
+  approval. Keep real screenshots untouched and preserve failed recovery intents.
+- [ ] Visually accept the export title bar, grouping help dialog, and temporary Excel
+  previews at supported Windows scaling levels and themes. Confirm worksheet layout
+  in Excel. A live paid Batch submission, interruption/recovery, and cloud cancellation
+  require separate owner authorization; automated validation uses simulated responses.
+
+- [ ] Visually accept monthly retention at Windows scaling levels in light, dark, and high
+  contrast themes, including Free/Premium choices, a missed monthly cleanup after startup,
+  and shutdown while the shared progress dialog is active. Package installation remains
+  separately authorized.
+
 - [ ] Visually accept the astronomical agenda's 17-country holiday filters, Latin
   saints, per-entry artwork and same-window settings at Windows x64 scale levels;
   confirm sunrise ordering, reference marker and polar-day presentation. Local
@@ -24,7 +87,7 @@ the action needs authorization. Remove the item when it is complete.
 - [ ] Register the notification-area icon for the application lifetime. Its primary action
   must restore Main, and shutdown must remove it cleanly.
 - [ ] Treat a missing, incompatible, or corrupt local search index as a rebuildable cache.
-  Rebuild it without blocking application startup or weakening database validation.
+  Rebuild it without blocking application startup or replacing stored activity data.
 - [ ] Repair the current pre-release profile's stored screenshot roots once outside product
   code, then verify that Screenshot gallery opens the restored files. Do not add migration,
   fallback aliases, legacy product names, or compatibility code.
@@ -104,6 +167,9 @@ the action needs authorization. Remove the item when it is complete.
 - [ ] Verify Free limits of three labels and three clocks, upgrade dialogs, Premium badges,
   downgrade behavior, preservation of existing over-limit catalogs, and stale-dialog handling
   after a profile change.
+- [ ] Verify the shared Premium prompt and Microsoft Store action from exports, timesheets,
+  labels, clocks, schedules, data transfer, and two-/three-month retention choices; closing
+  the prompt must preserve Free limits, and a Store launch failure must show a visible error.
 - [ ] Verify the label editor and player selector for creation, rename, icon/color, duplicate
   names, delete-active, no-label, restart, persistence failure, compact widths, long captions,
   and stable placement beside the timer.

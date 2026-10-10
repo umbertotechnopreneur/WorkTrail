@@ -63,6 +63,11 @@ internal sealed class DataArchiveService
         "capture_id", "installation_id", "captured_utc_ticks", "origin"
     ];
 
+    private static readonly string[] VipScreenshotColumns =
+    [
+        "capture_id", "note", "updated_utc_ticks"
+    ];
+
     private static readonly string[] ScreenshotSnapshotColumns =
     [
         "artifact_identity", "capture_id", "source_path", "extracted_utc_ticks", "snapshot_json", "updated_utc_ticks"
@@ -707,8 +712,10 @@ internal sealed class DataArchiveService
                 throw new InvalidDataException("The extracted archive database length is invalid.");
             }
 
-            // Archives carry the same current database contract as the local store.
-            SqliteActivityStore.ValidateArchiveDatabaseSchema(databasePath);
+            // Beta archives are opened on demand without rejecting an informational schema version.
+            SqliteActivityStore.EnsureArchiveDatabaseReadable(databasePath);
+            // Normalize only the extracted copy; adding a missing metadata table preserves older retained captures.
+            SqliteActivityStore.EnsureVipScreenshotSchema(databasePath);
             EnsureDatabaseContainsNoAbsoluteScreenshotPaths(databasePath, cancellationToken);
             var summary = ReadDatabaseSummary(databasePath, cancellationToken);
             ValidateManifestSummary(manifest, summary);
@@ -721,6 +728,10 @@ internal sealed class DataArchiveService
         }
     }
 
+    /// <summary>Checks archive integrity and stored data without an exact schema/version preflight.</summary>
+    /// <param name="databasePath">The archive database opened read-only.</param>
+    /// <param name="cancellationToken">Cancels the retained data checks.</param>
+    /// <exception cref="InvalidDataException">Database integrity or stored archive data is invalid.</exception>
     private void ValidateArchiveDatabase(string databasePath, CancellationToken cancellationToken)
     {
         using var connection = OpenDatabase(databasePath, readOnly: true);
@@ -732,25 +743,6 @@ internal sealed class DataArchiveService
                 throw new InvalidDataException("The archive database integrity check failed.");
             }
         }
-
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "PRAGMA user_version;";
-            if (Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) != SqliteActivityStore.SchemaVersion)
-            {
-                throw new InvalidDataException("The archive database schema version is unsupported.");
-            }
-        }
-
-        ValidateColumns(connection, "activity_samples", ["id", .. ActivityColumns]);
-        ValidateColumns(connection, "ai_request_usage", AiRequestColumns);
-        ValidateColumns(connection, "ai_analysis_results", AiAnalysisColumns);
-        ValidateColumns(connection, "installation_profiles", InstallationColumns);
-        ValidateColumns(connection, "screenshot_captures", ScreenshotCaptureColumns);
-        ValidateColumns(connection, "screenshot_text_snapshots", ScreenshotSnapshotColumns);
-        ValidateColumns(connection, "screenshot_interval_telemetry", ScreenshotTelemetryColumns);
-        ValidateColumns(connection, "capture_hardware_snapshots", CaptureHardwareSnapshotColumns);
-        ValidateColumns(connection, "ai_analysis_artifacts", AiArtifactColumns);
 
         foreach (var profile in ReadInstallationProfiles(connection))
         {
@@ -887,6 +879,7 @@ internal sealed class DataArchiveService
     {
         var checks = new[]
         {
+            "SELECT 1 FROM screenshot_vip_metadata AS vip LEFT JOIN screenshot_captures AS capture ON capture.capture_id = vip.capture_id WHERE capture.capture_id IS NULL OR capture.origin <> 'manual' OR length(vip.note) > 4000 OR vip.updated_utc_ticks < 0 OR vip.updated_utc_ticks > 3155378975999999999 LIMIT 1;",
             "SELECT 1 FROM activity_samples AS row LEFT JOIN installation_profiles AS profile ON profile.installation_id = row.installation_id WHERE profile.installation_id IS NULL LIMIT 1;",
             "SELECT 1 FROM ai_analysis_results AS row LEFT JOIN installation_profiles AS profile ON profile.installation_id = row.installation_id WHERE profile.installation_id IS NULL LIMIT 1;",
             "SELECT 1 FROM screenshot_captures AS row LEFT JOIN installation_profiles AS profile ON profile.installation_id = row.installation_id WHERE profile.installation_id IS NULL LIMIT 1;",
@@ -925,6 +918,7 @@ internal sealed class DataArchiveService
             EnsureNoPayloadConflict(connection, "ai_analysis_results", ["correlation_id"], AiAnalysisColumns.Except(["correlation_id"]).ToArray());
             EnsureNoAlternateUniqueConflict(connection, "ai_analysis_results", "attempt_id", "correlation_id");
             EnsureNoPayloadConflict(connection, "screenshot_captures", ["capture_id"], ScreenshotCaptureColumns.Except(["capture_id"]).ToArray());
+            EnsureNoVersionedPayloadConflict(connection, "screenshot_vip_metadata", "capture_id", "updated_utc_ticks", VipScreenshotColumns);
             EnsureNoPayloadConflict(connection, "ai_analysis_artifacts", ["artifact_identity"], AiArtifactColumns.Except(["artifact_identity"]).ToArray());
             EnsureNoVersionedPayloadConflict(connection, "screenshot_text_snapshots", "artifact_identity", "updated_utc_ticks", ScreenshotSnapshotColumns, "snapshot_json");
             EnsureNoVersionedPayloadConflict(connection, "screenshot_interval_telemetry", "artifact_identity", "updated_utc_ticks", ScreenshotTelemetryColumns);
@@ -1065,6 +1059,8 @@ internal sealed class DataArchiveService
                     connection, transaction, "ai_analysis_results", ["correlation_id"], AiAnalysisColumns, cancellationToken);
                 _ = MergeImmutableTable(
                     connection, transaction, "screenshot_captures", ["capture_id"], ScreenshotCaptureColumns, cancellationToken);
+                MergeVersionedTable(
+                    connection, transaction, "screenshot_vip_metadata", "capture_id", "updated_utc_ticks", VipScreenshotColumns);
                 _ = MergeImmutableTable(
                     connection, transaction, "ai_analysis_artifacts", ["artifact_identity"], AiArtifactColumns, cancellationToken);
                 MergeVersionedTable(
@@ -1255,6 +1251,8 @@ internal sealed class DataArchiveService
     private static void RebuildSqliteAiSearch(SqliteConnection connection, SqliteTransaction transaction)
     {
         ExecuteNonQuery(connection, transaction, "DELETE FROM ai_analysis_search;");
+        ExecuteNonQuery(connection, transaction,
+            "DELETE FROM screenshot_vip_metadata WHERE capture_id NOT IN (SELECT capture_id FROM screenshot_captures);");
         ExecuteNonQuery(connection, transaction, """
             INSERT INTO ai_analysis_search (correlation_id, application, context, summary)
             SELECT correlation_id, application, context, summary

@@ -24,7 +24,7 @@ public sealed class PremiumUiContractTests
         Assert.Contains(badge.Ancestors(), element => Name(element)?.EndsWith("DragRegion", StringComparison.Ordinal) == true);
     }
 
-    /// <summary>Labels stay left-aligned beside management, with no redundant history submenu.</summary>
+    /// <summary>The label selector owns management, leaving its second row for the VIP capture action.</summary>
     [Fact]
     public void MainWindow_KeepsLabelActionsTogetherAndHistoryActionsOnlyAtTopLevel()
     {
@@ -32,8 +32,11 @@ public sealed class PremiumUiContractTests
         var actions = document.Descendants().Single(element => Name(element) == "PlayerLabelActionsPanel");
         Assert.Equal("Right", actions.Attribute("HorizontalAlignment")?.Value);
         Assert.Equal("Center", actions.Attribute("VerticalAlignment")?.Value);
-        Assert.Contains(actions.Descendants(), element => Name(element) == "ManageLabelsButton"
-            && element.Attribute("Grid.Row")?.Value == "1" && element.Attribute("HorizontalAlignment")?.Value == "Right");
+        Assert.DoesNotContain(actions.Descendants(), element => Name(element) == "ManageLabelsButton");
+        Assert.Contains(actions.Descendants(), element => Name(element) == "VipSnapshotButton"
+            && element.Attribute("Grid.Row")?.Value == "1" && element.Attribute("Width")?.Value == "155");
+        Assert.Contains(actions.Descendants(), element => Name(element) == "PlayerLabelSelector"
+            && element.Attribute("ManageRequested")?.Value == "PlayerLabelSelector_ManageRequested");
         Assert.Contains(actions.Descendants(), element => Name(element) == "PlayerLabelFeatureGate" && element.Attribute("HorizontalAlignment")?.Value == "Right");
         Assert.DoesNotContain(actions.Descendants(), element => element.Name.LocalName == "PremiumBadge");
         Assert.DoesNotContain(document.Descendants(), element => Name(element) == "ActivityMenu");
@@ -41,30 +44,31 @@ public sealed class PremiumUiContractTests
             Assert.Equal("MenuFlyout", document.Descendants().Single(element => Name(element) == name).Parent!.Name.LocalName);
     }
 
-    /// <summary>The celestial menu shares the main menu geometry and uses a colored icon on every action.</summary>
+    /// <summary>The shared celestial menu keeps its navigation styling and the add-clock badge.</summary>
     [Fact]
-    public void WorldClocks_UseColoredMenuIconsAndAnAddButtonBadge()
+    public void WorldClocks_UseSharedColoredNavigationMenuAndAnAddButtonBadge()
     {
-        var window = XDocument.Load(PathFor("WorkTrail", "WorldClockWindow.xaml"));
-        var menu = window.Descendants().Single(element => Name(element) == "WorldMapButton").Descendants().Single(element => element.Name.LocalName == "MenuFlyout");
-        var setters = menu.Descendants().Where(element => element.Name.LocalName == "Setter").ToArray();
-        Assert.Contains(setters, element => element.Attribute("Property")?.Value == "MinWidth" && element.Attribute("Value")?.Value == "320");
-        Assert.Contains(setters, element => element.Attribute("Property")?.Value == "CornerRadius" && element.Attribute("Value")?.Value == "12");
-        foreach (var item in menu.Descendants().Where(element => element.Name.LocalName == "MenuFlyoutItem"))
-            Assert.Contains(item.Descendants(), element => element.Name.LocalName == "FontIcon" && element.Attribute("Foreground") is not null);
+        var windowSource = File.ReadAllText(PathFor("WorkTrail", "WorldClockWindow.xaml.cs"));
+        var menuSource = File.ReadAllText(PathFor("WorkTrail", "Controls", "AstronomyWindowMenu.cs"));
+        Assert.Contains("WorldMapButton.Flyout = AstronomyWindowMenu.Create", windowSource, StringComparison.Ordinal);
+        Assert.Contains("new Setter(FrameworkElement.MinWidthProperty, 320d)", menuSource, StringComparison.Ordinal);
+        Assert.Contains("new Setter(Control.CornerRadiusProperty, new CornerRadius(12))", menuSource, StringComparison.Ordinal);
+        Assert.Contains("icon.Foreground = new SolidColorBrush(foreground)", menuSource, StringComparison.Ordinal);
+        Assert.Equal(4, menuSource.Split("Color.FromArgb(", StringSplitOptions.None).Length - 1);
+        Assert.Contains("AddItem(\"Window.Close\"", menuSource, StringComparison.Ordinal);
         var options = XDocument.Load(PathFor("WorkTrail", "Controls", "WorldClockOptionsControl.xaml"));
         var add = options.Descendants().Single(element => Name(element) == "AddClockButton");
         Assert.Contains(add.Parent!.Elements(), element => Name(element) == "AddClockPremiumBadge");
     }
 
-    /// <summary>Only the existing separator remains around the OCR/AI settings action.</summary>
+    /// <summary>The OCR/AI action uses the same navigation control as the surrounding settings links.</summary>
     [Fact]
     public void OcrSettings_HaveNoDecorativeHeadingOrDuplicateBorder()
     {
         var document = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
         Assert.DoesNotContain(document.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.Ai");
         var action = document.Descendants().Single(element => Name(element) == "OcrAiSettingsButton");
-        Assert.Equal("0", action.Attribute("BorderThickness")?.Value);
+        Assert.Equal("HyperlinkButton", action.Name.LocalName);
         Assert.DoesNotContain("OptionsPanoramaVioletBrush", document.ToString(), StringComparison.Ordinal);
     }
 
@@ -78,11 +82,67 @@ public sealed class PremiumUiContractTests
         var archives = File.ReadAllText(PathFor("WorkTrail", "Controls", "InstallationTransferOperationsControl.xaml.cs"));
         Assert.Equal(2, archives.Split("if (!await EnsureArchiveAccessAsync())", StringSplitOptions.None).Length - 1);
         Assert.Contains("ProductFeature.DataTransfer", archives, StringComparison.Ordinal);
-        Assert.Contains("Context.Dialogs.ShowInformativeAsync", archives, StringComparison.Ordinal);
+        Assert.Contains("Context.Dialogs.ShowPremiumUpgradeAsync", archives, StringComparison.Ordinal);
         var labels = File.ReadAllText(PathFor("WorkTrail", "Controls", "ActivityLabelsEditor.cs"));
         Assert.Contains("result.Code == \"feature.label_limit\"", labels, StringComparison.Ordinal);
         Assert.Contains("button.BorderThickness = new Thickness(0);", labels, StringComparison.Ordinal);
         Assert.Contains("ToggleButtonBackground", labels, StringComparison.Ordinal);
+    }
+
+    /// <summary>Extended retention uses the same Premium control and exposes all three monthly choices.</summary>
+    [Fact]
+    public void Retention_ExtendedChoicesUseSharedPremiumBadge()
+    {
+        var document = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        foreach (var buttonName in new[] { "TwoMonthsButton", "ThreeMonthsButton" })
+        {
+            var button = document.Descendants().Single(element => Name(element) == buttonName);
+            Assert.Single(button.Descendants(), element => element.Name.LocalName == "PremiumBadge");
+        }
+        var free = document.Descendants().Single(element => Name(element) == "OneMonthButton");
+        Assert.DoesNotContain(free.Descendants(), element => element.Name.LocalName == "PremiumBadge");
+        foreach (var name in new[] { "FirstActivationText", "LastCleanupText", "NextCleanupText" })
+            Assert.Single(document.Descendants(), element => Name(element) == name);
+    }
+
+    /// <summary>The folder editor and keep-captures toggle have a single home on the retention page.</summary>
+    [Fact]
+    public void Retention_OwnsScreenshotStorageSettings()
+    {
+        var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
+        var retention = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
+        foreach (var controlName in new[] { "ScreenshotFolderBox", "KeepScreenshotsSwitch", "ScreenshotsEnabledSwitch", "ScreenshotModeBox", "OcrEnabledSwitch", "OcrLanguageBox" })
+        {
+            Assert.DoesNotContain(options.Descendants(), element => Name(element) == controlName);
+            Assert.Single(retention.Descendants(), element => Name(element) == controlName);
+        }
+        var sensors = XDocument.Load(PathFor("WorkTrail", "Controls", "SensorOptionsControl.xaml"));
+        Assert.DoesNotContain(sensors.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
+        Assert.Single(retention.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
+    }
+
+    /// <summary>The v1 surface never advertises or instantiates the withdrawn taskbar widget.</summary>
+    [Fact]
+    public void TaskbarWidget_HasNoV1SettingsOrActivationPath()
+    {
+        var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
+        Assert.DoesNotContain(options.Descendants(), element => element.Attribute("Tag")?.Value?.StartsWith("Options.TaskbarWidget.", StringComparison.Ordinal) == true);
+        var app = File.ReadAllText(PathFor("WorkTrail", "App.xaml.cs"));
+        Assert.DoesNotContain("TaskbarWidgetSurface", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApplyTaskbarWidgetSettings", app, StringComparison.Ordinal);
+    }
+
+    /// <summary>Monthly cleanup is queued only after the workspace and restored windows are ready.</summary>
+    [Fact]
+    public void RetentionStartup_WaitsForWorkspaceAndRestoration()
+    {
+        var app = File.ReadAllText(PathFor("WorkTrail", "App.xaml.cs"));
+        var ready = app.IndexOf("await _window.WaitForWorkspaceReadyAsync();", StringComparison.Ordinal);
+        var restored = app.IndexOf("await RestoreWorkspaceAsync(application, previousSettings);", StringComparison.Ordinal);
+        var maintenance = app.IndexOf("StartRetentionMaintenance();", StringComparison.Ordinal);
+        Assert.True(ready >= 0 && ready < restored && restored < maintenance);
+        Assert.Contains("DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()", app, StringComparison.Ordinal);
+        Assert.Contains("Scheduled: true, OperationId: operationId", app, StringComparison.Ordinal);
     }
 
     private static string? Name(XElement element) => element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")?.Value;

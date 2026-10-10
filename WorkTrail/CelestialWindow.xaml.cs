@@ -100,6 +100,7 @@ internal sealed partial class CelestialWindow : Window
         AgendaOptionsButton.Visibility = _windowKey == WindowStateKeys.AstronomyAgenda
             ? Visibility.Visible : Visibility.Collapsed;
         UiLocalization.SetAccessibleLabel(AgendaOptionsButton, T("Celestial.Agenda.Options"));
+        ToolTipService.SetToolTip(AgendaOptionsButton, T("Celestial.Agenda.Options"));
         ZodiacNoteText.Text = T("Celestial.Zodiac.Note");
         _controller.ApplySettings(settings);
     }
@@ -183,15 +184,10 @@ internal sealed partial class CelestialWindow : Window
             TextWrapping = TextWrapping.Wrap,
             Foreground = ThemeBrush("TextFillColorSecondaryBrush")
         });
-        var dialog = new ContentDialog
-        {
-            XamlRoot = RootGrid.XamlRoot,
-            Title = T("Celestial.Agenda.Options"),
-            PrimaryButtonText = T("Labels.Save"),
-            CloseButtonText = T("Dialog.Cancel"),
-            Content = new ScrollViewer { Content = content, MaxHeight = 450, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        var dialogContent = new ScrollViewer { Content = content, MaxHeight = 450, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        if (!await _dialogs.ConfirmAsync(this, new DialogRequest(
+                T("Celestial.Agenda.Options"), T("Celestial.Agenda.Options.Coverage"),
+                T("Labels.Save"), T("Dialog.Cancel")), dialogContent)) return;
         if (city.SelectedValue is not string cityId) return;
         try
         {

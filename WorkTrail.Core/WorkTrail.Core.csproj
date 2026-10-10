@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\docs\assets\meup\worktrail-mark-v1.png" LogicalName="WorkTrail.Report.brandmark.png" />
     <Compile Include="..\WorkTrail\Models\ActivityModels.cs" Link="Domain\ActivityModels.cs" />
     <Compile Include="..\WorkTrail\Providers\ActivityContextProviders.cs" Link="Infrastructure\ActivityContextProviders.cs" />
     <Compile Include="Infrastructure\Services\*.cs" />
@@ -20,6 +21,7 @@
     <EmbeddedResource Include="Data\meteor-showers.json" LogicalName="WorkTrail.Data.meteor-showers.json" />
     <EmbeddedResource Include="Data\sky-catalog.json" LogicalName="WorkTrail.Data.sky-catalog.json" />
     <EmbeddedResource Include="Data\sky-palette.json" LogicalName="WorkTrail.Data.sky-palette.json" />
+    <EmbeddedResource Include="Data\ui-automation-names.json" LogicalName="WorkTrail.Data.ui-automation-names.json" />
     <EmbeddedResource Include="Data\important-dates.json" LogicalName="WorkTrail.Data.important-dates.json" />
     <EmbeddedResource Include="Data\celestial-calendar.json" LogicalName="WorkTrail.Data.celestial-calendar.json" />
     <EmbeddedResource Include="..\WorkTrail.Hardware\PawnIO\distribution.json" LogicalName="WorkTrail.PawnIO.distribution.json" />

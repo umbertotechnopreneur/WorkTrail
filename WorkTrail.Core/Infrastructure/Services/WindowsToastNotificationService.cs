@@ -20,6 +20,9 @@ public sealed class WindowsToastNotificationService : IWindowsToastNotificationS
 {
     private readonly ILogger<WindowsToastNotificationService> _logger;
 
+    /// <summary>Gets or sets whether automatic Windows notifications may be displayed.</summary>
+    public bool IsEnabled { get; set; } = true;
+
     /// <summary>Creates the Windows toast adapter.</summary>
     /// <param name="logger">Logger used when the optional toast channel is unavailable.</param>
     public WindowsToastNotificationService(ILogger<WindowsToastNotificationService> logger)
@@ -32,6 +35,7 @@ public sealed class WindowsToastNotificationService : IWindowsToastNotificationS
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        if (!IsEnabled) return false;
 
         try
         {

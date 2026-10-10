@@ -30,10 +30,7 @@
                     <StaticResource x:Key="InfoBarSuccessSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <StaticResource x:Key="InfoBarWarningSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <StaticResource x:Key="InfoBarErrorSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
-                    <SolidColorBrush x:Key="ToastSurfaceBackgroundBrush" Color="#FFF6F6F6" />
                     <SolidColorBrush x:Key="ToastBorderBrush" Color="#FF6A94B6" />
-                    <SolidColorBrush x:Key="ToastCountdownTrackBrush" Color="#FFABC7D8" />
-                    <SolidColorBrush x:Key="ToastCountdownForegroundBrush" Color="#FF0879C9" />
                     <SolidColorBrush x:Key="TrackingStatusToastBackgroundBrush" Color="#FF173148" />
                     <SolidColorBrush x:Key="ToastTextBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="ToastSecondaryTextBrush" Color="#FFD6E8F3" />
@@ -54,10 +51,7 @@
                     <StaticResource x:Key="InfoBarSuccessSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <StaticResource x:Key="InfoBarWarningSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <StaticResource x:Key="InfoBarErrorSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
-                    <SolidColorBrush x:Key="ToastSurfaceBackgroundBrush" Color="#FF262626" />
                     <SolidColorBrush x:Key="ToastBorderBrush" Color="#FF789BB8" />
-                    <SolidColorBrush x:Key="ToastCountdownTrackBrush" Color="#FF34546C" />
-                    <SolidColorBrush x:Key="ToastCountdownForegroundBrush" Color="#FF5CC8FF" />
                     <SolidColorBrush x:Key="TrackingStatusToastBackgroundBrush" Color="#FF173148" />
                     <SolidColorBrush x:Key="ToastTextBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="ToastSecondaryTextBrush" Color="#FFD6E8F3" />
@@ -77,10 +71,7 @@
                     <StaticResource x:Key="InfoBarSuccessSeverityIconForeground" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="InfoBarWarningSeverityIconForeground" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="InfoBarErrorSeverityIconForeground" ResourceKey="SystemColorWindowTextColorBrush" />
-                    <StaticResource x:Key="ToastSurfaceBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
                     <StaticResource x:Key="ToastBorderBrush" ResourceKey="SystemColorWindowTextColorBrush" />
-                    <StaticResource x:Key="ToastCountdownTrackBrush" ResourceKey="SystemColorWindowTextColorBrush" />
-                    <StaticResource x:Key="ToastCountdownForegroundBrush" ResourceKey="SystemColorHighlightColorBrush" />
                     <StaticResource x:Key="TrackingStatusToastBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
                     <StaticResource x:Key="ToastTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="ToastSecondaryTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />

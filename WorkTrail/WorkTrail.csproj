@@ -47,6 +47,7 @@
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <Content Include="Assets\WorkTrail*.png" />
+    <Content Update="Assets\WorkTrailExcelPreviewLight.png;Assets\WorkTrailExcelPreviewDark.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Update="Assets\WorkTrailNuclearize.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\WorkTrailIcon.ico" />
     <Content Include="Assets\Celestial\**\*">
@@ -57,15 +58,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\design\branding\recall-timeline\output\worktrail-recall-timeline-banner-theme-dark-readme-2400x800.png">
-      <Link>Assets\WorkTrailAboutHero.theme-dark.png</Link>
-      <TargetPath>Assets\WorkTrailAboutHero.theme-dark.png</TargetPath>
+    <Content Update="Assets\WorkTrailAboutHeroTrailV1.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\design\branding\recall-timeline\output\worktrail-recall-timeline-banner-theme-light-readme-2400x800.png">
-      <Link>Assets\WorkTrailAboutHero.theme-light.png</Link>
-      <TargetPath>Assets\WorkTrailAboutHero.theme-light.png</TargetPath>
+    <Content Include="Assets\VibeWareLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

@@ -20,6 +20,10 @@ public sealed class ActivityLabelSelector : UserControl
     private LocalizationService _strings = new("system");
     private bool _updating;
     private bool _selectionSaveInProgress;
+    private readonly ComboBoxItem _manageItem = new();
+
+    /// <summary>Occurs when the user requests the label editor without changing the active label.</summary>
+    public event EventHandler? ManageRequested;
 
     /// <summary>Creates the small selector with an explicit no-label choice.</summary>
     public ActivityLabelSelector()
@@ -50,6 +54,9 @@ public sealed class ActivityLabelSelector : UserControl
             var none = new ComboBoxItem { Content = _strings.Translate("Labels.None"), Tag = "" };
             _box.Items.Add(none);
             _box.SelectedItem = none;
+            _manageItem.Content = _strings.Translate("Labels.Manage") + "…";
+            AutomationProperties.SetName(_manageItem, _strings.Translate("Labels.Manage"));
+            _box.Items.Add(_manageItem);
             foreach (var label in settings.ActivityLabels ?? [])
             {
                 var item = new ComboBoxItem { Content = ActivityLabelVisuals.Content(label), Tag = label.Id };
@@ -70,8 +77,20 @@ public sealed class ActivityLabelSelector : UserControl
         finally { _updating = false; }
     }
 
+    // sender identifies the label selector.
+    // e contains the selected command or activity label.
     private async void SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (!_updating && ReferenceEquals(_box.SelectedItem, _manageItem))
+        {
+            // Management is a command, not an activity-label selection or a settings mutation.
+            _updating = true;
+            try { RestoreAcknowledgedSelection(); }
+            finally { _updating = false; }
+            _box.IsDropDownOpen = false;
+            ManageRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
         if (_updating || _application is null || _box.SelectedItem is not ComboBoxItem { Tag: string id }) return;
         _box.IsEnabled = false;
         _selectionSaveInProgress = true;
@@ -105,12 +124,18 @@ public sealed class ActivityLabelSelector : UserControl
         _updating = true;
         try
         {
-            var id = (_settings?.ActivityLabels ?? []).FirstOrDefault(label => label.Name == _settings?.SpanLabel)?.Id;
-            _box.SelectedItem = _box.Items.Cast<ComboBoxItem>().First(item =>
-                _settings?.SpanLabel.Length > 0 ? (string?)item.Tag == id : (string?)item.Tag == "");
+            RestoreAcknowledgedSelection();
         }
         finally { _updating = false; }
         _error.Text = _strings.Translate("Labels.SaveError");
         _error.Visibility = Visibility.Visible;
+    }
+
+    private void RestoreAcknowledgedSelection()
+    {
+        var id = (_settings?.ActivityLabels ?? []).FirstOrDefault(label => label.Name == _settings?.SpanLabel)?.Id;
+        _box.SelectedItem = _box.Items.Cast<ComboBoxItem>().First(item =>
+            !ReferenceEquals(item, _manageItem)
+            && (_settings?.SpanLabel.Length > 0 ? item.Tag as string == id : item.Tag as string == ""));
     }
 }

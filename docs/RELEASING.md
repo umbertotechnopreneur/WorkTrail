@@ -1,4 +1,4 @@
-# Preparing a GitHub release
+# Preparing a GitHub release (For admins only)
 
 WorkTrail produces native **x64** and **ARM64** MSIX packages and portable ZIPs.
 The `release packages` workflow prepares all four artifacts from the same commit

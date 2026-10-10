@@ -2,7 +2,8 @@
 <UserControl
     x:Class="WorkTrail.Controls.ScreenshotDetailsControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:WorkTrail.Controls">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
@@ -57,6 +58,11 @@
         VerticalScrollBarVisibility="Auto"
         VerticalScrollMode="Auto">
         <StackPanel Padding="22,18,22,24" Spacing="14">
+            <StackPanel x:Name="VipDetailsSection" Visibility="Collapsed" Spacing="8">
+                <controls:VipBadge Tag="Snapshot.Vip.Badge" />
+                <TextBlock x:Name="VipNoteLabel" Tag="Snapshot.Vip.Note" Text="Your note" FontWeight="SemiBold" />
+                <TextBlock x:Name="VipNoteText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+            </StackPanel>
             <TextBlock
                 FontSize="12"
                 FontWeight="SemiBold"
@@ -251,7 +257,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Expander Background="Transparent" HorizontalAlignment="Stretch" IsExpanded="False">
+                <Expander AutomationProperties.AutomationId="Gallery.Details.AllSensors" Background="Transparent" HorizontalAlignment="Stretch" IsExpanded="False">
                     <Expander.Header>
                         <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Hardware.AllSensors" Text="All sensors" />
                     </Expander.Header>
@@ -261,7 +267,24 @@
                         <ItemsControl x:Name="HardwareSensorList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Margin="0,3" FontSize="12" IsTextSelectionEnabled="True" Text="{Binding}" TextWrapping="Wrap" />
+                                    <Expander HorizontalAlignment="Stretch" Background="Transparent" IsExpanded="False">
+                                        <Expander.Header>
+                                            <StackPanel Spacing="2">
+                                                <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
+                                                <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Category}" />
+                                            </StackPanel>
+                                        </Expander.Header>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="12" Text="{Binding UpdatedAt}" TextWrapping="Wrap" />
+                                            <ItemsControl ItemsSource="{Binding Readings}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Margin="0,3" FontSize="12" IsTextSelectionEnabled="True" Text="{Binding}" TextWrapping="Wrap" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Expander>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -269,7 +292,7 @@
                 </Expander>
             </StackPanel>
 
-            <Expander
+            <Expander AutomationProperties.AutomationId="Gallery.Details.AnalysisSourcesExpander"
                 x:Name="AnalysisSourcesExpander"
                 Background="Transparent"
                 HorizontalAlignment="Stretch"
@@ -325,18 +348,17 @@
 
                     <StackPanel x:Name="OcrTextSection" Spacing="6" Visibility="Collapsed">
                         <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Screenshots.OcrText.Details.Title" Text="OCR text" />
-                        <Button
+                        <Button AutomationProperties.AutomationId="Gallery.Details.OpenOcrTextButton"
                             x:Name="OpenOcrTextButton"
                             MinHeight="36"
                             Padding="0,6"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="Open OCR text in a new window"
                             Background="Transparent"
                             BorderBrush="Transparent"
                             BorderThickness="0"
                             Click="OpenOcrTextButton_Click"
                             Tag="Screenshots.OcrText.Details.Open"
-                            ToolTipService.ToolTip="Open OCR text in a new window">
+                            AutomationProperties.Name="Open OCR text in a new window" ToolTipService.ToolTip="Open OCR text in a new window">
                             <StackPanel Orientation="Horizontal" Spacing="7">
                                 <TextBlock Tag="Screenshots.OcrText.Details.Action" Text="Open OCR text" />
                                 <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="13" Glyph="&#xE8A7;" />

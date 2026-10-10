@@ -238,7 +238,7 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.DoesNotContain("result.Code", pluginSource, StringComparison.Ordinal);
     }
 
-    /// <summary>Guards the shared opaque overlay, contained timeout indicator, severity semantics, and configurable timeout.</summary>
+    /// <summary>Guards the shared compact toast, severity colors, native icons, and configurable dismissal timeout.</summary>
     [Fact]
     public void CentralBanners_UseOneTimedOpaqueOverlay()
     {
@@ -267,25 +267,30 @@ public sealed class WinUiOperationsSurfaceContractTests
         var infoBar = banner.Descendants().Single(element => element.Name.LocalName == "InfoBar");
         var bannerSurface = banner.Descendants().Single(element => HasName(element, "BannerSurface"));
         var bannerFrame = banner.Descendants().Single(element => HasName(element, "BannerFrame"));
-        var countdownTrack = banner.Descendants().Single(element => HasName(element, "CountdownTrack"));
-        var progress = banner.Descendants().Single(element => element.Name.LocalName == "ProgressBar");
+        Assert.DoesNotContain(banner.Descendants(), element => element.Name.LocalName == "ProgressBar" || HasName(element, "CountdownTrack"));
         Assert.Equal("620", banner.Root?.Attribute("MaxWidth")?.Value);
-        Assert.Equal("Stretch", banner.Root?.Attribute("HorizontalAlignment")?.Value);
+        Assert.Equal("Center", banner.Root?.Attribute("HorizontalAlignment")?.Value);
         Assert.Equal("Top", banner.Root?.Attribute("VerticalContentAlignment")?.Value);
         Assert.Equal("620", bannerSurface.Attribute("MaxWidth")?.Value);
-        Assert.Equal("Stretch", bannerSurface.Attribute("HorizontalAlignment")?.Value);
-        Assert.Equal("{ThemeResource ToastBorderBrush}", bannerFrame.Attribute("BorderBrush")?.Value);
-        Assert.Equal("{ThemeResource ToastSurfaceBackgroundBrush}", bannerFrame.Attribute("Background")?.Value);
-        var toastSurfaces = app.Descendants().Where(element => HasKey(element, "ToastSurfaceBackgroundBrush")).ToArray();
-        Assert.Equal(3, toastSurfaces.Length);
-        Assert.Equal(2, toastSurfaces.Count(element => element.Attribute("Color")?.Value.StartsWith("#FF", StringComparison.Ordinal) == true));
-        Assert.Single(toastSurfaces, element => element.Attribute("ResourceKey")?.Value == "SystemColorWindowColorBrush");
+        Assert.Equal("Center", bannerSurface.Attribute("HorizontalAlignment")?.Value);
+        Assert.Equal("{ThemeResource ToastSuccessBorderBrush}", bannerFrame.Attribute("BorderBrush")?.Value);
+        Assert.Equal("{ThemeResource ToastSuccessBackgroundBrush}", bannerFrame.Attribute("Background")?.Value);
+        foreach (var severity in new[] { "Success", "Warning", "Error" })
+        {
+            var backgrounds = banner.Descendants().Where(element => HasKey(element, $"Toast{severity}BackgroundBrush")).ToArray();
+            Assert.Equal(3, backgrounds.Length);
+            Assert.Single(backgrounds, element => element.Attribute("ResourceKey")?.Value == "SystemColorWindowColorBrush");
+            var state = banner.Descendants().Single(element => element.Name.LocalName == "VisualState" && HasName(element, severity));
+            Assert.Contains(state.Descendants(), element => element.Attribute("Target")?.Value == "BannerFrame.BorderBrush"
+                && element.Attribute("Value")?.Value == $"{{ThemeResource Toast{severity}BorderBrush}}");
+        }
         Assert.Equal("1", bannerFrame.Attribute("BorderThickness")?.Value);
         Assert.Equal("16", bannerFrame.Attribute("CornerRadius")?.Value);
         Assert.DoesNotContain(banner.Descendants(), element => element.Name.LocalName == "InfoBar.Resources");
         Assert.Equal("15", infoBar.Attribute("CornerRadius")?.Value);
-        Assert.Equal("82", infoBar.Attribute("MinHeight")?.Value);
-        Assert.Equal("6,4,6,14", infoBar.Attribute("Padding")?.Value);
+        Assert.Equal("48", infoBar.Attribute("MinHeight")?.Value);
+        Assert.Equal("6,4", infoBar.Attribute("Padding")?.Value);
+        Assert.Equal("True", infoBar.Attribute("IsIconVisible")?.Value);
         Assert.DoesNotContain(banner.Descendants(), element => HasName(element, "FrostedVeil"));
         Assert.DoesNotContain(banner.Descendants(), element => element.Name.LocalName.Contains("GradientBrush", StringComparison.Ordinal));
         Assert.Null(infoBar.Attribute("Background"));
@@ -297,15 +302,6 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.Equal("BannerInfoBar_Closing", infoBar.Attribute("Closing")?.Value);
         Assert.Equal("0", bannerSurface.Attribute("Opacity")?.Value);
         Assert.Equal("Top", bannerSurface.Attribute("VerticalAlignment")?.Value);
-        Assert.Equal("18,0,18,9", countdownTrack.Attribute("Margin")?.Value);
-        Assert.Equal("{ThemeResource ToastCountdownTrackBrush}", countdownTrack.Attribute("Background")?.Value);
-        Assert.Equal("Bottom", countdownTrack.Attribute("VerticalAlignment")?.Value);
-        Assert.Equal("3", progress.Attribute("Height")?.Value);
-        Assert.Equal("Transparent", progress.Attribute("Background")?.Value);
-        Assert.Equal("{ThemeResource ToastCountdownForegroundBrush}", progress.Attribute("Foreground")?.Value);
-        Assert.Equal("Raw", progress.Attributes().Single(attribute => attribute.Name.LocalName == "AutomationProperties.AccessibilityView").Value);
-        Assert.DoesNotContain(banner.Descendants().Attributes(), attribute =>
-            attribute.Value.StartsWith('#'));
         Assert.DoesNotContain(app.Descendants(), element =>
             HasKey(element, "TimedInfoBarBackdropBrush") ||
             HasKey(element, "TimedInfoBarGlassBorderBrush") ||
@@ -321,7 +317,8 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.Contains("countdown.Timer.Tick -= countdown.Tick;", toastService, StringComparison.Ordinal);
         Assert.Contains("ValidateHostThread(host);", toastService, StringComparison.Ordinal);
         Assert.Contains("countdown.Generation != generation", toastService, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMilliseconds(50)", toastService, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMilliseconds(250)", toastService, StringComparison.Ordinal);
+        Assert.DoesNotContain("CountdownIndicator", toastService, StringComparison.Ordinal);
         Assert.Contains("private const float BannerElevation = 18f;", bannerSource, StringComparison.Ordinal);
         Assert.Contains("BannerInfoBar.Severity = severity;", bannerSource, StringComparison.Ordinal);
         Assert.Contains("InfoBarSeverity.Informational", toastService, StringComparison.Ordinal);
@@ -408,9 +405,9 @@ public sealed class WinUiOperationsSurfaceContractTests
         var operationsSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OperationsControl.xaml.cs"));
         var sectionTags = new[]
         {
-            "Operations.Retention.Policy",
+            "Operations.Retention.PolicyMonths",
             "Operations.Retention.Preview",
-            "Operations.Retention.Cleanup"
+            "Operations.Retention.Monthly"
         };
 
         Assert.All(sectionTags, tag => Assert.Contains(surface.Descendants(), element =>
@@ -419,9 +416,9 @@ public sealed class WinUiOperationsSurfaceContractTests
                 attribute.Name.LocalName == "AutomationProperties.HeadingLevel"
                 && attribute.Value == "Level3")));
         Assert.True(surface.Descendants().Count(element => element.Name.LocalName == "Rectangle") >= 2);
-        Assert.DoesNotContain(surface.Descendants(), element => element.Name.LocalName == "Border");
+        Assert.Single(surface.Descendants(), element => element.Name.LocalName == "Border");
         Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Preview.Description");
-        Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Cleanup.Description");
+        Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Summary");
 
         Assert.All(new[]
         {
@@ -439,15 +436,15 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.Contains("internal async Task LoadAsync()", source, StringComparison.Ordinal);
         Assert.Contains("_ = _retentionSection!.LoadAsync();", operationsSource, StringComparison.Ordinal);
 
-        var directory = surface.Descendants().Single(element => HasName(element, "RetentionDirectoryText"));
+        var directory = surface.Descendants().Single(element => HasName(element, "ScreenshotFolderBox"));
         var candidatePath = surface.Descendants().Single(element =>
             element.Name.LocalName == "TextBlock" && element.Attribute("ToolTipService.ToolTip")?.Value == "{Binding}");
-        Assert.Equal("CharacterEllipsis", directory.Attribute("TextTrimming")?.Value);
-        Assert.Equal("1", directory.Attribute("MaxLines")?.Value);
+        Assert.Equal("TextBox", directory.Name.LocalName);
+        Assert.Equal("ScreenshotFolderBox_LostFocus", directory.Attribute("LostFocus")?.Value);
         Assert.Equal("CharacterEllipsis", candidatePath.Attribute("TextTrimming")?.Value);
         Assert.Equal("1", candidatePath.Attribute("MaxLines")?.Value);
-        Assert.Contains("RetentionDirectoryText.Text = status.ScreenshotDirectory", source, StringComparison.Ordinal);
-        Assert.Contains("ToolTipService.SetToolTip(RetentionDirectoryText, status.ScreenshotDirectory)", source, StringComparison.Ordinal);
+        Assert.Contains("ScreenshotFolderBox.Text = status.ScreenshotDirectory", source, StringComparison.Ordinal);
+        Assert.Contains("QueueStorageSave(\"screenshots.directory\"", source, StringComparison.Ordinal);
         Assert.Contains("Operations.Retention.Preview.Paths", source, StringComparison.Ordinal);
         Assert.DoesNotContain("System.IO", source, StringComparison.Ordinal);
     }
@@ -461,7 +458,8 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.Contains("Dialogs.ConfirmAsync(", source, StringComparison.Ordinal);
         Assert.Contains("DialogRequest.Confirmation(", source, StringComparison.Ordinal);
         Assert.Contains("if (!confirmed)", source, StringComparison.Ordinal);
-        Assert.Contains("new RetentionRequest(Execute: true, Confirmed: true)", source, StringComparison.Ordinal);
+        Assert.Contains("new RetentionRequest(Execute: true, Confirmed: true, OperationId: operationId)", source, StringComparison.Ordinal);
+        Assert.Contains("retentionOperationId: operationId", source, StringComparison.Ordinal);
     }
 
     /// <summary>Guards the two-step warning flow and keeps destructive reset work behind the shared facade.</summary>

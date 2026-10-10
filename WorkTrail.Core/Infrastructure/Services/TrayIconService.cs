@@ -6,8 +6,48 @@ using Microsoft.Extensions.Logging;
 
 namespace WorkTrail.Services;
 
-/// <summary>Provides localized labels for the two commands in the notification-area context menu.</summary>
+/// <summary>Provides localized labels for window visibility and application exit in the notification-area menu.</summary>
 public sealed record TrayIconMenuLabels(string ShowMainWindow, string HideMainWindow, string CloseApplication);
+
+/// <summary>Identifies application commands forwarded from the native notification-area menu.</summary>
+public enum TrayIconMenuCommand : uint
+{
+    /// <summary>Pauses or enables notifications.</summary>
+    ToggleNotifications = 3,
+    /// <summary>Runs the existing manual VIP capture workflow.</summary>
+    TakeVipSnapshot = 4,
+    /// <summary>Pauses or resumes tracking.</summary>
+    ToggleTracking = 5,
+    /// <summary>Shows international clocks.</summary>
+    WorldClocks = 6,
+    /// <summary>Shows the astronomical calendar.</summary>
+    AstronomicalCalendar = 7,
+    /// <summary>Shows the day/night map.</summary>
+    DayNightMap = 8,
+    /// <summary>Shows the day/night globe.</summary>
+    DayNightGlobe = 9,
+    /// <summary>Shows application settings.</summary>
+    Settings = 10,
+    /// <summary>Shows About.</summary>
+    About = 11,
+    /// <summary>Reveals all existing WorkTrail windows.</summary>
+    ShowAllWindows = 12
+}
+
+/// <summary>Contains current localized action labels and availability for one tray menu opening.</summary>
+public sealed record TrayIconMenuState(
+    string ShowAllWindows,
+    string ToggleNotifications,
+    string TakeVipSnapshot,
+    string ToggleTracking,
+    string WorldClocks,
+    string AstronomicalCalendar,
+    string DayNightMap,
+    string DayNightGlobe,
+    string Settings,
+    string About,
+    bool WorkspaceReady,
+    bool CanCaptureVip);
 
 /// <summary>Owns the notification-area icon that can hide and restore one top-level WorkTrail window.</summary>
 public sealed class TrayIconService : IDisposable
@@ -28,6 +68,8 @@ public sealed class TrayIconService : IDisposable
     private const uint ImageIcon = 1;
     private const uint LoadImageFromFile = 0x0010;
     private const uint MenuString = 0x0000;
+    private const uint MenuDisabled = 0x0003;
+    private const uint MenuSeparator = 0x0800;
     private const uint TrackPopupMenuReturnCommand = 0x0100;
     private const uint TrackPopupMenuNoNotify = 0x0080;
     private const uint TrackPopupMenuRightButton = 0x0002;
@@ -37,6 +79,7 @@ public sealed class TrayIconService : IDisposable
     private const uint NullWindowMessage = 0;
     private const int ShowWindowHide = 0;
     private const int ShowWindowNormal = 1;
+    private const int ShowWindowRestore = 9;
     private static readonly UIntPtr SubclassId = new(1);
     private static readonly SubclassProcDelegate SubclassProcedure = WindowSubclassProcedure;
     private readonly ILogger _logger;
@@ -65,6 +108,12 @@ public sealed class TrayIconService : IDisposable
     /// <summary>Occurs after the user explicitly selects Close app in the notification-area context menu.</summary>
     public event EventHandler? ExitRequested;
 
+    /// <summary>Occurs when an application action is selected; handlers must defer work until the native callback returns.</summary>
+    public event Action<TrayIconMenuCommand>? CommandRequested;
+
+    /// <summary>Gets or sets the UI-owned snapshot provider invoked immediately before the native menu opens.</summary>
+    public Func<TrayIconMenuState>? MenuStateProvider { get; set; }
+
     /// <summary>Registers the notification-area icon without changing the main window's visibility.</summary>
     public void ShowInNotificationArea(IntPtr windowHandle, string iconPath, string toolTip, TrayIconMenuLabels menuLabels)
     {
@@ -81,7 +130,7 @@ public sealed class TrayIconService : IDisposable
         _ = ShowWindow(_windowHandle, ShowWindowHide);
     }
 
-    /// <summary>Restores and foregrounds the attached main window when it was hidden in the notification area.</summary>
+    /// <summary>Restores and foregrounds the attached main window when it was hidden or minimized.</summary>
     public void ShowMainWindow()
     {
         ThrowIfDisposed();
@@ -91,6 +140,8 @@ public sealed class TrayIconService : IDisposable
         }
 
         RestoreMainWindowIfHidden();
+        // A minimized window is still visible to USER32 and needs an explicit restore before foregrounding.
+        if (IsIconic(_windowHandle)) _ = ShowWindow(_windowHandle, ShowWindowRestore);
         _ = SetForegroundWindow(_windowHandle);
     }
 
@@ -103,6 +154,7 @@ public sealed class TrayIconService : IDisposable
         }
 
         _disposed = true;
+        MenuStateProvider = null;
         ReleaseNativeResources();
     }
 
@@ -332,11 +384,25 @@ public sealed class TrayIconService : IDisposable
             var toggleText = IsWindowVisible(_windowHandle)
                 ? _menuLabels.HideMainWindow
                 : _menuLabels.ShowMainWindow;
-            if (!AppendMenu(menu, MenuString, new UIntPtr(MenuCommandToggleWindow), toggleText)
-                || !AppendMenu(menu, MenuString, new UIntPtr(MenuCommandCloseApplication), _menuLabels.CloseApplication))
+            AppendCommand(menu, MenuCommandToggleWindow, toggleText);
+            if (MenuStateProvider?.Invoke() is { } state)
             {
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "WorkTrail could not populate its notification-area context menu.");
+                AppendCommand(menu, (uint)TrayIconMenuCommand.ShowAllWindows, state.ShowAllWindows, state.WorkspaceReady);
+                AppendSeparator(menu);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.ToggleNotifications, state.ToggleNotifications, state.WorkspaceReady);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.TakeVipSnapshot, state.TakeVipSnapshot, state.CanCaptureVip);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.ToggleTracking, state.ToggleTracking, state.WorkspaceReady);
+                AppendSeparator(menu);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.WorldClocks, state.WorldClocks, state.WorkspaceReady);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.AstronomicalCalendar, state.AstronomicalCalendar, state.WorkspaceReady);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.DayNightMap, state.DayNightMap, state.WorkspaceReady);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.DayNightGlobe, state.DayNightGlobe, state.WorkspaceReady);
+                AppendSeparator(menu);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.Settings, state.Settings, state.WorkspaceReady);
+                AppendCommand(menu, (uint)TrayIconMenuCommand.About, state.About, state.WorkspaceReady);
+                AppendSeparator(menu);
             }
+            AppendCommand(menu, MenuCommandCloseApplication, _menuLabels.CloseApplication);
 
             if (!GetCursorPos(out var cursorPosition))
             {
@@ -360,11 +426,38 @@ public sealed class TrayIconService : IDisposable
             {
                 ExitRequested?.Invoke(this, EventArgs.Empty);
             }
+            else if (Enum.IsDefined(typeof(TrayIconMenuCommand), command))
+            {
+                CommandRequested?.Invoke((TrayIconMenuCommand)command);
+            }
         }
         finally
         {
             _ = DestroyMenu(menu);
             _ = PostMessage(_windowHandle, NullWindowMessage, IntPtr.Zero, IntPtr.Zero);
+        }
+    }
+
+    // menu identifies the owned native popup being populated.
+    // command identifies the action returned by TrackPopupMenuEx.
+    // label contains the current localized action text.
+    // enabled indicates whether the existing application surface can handle this action now.
+    private static void AppendCommand(IntPtr menu, uint command, string label, bool enabled = true)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        var flags = MenuString | (enabled ? 0u : MenuDisabled);
+        if (!AppendMenu(menu, flags, new UIntPtr(command), label))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "WorkTrail could not populate its notification-area context menu.");
+        }
+    }
+
+    // menu identifies the owned native popup whose next action group is being separated.
+    private static void AppendSeparator(IntPtr menu)
+    {
+        if (!AppendMenu(menu, MenuSeparator, UIntPtr.Zero, string.Empty))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "WorkTrail could not separate notification-area menu groups.");
         }
     }
 
@@ -501,6 +594,11 @@ public sealed class TrayIconService : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr windowHandle);
+
+    // windowHandle identifies the main window whose minimized state is being read.
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr windowHandle);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

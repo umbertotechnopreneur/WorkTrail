@@ -9,6 +9,33 @@
     </Window.SystemBackdrop>
 
     <Grid x:Name="RootGrid" Background="Transparent" Loaded="RootGrid_Loaded">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="LayoutStates">
+                <VisualState x:Name="WideLayout">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="720" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="NarrowLayout">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="DetailsDividerColumn.Width" Value="0" />
+                        <Setter Target="DiagnosticsColumn.Width" Value="0" />
+                        <Setter Target="DetailsGrid.ColumnSpacing" Value="0" />
+                        <Setter Target="DetailsDivider.Visibility" Value="Collapsed" />
+                        <Setter Target="DiagnosticsPanel.(Grid.Column)" Value="0" />
+                        <Setter Target="DiagnosticsPanel.(Grid.Row)" Value="1" />
+                        <Setter Target="DiagnosticsPanel.Margin" Value="0,18,0,0" />
+                        <Setter Target="LegalLinksPanel.(Grid.Column)" Value="0" />
+                        <Setter Target="LegalLinksPanel.(Grid.Row)" Value="1" />
+                        <Setter Target="LegalLinksPanel.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="LegalLinksPanel.HorizontalAlignment" Value="Left" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
             <RowDefinition Height="*" />
@@ -36,171 +63,212 @@
                 Text="WORKTRAIL" />
         </Grid>
 
-        <Grid Grid.Row="1" RowSpacing="0">
+        <Grid Grid.Row="1">
             <Grid.RowDefinitions>
-                <RowDefinition Height="220" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Border
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                BorderThickness="0"
-                CornerRadius="0">
-                <Image
-                    x:Name="HeroImage"
-                    AutomationProperties.Name="WorkTrail"
-                    HorizontalAlignment="Stretch"
-                    Stretch="UniformToFill"
-                    VerticalAlignment="Stretch" />
-            </Border>
+            <ScrollViewer
+                HorizontalContentAlignment="Stretch"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Grid Height="160">
+                        <Grid.Background>
+                            <ImageBrush
+                                ImageSource="ms-appx:///Assets/WorkTrailAboutHeroTrailV1.png"
+                                AlignmentX="Center"
+                                AlignmentY="Center"
+                                Stretch="UniformToFill" />
+                        </Grid.Background>
+                        <TextBlock
+                            Margin="24,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            FontSize="36"
+                            FontWeight="SemiBold"
+                            Foreground="#FFF7ED"
+                            Text="WorkTrail" />
+                    </Grid>
 
-            <Rectangle
-                Grid.Row="1"
-                Height="1"
-                Margin="28,20,28,20"
-                Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-
-            <Grid Grid.Row="2" Margin="28,0" ColumnSpacing="28">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.08*" />
-                    <ColumnDefinition Width="1" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Spacing="12">
-                    <TextBlock
-                        Tag="About.Description"
-                        FontSize="17"
-                        MaxLines="3"
-                        Opacity="0.82"
-                        Text="Simple desktop activity tracking that respects your privacy."
-                        TextTrimming="WordEllipsis"
-                        TextWrapping="WrapWholeWords" />
-
-                    <Grid ColumnSpacing="18" RowSpacing="5">
+                    <Grid x:Name="DetailsGrid" Margin="24,18,24,16" ColumnSpacing="24">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="1.08*" />
+                            <ColumnDefinition x:Name="DetailsDividerColumn" Width="1" />
+                            <ColumnDefinition x:Name="DiagnosticsColumn" Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <TextBlock Tag="About.Version" Opacity="0.62" Style="{StaticResource CaptionTextBlockStyle}" Text="Version" />
-                        <TextBlock x:Name="VersionText" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Text="—" />
-
-                        <TextBlock Grid.Row="1" Tag="About.Built" Opacity="0.62" Style="{StaticResource CaptionTextBlockStyle}" Text="Built" />
-                        <TextBlock x:Name="BuiltAtText" Grid.Row="1" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Text="—" />
-
-                        <TextBlock Grid.Row="2" Tag="About.Commit" Opacity="0.62" Style="{StaticResource CaptionTextBlockStyle}" Text="Git commit" />
-                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="7">
-                            <TextBlock x:Name="CommitText" FontFamily="Consolas" Style="{StaticResource CaptionTextBlockStyle}" Text="—" />
+                        <StackPanel Spacing="10">
                             <TextBlock
-                                x:Name="DirtyIndicator"
-                                Tag="About.Dirty"
-                                Foreground="{ThemeResource SystemControlHighlightAccentBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="uncommitted changes"
-                                Visibility="Collapsed" />
+                                Tag="About.Description"
+                                FontSize="15"
+                                Opacity="0.82"
+                                Text="Retrace your day, find past desktop activity, and pick up where you left off."
+                                TextWrapping="WrapWholeWords" />
+
+                            <Grid ColumnSpacing="18" RowSpacing="5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Tag="About.Version" Opacity="0.62" Style="{StaticResource CaptionTextBlockStyle}" Text="Version" />
+                                <TextBlock x:Name="VersionText" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Text="—" />
+
+                                <TextBlock Grid.Row="1" Tag="About.Built" Opacity="0.62" Style="{StaticResource CaptionTextBlockStyle}" Text="Built" />
+                                <TextBlock x:Name="BuiltAtText" Grid.Row="1" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" Text="—" />
+
+                                <TextBlock Grid.Row="2" Tag="About.Commit" Opacity="0.62" Style="{StaticResource CaptionTextBlockStyle}" Text="Git commit" />
+                                <StackPanel Grid.Row="2" Grid.Column="1" Spacing="2">
+                                    <TextBlock x:Name="CommitText" FontFamily="Consolas" Style="{StaticResource CaptionTextBlockStyle}" Text="—" />
+                                    <TextBlock
+                                        x:Name="DirtyIndicator"
+                                        Tag="About.Dirty"
+                                        Foreground="{ThemeResource SystemControlHighlightAccentBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="uncommitted changes"
+                                        TextWrapping="WrapWholeWords"
+                                        Visibility="Collapsed" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Button
+                                x:Name="LicensesButton"
+                                Tag="About.ThirdPartyLicenses"
+                                HorizontalAlignment="Left"
+                                Padding="0,5"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                FontSize="12"
+                                Click="LicensesButton_Click"
+                                Content="Third-party licenses" />
+                        </StackPanel>
+
+                        <Rectangle
+                            x:Name="DetailsDivider"
+                            Grid.Column="1"
+                            Width="1"
+                            HorizontalAlignment="Center"
+                            Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <StackPanel x:Name="DiagnosticsPanel" Grid.Column="2" Spacing="10">
+                            <StackPanel Spacing="5">
+                                <TextBlock Tag="About.Diagnostics" FontSize="17" FontWeight="SemiBold" Text="Diagnostics" />
+                                <TextBlock
+                                    Tag="About.Diagnostics.Description"
+                                    Opacity="0.72"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Open the current log, or share a bounded copy with private paths and secrets removed."
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button
+                                    x:Name="ShowLogButton"
+                                    Tag="About.ShowLogs"
+                                    MinHeight="34"
+                                    HorizontalContentAlignment="Center"
+                                    Click="ShowLogButton_Click"
+                                    Content="View logs" />
+                                <Button
+                                    x:Name="ShareLogButton"
+                                    Tag="About.ShareLog"
+                                    Grid.Column="1"
+                                    MinHeight="34"
+                                    HorizontalContentAlignment="Center"
+                                    Click="ShareLogButton_Click"
+                                    Content="Share log" />
+                            </Grid>
+                            <InfoBar
+                                x:Name="DiagnosticsInfoBar"
+                                IsClosable="True"
+                                IsOpen="False"
+                                Severity="Informational" />
                         </StackPanel>
                     </Grid>
-
-                    <StackPanel Orientation="Horizontal" Spacing="18">
-                        <Button
-                            x:Name="IssuesButton"
-                            Padding="0,5"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Click="IssuesButton_Click">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="15" Glyph="&#xE783;" />
-                                <TextBlock Tag="About.Issues" Text="Report a problem" />
-                            </StackPanel>
-                        </Button>
-                        <Button
-                            x:Name="LicensesButton"
-                            Padding="0,5"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Click="LicensesButton_Click">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="15" Glyph="&#xE8A7;" />
-                                <TextBlock Tag="About.ThirdPartyLicenses" Text="Third-party licenses" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
                 </StackPanel>
+            </ScrollViewer>
 
-                <Rectangle
-                    Grid.Column="1"
-                    Width="1"
-                    HorizontalAlignment="Center"
-                    Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-
-                <StackPanel Grid.Column="2" Spacing="10">
-                    <StackPanel Spacing="5">
-                        <TextBlock Tag="About.Diagnostics" FontSize="20" FontWeight="SemiBold" Text="Diagnostics" />
-                        <TextBlock
-                            Tag="About.Diagnostics.Description"
-                            MaxLines="3"
-                            Opacity="0.72"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="Open the current log, or share a bounded copy with private paths and secrets removed."
-                            TextTrimming="WordEllipsis"
-                            TextWrapping="WrapWholeWords" />
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button
-                            x:Name="ShowLogButton"
-                            Tag="About.ShowLogs"
-                            MinWidth="128"
-                            MinHeight="38"
-                            HorizontalContentAlignment="Center"
-                            Click="ShowLogButton_Click"
-                            Content="View logs" />
-                        <Button
-                            x:Name="ShareLogButton"
-                            Tag="About.ShareLog"
-                            MinWidth="128"
-                            MinHeight="38"
-                            HorizontalContentAlignment="Center"
-                            Click="ShareLogButton_Click"
-                            Content="Share log" />
-                    </StackPanel>
-                    <InfoBar
-                        x:Name="DiagnosticsInfoBar"
-                        IsClosable="True"
-                        IsOpen="False"
-                        Severity="Informational" />
-                </StackPanel>
-            </Grid>
-
-            <Grid Grid.Row="3" Margin="28,22,28,24" ColumnSpacing="16">
+            <Grid Grid.Row="1" Margin="24,0,24,18" ColumnSpacing="16" RowSpacing="10">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel
-                    x:Name="FooterDetailsPanel"
-                    VerticalAlignment="Center"
-                    Spacing="1">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Tag="About.CreatedBy" VerticalAlignment="Center" Opacity="0.62" Style="{StaticResource CaptionTextBlockStyle}" Text="Created by" />
-                    <Button
-                        x:Name="CreatedByButton"
-                        Padding="0"
-                        HorizontalAlignment="Left"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Click="WebsiteButton_Click"
-                        Content="umbertogiacobbi.biz" />
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Rectangle
+                    Grid.ColumnSpan="2"
+                    Height="1"
+                    Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Image Width="48" Height="48" AutomationProperties.Name="VibeWare" Stretch="Uniform">
+                        <Image.Source>
+                            <BitmapImage DecodePixelWidth="192" UriSource="ms-appx:///Assets/VibeWareLogo.png" />
+                        </Image.Source>
+                    </Image>
+                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Text="VibeWare" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button
+                                x:Name="VibeWareAboutButton"
+                                Tag="About.VibeWare.WhatIs"
+                                Padding="0,2"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                FontSize="12"
+                                Click="VibeWareAboutButton_Click"
+                                Content="What is VibeWare?" />
+                            <Button
+                                x:Name="VibeWareManifestoButton"
+                                Tag="About.VibeWare.Manifesto"
+                                Padding="0,2"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                FontSize="12"
+                                Click="VibeWareManifestoButton_Click"
+                                Content="Manifesto" />
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="14">
+                </StackPanel>
+                <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="18" RowSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Tag="About.CreatedBy" VerticalAlignment="Center" Opacity="0.62" FontSize="12" Text="Created by" />
+                        <Button
+                            x:Name="CreatedByButton"
+                            Padding="0"
+                            HorizontalAlignment="Left"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            FontSize="12"
+                            Click="WebsiteButton_Click"
+                            Content="umbertogiacobbi.biz" />
+                    </StackPanel>
+                    <StackPanel x:Name="LegalLinksPanel" Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="12">
                         <Button
                             x:Name="RepositoryButton"
                             Tag="About.Repository"
@@ -208,6 +276,7 @@
                             HorizontalAlignment="Left"
                             Background="Transparent"
                             BorderThickness="0"
+                            FontSize="12"
                             Click="RepositoryButton_Click"
                             Content="GitHub repository" />
                         <Button
@@ -217,6 +286,7 @@
                             HorizontalAlignment="Left"
                             Background="Transparent"
                             BorderThickness="0"
+                            FontSize="12"
                             Click="PrivacyButton_Click"
                             Content="Privacy" />
                         <Button
@@ -226,31 +296,21 @@
                             HorizontalAlignment="Left"
                             Background="Transparent"
                             BorderThickness="0"
+                            FontSize="12"
                             Click="TermsButton_Click"
                             Content="Terms" />
                     </StackPanel>
-                </StackPanel>
-                <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="10">
-                        <FontIcon AutomationProperties.AccessibilityView="Raw" FontSize="21" Foreground="#FFFFD12E" Glyph="&#xE735;" />
-                        <Button
-                            Tag="About.FavoriteMessage"
-                            Padding="0,5"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Click="RepositoryButton_Click"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Content="Star on GitHub" />
-                    </StackPanel>
-                </StackPanel>
+                </Grid>
                 <Button
                     x:Name="CloseButton"
                     Tag="About.Close"
-                    Grid.Column="2"
-                    MinWidth="120"
-                    MinHeight="40"
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    MinWidth="96"
+                    MinHeight="34"
                     HorizontalAlignment="Right"
                     HorizontalContentAlignment="Center"
+                    VerticalAlignment="Center"
                     Click="CloseButton_Click"
                     Content="Close"
                     Style="{StaticResource AccentButtonStyle}" />

@@ -103,6 +103,9 @@ public sealed class FeatureAccessPolicy
         foreach (var rawKey in patch.Values.Keys)
         {
             var key = rawKey?.Trim().ToLowerInvariant();
+            if (access.Tier == ProductTier.Free && (key is "retention.data_days" or "retention.screenshots_days")
+                && int.TryParse(patch.Values[rawKey!], out var retentionDays) && retentionDays > 30)
+                return new ValidationIssue(rawKey!, "premium_required", "Premium.Required");
             var feature = FeatureCatalog.Definitions.FirstOrDefault(item => item.SettingKeys.Contains(key));
             if (feature is not null && !FeatureCatalog.IsAllowed(feature.Id, access))
                 return new ValidationIssue(rawKey!, "premium_required", "Premium.Required");

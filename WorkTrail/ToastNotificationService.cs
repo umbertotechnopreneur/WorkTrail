@@ -11,10 +11,19 @@ namespace WorkTrail;
 /// <summary>Owns the lifecycle of timed toast components without coupling notifications to dialog presentation.</summary>
 internal sealed class ToastNotificationService
 {
-    private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(50);
+    private static readonly TimeSpan TimeoutInterval = TimeSpan.FromMilliseconds(250);
     private readonly Dictionary<TimedInfoBar, ToastCountdown> _countdowns = [];
     private TimeSpan _defaultTimeout = TimeSpan.FromSeconds(10);
     private long _nextGeneration;
+    private bool _isEnabled = true;
+
+    /// <summary>Applies the persisted notification preference and dismisses existing toasts when paused.</summary>
+    /// <param name="enabled">Whether automatic in-app toasts may be displayed.</param>
+    internal void SetEnabled(bool enabled)
+    {
+        _isEnabled = enabled;
+        if (!enabled) HideAll();
+    }
 
     /// <summary>Gets or sets the timeout used when a toast does not provide an override.</summary>
     internal TimeSpan DefaultTimeout
@@ -64,18 +73,24 @@ internal sealed class ToastNotificationService
         }
     }
 
+    // host identifies the existing toast surface.
+    // title contains the notification heading.
+    // message contains optional supporting text.
+    // severity selects the notification color and icon.
+    // timeout overrides the default dismissal delay when supplied.
     private void Show(TimedInfoBar host, string title, string message, InfoBarSeverity severity, TimeSpan? timeout)
     {
         ValidateHostThread(host);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(message);
         var duration = ValidateTimeout(timeout ?? DefaultTimeout, nameof(timeout));
+        if (!_isEnabled) return;
         StopCountdown(host);
         host.Dismissed += ToastHost_Dismissed;
         host.Present(title, message, severity);
 
         var timer = host.DispatcherQueue.CreateTimer();
-        timer.Interval = ProgressInterval;
+        timer.Interval = TimeoutInterval;
         timer.IsRepeating = true;
         var generation = ++_nextGeneration;
         TypedEventHandler<DispatcherQueueTimer, object> tick = (_, _) => UpdateCountdown(host, generation);
@@ -84,6 +99,8 @@ internal sealed class ToastNotificationService
         timer.Start();
     }
 
+    // host identifies the toast whose dismissal timeout is being checked.
+    // generation prevents an earlier timer from dismissing a replacement notification.
     private void UpdateCountdown(TimedInfoBar host, long generation)
     {
         if (!_countdowns.TryGetValue(host, out var countdown) || countdown.Generation != generation)
@@ -92,10 +109,7 @@ internal sealed class ToastNotificationService
         }
 
         // Monotonic time keeps the timeout stable even when Windows clock time changes.
-        var elapsed = Stopwatch.GetElapsedTime(countdown.StartedTimestamp);
-        var remainingRatio = Math.Clamp(1d - (elapsed.TotalMilliseconds / countdown.Duration.TotalMilliseconds), 0d, 1d);
-        host.CountdownIndicator.Value = host.CountdownIndicator.Maximum * remainingRatio;
-        if (remainingRatio > 0d)
+        if (Stopwatch.GetElapsedTime(countdown.StartedTimestamp) < countdown.Duration)
         {
             return;
         }

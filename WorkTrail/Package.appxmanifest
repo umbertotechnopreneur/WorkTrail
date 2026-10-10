@@ -29,6 +29,11 @@
         <uap:SplashScreen Image="Assets\WorkTrailSplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
+        <uap:Extension Category="windows.protocol" Executable="WorkTrail.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap:Protocol Name="worktrail">
+            <uap:DisplayName>WorkTrail notifications</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
         <uap5:Extension Category="windows.appExecutionAlias" Executable="WorkTrail.exe" EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias>
             <uap5:ExecutionAlias Alias="worktrail.exe" />

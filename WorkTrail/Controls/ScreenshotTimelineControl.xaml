@@ -3,11 +3,13 @@
     x:Class="WorkTrail.Controls.ScreenshotTimelineControl"
     x:Name="TimelineControlRoot"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:WorkTrail.Controls">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="VipFrameBrush" Color="#B78012" />
                     <AcrylicBrush
                         x:Key="ScreenshotFilmstripBackdropBrush"
                         FallbackColor="#DCF4F7FA"
@@ -16,6 +18,7 @@
                         TintOpacity="0.05" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="VipFrameBrush" Color="#FFD166" />
                     <AcrylicBrush
                         x:Key="ScreenshotFilmstripBackdropBrush"
                         FallbackColor="#D2141920"
@@ -24,6 +27,7 @@
                         TintOpacity="0.12" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
+                    <StaticResource x:Key="VipFrameBrush" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="ScreenshotFilmstripBackdropBrush" ResourceKey="SystemColorWindowColorBrush" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
@@ -166,7 +170,14 @@
                                 Stretch="Uniform"
                                 Unloaded="TimelineImage_Unloaded" />
                         </Border>
+                        <Border Width="80" Height="46" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                BorderBrush="{ThemeResource VipFrameBrush}" BorderThickness="2" CornerRadius="5"
+                                IsHitTestVisible="False" Visibility="{Binding VipVisibility}" />
                     </Grid>
+                    <Border HorizontalAlignment="Right" VerticalAlignment="Top" Padding="3,2" CornerRadius="3"
+                            Background="{ThemeResource LayerFillColorDefaultBrush}" Visibility="{Binding VipVisibility}">
+                        <controls:VipBadge Text="{Binding VipLabel}" />
+                    </Border>
                     <StackPanel
                         Grid.Row="1"
                         HorizontalAlignment="Center"
@@ -226,15 +237,14 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Button
+                <Button AutomationProperties.AutomationId="Gallery.Timeline.PreviousTimelineButton"
                     x:Name="PreviousTimelineButton"
                     Margin="0,0,8,0"
                     VerticalAlignment="Center"
-                    AutomationProperties.Name="Previous screenshots"
                     Click="PreviousTimelineButton_Click"
                     Style="{StaticResource TimelineNavigationButtonStyle}"
                     Tag="Screenshots.Timeline.Previous"
-                    ToolTipService.ToolTip="Previous screenshots"
+                    AutomationProperties.Name="Previous screenshots" ToolTipService.ToolTip="Previous screenshots"
                     Visibility="Collapsed">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
@@ -242,7 +252,7 @@
                         FontSize="16"
                         Glyph="&#xE76B;" />
                 </Button>
-                <ListView
+                <ListView AutomationProperties.AutomationId="Gallery.Timeline.FilmstripList"
                     x:Name="FilmstripList"
                     Grid.Column="1"
                     HorizontalAlignment="Stretch"
@@ -270,16 +280,15 @@
                         </ItemsPanelTemplate>
                     </ListView.ItemsPanel>
                 </ListView>
-                <Button
+                <Button AutomationProperties.AutomationId="Gallery.Timeline.NextTimelineButton"
                     x:Name="NextTimelineButton"
                     Grid.Column="2"
                     Margin="8,0,0,0"
                     VerticalAlignment="Center"
-                    AutomationProperties.Name="Next screenshots"
                     Click="NextTimelineButton_Click"
                     Style="{StaticResource TimelineNavigationButtonStyle}"
                     Tag="Screenshots.Timeline.Next"
-                    ToolTipService.ToolTip="Next screenshots"
+                    AutomationProperties.Name="Next screenshots" ToolTipService.ToolTip="Next screenshots"
                     Visibility="Collapsed">
                     <FontIcon
                         AutomationProperties.AccessibilityView="Raw"
@@ -289,16 +298,15 @@
                 </Button>
             </Grid>
         </Border>
-        <Button
+        <Button AutomationProperties.AutomationId="Gallery.Timeline.FilmstripToggleButton"
             x:Name="FilmstripToggleButton"
             Width="1"
             Height="1"
             Padding="0"
-            AutomationProperties.Name="Hide screenshot strip"
             Background="Transparent"
             BorderBrush="Transparent"
             Tag="Screenshots.Timeline.Hide"
-            ToolTipService.ToolTip="Hide screenshot strip"
+            AutomationProperties.Name="Hide screenshot strip" ToolTipService.ToolTip="Hide screenshot strip"
             Visibility="Collapsed">
             <FontIcon
                 x:Name="FilmstripChevronIcon"

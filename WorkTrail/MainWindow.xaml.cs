@@ -80,6 +80,7 @@ public sealed partial class MainWindow : Window
     private bool _isTracking;
     private const int PendingSnapshotDeleteSeconds = 30;
     private bool _pendingSnapshotDeleteInProgress;
+    private bool _manualScreenshotCaptureInProgress;
     private int _lastSessionRefreshInProgress;
     private DateTimeOffset _nextLastSessionRefreshAt = DateTimeOffset.MinValue;
     private bool _startupAiWarningShown;
@@ -128,6 +129,11 @@ public sealed partial class MainWindow : Window
     /// <summary>Occurs when the user requests the reusable Quick Setup surface.</summary>
     public event EventHandler? QuickSetupRequested;
 
+#if DEBUG
+    /// <summary>Occurs when a Debug build has reset the first-run marker and should reopen OOBE.</summary>
+    public event EventHandler? DebugOobeResetRequested;
+#endif
+
     /// <summary>Occurs when the user requests the retained screenshot gallery surface.</summary>
     public event EventHandler? ScreenshotGalleryRequested;
 
@@ -170,6 +176,8 @@ public sealed partial class MainWindow : Window
         ApplyMainAccessibility();
         AiState.PropertyChanged += AiState_PropertyChanged;
         _trayIcon.ExitRequested += TrayIcon_ExitRequested;
+        _trayIcon.CommandRequested += TrayIcon_CommandRequested;
+        _trayIcon.MenuStateProvider = CreateTrayMenuState;
         UpdateOpenAiMenuAccessibility();
         SystemBackdrop = new DesktopAcrylicBackdrop();
         _appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)));
@@ -228,6 +236,8 @@ public sealed partial class MainWindow : Window
         Activated += MainWindow_Activated;
     }
 
+    // sender identifies the window whose activation changed.
+    // args indicates whether the main window gained or lost activation.
     private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
         if (args.WindowActivationState == WindowActivationState.Deactivated
@@ -236,13 +246,22 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        // Snapshot lifecycle-owned handles on this dispatcher. Core owns visibility/focus policy, including IPC races.
-        var mainHandle = WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64();
-        var peers = WindowPlacementService.GetOpenPeerWindowHandles(mainHandle);
-        if (peers.Count == 0) return;
+        await RevealOpenWindowsAsync(showMainWindow: false);
+    }
+
+    // showMainWindow restores the main window before revealing its already-open peers.
+    private async Task RevealOpenWindowsAsync(bool showMainWindow)
+    {
+        if (_dashboardSurfaceClosed || _revealingOpenWindows) return;
         _revealingOpenWindows = true;
         try
         {
+            // Guard before activating the main window so its activation callback cannot start a second reveal.
+            if (showMainWindow) ShowFlyout();
+            // Snapshot lifecycle-owned handles on this dispatcher. Core owns visibility/focus policy, including IPC races.
+            var mainHandle = WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64();
+            var peers = WindowPlacementService.GetOpenPeerWindowHandles(mainHandle);
+            if (peers.Count == 0) return;
             var result = await _application.RevealOpenWindowsAsync(new WindowRevealRequest(mainHandle, peers), _lifecycle.Token);
             if (!result.Succeeded && !_dashboardSurfaceClosed) ShowWindowRevealFailure();
         }
@@ -371,6 +390,7 @@ public sealed partial class MainWindow : Window
         CaptureMenu.IsEnabled = isReady;
         OperationsMenuItem.IsEnabled = isReady;
         TakeScreenshotButton.IsEnabled = isReady
+            && !_manualScreenshotCaptureInProgress
             && !_pendingSnapshotDeleteInProgress
             && DeleteSnapshotButton.Visibility != Visibility.Visible;
         DeleteSnapshotButton.IsEnabled = isReady && DeleteSnapshotButton.Visibility == Visibility.Visible;
@@ -378,8 +398,15 @@ public sealed partial class MainWindow : Window
 
     #endregion
 
+    /// <summary>Refreshes the dashboard while its owning window is still open.</summary>
+    /// <param name="cancellationToken">Cancels the requested application queries.</param>
     private async Task RefreshDashboardAsync(CancellationToken cancellationToken = default)
     {
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (_dashboardSubscription is not null)
         {
             _dashboardRefreshCoordinator.RequestRefresh();
@@ -387,6 +414,11 @@ public sealed partial class MainWindow : Window
         }
 
         var state = await _viewModel.RefreshAsync(cancellationToken);
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (state.Succeeded && state.Value is not null)
         {
             UpdatePlayer(state.Value);
@@ -435,9 +467,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>Refreshes the month-to-date AI spend at a bounded cadence while the integration is active.</summary>
+    /// <summary>Refreshes visible month-to-date AI spend at a bounded cadence while the window is open.</summary>
     private async Task RefreshAiMonthlySpendAsync()
     {
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (!_showAiMonthlySpend || !AiState.Enabled)
         {
             AiMonthlySpendPanel.Visibility = Visibility.Collapsed;
@@ -457,7 +494,7 @@ public sealed partial class MainWindow : Window
             // not turn the one-second dashboard cadence into a request loop.
             _nextAiSpendRefreshAt = DateTimeOffset.UtcNow.Add(AiSpendFailureRetryInterval);
             var result = await _application.GetAiPricingOverviewAsync(_lifecycle.Token);
-            if (result.Succeeded && result.Value is not null)
+            if (!_dashboardSurfaceClosed && result.Succeeded && result.Value is not null)
             {
                 UpdateAiMonthlySpend(result.Value);
                 _nextAiSpendRefreshAt = DateTimeOffset.UtcNow.Add(AiSpendRefreshInterval);
@@ -520,6 +557,8 @@ public sealed partial class MainWindow : Window
                 T("Dialog.Ok")));
     }
 
+    /// <summary>Displays pending application notifications on the open dashboard.</summary>
+    /// <param name="cancellationToken">Cancels the notification request.</param>
     private async Task DrainApplicationNotificationsAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _notificationDrainInProgress, 1) != 0)
@@ -530,7 +569,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var result = await _application.DrainApplicationNotificationsAsync(cancellationToken);
-            if (!result.Succeeded || result.Value is null)
+            if (_dashboardSurfaceClosed || !_notificationsEnabled || !result.Succeeded || result.Value is null)
             {
                 return;
             }
@@ -609,25 +648,53 @@ public sealed partial class MainWindow : Window
             T("Sensors.OpenFailed"));
 
     /// <summary>Captures a screenshot manually when the user clicks the "Take snapshot" button.</summary>
+    /// <param name="sender">The capture button.</param>
+    /// <param name="e">The click event.</param>
     private async void TakeScreenshotButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!_workspaceUiReady || !TakeScreenshotButton.IsEnabled)
+        if (_dashboardSurfaceClosed || !_workspaceUiReady || _manualScreenshotCaptureInProgress || !TakeScreenshotButton.IsEnabled)
         {
             return;
         }
 
+        _manualScreenshotCaptureInProgress = true;
         TakeScreenshotButton.IsEnabled = false;
-        var result = await _application.CaptureManualScreenshotAsync(CancellationToken.None);
-        if (!result.Succeeded)
+        var cancellationToken = _lifecycle.Token;
+        try
         {
-            await RefreshDashboardAsync();
-            return;
+            var result = await _application.CaptureManualScreenshotAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshDashboardAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result.Succeeded)
+            {
+                await RefreshLastSessionIfDueAsync(force: true);
+            }
         }
-
-        await RefreshDashboardAsync();
-
-        // Refresh the last session to show the newly captured screenshot.
-        await RefreshLastSessionIfDueAsync(force: true);
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Closing the window also ends its pending UI work.
+        }
+        catch (Exception)
+        {
+            if (!_dashboardSurfaceClosed)
+            {
+                _dialogs.Notifications.ShowWarning(
+                    MainNotificationBanner,
+                    T("Operations.Status.RuntimeUnavailable.Title"),
+                    T("Operations.Status.RuntimeUnavailable.Message"));
+            }
+        }
+        finally
+        {
+            _manualScreenshotCaptureInProgress = false;
+            if (!_dashboardSurfaceClosed)
+            {
+                TakeScreenshotButton.IsEnabled = _workspaceUiReady
+                    && !_pendingSnapshotDeleteInProgress
+                    && DeleteSnapshotButton.Visibility != Visibility.Visible;
+            }
+        }
     }
 
     /// <summary>Opens the detached screenshot scheduling window.</summary>
@@ -675,6 +742,8 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Persists a confirmed schedule and starts or stops its timer from the main runtime owner.</summary>
+    /// <param name="sender">The schedule window that owns any validation dialog.</param>
+    /// <param name="eventArgs">The confirmed schedule and screenshot interval.</param>
     private async void ScheduleWindow_ScheduleConfirmed(object? sender, ScheduleConfigurationEventArgs eventArgs)
     {
         var activeHoursByDay = eventArgs.ActiveHours.ToDictionary(day => day.Day, StringComparer.Ordinal);
@@ -691,8 +760,15 @@ public sealed partial class MainWindow : Window
         var saveResult = await _application.PatchSettingsAsync(patch, CancellationToken.None);
         if (!saveResult.Succeeded || saveResult.Value is null)
         {
-            await _dialogs.ShowInformativeAsync(sender as Window ?? this, DialogRequest.Informative(
-                T(saveResult.Code == "feature.premium_required" ? "Premium.UpgradeTitle" : "Schedule.WindowTitle"), T(saveResult.MessageKey), T("Dialog.Ok")));
+            if (saveResult.Code == "feature.premium_required")
+            {
+                await _dialogs.ShowPremiumUpgradeAsync(_application, sender as Window ?? this, T);
+            }
+            else
+            {
+                await _dialogs.ShowInformativeAsync(sender as Window ?? this, DialogRequest.Informative(
+                    T("Schedule.WindowTitle"), T(saveResult.MessageKey), T("Dialog.Ok")));
+            }
             return;
         }
 
@@ -747,22 +823,28 @@ public sealed partial class MainWindow : Window
     private async void TitleBarCloseButton_Click(object sender, RoutedEventArgs e) => await RequestCloseAsync();
 
     /// <summary>Forwards the play/pause action to the player view model.</summary>
-    private async void TrackingButton_Click(object sender, RoutedEventArgs e)
+    // sender identifies the player tracking action.
+    // e contains the button click.
+    private async void TrackingButton_Click(object sender, RoutedEventArgs e) => await ToggleTrackingAsync();
+
+    /// <summary>Runs the same tracking action for the player and the tray menu.</summary>
+    private async Task<bool> ToggleTrackingAsync()
     {
         if (!_workspaceUiReady)
         {
-            return;
+            return false;
         }
 
         var state = await _viewModel.ToggleTrackingAsync(CancellationToken.None);
         if (state.Succeeded && state.Value is not null)
         {
             UpdatePlayer(state.Value);
-            return;
+            return true;
         }
 
         // Tracking failures are reported through the non-blocking Windows toast queue.
         await DrainApplicationNotificationsAsync();
+        return false;
     }
 
     /// <summary>Loads persisted settings into presentation-only flyout controls.</summary>
@@ -1318,7 +1400,9 @@ public sealed partial class MainWindow : Window
 
     private bool _labelsDialogOpen;
 
-    private void ManageLabelsButton_Click(object sender, RoutedEventArgs e) =>
+    // sender identifies the player label selector.
+    // e contains the request to manage labels without selecting one.
+    private void PlayerLabelSelector_ManageRequested(object? sender, EventArgs e) =>
         OptionsControl_ManageLabelsRequested(sender, EventArgs.Empty);
 
     private async void OptionsControl_ManageLabelsRequested(object? sender, EventArgs e)
@@ -1719,11 +1803,13 @@ public sealed partial class MainWindow : Window
         SetPlayerSectionVisibility(MainWindowLayoutSection.PendingSnapshot, PendingSnapshotPanel, isVisible: true);
     }
 
+    /// <summary>Hides the delete countdown without enabling a capture that is still running.</summary>
+    /// <param name="enableCapture">Whether the current capture state permits a new screenshot.</param>
     private void HidePendingSnapshotDeleteUi(bool enableCapture)
     {
         SetPlayerSectionVisibility(MainWindowLayoutSection.PendingSnapshot, PendingSnapshotPanel, isVisible: false);
         DeleteSnapshotButton.Visibility = Visibility.Collapsed;
-        TakeScreenshotButton.IsEnabled = _workspaceUiReady && enableCapture;
+        TakeScreenshotButton.IsEnabled = _workspaceUiReady && enableCapture && !_manualScreenshotCaptureInProgress;
         AutomationProperties.SetName(PendingSnapshotPanel, string.Empty);
         AutomationProperties.SetHelpText(DeleteSnapshotButton, string.Empty);
     }
@@ -1899,8 +1985,14 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Refreshes the visible latest-session projection at a bounded cadence.</summary>
+    /// <param name="force">Refresh even when the normal display interval has not elapsed.</param>
     private async Task RefreshLastSessionIfDueAsync(bool force = false)
     {
+        if (_dashboardSurfaceClosed)
+        {
+            return;
+        }
+
         if (!force && (DetailsPanel.Visibility != Visibility.Visible || DateTimeOffset.Now < _nextLastSessionRefreshAt))
         {
             return;
@@ -1913,11 +2005,15 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var lastSession = await _viewModel.RefreshLastSessionAsync(CancellationToken.None);
-            if (lastSession.Succeeded)
+            var lastSession = await _viewModel.RefreshLastSessionAsync(_lifecycle.Token);
+            if (!_dashboardSurfaceClosed && lastSession.Succeeded)
             {
                 UpdateLastSession(lastSession.Value);
             }
+        }
+        catch (OperationCanceledException) when (_lifecycle.IsCancellationRequested)
+        {
+            // There is no preview to refresh once its window has closed.
         }
         finally
         {
@@ -2036,6 +2132,8 @@ public sealed partial class MainWindow : Window
     /// <summary>Applies presentation settings already validated and persisted by the application layer.</summary>
     private void ApplySettings(AppSettings settings)
     {
+        _notificationsEnabled = settings.NotificationsEnabled;
+        _dialogs.Notifications.SetEnabled(settings.NotificationsEnabled);
         var isInitialSettings = !_hasAppliedSettings;
         var showAiMonthlySpendChanged = _showAiMonthlySpend != settings.ShowAiMonthlySpend;
         var positionChangedByUser = _hasAppliedSettings
@@ -2044,8 +2142,8 @@ public sealed partial class MainWindow : Window
         PlayerLabelSelector.ApplySettings(_application, settings);
         PlayerLabelFeatureGate.UiLanguage = settings.UiLanguage;
         UpdateTitlePremiumBadge();
-        AutomationProperties.SetName(ManageLabelsButton, T("Labels.Manage"));
-        ToolTipService.SetToolTip(ManageLabelsButton, T("Labels.Manage"));
+        AutomationProperties.SetName(VipSnapshotButton, T("Snapshot.Vip.Take"));
+        ToolTipService.SetToolTip(VipSnapshotButton, T("Snapshot.Vip.Take"));
         UpdateDebugFeatureMenu();
         _theme = settings.Theme;
         _position = settings.FlyoutPosition;
@@ -2286,23 +2384,13 @@ public sealed partial class MainWindow : Window
     /// <summary>Waits for initial application state before restoring dependent work surfaces.</summary>
     internal Task WaitForWorkspaceReadyAsync() => _workspaceReady.Task;
 
-    /// <summary>Restores passive tools after their main-window owner is ready.</summary>
+    /// <summary>Restores workspace tools while leaving informational windows closed.</summary>
     internal async Task RestoreToolWindowsAsync(IReadOnlyList<string> windowKeys)
     {
         await WaitForWorkspaceReadyAsync();
         if (windowKeys.Contains(WindowStateKeys.Schedule))
         {
             await OpenScheduleWindowAsync();
-        }
-
-        if (windowKeys.Contains(WindowStateKeys.About))
-        {
-            ShowAboutWindow();
-        }
-
-        if (windowKeys.Contains(WindowStateKeys.Licenses))
-        {
-            _aboutWindow!.ShowLicenses();
         }
     }
 
@@ -2600,6 +2688,8 @@ public sealed partial class MainWindow : Window
         _titleBar.Dispose();
         _placement.Dispose();
         _trayIcon.ExitRequested -= TrayIcon_ExitRequested;
+        _trayIcon.CommandRequested -= TrayIcon_CommandRequested;
+        _trayIcon.MenuStateProvider = null;
         _trayIcon.Dispose();
         if (_optionsControl is not null)
         {

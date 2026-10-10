@@ -341,27 +341,32 @@ public sealed class WorldClockWindowSurfaceContractTests
         });
     }
 
-    /// <summary>Verifies safe key masking and explicit inline feedback for every provider-validation outcome.</summary>
+    /// <summary>Verifies safe key masking, gated continuation, and explicit provider-validation feedback.</summary>
     [Fact]
     public void WeatherKeyConfiguration_UsesSafeMaskAndLocalizedValidationFeedback()
     {
         var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "ProviderKeySetupControl.xaml"));
         var source = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "ProviderKeySetupControl.xaml.cs"));
         var keyBox = options.Descendants().Single(element => HasName(element, "KeyBox"));
+        var continueButton = options.Descendants().Single(element => HasName(element, "ContinueButton"));
         var catalogs = Directory.GetFiles(RepositoryFile("WorkTrail.Core", "Localization"), "*.json");
         string[] feedbackKeys =
         [
             "ProviderSetup.NotVerified", "ProviderSetup.Verifying", "ProviderSetup.Success",
             "ProviderSetup.Error.Key", "ProviderSetup.Weather.Rejected", "ProviderSetup.Error.Limits",
-            "ProviderSetup.Error.Unavailable", "ProviderSetup.Weather.Activation", "ProviderSetup.Ai.Cost"
+            "ProviderSetup.Error.Unavailable", "ProviderSetup.Weather.Activation", "ProviderSetup.Ai.Cost",
+            "ProviderSetup.Paste", "ProviderSetup.Continue"
         ];
         Assert.Equal("PasswordBox", keyBox.Name.LocalName);
         Assert.Equal("Hidden", keyBox.Attribute("PasswordRevealMode")?.Value);
         Assert.Null(keyBox.Attribute("Password"));
+        Assert.Equal("False", continueButton.Attribute("IsEnabled")?.Value);
         Assert.Contains("KeyBox.Password = string.Empty;", source, StringComparison.Ordinal);
         Assert.Contains("SetWorldClockWeatherKeyAsync(secret", source, StringComparison.Ordinal);
         Assert.Contains("world_clocks.weather.key.rejected", source, StringComparison.Ordinal);
-        Assert.Contains("_verified ? \"Dialog.Ok\" : \"About.Close\"", source, StringComparison.Ordinal);
+        Assert.Contains("ContinueButton.IsEnabled = !_busy && _verified;", source, StringComparison.Ordinal);
+        Assert.Contains("CostBar.Visibility = Visibility.Collapsed;", source, StringComparison.Ordinal);
+        Assert.Contains("ResultBar.Visibility = Visibility.Collapsed;", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Environment.", source, StringComparison.Ordinal);
         Assert.DoesNotContain("HttpClient", source, StringComparison.Ordinal);
         Assert.All(catalogs, catalog =>
@@ -681,13 +686,15 @@ public sealed class WorldClockWindowSurfaceContractTests
         var windowSource = File.ReadAllText(RepositoryFile("WorkTrail", "WorldClockWindow.xaml.cs"));
         var detachedSource = File.ReadAllText(RepositoryFile("WorkTrail", "WorldMapWindow.xaml.cs"));
         var mapSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "WorldDayNightMapControl.xaml.cs"));
+        var menuSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "AstronomyWindowMenu.cs"));
         var contracts = File.ReadAllText(RepositoryFile("WorkTrail.Core", "Application", "Contracts.cs"));
         var service = File.ReadAllText(RepositoryFile("WorkTrail.Core", "Infrastructure", "Services", "WorldClockService.cs"));
         var openButton = window.Descendants().Single(element => HasName(element, "WorldMapButton"));
         var mapControl = detachedWindow.Descendants().Single(element => HasName(element, "WorldMapControl"));
 
         Assert.Equal("WorldClock.Map.Open", openButton.Attribute("Tag")?.Value);
-        Assert.Equal("WorldMapButton_Click", window.Descendants().Single(element => HasName(element, "WorldMapMenuItem")).Attribute("Click")?.Value);
+        Assert.Contains("WorldMapButton.Flyout = AstronomyWindowMenu.Create", windowSource, StringComparison.Ordinal);
+        Assert.Contains("openWindow(WindowStateKeys.WorldMap)", menuSource, StringComparison.Ordinal);
         Assert.Equal("True", openButton.Attribute("IsTabStop")?.Value);
         Assert.Equal("True", openButton.Attribute("AllowFocusOnInteraction")?.Value);
         Assert.Equal(AttributeValue(openButton, "AutomationProperties.Name"), AttributeValue(openButton, "ToolTipService.ToolTip"));

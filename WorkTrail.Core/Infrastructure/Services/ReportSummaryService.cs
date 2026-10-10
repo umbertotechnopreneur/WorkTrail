@@ -26,6 +26,7 @@ internal sealed class ReportSummaryService(LocalStore store, IAIDecoder? decoder
         var key = store.LoadApiKey(settings.AiApiKeyName);
         if (!settings.OpenAiEnabled || string.IsNullOrWhiteSpace(key)) throw new ReportExportValidationException("Export.AiNotReady");
         var provider = decoder ?? AIDecoderFactory.Create(settings);
+        var summarySettings = settings with { Model = ReportSummaryModelPolicy.Resolve(provider.Provider, settings.Model) };
         var correlationId = Guid.NewGuid().ToString("N");
         var occurredAt = DateTimeOffset.UtcNow;
         AiProviderResult? result = null;
@@ -34,14 +35,14 @@ internal sealed class ReportSummaryService(LocalStore store, IAIDecoder? decoder
         try
         {
             // Only the selected text enters the prompt; no image, live capture, machine identity or local path is attached.
-            result = await provider.DecodeAsync(prompt, [], settings, key, correlationId,
+            result = await provider.DecodeAsync(prompt, [], summarySettings, key, correlationId,
                 new AiProviderRequestOptions(ReasoningEffort: "none", MaxOutputTokens: outputBudget), cancellationToken).ConfigureAwait(false);
             AiPolicyCancellation.ThrowIfRevoked();
             if (string.IsNullOrWhiteSpace(result.Text) || result.Text.Length > 60_000
                 || result.FinishReason is "incomplete" or "length" or "max_tokens")
                 throw new ReportExportValidationException("Export.SummaryIncomplete");
             valid = true;
-            return new(result.Text.Trim(), sourceCount, provider.Provider, result.ReturnedModel ?? settings.Model);
+            return new(result.Text.Trim(), sourceCount, provider.Provider, result.ReturnedModel ?? summarySettings.Model);
         }
         catch (AiProviderRequestException exception) { failure = exception.Failure; throw; }
         finally
@@ -49,7 +50,7 @@ internal sealed class ReportSummaryService(LocalStore store, IAIDecoder? decoder
             key = string.Empty;
             // The application callback serializes usage persistence, including failed or cancelled requests.
             await appendUsage(new(correlationId, correlationId, occurredAt, DateTimeOffset.UtcNow,
-                "report.summary", "report_summary", provider.Provider, AiProviderTelemetry.EndpointHost(settings.AiEndpoint), settings.Model,
+                "report.summary", "report_summary", provider.Provider, AiProviderTelemetry.EndpointHost(settings.AiEndpoint), summarySettings.Model,
                 result?.ReturnedModel, result?.ProviderResponseId ?? failure?.ProviderResponseId,
                 result?.ProviderRequestId ?? failure?.ProviderRequestId, result?.HttpStatusCode ?? failure?.HttpStatusCode,
                 result?.ElapsedMilliseconds ?? failure?.ElapsedMilliseconds, result?.ProviderProcessingMilliseconds ?? failure?.ProviderProcessingMilliseconds,

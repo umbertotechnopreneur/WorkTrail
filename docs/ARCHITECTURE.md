@@ -115,5 +115,4 @@ See the [privacy guide](PRIVACY.md) for what is saved and what can leave the PC.
 5. Explain any effects on privacy, accessibility, error handling, or migration.
 6. Record the licenses and sources of any new third-party code or assets.
 
-Start with the [contributor guide](../CONTRIBUTING.md) and use the
-[manual checks](VALIDATION.md) to check how the change looks and behaves.
+Start with the [contributor guide](../CONTRIBUTING.md) and check how the change looks and behaves.

@@ -183,26 +183,24 @@
             DefaultLabelPosition="Collapsed"
             IsDynamicOverflowEnabled="True"
             OverflowButtonVisibility="Auto">
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ZoomOutButton"
                 x:Name="ZoomOutButton"
-                AutomationProperties.Name="Zoom out"
                 Click="ZoomOutButton_Click"
                 IsEnabled="False"
                 Label="Zoom out"
                 Tag="Screenshots.Toolbar.ZoomOut"
-                ToolTipService.ToolTip="Zoom out">
+                AutomationProperties.Name="Zoom out" ToolTipService.ToolTip="Zoom out">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE71F;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ZoomResetButton"
                 x:Name="ZoomResetButton"
-                AutomationProperties.Name="Reset zoom to 100 percent"
                 Click="ZoomResetButton_Click"
                 IsEnabled="False"
                 Label="Reset zoom to 100%"
                 Tag="Screenshots.Toolbar.ZoomReset"
-                ToolTipService.ToolTip="Reset zoom to 100%">
+                AutomationProperties.Name="Reset zoom to 100%" ToolTipService.ToolTip="Reset zoom to 100%">
                 <AppBarButton.Icon>
                     <FontIcon
                         x:Name="ZoomPercentIcon"
@@ -213,90 +211,83 @@
                         Glyph="100%" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ZoomInButton"
                 x:Name="ZoomInButton"
-                AutomationProperties.Name="Zoom in"
                 Click="ZoomInButton_Click"
                 IsEnabled="False"
                 Label="Zoom in"
                 Tag="Screenshots.Toolbar.ZoomIn"
-                ToolTipService.ToolTip="Zoom in">
+                AutomationProperties.Name="Zoom in" ToolTipService.ToolTip="Zoom in">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE8A3;" />
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator />
-            <AppBarToggleButton
+            <AppBarToggleButton AutomationProperties.AutomationId="Gallery.Header.DetailsToggleButton"
                 x:Name="DetailsToggleButton"
-                AutomationProperties.Name="Show snapshot details"
                 Click="DetailsToggleButton_Click"
                 IsEnabled="False"
                 Label="Show snapshot details"
                 Tag="Screenshots.Details.Show"
-                ToolTipService.ToolTip="Show snapshot details">
+                AutomationProperties.Name="Show snapshot details" ToolTipService.ToolTip="Show snapshot details">
                 <AppBarToggleButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE8A0;" />
                 </AppBarToggleButton.Icon>
             </AppBarToggleButton>
             <AppBarSeparator />
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.SaveButton"
                 x:Name="SaveButton"
-                AutomationProperties.Name="Save selected image"
                 Click="SaveButton_Click"
                 IsEnabled="False"
                 Label="Save selected image"
                 Tag="Screenshots.Toolbar.Save"
-                ToolTipService.ToolTip="Save selected image">
+                AutomationProperties.Name="Save selected image" ToolTipService.ToolTip="Save selected image">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.ShareButton"
                 x:Name="ShareButton"
-                AutomationProperties.Name="Share with another app"
                 Click="ShareButton_Click"
                 IsEnabled="False"
                 Label="Share with another app"
                 Tag="Screenshots.Toolbar.Share"
-                ToolTipService.ToolTip="Share with another app">
+                AutomationProperties.Name="Share with another app" ToolTipService.ToolTip="Share with another app">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE72D;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.OpenFolderButton"
                 x:Name="OpenFolderButton"
-                AutomationProperties.Name="Open containing folder"
                 Click="OpenFolderButton_Click"
                 Label="Open containing folder"
                 Tag="Screenshots.Toolbar.OpenFolder"
-                ToolTipService.ToolTip="Open containing folder">
+                AutomationProperties.Name="Open containing folder" ToolTipService.ToolTip="Open containing folder">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE8B7;" />
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator />
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.DeleteScreenshotButton"
                 x:Name="DeleteScreenshotButton"
-                AutomationProperties.Name="Delete screenshot"
                 Click="DeleteScreenshotButton_Click"
                 Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                 IsEnabled="False"
                 Label="Delete screenshot"
                 Tag="Screenshots.Toolbar.DeleteScreenshot"
-                ToolTipService.ToolTip="Delete screenshot">
+                AutomationProperties.Name="Delete screenshot" ToolTipService.ToolTip="Delete screenshot">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" />
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarButton
+            <AppBarButton AutomationProperties.AutomationId="Gallery.Header.DeleteAnalysisButton"
                 x:Name="DeleteAnalysisButton"
-                AutomationProperties.Name="Delete analysis data"
                 Click="DeleteAnalysisButton_Click"
                 Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                 IsEnabled="False"
                 Label="Delete analysis data"
                 Tag="Screenshots.Toolbar.DeleteAnalysis"
-                ToolTipService.ToolTip="Delete analysis data">
+                AutomationProperties.Name="Delete analysis data" ToolTipService.ToolTip="Delete analysis data">
                 <AppBarButton.Icon>
                     <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" Glyph="&#xE823;" />
                 </AppBarButton.Icon>
@@ -409,12 +400,11 @@
                     TextTrimming="CharacterEllipsis" />
             </StackPanel>
 
-            <CalendarDatePicker
+            <CalendarDatePicker AutomationProperties.AutomationId="Gallery.Header.SelectedDatePicker"
                 x:Name="SelectedDatePicker"
                 Width="200"
                 Height="40"
                 HorizontalAlignment="Left"
-                AutomationProperties.Name="Screenshot date"
                 DateFormat="{}{day.integer} {month.full} {year.full}"
                 PlaceholderText="Select a day"
                 ToolTipService.ToolTip="Select date" />

@@ -19,17 +19,22 @@ public sealed partial class ProviderKeySetupControl : UserControl
     private AppSettings? _settings;
     private string _provider = "openai";
     private bool _weather;
-    private bool _busy;
+    private bool _busy = true;
     private bool _verified;
     private bool _closed;
     private bool _canTestExisting;
-    private bool _finished;
+    private bool _existingKeyUnchanged;
 
     /// <summary>Creates the passive credential entry sheet.</summary>
     public ProviderKeySetupControl()
     {
         _token = _lifetime.Token;
         InitializeComponent();
+        SetBusy(true);
+        Loaded += (_, _) =>
+        {
+            if (!_busy && !_closed) KeyBox.Focus(FocusState.Programmatic);
+        };
         Unloaded += (_, _) =>
         {
             if (_closed) return;
@@ -47,7 +52,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
     /// <summary>Occurs when the user chooses to return to the non-AI profile choices.</summary>
     public event Action? WithoutAiRequested;
 
-    /// <summary>Loads redacted provider configuration without reading any secret into the view.</summary>
+    /// <summary>Loads provider configuration and the existing credential into the masked editor.</summary>
     public async Task InitializeAsync(IWorkTrailApplication application, LocalizationService strings, bool weather, CancellationToken ownerToken)
     {
         _application = application;
@@ -72,7 +77,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
 
                 _settings = settings.Value;
                 _provider = _settings.AiProvider.ToLowerInvariant();
-                if (_provider is not ("openai" or "openrouter" or "anthropic"))
+                if (_provider != "openai")
                 {
                     _settings = null;
                     ShowFailure("ProviderSetup.Error.Configuration");
@@ -83,24 +88,42 @@ public sealed partial class ProviderKeySetupControl : UserControl
                 if (_closed || _token.IsCancellationRequested) return;
                 _canTestExisting = status.Succeeded && status.Value?.CanEnable == true;
                 ExistingKeyText.Visibility = _canTestExisting ? Visibility.Visible : Visibility.Collapsed;
+                var existingKey = await application.GetAiKeyAsync(_token);
+                if (_closed || _token.IsCancellationRequested) return;
+                if (!existingKey.Succeeded)
+                {
+                    ShowFailure("ProviderSetup.Error.Unavailable");
+                    return;
+                }
+                if (!string.IsNullOrEmpty(existingKey.Value))
+                {
+                    KeyBox.Password = existingKey.Value;
+                    _existingKeyUnchanged = true;
+                    ExistingKeyText.Visibility = Visibility.Visible;
+                }
             }
 
-            if (!_closed)
-            {
-                ApplyCopy();
-                KeyBox.Focus(FocusState.Programmatic);
-            }
+            if (!_closed) ApplyCopy();
         }
         catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
         catch (Exception) { if (!_closed) ShowFailure("ProviderSetup.Error.Unavailable"); }
-        finally { if (!_closed) SetBusy(false); }
+        finally
+        {
+            if (!_closed)
+            {
+                SetBusy(false);
+                KeyBox.Focus(FocusState.Programmatic);
+            }
+        }
     }
 
     private void ApplyCopy()
     {
         var name = _provider switch { "openweather" => "OpenWeather", "openrouter" => "OpenRouter", "anthropic" => "Anthropic", _ => "OpenAI" };
         HeadingText.Text = string.Format(_strings.Culture, T("ProviderSetup.Heading"), name);
-        DescriptionText.Text = T(_weather ? "ProviderSetup.Weather.Description" : "ProviderSetup.Ai.Description");
+        DescriptionText.Text = _weather
+            ? T("ProviderSetup.Weather.Description")
+            : $"{T("ProviderSetup.Ai.Description")} {T("ProviderSetup.FutureSupport")}";
         ExplanationText.Text = string.Format(_strings.Culture, T("ProviderSetup.Explanation"), name);
         KeyBox.Header = string.Format(_strings.Culture, T("ProviderSetup.KeyLabel"), name);
         AutomationProperties.SetName(KeyBox, KeyBox.Header.ToString());
@@ -112,17 +135,19 @@ public sealed partial class ProviderKeySetupControl : UserControl
             _ => "sk-proj-ab12************xy89"
         });
         InstructionsText.Text = T(_weather ? "ProviderSetup.Weather.Instructions" : "ProviderSetup.Ai.Instructions");
-        SetLinkLabel(PortalButton, "ProviderSetup.Portal");
+        SetLinkLabel(PortalButton, _weather ? "ProviderSetup.Weather.Portal" : "ProviderSetup.Portal");
         SetLinkLabel(GuideButton, "ProviderSetup.Guide");
-        SetLinkLabel(PricingButton, "ProviderSetup.Pricing");
+        SetLinkLabel(PricingButton, _weather ? "ProviderSetup.Pricing" : "ProviderSetup.Ai.Pricing");
         SetLinkLabel(WithoutAiButton, "ProviderSetup.WithoutAi");
         ActivationText.Visibility = _weather ? Visibility.Visible : Visibility.Collapsed;
         WithoutAiButton.Visibility = _weather ? Visibility.Collapsed : Visibility.Visible;
         CostBar.Title = T("ProviderSetup.CostTitle");
         CostBar.Message = T(_weather ? "ProviderSetup.Weather.Cost" : "ProviderSetup.Ai.Cost");
         PrivacyText.Text = T(_weather ? "ProviderSetup.Weather.Privacy" : "ProviderSetup.Ai.Privacy");
-        ResultBar.Message = T("ProviderSetup.NotVerified");
-        UpdateDismissLabel();
+        CostBar.Visibility = Visibility.Collapsed;
+        ResultBar.Visibility = Visibility.Collapsed;
+        ErrorText.Visibility = Visibility.Collapsed;
+        UpdateActionState();
     }
 
     private async void VerifyButton_Click(object sender, RoutedEventArgs e)
@@ -130,8 +155,9 @@ public sealed partial class ProviderKeySetupControl : UserControl
         if (_busy || _closed) return;
         _verified = false;
         SetBusy(true);
-        ResultBar.Severity = InfoBarSeverity.Informational;
-        ResultBar.Message = T("ProviderSetup.Verifying");
+        CostBar.Visibility = Visibility.Collapsed;
+        ResultBar.Visibility = Visibility.Collapsed;
+        ErrorText.Visibility = Visibility.Collapsed;
         var secret = KeyBox.Password;
         try
         {
@@ -149,7 +175,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
                     _ => result.MessageKey
                 };
             }
-            else if (secret.Length == 0 && _canTestExisting)
+            else if (_canTestExisting && (_existingKeyUnchanged || secret.Length == 0))
             {
                 var result = await _application.TestAiConnectionAsync(_token);
                 succeeded = result.Succeeded;
@@ -163,67 +189,98 @@ public sealed partial class ProviderKeySetupControl : UserControl
             }
 
             if (_closed) return;
-            KeyBox.Password = string.Empty;
             ShowKeyButton.IsChecked = false;
             KeyBox.PasswordRevealMode = PasswordRevealMode.Hidden;
             _verified = succeeded;
-            _finished = true;
-            ResultBar.Severity = succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error;
-            ResultBar.Message = succeeded ? T("ProviderSetup.Success") : T(message) + " " + T(_weather ? "ProviderSetup.Retry" : "ProviderSetup.Ai.Retry");
+            if (succeeded && !_weather)
+            {
+                _canTestExisting = true;
+                _existingKeyUnchanged = true;
+            }
+            if (succeeded)
+            {
+                ResultBar.Message = T("ProviderSetup.Success");
+                ResultBar.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ErrorText.Text = T(message) + " " + T(_weather ? "ProviderSetup.Retry" : "ProviderSetup.Ai.Retry");
+                ErrorText.Visibility = Visibility.Visible;
+            }
+            CostBar.Visibility = succeeded ? Visibility.Visible : Visibility.Collapsed;
         }
         catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
         catch (Exception) { if (!_closed) ShowFailure("ProviderSetup.Error.Unavailable"); }
         finally
         {
             secret = string.Empty;
-            if (!_closed) { KeyBox.Password = string.Empty; SetBusy(false); }
+            if (!_closed) SetBusy(false);
         }
     }
 
     private void ShowFailure(string key)
     {
         _verified = false;
-        _finished = true;
-        ResultBar.Severity = InfoBarSeverity.Error;
-        ResultBar.Message = T(key) + " " + T(_weather ? "ProviderSetup.Retry" : "ProviderSetup.Ai.Retry");
-        UpdateDismissLabel();
+        ErrorText.Text = T(key) + " " + T(_weather ? "ProviderSetup.Retry" : "ProviderSetup.Ai.Retry");
+        ErrorText.Visibility = Visibility.Visible;
+        ResultBar.Visibility = Visibility.Collapsed;
+        CostBar.Visibility = Visibility.Collapsed;
+        UpdateActionState();
     }
 
     private void KeyBox_PasswordChanged(object sender, RoutedEventArgs e)
     {
         if (_strings is null || _busy || _closed) return;
         _verified = false;
-        ResultBar.Severity = InfoBarSeverity.Informational;
-        ResultBar.Message = T("ProviderSetup.NotVerified");
-        UpdateDismissLabel();
+        _existingKeyUnchanged = false;
+        ResultBar.Visibility = Visibility.Collapsed;
+        ErrorText.Visibility = Visibility.Collapsed;
+        CostBar.Visibility = Visibility.Collapsed;
+        UpdateActionState();
     }
 
     private void ShowKeyButton_Click(object sender, RoutedEventArgs e) =>
         KeyBox.PasswordRevealMode = ShowKeyButton.IsChecked == true ? PasswordRevealMode.Visible : PasswordRevealMode.Hidden;
 
+    private void PasteKeyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy || _closed || !KeyBox.CanPasteClipboardContent) return;
+        KeyBox.Password = string.Empty;
+        KeyBox.Focus(FocusState.Programmatic);
+        KeyBox.PasteFromClipboard();
+    }
+
     private void SetBusy(bool busy)
     {
         _busy = busy;
-        KeyBox.IsEnabled = !busy && !_finished;
-        ShowKeyButton.IsEnabled = !busy && !_finished;
-        VerifyButton.IsEnabled = !busy && !_finished && (_weather || _settings is not null);
+        KeyBox.IsEnabled = !busy;
+        ShowKeyButton.IsEnabled = !busy;
+        PasteKeyButton.IsEnabled = !busy;
         Progress.IsActive = busy;
         Progress.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         WithoutAiButton.IsEnabled = !busy;
-        UpdateDismissLabel();
+        UpdateActionState();
     }
 
-    private void UpdateDismissLabel()
+    private void UpdateActionState()
     {
-        DismissButton.Content = T(_verified ? "Dialog.Ok" : "About.Close");
-        AutomationProperties.SetName(DismissButton, DismissButton.Content.ToString());
+        VerifyButton.IsEnabled = !_busy && (_weather || _settings is not null) &&
+            (KeyBox.Password.Length > 0 || _canTestExisting);
+        ContinueButton.IsEnabled = !_busy && _verified;
     }
 
-    private void DismissButton_Click(object sender, RoutedEventArgs e)
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         if (_closed) return;
         _lifetime.Cancel();
-        Dismissed?.Invoke(_verified && !_busy);
+        Dismissed?.Invoke(false);
+    }
+
+    private void ContinueButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_closed || _busy || !_verified) return;
+        _lifetime.Cancel();
+        Dismissed?.Invoke(true);
     }
 
     private void WithoutAiButton_Click(object sender, RoutedEventArgs e)
@@ -249,8 +306,8 @@ public sealed partial class ProviderKeySetupControl : UserControl
 
     private void ShowLinkFailure()
     {
-        ResultBar.Severity = InfoBarSeverity.Warning;
-        ResultBar.Message = T("About.LinkFailed.Description");
+        ErrorText.Text = T("About.LinkFailed.Description");
+        ErrorText.Visibility = Visibility.Visible;
     }
 
     private void SetLinkLabel(HyperlinkButton button, string key)

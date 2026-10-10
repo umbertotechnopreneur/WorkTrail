@@ -2,16 +2,17 @@
 
 These instructions apply to every change in this repository.
 
-## Current feature freeze: September 21-27, 2026
+## Current feature freeze: September 21-November 15, 2026
 
-- Through September 27, 2026 inclusive, accept only maintenance, stability, performance, documentation corrections, and polish of existing UI. Do not add capabilities or workflows.
+- Through November 15, 2026 inclusive, accept only maintenance, stability, performance, documentation corrections, and polish of existing UI. Do not add capabilities or workflows.
 - If the owner requests a feature, remind them of the freeze and suggest deferring it. Proceed only after the owner explicitly grants an exception or ends the freeze.
 - The freeze does not waive approval requirements for tests, builds, Git delivery, installation, or publication.
 
 ## Product and documentation
 
-- Follow the [MeUp style guide](docs/assets/meup/README.md). Keep a common README structure and author signature across MailMeUp, PromptMeUp, and WorkTrail while giving each a distinct accent and concrete benefit.
-- Lead README and original project copy with what WorkTrail does for the reader. Use plain English, short sentences, concrete actions, useful examples, and "you"; use "I", "me", and "my" for the solo maintainer, never company-style "we".
+- Follow the [MeUp style guide](docs/assets/meup/README.md). Keep a common README structure and author signature across AgentInbox, PromptMeUp, and WorkTrail while giving each a distinct accent and concrete benefit.
+- Open each README with the concrete problem I encountered in daily work, then explain how I built the app to solve it and what the reader can do with it. Keep the problem and solution ahead of architecture, branding, optional examples, and project history. Use honest, specific language; light humor is welcome when it fits.
+- Use plain English, short sentences, concrete actions, useful examples, and "you" for the reader. Use "I", "me", and "my" for the solo maintainer, never company-style "we", "us", or "our", or third-person labels such as "the author" or "the developer". Apply this voice to captions and provenance notes too; keep contributor credits accurate.
 - Avoid filler, hype, vague promises, corporate language, and AI-sounding prose. Never promise unlimited capacity or untested compatibility. Preserve exact commands, UI labels, privacy facts, limitations, contributor credits, and the distinction between implemented, tested, and planned behavior.
 - Preserve third-party quotations, licenses, attribution, and historical records. Keep UI strings separate from business logic and detailed validation procedures out of the product README.
 - Keep roadmaps, design explorations, pricing, commercial strategy, launch plans, future proposals, OAuth/Store procedures, owner checkpoints, and raw Store exports outside Git in the owner's Obsidian product notes under `40_Business/MeUp/`. Before publication or Store-listing work, read `40_Business/MeUp/Business decisions.md` and the relevant product notes; approved wording is not evidence of implemented licensing.
@@ -25,6 +26,7 @@ These instructions apply to every change in this repository.
 - For documentation or repository-instruction changes, stay on the current branch and keep changes local until delivery is requested; when authorized, include `[skip ci]` unless the owner requests CI.
 - For other work, protect `main`: use an authorized focused branch, open a pull request assigned to `umbertotechnopreneur` with matching existing labels, resolve checks and conversations, squash-merge, then delete the branch. Never bypass protections or checks.
 - Local MSIX build, signing, and installation require explicit authorization. GitHub Actions is optional for packaging. Create an annotated `v<version>` tag only when that source version is on `main` and the owner explicitly requests it.
+- For an authorized Debug MSIX build or reinstall, use the fast path: reuse the known working configuration and certificate, build the package, attempt installation immediately, and verify only the installation result, installed version, and package status. Diagnose the signature, manifest, and dependencies only after an installation failure. Do not run unrequested UI tests. Keep full validation for Release and Store packages. Run any required cleanup silently and report it concisely.
 - Preserve unrelated changes. Never commit credentials, tokens, private/local data, logs, generated artifacts, machine paths, `.env`, `bin/`, `obj/`, `artifacts/`, or `.vs/`.
 
 ## Scope, validation, and tooling
@@ -36,7 +38,7 @@ These instructions apply to every change in this repository.
 - For documentation/instruction-only work, inspect only the scoped diff and staging; do not build, test, format, install hooks, or clean.
 - Use PowerShell 7 only and invoke commands through `pwsh -NoProfile`. Prefer `pwsh -NoProfile -File <script.ps1>` and, for short commands, `pwsh -NoProfile -Command '<single-quoted command>'`; pass arguments explicitly instead of composing nested shell strings.
 - Prefer parser checks and dry runs before destructive scripts. Run builds only for supported Windows SDK x64/ARM64 targets.
-- Write generated MSIX payloads, manifests, build information, and local build state under ignored `artifacts/`; scripts must not overwrite tracked manifest templates or release-version inputs.
+- Use ignored `artifacts/` as the only repository-local location for all temporary, generated, compiled, and packaging output created during work, including intermediates, logs, reports, and scratch files; organize them in dedicated subdirectories. Do not write such output at the repository root or beside source files. Scripts must not overwrite tracked manifest templates or release-version inputs.
 - If a task generated build/test output, clean it once after final use with the relevant `dotnet clean` (x64 by default). Preserve the newly validated installer; remove older packages only after verifying that their resolved paths are under this repository's `artifacts/`.
 
 Authorized checks, when relevant:
@@ -49,8 +51,9 @@ dotnet build .\WorkTrail\WorkTrail.csproj -p:Platform=x64
 
 ## Engineering invariants
 
-- This repository is pre-production. Do not add or retain backward-compatibility layers for superseded contracts, persisted artifacts, filenames, paths, settings, or APIs unless explicitly requested. Replace obsolete paths, adapters, and fallbacks; make migrations explicit and reject unsupported legacy input.
-- Fail fast on invalid input, unsupported state, missing required configuration, and persistence or interop failures. Do not silently normalize, ignore, or fall back unless documented product behavior requires it.
+- Do not add or retain backward-compatibility layers for superseded filenames, paths, settings, or APIs unless explicitly requested. Replace obsolete paths, adapters, and fallbacks.
+- This repository is in beta. Open activity databases on a best-effort basis: do not reject them because of schema versions, exact table definitions, columns, indexes, or additional schema objects. Create missing database objects without replacing existing data. Do not add version-specific compatibility layers or reset stored history to bypass an opening failure.
+- Report actual persistence, interop, startup, and unexpected application failures in a durable local log and a visible error dialog. Database failure reporting must work before the main window exists. Do not silently ignore errors or pretend an operation succeeded.
 - Keep WinUI views/code-behind, Spectre commands, prompts, and renderers passive: they collect input, bind/render DTOs, and invoke `IWorkTrailApplication`. They must not construct infrastructure services or perform I/O, process, registry, environment, HTTP, capture, hook, or persistence work.
 - Put application behavior, persistence, OS interop, capture, environment access, HTTP, retention, and startup behind `WorkTrail.Core` application services. Serialize persistence mutations in the application layer.
 - Do not create a second tracking runtime. Use the hashed-installation mutex and same-user versioned named-pipe protocol through the shared facade.
@@ -65,6 +68,8 @@ dotnet build .\WorkTrail\WorkTrail.csproj -p:Platform=x64
 - `WorkTrail/`: Windows-first WinUI 3 app (`net10.0-windows10.0.19041.0`, x64/ARM64).
 - `scripts/`: repository utilities. `.github/`: governance, workflows, Copilot context, and tasks.
 - Track active work in `.github/tasks/todo.md` and completed work in `.github/tasks/archive.md`.
+- When preparing or updating a PR, record notable implemented user or contributor changes in `CHANGELOG.md` under `Unreleased`, in the same PR. Use the final diff and completed task records as evidence; do not copy open tasks, private plans, or claim unverified fixes. Internal-only changes may omit an entry when the PR explains why.
+- Keep changelog entries concise and group them under Added, Changed, Fixed, Removed, or Security as applicable. Keep durable engineering lessons in `.github/tasks/lessons.md`; validation details belong in the PR and technical task records. Update entries if the PR scope changes. Move `Unreleased` entries to a dated version only during an explicitly authorized release; never infer a release from a merge or local build.
 - Keep repository-wide rules here; `.github/copilot-instructions.md` is only a pointer and need not be reread when this file is already current in context.
 
 ## Licensing

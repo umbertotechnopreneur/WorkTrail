@@ -35,6 +35,10 @@ public sealed class LocalizationService
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Catalogs = LoadCatalogs();
+    private static readonly IReadOnlyDictionary<string, string> AutomationNames = LoadAutomationNames();
+
+    /// <summary>Gets stable UI automation identifiers and their localized name keys.</summary>
+    public static IReadOnlyDictionary<string, string> AutomationNameKeys => AutomationNames;
 
     /// <summary>Gets the canonical explicit language codes accepted by the application.</summary>
     public static IReadOnlyList<string> SupportedLanguages => ProductLanguageCatalog.UiLocales;
@@ -84,6 +88,44 @@ public sealed class LocalizationService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         return Catalogs[Language].TryGetValue(key, out value!);
+    }
+
+    /// <summary>Resolves the accessible name of a control registered in the UI automation catalog.</summary>
+    /// <param name="automationId">The stable, untranslated control identifier.</param>
+    /// <param name="value">The name in the currently selected application language.</param>
+    public bool TryTranslateAutomationName(string automationId, out string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(automationId);
+        if (AutomationNames.TryGetValue(automationId, out var key))
+        {
+            value = Translate(key);
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    /// <summary>Loads the dedicated control-name map and checks its keys against every supported locale.</summary>
+    private static IReadOnlyDictionary<string, string> LoadAutomationNames()
+    {
+        const string resourceName = "WorkTrail.Data.ui-automation-names.json";
+        using var stream = typeof(LocalizationService).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidDataException($"Required automation-name resource '{resourceName}' is missing.");
+        var names = LoadCatalog(stream, resourceName);
+        foreach (var (automationId, key) in names)
+        {
+            foreach (var (language, catalog) in Catalogs)
+            {
+                if (!catalog.TryGetValue(key, out var name) || FormatItems(name).Length != 0)
+                {
+                    throw new InvalidDataException(
+                        $"Automation name '{automationId}' requires a non-formatted localization key '{key}' in '{language}'.");
+                }
+            }
+        }
+
+        return names;
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> LoadCatalogs()

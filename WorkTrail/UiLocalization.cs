@@ -13,6 +13,8 @@ namespace WorkTrail;
 internal static class UiLocalization
 {
     /// <summary>Gives an icon or visual-content command the same localized name and tooltip.</summary>
+    /// <param name="element">The command or control exposed through UI Automation.</param>
+    /// <param name="label">The localized description of its action.</param>
     public static void SetAccessibleLabel(DependencyObject element, string label)
     {
         ArgumentNullException.ThrowIfNull(element);
@@ -22,6 +24,8 @@ internal static class UiLocalization
     }
 
     /// <summary>Localizes one visual subtree without performing persistence or environment access.</summary>
+    /// <param name="root">The surface and its declared or realized descendants.</param>
+    /// <param name="strings">The resolved application language.</param>
     public static void Apply(DependencyObject root, LocalizationService strings)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -30,6 +34,10 @@ internal static class UiLocalization
         Apply(root, strings, new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance));
     }
 
+    /// <summary>Visits each element once, including controls declared in unopened menus.</summary>
+    /// <param name="root">The next element to localize.</param>
+    /// <param name="strings">The resolved application language.</param>
+    /// <param name="visited">Elements already processed in this traversal.</param>
     private static void Apply(
         DependencyObject root,
         LocalizationService strings,
@@ -49,6 +57,18 @@ internal static class UiLocalization
             }
         }
 
+        // Automation names have their own map; visible captions keep their existing translation keys.
+        var automationId = AutomationProperties.GetAutomationId(root);
+        if (!string.IsNullOrWhiteSpace(automationId)
+            && strings.TryTranslateAutomationName(automationId, out var accessibleName))
+        {
+            AutomationProperties.SetName(root, accessibleName);
+            if (root is ButtonBase button && button.Content is not string)
+            {
+                ToolTipService.SetToolTip(button, accessibleName);
+            }
+        }
+
         // Declared children remain reachable here even while an options page is collapsed and absent
         // from the realized visual tree. This keeps first-open surfaces in the selected language.
         foreach (var child in DeclaredChildren(root))
@@ -56,16 +76,66 @@ internal static class UiLocalization
             Apply(child, strings, visited);
         }
 
-        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        // Flyout containers have declared content but are not themselves visuals.
+        var visualChildren = root is UIElement ? VisualTreeHelper.GetChildrenCount(root) : 0;
+        for (var index = 0; index < visualChildren; index++)
         {
             Apply(VisualTreeHelper.GetChild(root, index), strings, visited);
         }
     }
 
+    /// <summary>Includes logical children that may not yet exist in the realized visual tree.</summary>
+    /// <param name="root">The control owning content, a flyout, or navigation commands.</param>
     private static IEnumerable<DependencyObject> DeclaredChildren(DependencyObject root)
     {
+        if (root is Button button && button.Flyout is { } buttonFlyout)
+        {
+            yield return buttonFlyout;
+        }
+
+        if (root is NavigationView navigation)
+        {
+            foreach (var item in navigation.MenuItems.Concat(navigation.FooterMenuItems).OfType<DependencyObject>())
+            {
+                yield return item;
+            }
+        }
+
+        if (root is CommandBar commandBar)
+        {
+            foreach (var command in commandBar.PrimaryCommands.Concat(commandBar.SecondaryCommands).OfType<DependencyObject>())
+            {
+                yield return command;
+            }
+        }
+
         switch (root)
         {
+            case MenuFlyout menu:
+                foreach (var item in menu.Items)
+                {
+                    yield return item;
+                }
+                break;
+            case MenuFlyoutSubItem subMenu:
+                foreach (var item in subMenu.Items)
+                {
+                    yield return item;
+                }
+                break;
+            case Flyout flyout when flyout.Content is DependencyObject flyoutContent:
+                yield return flyoutContent;
+                break;
+            case Expander expander:
+                if (expander.Header is DependencyObject header)
+                {
+                    yield return header;
+                }
+                if (expander.Content is DependencyObject expandedContent)
+                {
+                    yield return expandedContent;
+                }
+                break;
             case Border border when border.Child is DependencyObject borderChild:
                 yield return borderChild;
                 break;

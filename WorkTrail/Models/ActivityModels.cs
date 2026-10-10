@@ -142,9 +142,12 @@ public sealed record AppSettings(
     bool LunarPhaseWindowShowInTaskbar = true,
     bool WindowSnappingEnabled = true,
     IReadOnlyList<WorkTrail.Application.ActivityLabelDefinition>? ActivityLabels = null,
+    DateTimeOffset? LastRetentionCleanupAt = null,
+    bool ScreenshotNotificationsEnabled = true,
     string AstronomyAgendaCityId = "",
     IReadOnlyList<string>? AstronomyAgendaCountryCodes = null,
-    bool AstronomyAgendaShowSaints = true);
+    bool AstronomyAgendaShowSaints = true,
+    bool NotificationsEnabled = true);
 
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,

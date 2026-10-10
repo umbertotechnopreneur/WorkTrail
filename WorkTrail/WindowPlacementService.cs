@@ -36,7 +36,7 @@ internal sealed class WindowPlacementService : IDisposable
     private readonly WindowId _displayAnchorId;
     private readonly NativeWindowSubclassProc _subclassProc;
     private readonly nuint _subclassId;
-    private readonly IWindowSnappingRegistration _snapping;
+    private readonly IWindowSnappingRegistration? _snapping;
     private bool _restoreAttempted;
     private bool _subclassInstalled;
     private bool _disposed;
@@ -115,7 +115,16 @@ internal sealed class WindowPlacementService : IDisposable
         AttachXamlRoot();
         try
         {
-            _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
+            // Only independent work surfaces participate, both as moving windows and alignment targets.
+            // Dialogs, About, licenses and temporary operations retain native free movement.
+            if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks or WindowStateKeys.Sensors
+                or WindowStateKeys.WorldMap or WindowStateKeys.LunarPhase or WindowStateKeys.LocalSky
+                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap or WindowStateKeys.Search
+                or WindowStateKeys.Screenshots or WindowStateKeys.OcrText or WindowStateKeys.Schedule
+                or WindowStateKeys.ReportExport)
+            {
+                _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
+            }
         }
         catch
         {
@@ -500,6 +509,31 @@ internal sealed class WindowPlacementService : IDisposable
         var area = centerOnCursorDisplay ? CursorWorkArea() : OpeningWorkArea();
         KeepCurrentBoundsInWorkArea(root, area);
         CenterInWorkArea(area);
+    }
+
+    /// <summary>Retains saved dialog size and centers each opening on its owner within the owner's work area.</summary>
+    // root supplies the dialog's current layout scale.
+    // cancellationToken cancels restoration before owner-relative placement.
+    // Throws InvalidOperationException when the owner window is unavailable.
+    internal async Task RestoreAndCenterOnOwnerAsync(FrameworkElement root, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        await RestoreAsync(root, cancellationToken);
+        if (_disposed || _closeSaveStarted || s_preservingWorkspace) return;
+
+        var owner = AppWindow.GetFromWindowId(_displayAnchorId)
+            ?? throw new InvalidOperationException("The dialog owner is unavailable for centering.");
+        var area = OpeningWorkArea();
+        KeepCurrentBoundsInWorkArea(root, area);
+        var margin = (int)Math.Ceiling(_logicalScreenMargin * ResolveScale(root));
+        var left = area.X + margin;
+        var top = area.Y + margin;
+        var right = Math.Max(left, area.X + area.Width - margin - _appWindow.Size.Width);
+        var bottom = Math.Max(top, area.Y + area.Height - margin - _appWindow.Size.Height);
+        // An owner near a screen edge must not place the dialog's caption or content outside the work area.
+        _appWindow.Move(new PointInt32(
+            Math.Clamp(owner.Position.X + (owner.Size.Width - _appWindow.Size.Width) / 2, left, right),
+            Math.Clamp(owner.Position.Y + (owner.Size.Height - _appWindow.Size.Height) / 2, top, bottom)));
     }
 
     /// <summary>Resizes content within the shared native minimum without replacing the user's placement.</summary>

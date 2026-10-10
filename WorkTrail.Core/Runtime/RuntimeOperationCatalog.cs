@@ -56,8 +56,14 @@ internal enum RuntimeOperation
     HardwareAdvancedEnableV1,
     [RuntimeOperationWireName("screenshot.capture")]
     ScreenshotCapture,
+    [RuntimeOperationWireName("screenshot.vip.capture.v1")]
+    ScreenshotVipCaptureV1,
     [RuntimeOperationWireName("screenshot.manual.capture")]
     ScreenshotManualCapture,
+    [RuntimeOperationWireName("screenshot.vip.note.save.v1")]
+    ScreenshotVipNoteSaveV1,
+    [RuntimeOperationWireName("screenshot.vip.dates.v1")]
+    ScreenshotVipDatesV1,
     [RuntimeOperationWireName("screenshot.manual.delete")]
     ScreenshotManualDelete,
     [RuntimeOperationWireName("screenshot.analyze")]
@@ -102,6 +108,8 @@ internal enum RuntimeOperation
     NotificationsDrain,
     [RuntimeOperationWireName("ai.status")]
     AiStatus,
+    [RuntimeOperationWireName("ai.key.get")]
+    AiKeyGet,
     [RuntimeOperationWireName("ai.pricing.overview")]
     AiPricingOverview,
     [RuntimeOperationWireName("ai.connection.test")]
@@ -140,6 +148,10 @@ internal enum RuntimeOperation
     ReportExportWriteV1,
     [RuntimeOperationWireName("report.export.summary.v1")]
     ReportExportSummaryV1,
+    [RuntimeOperationWireName("report.timesheet.batch.v1")]
+    TimesheetBatchV1,
+    [RuntimeOperationWireName("report.preview.file.v1")]
+    ReportFilePreviewV1,
     [RuntimeOperationWireName("ui.open")]
     UiOpen,
     [RuntimeOperationWireName("privacy.list")]

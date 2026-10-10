@@ -81,8 +81,9 @@ public sealed class SensorMonitorProjectionTests
         Assert.Equal(first.SensorId, second.SensorId);
         Assert.Equal("3 / 16 GiB", first.CapacityText);
         var history = new SensorTraceHistory();
-        history.Update(first, Now);
-        Assert.Equal(2, history.Update(second, Now.AddSeconds(2)).Count);
+        history.Record(first, Now);
+        history.Record(second, Now.AddSeconds(2));
+        Assert.Equal(2, history.GetPoints(second.Id).Count);
     }
 
     [Fact]
@@ -175,13 +176,42 @@ public sealed class SensorMonitorProjectionTests
     {
         var history = new SensorTraceHistory();
         var row = Project("Cpu", new HardwareSensorSnapshot("load", "CPU Total", "Load", "%", 24));
-        Assert.Single(history.Update(row, Now));
-        Assert.Single(history.Update(row, Now.AddSeconds(1)));
-        Assert.Equal(2, history.Update(row with { SampledAt = Now.AddSeconds(2), Percent = 30 }, Now.AddSeconds(2)).Count);
-        Assert.Empty(history.Update(row, Now.AddMinutes(3)));
-        Assert.Single(history.Update(row with { SensorId = "new", SampledAt = Now.AddMinutes(3) }, Now.AddMinutes(3)));
+        history.Record(row, Now);
+        Assert.Single(history.GetPoints(row.Id));
+        history.Record(row, Now.AddSeconds(1));
+        Assert.Single(history.GetPoints(row.Id));
+        history.Record(row with { SampledAt = Now.AddSeconds(2), Percent = 30 }, Now.AddSeconds(2));
+        Assert.Equal(2, history.GetPoints(row.Id).Count);
+        history.Record(row, Now.AddMinutes(3));
+        Assert.Empty(history.GetPoints(row.Id));
+        history.Record(row with { SensorId = "new", SampledAt = Now.AddMinutes(3) }, Now.AddMinutes(3));
+        Assert.Single(history.GetPoints(row.Id));
         history.Retain([]);
-        Assert.Single(history.Update(row, Now));
+        Assert.Empty(history.GetPoints(row.Id));
+        history.Record(row, Now);
+        Assert.Single(history.GetPoints(row.Id));
+    }
+
+    [Fact]
+    public void History_RecordsHiddenDevicesWithoutCopyingTheirTracesUntilRequested()
+    {
+        var history = new SensorTraceHistory();
+        var row = Project("Cpu", new HardwareSensorSnapshot("load", "CPU Total", "Load", "%", 0));
+        var hidden = row with { Id = "hidden-device" };
+        history.Retain([row, hidden]);
+        history.Record(row, Now);
+        history.Record(hidden, Now);
+        var visiblePoints = history.GetPoints(row.Id);
+        history.Record(hidden with { SampledAt = Now.AddSeconds(2), Percent = null }, Now.AddSeconds(2));
+
+        Assert.Single(visiblePoints);
+        var hiddenPoints = history.GetPoints(hidden.Id);
+        Assert.Equal(2, hiddenPoints.Count);
+        Assert.Equal(0, hiddenPoints[0].Value);
+        Assert.Null(hiddenPoints[1].Value);
+        history.Retain([hidden]);
+        Assert.Empty(history.GetPoints(row.Id));
+        Assert.Equal(2, history.GetPoints(hidden.Id).Count);
     }
 
     private static SensorMonitorRow Project(string kind, params HardwareSensorSnapshot[] sensors) =>

@@ -11,9 +11,35 @@ internal sealed class ScreenshotDeletionJournal(LocalStore store)
 {
     private string JournalDirectory => Path.Combine(store.DataDirectory, "pending-screenshot-deletions");
 
-    internal sealed record Plan(string ScreenshotPath, string[] Artifacts, bool DeleteAnalysis);
+    internal sealed record Plan(string ScreenshotPath, string[] Artifacts, bool DeleteAnalysis, string AuthorizedRoot);
 
-    internal Plan? Begin(string path, bool deleteAnalysis)
+    /// <summary>Tracks remaining artifacts with one archive enumeration per authorized root.</summary>
+    internal sealed class Batch
+    {
+        private readonly Dictionary<string, Dictionary<string, HashSet<string>>> _roots = new(StringComparer.OrdinalIgnoreCase);
+
+        internal Dictionary<string, HashSet<string>> Inventory(string root, CancellationToken cancellationToken)
+        {
+            if (_roots.TryGetValue(root, out var inventory)) return inventory;
+            inventory = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            foreach (var path in ScreenshotStorageLayout.EnumerateOwnedArtifacts(root))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var captureId = Path.GetFileName(path)[..32];
+                if (!inventory.TryGetValue(captureId, out var artifacts))
+                    inventory.Add(captureId, artifacts = new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                artifacts.Add(Path.GetFullPath(path));
+            }
+            _roots.Add(root, inventory);
+            return inventory;
+        }
+    }
+
+    // path identifies one monitor or window artifact to remove.
+    // deleteAnalysis controls removal of its derived AI records.
+    // batch supplies the already enumerated archive for bulk cleanup.
+    // cancellationToken stops archive enumeration before a new deletion starts.
+    internal Plan? Begin(string path, bool deleteAnalysis, Batch? batch = null, CancellationToken cancellationToken = default)
     {
         if (!ScreenCaptureService.IsOwnedArtifact(path) || !Path.IsPathFullyQualified(path)) return null;
         var journal = GetPath(path);
@@ -27,28 +53,71 @@ internal sealed class ScreenshotDeletionJournal(LocalStore store)
             }
             return pending;
         }
-        var artifacts = store.FindScreenshotArtifacts(path);
+        var root = ScreenshotStorageLayout.NormalizeRoot(store.LoadSettings().ScreenshotDirectory);
+        IReadOnlyList<string> artifacts;
+        if (batch is null) artifacts = store.FindScreenshotArtifacts(path);
+        else
+        {
+            var inventory = batch.Inventory(root, cancellationToken);
+            var fullPath = Path.GetFullPath(path);
+            var identity = LocalStore.ScreenshotIdentity(Path.GetFileName(path));
+            artifacts = inventory.TryGetValue(Path.GetFileName(path)[..32], out var paths)
+                ? paths.Where(candidate => string.Equals(Path.GetDirectoryName(candidate), Path.GetDirectoryName(fullPath), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(LocalStore.ScreenshotIdentity(Path.GetFileName(candidate)), identity, StringComparison.OrdinalIgnoreCase)).ToArray()
+                : [];
+        }
         if (artifacts.Count == 0) return null;
-        var plan = new Plan(Path.GetFullPath(path), artifacts.ToArray(), deleteAnalysis);
+        var plan = new Plan(Path.GetFullPath(path), artifacts.ToArray(), deleteAnalysis,
+            root);
         Validate(plan);
         Save(journal, plan);
         return plan;
     }
 
-    internal IReadOnlyList<Plan> Pending() => Directory.Exists(JournalDirectory)
-        ? Directory.EnumerateFiles(JournalDirectory, "*.json").Select(Read).ToArray() : [];
+    // reportFailure receives isolated recovery errors; their durable intents remain available for retry.
+    internal IReadOnlyList<Plan> Pending(Action<Exception>? reportFailure = null)
+    {
+        RejectLinks(JournalDirectory);
+        if (!Directory.Exists(JournalDirectory)) return [];
+        var plans = new List<Plan>();
+        foreach (var path in Directory.EnumerateFiles(JournalDirectory, "*.json"))
+        {
+            try { plans.Add(Read(path)); }
+            catch (Exception exception) when (reportFailure is not null
+                && exception is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
+            {
+                reportFailure(exception);
+            }
+        }
+        return plans;
+    }
 
-    internal void Execute(Plan plan)
+    // plan retains the root authorized when deletion began.
+    // batch shares physical-artifact inventory across a cleanup or recovery run.
+    // cancellationToken stops between individual file removals without losing intent.
+    internal void Execute(Plan plan, Batch? batch = null, CancellationToken cancellationToken = default)
     {
         Validate(plan);
+        var inventory = (batch ?? new Batch()).Inventory(plan.AuthorizedRoot, cancellationToken);
         // Intent is already durable. Any failure leaves it available even when the image is now absent.
-        foreach (var path in plan.Artifacts) File.Delete(path);
+        foreach (var path in plan.Artifacts)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Delete(path);
+            var captureId = Path.GetFileName(path)[..32];
+            if (inventory.TryGetValue(captureId, out var artifacts))
+            {
+                artifacts.Remove(Path.GetFullPath(path));
+                if (artifacts.Count == 0) inventory.Remove(captureId);
+            }
+        }
         if (plan.DeleteAnalysis)
             foreach (var path in plan.Artifacts.Append(plan.ScreenshotPath).Distinct(StringComparer.OrdinalIgnoreCase))
                 store.DeleteAiAnalysesReferencingScreenshot(path);
         store.DeleteScreenshotTextSnapshot(plan.ScreenshotPath);
         store.DeleteScreenshotIntervalTelemetry(plan.ScreenshotPath);
-        store.DeleteScreenshotCaptureIfOrphaned(plan.ScreenshotPath);
+        store.DeleteScreenshotCaptureIfOrphaned(plan.ScreenshotPath,
+            inventory.ContainsKey(Path.GetFileName(plan.ScreenshotPath)[..32]));
     }
 
     internal void Complete(Plan plan) => File.Delete(GetPath(plan.ScreenshotPath));
@@ -64,12 +133,15 @@ internal sealed class ScreenshotDeletionJournal(LocalStore store)
         return plan;
     }
 
+    // plan must contain explicit persisted identity and root before path helpers can inspect it.
     private void Validate(Plan plan)
     {
-        var settings = store.LoadSettings();
-        var root = ScreenshotStorageLayout.NormalizeRoot(settings.ScreenshotDirectory);
+        if (string.IsNullOrWhiteSpace(plan.ScreenshotPath) || string.IsNullOrWhiteSpace(plan.AuthorizedRoot)
+            || plan.Artifacts is null || plan.Artifacts.Length == 0)
+            throw new InvalidDataException("Screenshot deletion has no valid identity, root, or artifacts.");
+        var root = ScreenshotStorageLayout.NormalizeRoot(plan.AuthorizedRoot);
+        RejectLinks(root);
         var identity = LocalStore.ScreenshotIdentity(Path.GetFileName(plan.ScreenshotPath));
-        if (plan.Artifacts is null || plan.Artifacts.Length == 0) throw new InvalidDataException("Screenshot deletion has no artifacts.");
         foreach (var path in plan.Artifacts.Append(plan.ScreenshotPath))
         {
             if (!Path.IsPathFullyQualified(path) || !ScreenCaptureService.IsOwnedArtifact(path)
@@ -82,9 +154,7 @@ internal sealed class ScreenshotDeletionJournal(LocalStore store)
 
     private static void RejectLinks(string path)
     {
-        for (var current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
-            if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidDataException("Screenshot deletion does not follow filesystem links.");
+        ScreenshotStorageLayout.RejectLinks(path);
     }
 
     private string GetPath(string path)

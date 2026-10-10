@@ -22,6 +22,13 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
     private AppSettings? _savedSettings;
 
     /// <summary>Creates the label-management surface using the current settings and access snapshots.</summary>
+    /// <param name="application">The facade that manages labels and opens product links.</param>
+    /// <param name="settings">The current label and UI settings.</param>
+    /// <param name="access">The current feature-access snapshot.</param>
+    /// <param name="theme">The owner's presentation theme.</param>
+    /// <param name="strings">The owner's localized strings.</param>
+    /// <param name="ownerAppWindow">The owning window used for placement.</param>
+    /// <param name="ownerHandle">The native owning window handle.</param>
     internal ActivityLabelsDialogWindow(
         IWorkTrailApplication application,
         AppSettings settings,
@@ -40,7 +47,7 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
         var appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WindowHandle));
         _titleBar = new CustomTitleBarController(
             this, appWindow, RootGrid, TitleDragRegion, TitleBarLeftInsetColumn, TitleBarRightInsetColumn,
-            static () => Array.Empty<FrameworkElement>(), useTallTitleBar: false);
+            static () => Array.Empty<FrameworkElement>(), useTallTitleBar: false, allowAutoHide: false);
         _placement = new WindowPlacementService(application, this, appWindow, WindowStateKeys.ActivityLabels, 560, 460, 24, ownerAppWindow.Id);
         WindowInteropService.SetOwner(WindowHandle, ownerHandle);
         if (appWindow.Presenter is OverlappedPresenter presenter)
@@ -48,14 +55,14 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
             presenter.IsResizable = true;
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
-            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: false);
+            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: true);
         }
 
         LabelsFeatureGate.UiLanguage = settings.UiLanguage;
         LabelsFeatureGate.Access = access;
         LabelsEditor.ApplySettings(application, settings);
-        LabelsEditor.ShowUpgradeAsync = () => _messages.ShowInformativeAsync(this,
-            DialogRequest.Informative(strings.Translate("Premium.UpgradeTitle"), strings.Translate("Labels.FreeLimit"), strings.Translate("Dialog.Ok")));
+        LabelsEditor.ShowUpgradeAsync = () => _messages.ShowPremiumUpgradeAsync(
+            application, this, strings.Translate, "Labels.FreeLimit");
         LabelsEditor.SettingsSaved += saved => _savedSettings = saved;
         LabelsEditor.BusyChanged += busy => CloseButton.IsEnabled = !busy;
         appWindow.Closing += (_, args) =>
@@ -85,7 +92,7 @@ internal sealed partial class ActivityLabelsDialogWindow : Window
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         _placement.ApplyDefaultBounds(RootGrid);
-        await _placement.RestoreOrCenterAsync(RootGrid, CancellationToken.None);
+        await _placement.RestoreAndCenterOnOwnerAsync(RootGrid, CancellationToken.None);
         if (LabelsFeatureGate.Access is { } access && FeatureCatalog.IsAllowed(ProductFeature.ActivityLabels, access))
             LabelsEditor.FocusEditor();
         else

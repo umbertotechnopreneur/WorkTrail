@@ -52,6 +52,7 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
     private readonly IntPtr _windowHandle;
     private readonly TextBlock _dayNumberMeasure = new() { Text = "88" };
     private IReadOnlyDictionary<DateOnly, ReportCalendarCell> _recordedDays = new Dictionary<DateOnly, ReportCalendarCell>();
+    private IReadOnlySet<DateOnly> _vipDates = new HashSet<DateOnly>();
     private DateOnly _selectedDate = DateOnly.FromDateTime(DateTime.Today);
     private ActivityCalendarDialogResult? _result;
     private bool _isCompleting;
@@ -169,6 +170,13 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
                 return;
             }
 
+            var vip = await _application.GetVipScreenshotDatesAsync(new(from, today), _lifetimeCancellation.Token);
+            if (!vip.Succeeded || vip.Value is null)
+            {
+                ShowError(T("ActivityCalendar.Unavailable"));
+                return;
+            }
+            _vipDates = vip.Value.ToHashSet();
             ShowCalendar(from, today);
         }
         catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
@@ -252,9 +260,9 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
             ? T("ActivityCalendar.Empty")
             : string.Format(_culture, T("ActivityCalendar.Legend"), _recordedDays.Count);
 
-        var selectedDate = _recordedDays.ContainsKey(today)
+        var selectedDate = _recordedDays.ContainsKey(today) || _vipDates.Contains(today)
             ? today
-            : _recordedDays.Keys.DefaultIfEmpty(today).Max();
+            : _recordedDays.Keys.Concat(_vipDates).DefaultIfEmpty(today).Max();
         var calendarDate = ToCalendarDate(selectedDate);
         ActivityCalendarView.SelectedDates.Clear();
         ActivityCalendarView.SelectedDates.Add(calendarDate);
@@ -433,6 +441,11 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
                 _culture,
                 T("ActivityCalendar.Day.NoDataAccessible"),
                 date.ToString("D", _culture));
+            if (_vipDates.Contains(date))
+            {
+                args.Item.Tag = CreateCalendarBadges(null, true);
+                noDataLabel += ". " + T("Snapshot.Vip.Calendar");
+            }
             AutomationProperties.SetName(args.Item, noDataLabel);
             ToolTipService.SetToolTip(args.Item, noDataLabel);
             return;
@@ -441,7 +454,7 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
         var score = cell.ActivityScore!.Value;
         var installations = cell.Installations!;
         args.Item.Background = GetActivityHeatBrush(score);
-        args.Item.Tag = new ActivityInstallationBadges(installations, _culture);
+        args.Item.Tag = CreateCalendarBadges(new ActivityInstallationBadges(installations, _culture), _vipDates.Contains(date));
         args.Item.SizeChanged += CalendarDay_SizeChanged;
         UpdateCalendarDayBadges(args.Item);
         var label = string.Format(
@@ -450,7 +463,8 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
             date.ToString("D", _culture),
             score);
         var provenanceLabel = BuildInstallationAccessibleLabel(installations);
-        var accessibleLabel = $"{label}. {T("Operations.InstallationTransfer.Installations.List")}: {provenanceLabel}.";
+        var accessibleLabel = $"{label}. {T("Operations.InstallationTransfer.Installations.List")}: {provenanceLabel}." +
+            (_vipDates.Contains(date) ? " " + T("Snapshot.Vip.Calendar") : string.Empty);
         AutomationProperties.SetName(args.Item, accessibleLabel);
         ToolTipService.SetToolTip(args.Item, accessibleLabel);
     }
@@ -460,7 +474,8 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
 
     private void UpdateCalendarDayBadges(CalendarViewDayItem item)
     {
-        if (item.Tag is not ActivityInstallationBadges badges) return;
+        if (item.Tag is not Grid badgeLayout
+            || badgeLayout.Children.OfType<ActivityInstallationBadges>().FirstOrDefault() is not { } badges) return;
 
         // Native CalendarView draws the centered day number outside its template. Reserve its space,
         // using a second line in tall cells and the right-hand side in compact, wide cells.
@@ -475,6 +490,26 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
         badges.Margin = belowDate ? new Thickness(4, 0, 4, 4) : new Thickness(0, 0, 4, 0);
         badges.MaxWidth = width;
         badges.UpdateAvailableSize(width, item.ActualHeight);
+    }
+
+    // installations contains activity provenance badges, when activity was recorded.
+    // hasVip indicates a retained important screenshot, including days without activity samples.
+    private Grid CreateCalendarBadges(ActivityInstallationBadges? installations, bool hasVip)
+    {
+        var layout = new Grid { IsHitTestVisible = false };
+        if (installations is not null) layout.Children.Add(installations);
+        if (hasVip)
+        {
+            layout.Children.Add(new VipBadge
+            {
+                Text = T("Snapshot.Vip.Calendar"),
+                ShowText = false,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 3, 3, 0)
+            });
+        }
+        return layout;
     }
 
     private Brush GetActivityHeatBrush(int score) => score switch
@@ -535,6 +570,7 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
         if (!_recordedDays.TryGetValue(date, out var cell))
         {
             DayStatusText.Text = T("ActivityCalendar.NoActivity");
+            if (_vipDates.Contains(date)) DayStatusText.Text += " · " + T("Snapshot.Vip.Calendar");
             DayMetricsPanel.Visibility = Visibility.Collapsed;
             InstallationLegendItems.ItemsSource = null;
             AutomationProperties.SetName(

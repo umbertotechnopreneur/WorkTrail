@@ -68,7 +68,12 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.SystemSnapshot => ToResponse(request, await _application.CaptureSystemSnapshotAsync(cancellationToken)),
                 RuntimeOperation.HardwareAdvancedEnableV1 => ToResponse(request, await _application.EnableAdvancedHardwareTelemetryAsync(cancellationToken)),
                 RuntimeOperation.ScreenshotCapture => await DispatchScreenshotCaptureAsync(request, cancellationToken),
+                RuntimeOperation.ScreenshotVipCaptureV1 => await DispatchScreenshotCaptureAsync(request, cancellationToken),
                 RuntimeOperation.ScreenshotManualCapture => ToResponse(request, await _application.CaptureManualScreenshotAsync(cancellationToken)),
+                RuntimeOperation.ScreenshotVipNoteSaveV1 => ToResponse(request, await _application.SaveVipScreenshotNoteAsync(
+                    Read<VipScreenshotNoteRequest>(request.Payload) ?? throw new InvalidDataException("A VIP note payload is required."), cancellationToken)),
+                RuntimeOperation.ScreenshotVipDatesV1 => ToResponse(request, await _application.GetVipScreenshotDatesAsync(
+                    Read<VipScreenshotDatesRequest>(request.Payload) ?? throw new InvalidDataException("A VIP date range is required."), cancellationToken)),
                 RuntimeOperation.ScreenshotManualDelete => ToResponse(request, await _application.DeletePendingManualScreenshotAsync(cancellationToken)),
                 RuntimeOperation.ScreenshotAnalyze => await DispatchScreenshotAnalysisAsync(request, cancellationToken),
                 RuntimeOperation.ScreenshotLatest => ToResponse(request, await _application.GetLatestScreenshotAsync(cancellationToken)),
@@ -104,6 +109,7 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.ScreenshotOpenFolder => ToResponse(request, await DispatchOpenScreenshotFolderAsync(request, cancellationToken)),
                 RuntimeOperation.NotificationsDrain => ToResponse(request, await _application.DrainApplicationNotificationsAsync(cancellationToken)),
                 RuntimeOperation.AiStatus => ToResponse(request, await _application.GetAiStatusAsync(cancellationToken)),
+                RuntimeOperation.AiKeyGet => ToResponse(request, await _application.GetAiKeyAsync(cancellationToken)),
                 RuntimeOperation.AiPricingOverview => ToResponse(request, await _application.GetAiPricingOverviewAsync(cancellationToken)),
                 RuntimeOperation.AiConnectionTest => ToResponse(request, await _application.TestAiConnectionAsync(cancellationToken)),
                 RuntimeOperation.AiScreenshotReprocessPreviewV1 => await DispatchAiScreenshotReprocessPreviewAsync(request, cancellationToken),
@@ -119,6 +125,10 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.AiAnalyze => ToResponse(request, await _application.AnalyzeCurrentActivityAsync(Read<AnalyzeCurrentActivityRequest>(request.Payload) ?? new AnalyzeCurrentActivityRequest(), cancellationToken)),
                 RuntimeOperation.ReportQueryV1 => await DispatchReportQueryAsync(request, cancellationToken),
                 RuntimeOperation.ReportExportSetupV1 => ToResponse(request, await _application.GetReportExportSetupAsync(cancellationToken)),
+                RuntimeOperation.ReportFilePreviewV1 => ToResponse(request, await _application.OpenReportFilePreviewAsync(
+                    Read<ReportFilePreviewRequest>(request.Payload) ?? throw new InvalidDataException("A preview request is required."), cancellationToken)),
+                RuntimeOperation.TimesheetBatchV1 => ToResponse(request, await _application.ManageTimesheetBatchAsync(
+                    Read<TimesheetBatchCommand>(request.Payload) ?? throw new InvalidDataException("A timesheet command is required."), cancellationToken)),
                 RuntimeOperation.ReportExportPreviewV1 => ToResponse(request, await _application.PreviewReportExportAsync(
                     Read<ReportExportOptions>(request.Payload) ?? throw new InvalidDataException("Export options are required."), cancellationToken)),
                 RuntimeOperation.ReportExportPreferencesV1 => ToResponse(request, await _application.SaveReportExportPreferencesAsync(

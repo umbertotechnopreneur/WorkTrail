@@ -54,7 +54,8 @@
                 <ToggleSwitch x:Name="ConstellationsVisibilitySwitch" Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center"
                               IsOn="True" Toggled="SkyVisibilitySwitch_Toggled" />
                 <Button x:Name="AgendaOptionsButton" Grid.Column="3" Width="38" Height="38"
-                        Visibility="Collapsed" Click="AgendaOptionsButton_Click">
+                        Visibility="Collapsed" Click="AgendaOptionsButton_Click"
+                        AutomationProperties.Name="Agenda options" ToolTipService.ToolTip="Agenda options">
                     <FontIcon Glyph="&#xE712;" FontSize="16" AutomationProperties.AccessibilityView="Raw" />
                 </Button>
                 <TextBlock x:Name="StatusText" Grid.Column="4" FontSize="12" FontWeight="Light"

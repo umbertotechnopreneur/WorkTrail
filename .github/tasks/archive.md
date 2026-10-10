@@ -2,6 +2,272 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-10
+
+### First-person, problem-first README writing
+
+- Align the repository writing rule with AgentInbox and PromptMeUp: open with my concrete daily-work problem, explain how I solved it, and use first person in author copy, captions, and provenance notes.
+- Preserve contributor credits and distinguish implemented, tested, and planned behavior.
+- Documentation-only change; no tests, builds, packaging, installation, or Git delivery were performed.
+
+## 2026-10-09
+
+### Primary-window snap guides
+
+- Added transient, click-through desktop guides using the selected snap targets, with
+  DPI-scaled twenty/ten logical-pixel preview/snap distances for movement and resizing.
+- Resize snapping changes only dragged edges, retains opposite edges and respects native
+  minimum/maximum tracking dimensions. Pointer anchors prevent sticky snapped sizes.
+- Updated localized Settings guidance for movement, resizing and display-scaled thresholds.
+- Limited snap registration and peer references to primary work surfaces, including
+  clocks and astronomy views; dialogs, About, licenses and temporary operations are excluded.
+- Added synthetic coverage for all resize directions, display scaling and DPI changes,
+  size constraints, preview thresholds, signed coordinates, escape cleanup and peer order.
+  All 64 focused tests passed in Debug x64 with code analyzers and warnings as errors;
+  C# formatting and verification passed. The Debug x64 MSIX built and installed as
+  1.0.6.14 with Ok package status. Native interaction and visual behavior remain unverified.
+
+## 2026-10-08
+
+### About layout contract checks
+
+- Updated the two existing About contract checks that failed in PR #58 after the compact
+  layout replaced the former fixed content, artwork and minimum bounds. Retained checks
+  for a fixed footer, disabled horizontal scrolling, diagnostics, licenses and product links.
+- Both targeted tests passed locally in Debug x64 with the CI analyzer and warning-as-error
+  settings. C# formatting and verification passed. Application code is unchanged.
+
+### Compact About layout and current branding
+
+- Replaced obsolete About artwork with an original trail illustration and a native
+  WorkTrail title. Reduced the default window and banner height, updated the minimum
+  bounds, adopted the compact size after placement restoration, and retained scrolling
+  and a single-column layout for constrained displays.
+- Added the owner's original transparent VibeWare master, localized GitHub and canonical
+  manifesto links, and artwork provenance. The press-kit dark/light symbols have opaque
+  backgrounds and are excluded. Removed duplicate report/repository actions and updated
+  About copy in every supported language.
+- Centered the artwork, reduced the default height to 520, displayed the full package
+  version and named the licenses action for accessibility. C# formatting and verification
+  passed. Built, signed and installed Debug x64 MSIX 1.0.6.11 with `Ok` registration.
+- Reviewed the installed About in Italian at 150% scale in both light and dark themes:
+  the trail, transparent logo, text, metadata, diagnostics actions and footer fit without
+  clipping. Confirmed accessible button names and retained placement at the compact size.
+  Restored the owner's System theme after the review. Other scales, constrained work
+  areas, long translations, high contrast and diagnostic failure states remain unverified.
+
+### Process memory recovery guard
+
+- Added a ten-second process sampler with a 1 GiB limit for private or resident memory,
+  periodic managed-memory/handle diagnostics, and one native Windows acknowledgement
+  before restart. Recovery preserves tracking state, safe mode and runtime launch mode,
+  bounds runtime shutdown, flushes logs and records the successor's recovery activation.
+- Added localized warning/failure copy. All 14 synthetic recovery cases passed, and C#
+  formatting and verification passed. Built, signed and installed Debug x64 MSIX 1.0.6.8;
+  verified package version, architecture and `Ok` registration status. Build/test output
+  was cleaned and the installer retained. Normal installed-app startup and periodic
+  memory logging were observed. Native warning/restart behavior remains unverified.
+  This protection does not establish or repair the original leak or explain OS-wide hangs.
+
+## 2026-10-07
+
+### Repeated screenshot failure notifications
+
+- Report only the first capture failure until a complete capture succeeds. Scheduled,
+  manual, and AI capture paths share this notification state; retries and local error
+  logging continue, including while successful-capture notifications are disabled.
+- C# formatting and verification passed. Built, signed, and installed Debug x64 MSIX
+  1.0.6.7; verified current-user version, architecture, and `Ok` registration status.
+  Project build output was cleaned and the installer retained. Automated tests and
+  native notification behavior remain unverified.
+
+## 2026-10-06
+
+### Tray menu shortcuts and open-window reveal
+
+- Added localized tray shortcuts for notification pause/resume, VIP capture, tracking
+  pause/resume, international clocks, the astronomical calendar, day/night map and globe,
+  Settings, and About, reusing existing application workflows.
+- Added Show all windows beside the visibility command. It restores the main window and
+  reveals its already-open peers through the existing facade, without creating windows.
+- Persisted global notification pause while preserving the screenshot-specific preference
+  and normal capture/tracking behavior. Native callbacks defer application work to the UI dispatcher.
+- Added a settings persistence regression case. C# formatting and verification passed.
+  Built, signed, and installed Debug x64 MSIX 1.0.6.6 with the expanded tray menu;
+  verified current-user version, architecture, and `Ok` registration status. Project
+  build output was cleaned and the installer retained. Tests and native interaction remain unverified.
+
+### Compact severity toasts
+
+- Removed the decorative countdown progress bar and compacted the shared toast surface.
+  Added green, amber, and red palettes for low-severity messages, warnings, and errors,
+  with native severity icons, matching borders and text, and high-contrast resources.
+- Preserved automatic dismissal, replacement protection, manual closing, and fade transitions;
+  the timeout no longer updates a visual progress indicator. Updated the existing surface
+  contract to reflect the new presentation. Included in built, signed, and installed
+  Debug x64 MSIX 1.0.6.6; tests and native interaction remain unverified.
+
+### VIP snapshots and capture notes
+
+- Moved label management into the player selector and used its second row for a VIP capture
+  button. Added a cancellable five-second Mica countdown and an Acrylic confirmation with preview
+  and an optional plain-text note, while reusing the existing multi-monitor capture pipeline.
+- Persisted VIP metadata by capture identity so all monitor artifacts share importance and
+  note. Archive transfer preserves it, and deleting the last retained artifact clears its
+  calendar indicator. Added dedicated runtime operations for VIP capture and metadata.
+- Added a featured VIP strip, separate gold borders and crown badges in the gallery, notes
+  in screenshot details, and calendar crowns even on dates with no recorded activity.
+- Added persistence/deletion regression cases and extended the multi-monitor archive case.
+- Debug x64 build passed with no warnings or errors; C# formatting and its verification passed.
+  The selected presentation checks passed 22 of 24 cases. The two failures match pre-existing
+  source inconsistencies on the base commit: duplicate report Premium badges and a missing
+  OCR action accessible name. Core validation awaits an approved retry after correcting a
+  dispatcher compilation error. Native Windows interaction remains unverified.
+- Built, signed, and installed Debug x64 MSIX version 1.0.6.4 with the VIP snapshot changes.
+  Verified current-user registration, version, architecture, and `Ok` package status;
+  the installer is retained and project build outputs were cleaned.
+- Refined both VIP dialog layouts and added localized explanations of immediate manual
+  capture and ordinary screenshot handling with VIP prominence in the gallery and calendar.
+  Built, signed, and installed these dialog refinements as Debug x64 MSIX 1.0.6.5.
+  Verified version, architecture, and `Ok` package status; native interaction remains unverified.
+
+## 2026-10-04
+
+### Shared Premium upgrade prompt
+
+- Replaced purchase and Full-edition wording with "Switch to Premium" across all supported languages.
+- Reused one localized dialog with a highlighted Store action for export, timesheet, label,
+  clock, schedule, data-transfer, and retention restrictions. Free retention choices and
+  the add-clock action now reach the prompt without unlocking the restricted operation.
+- Routed Store activation through the application facade using WorkTrail's package family
+  identity, with a visible localized error if Windows cannot open the Store.
+- C# whitespace formatting and verification passed. Runtime dialog presentation, Store
+  navigation, and build/test validation remain unverified.
+
+## 2026-10-03
+
+### One-command Debug MSIX installation
+
+- Added `InstallDebugMsix` to the general script to clear `artifacts`, build, sign, install, and verify a local Debug MSIX. It requires an explicit four-part version, chooses a trusted matching certificate, and cleans project output while preserving the new package.
+- The owner granted a feature-freeze exception limited to this script command.
+- Built, signed, installed, and verified Debug x64 version 1.0.6.3 with a valid package signature and `Ok` registration status.
+
+### Create the screenshot folder before opening it
+
+- Create the configured screenshot directory before passing it to Windows Explorer. This covers both the maintenance action and the folder button in the screenshot gallery when no capture has created the directory yet.
+- The maintenance action creates and opens the configured directory; the gallery action opens the directory containing the selected screenshot.
+- Resolve MSIX LocalAppData virtualization to the shell-visible `LocalCache\Local` path before opening Explorer; retain the canonical configured path for unpackaged execution.
+- Included the fixes in installed Debug x64 package version 1.0.6.3. Verified that the resolved physical directory exists and contains the retained screenshots; native button clicks remain for owner confirmation.
+
+### Best-effort beta database opening and global error reporting
+
+- Removed exact schema/version preflights from activity database opening and archive
+  database access. Initialization adds missing objects without replacing existing
+  definitions or history; existing informational database versions are preserved.
+- Routed startup, repeated activation, WinUI, unobserved task and application-domain
+  exceptions through a shared reporter. It writes a synchronously flushed emergency
+  log and shows a localized native error dialog even before a main window exists.
+  Concurrent failures do not stack dialogs, and task acknowledgement does not block GC.
+- Updated the beta database agreement and existing regression cases for retained history,
+  old/unversioned databases, additional objects, missing objects and actual SQLite failures.
+- Reviewed source and focused diffs manually. Built and installed the signed Debug x64
+  MSIX 1.0.6.0; Windows reports the installed package status as Ok. Cleaned build output
+  while retaining the installer. Formatting, hooks, tests, application launch,
+  native-dialog interaction and the owner's actual database remain unverified.
+
+## 2026-10-02
+
+### Explicit Excel preview actions
+
+- Replaced the faint preview action with a filled generation button and an inline
+  generation status beneath the card. Completed previews expose a selectable absolute
+  path, an explicit open command, and an accessible copy-path icon.
+- Kept workbook creation, validated file opening, and clipboard access behind the runtime
+  facade. Changing report options hides stale preview results; opening or copying reuses
+  the existing file without regenerating it or submitting AI work.
+- Updated all shipped languages and the UI automation register. Source review and C#
+  formatting verification passed; tests, a new build, and live interaction remain unverified.
+
+### Localized UI automation selectors
+
+- Registered stable selectors and localized accessible names for the main window,
+  reports, settings, retention, screenshot commands, sensors and maintenance navigation.
+- Added a dedicated control-name dictionary backed by the existing language catalogs
+  and a conversion register organized by UI surface. Kept state-dependent accessible
+  names and gave generated weekly schedule cells invariant selectors.
+- Included unopened menus, toolbar commands and expander headers in localization.
+  Validated selector coverage, every shipped language and export captions, and built
+  the Debug x64 UI. Live automation-tree inspection and interaction testing remain separate.
+
+### Grouped sensor details and visible-page rendering
+
+- Grouped every captured sensor reading by device, including zero and unavailable values,
+  with closed device sections instead of a flat expanded list.
+- Continued collecting all live trace samples while rendering and copying points only for
+  devices on the visible monitor page. Preserved capture timestamps and stored measurements.
+- Validated the hardware and sensor presentation checks with synthetic data and built the
+  Debug x64 UI. Visual acceptance and live memory profiling remain separate checkpoints.
+
+### Export reliability review
+
+- Distinguished rejected Batch creation from uncertain submissions, released unsubmitted
+  quota reservations atomically, and retained recovery identities without retrying paid work.
+- Added runtime recovery independent of export-window lifetime, durable result readiness,
+  retryable cloud cleanup, and a paged job catalog without the former 200-job cutoff.
+- Reconciled usage in one cancellable transaction and included consumed tokens from
+  incomplete responses in estimated costs.
+- Shared Excel package metadata, indexed day/project source selection, and removed the
+  full history projection previously used only to choose a save filename.
+- Added synthetic regression cases for rejection, uncertainty, archive paging, runtime
+  recovery, download/cleanup failure, quota transactions, source attribution, and costs.
+  Validated targeted export, aggregation, batch, and localization checks using simulated
+  provider responses, and built the Debug x64 UI. Live provider submission and visual
+  acceptance remain outside those checks.
+
+### Batch timesheets and Excel previews
+
+- Added a resumable OpenAI Batch timesheet report with measured day/project durations,
+  optional morning/afternoon rows, monthly sheets, billing fields, and source details.
+- Persisted job identities and partial results independently of the export window;
+  uncertain submissions are reconciled before another paid batch can be created.
+  Raw request prompts and API credentials are excluded from persisted job snapshots.
+- Replaced embedded export previews with a generated Excel-themed card that opens a
+  temporary workbook limited to ten records per sheet without calling AI.
+- Kept the export title bar and native close button visible, and added a localized
+  in-app explanation of daily, application, and whole-period summary grouping.
+- Validated batch transport and recovery with simulated responses, workbook structure,
+  measured interval projection, entitlement, and localization contracts.
+
+
+### Consolidated storage settings and v1 surface cleanup
+
+- Collected screenshot capture preferences, local OCR choices, and saved hardware metadata
+  under data retention, using the existing typed settings facade and automatic persistence.
+- Removed taskbar widget settings and activation paths from v1, rejected its withdrawn
+  catalog keys, and disabled saved visibility when loading settings.
+- Renamed the main-window position control consistently in every shipped UI language.
+- Removed the redundant separators above data tools and startup options, and unified
+  OCR/AI navigation with the existing settings links for consistent pointer feedback.
+- Centered the labels editor on its owner at each opening while retaining saved size,
+  and kept its title bar visible independently of the global auto-hide setting.
+- Reduced captured hardware summaries to CPU total, GPU load and temperature, physical
+  RAM capacity, disk space and transfers, and network throughput with compact units.
+  Retained unmodified sensor readings in the complete details and persisted snapshots.
+- Added colored day, week, and month icons to export-period shortcuts, preserving
+  localized labels and accessible names with high-contrast theme support.
+
+### Calendar-month retention refinement
+
+- Limited effective activity and screenshot retention to one month for Free and three
+  months for Premium, with matching guards in the shared settings facade.
+- Added monthly choices, shared Premium badges, an installation-anchored timeline,
+  separate preview counts, and moved the screenshot folder editor, open-folder action,
+  and keep-captures toggle out of general settings while preserving automatic persistence.
+- Queued due cleanup after workspace readiness and restoration, with hourly due-date checks
+  while the UI is running and the shared Mica progress surface for deletion.
+- Preserved owned-artifact checks and capture provenance; the monthly checkpoint advances
+  only after cleanup and local-search synchronization finish successfully.
+
 ## 2026-09-24
 
 ### Standalone Excel planner source snapshot

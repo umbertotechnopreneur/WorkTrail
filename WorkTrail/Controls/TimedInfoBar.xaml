@@ -5,22 +5,146 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:WorkTrail"
     MaxWidth="620"
-    HorizontalAlignment="Stretch"
+    HorizontalAlignment="Center"
     VerticalContentAlignment="Top"
     Visibility="Collapsed">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="ToastSuccessBackgroundBrush" Color="#EDFBF2" />
+                    <SolidColorBrush x:Key="ToastSuccessForegroundBrush" Color="#08783E" />
+                    <SolidColorBrush x:Key="ToastSuccessBorderBrush" Color="#B9E8CE" />
+                    <SolidColorBrush x:Key="ToastWarningBackgroundBrush" Color="#FFF8E8" />
+                    <SolidColorBrush x:Key="ToastWarningForegroundBrush" Color="#8A5700" />
+                    <SolidColorBrush x:Key="ToastWarningBorderBrush" Color="#F1D597" />
+                    <SolidColorBrush x:Key="ToastErrorBackgroundBrush" Color="#FFF1F0" />
+                    <SolidColorBrush x:Key="ToastErrorForegroundBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="ToastErrorBorderBrush" Color="#F2C2BD" />
+                    <StaticResource x:Key="InfoBarInformationalSeverityIconBackground" ResourceKey="ToastSuccessForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarInformationalSeverityIconForeground" Color="#FFFFFF" />
+                    <StaticResource x:Key="InfoBarSuccessSeverityIconBackground" ResourceKey="ToastSuccessForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarSuccessSeverityIconForeground" Color="#FFFFFF" />
+                    <StaticResource x:Key="InfoBarWarningSeverityIconBackground" ResourceKey="ToastWarningForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarWarningSeverityIconForeground" Color="#FFFFFF" />
+                    <StaticResource x:Key="InfoBarErrorSeverityIconBackground" ResourceKey="ToastErrorForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarErrorSeverityIconForeground" Color="#FFFFFF" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="ToastSuccessBackgroundBrush" Color="#173326" />
+                    <SolidColorBrush x:Key="ToastSuccessForegroundBrush" Color="#8BE7AF" />
+                    <SolidColorBrush x:Key="ToastSuccessBorderBrush" Color="#2D7450" />
+                    <SolidColorBrush x:Key="ToastWarningBackgroundBrush" Color="#3B2D15" />
+                    <SolidColorBrush x:Key="ToastWarningForegroundBrush" Color="#FFDC88" />
+                    <SolidColorBrush x:Key="ToastWarningBorderBrush" Color="#8D6834" />
+                    <SolidColorBrush x:Key="ToastErrorBackgroundBrush" Color="#3E2224" />
+                    <SolidColorBrush x:Key="ToastErrorForegroundBrush" Color="#FFA6A0" />
+                    <SolidColorBrush x:Key="ToastErrorBorderBrush" Color="#925054" />
+                    <StaticResource x:Key="InfoBarInformationalSeverityIconBackground" ResourceKey="ToastSuccessForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarInformationalSeverityIconForeground" Color="#18201B" />
+                    <StaticResource x:Key="InfoBarSuccessSeverityIconBackground" ResourceKey="ToastSuccessForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarSuccessSeverityIconForeground" Color="#18201B" />
+                    <StaticResource x:Key="InfoBarWarningSeverityIconBackground" ResourceKey="ToastWarningForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarWarningSeverityIconForeground" Color="#18201B" />
+                    <StaticResource x:Key="InfoBarErrorSeverityIconBackground" ResourceKey="ToastErrorForegroundBrush" />
+                    <SolidColorBrush x:Key="InfoBarErrorSeverityIconForeground" Color="#18201B" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <StaticResource x:Key="ToastSuccessBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+                    <StaticResource x:Key="ToastSuccessForegroundBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="ToastSuccessBorderBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="ToastWarningBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+                    <StaticResource x:Key="ToastWarningForegroundBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="ToastWarningBorderBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="ToastErrorBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+                    <StaticResource x:Key="ToastErrorForegroundBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="ToastErrorBorderBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="InfoBarInformationalSeverityIconBackground" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="InfoBarInformationalSeverityIconForeground" ResourceKey="SystemColorWindowColorBrush" />
+                    <StaticResource x:Key="InfoBarSuccessSeverityIconBackground" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="InfoBarSuccessSeverityIconForeground" ResourceKey="SystemColorWindowColorBrush" />
+                    <StaticResource x:Key="InfoBarWarningSeverityIconBackground" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="InfoBarWarningSeverityIconForeground" ResourceKey="SystemColorWindowColorBrush" />
+                    <StaticResource x:Key="InfoBarErrorSeverityIconBackground" ResourceKey="SystemColorWindowTextColorBrush" />
+                    <StaticResource x:Key="InfoBarErrorSeverityIconForeground" ResourceKey="SystemColorWindowColorBrush" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <SolidColorBrush x:Key="InfoBarInformationalSeverityBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="InfoBarSuccessSeverityBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="InfoBarWarningSeverityBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="InfoBarErrorSeverityBackgroundBrush" Color="Transparent" />
+            <Thickness x:Key="InfoBarIconMargin">0,12,12,12</Thickness>
+            <Thickness x:Key="InfoBarTitleHorizontalOrientationMargin">0,12,0,0</Thickness>
+            <Thickness x:Key="InfoBarTitleVerticalOrientationMargin">0,12,0,0</Thickness>
+            <Thickness x:Key="InfoBarMessageHorizontalOrientationMargin">12,12,0,0</Thickness>
+            <Thickness x:Key="InfoBarPanelVerticalOrientationPadding">0,12,0,12</Thickness>
+            <Style x:Key="ToastSuccessCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource InfoBarCloseButtonStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource ToastSuccessForegroundBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Width" Value="32" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Margin" Value="4,8,8,8" />
+            </Style>
+            <Style x:Key="ToastWarningCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource InfoBarCloseButtonStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource ToastWarningForegroundBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Width" Value="32" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Margin" Value="4,8,8,8" />
+            </Style>
+            <Style x:Key="ToastErrorCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource InfoBarCloseButtonStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource ToastErrorForegroundBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Width" Value="32" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Margin" Value="4,8,8,8" />
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
     <Grid
         x:Name="BannerSurface"
         MaxWidth="620"
         Opacity="0"
-        HorizontalAlignment="Stretch"
+        HorizontalAlignment="Center"
         VerticalAlignment="Top">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ToastSeverityStates">
+                <VisualState x:Name="Success">
+                    <VisualState.Setters>
+                        <Setter Target="BannerFrame.Background" Value="{ThemeResource ToastSuccessBackgroundBrush}" />
+                        <Setter Target="BannerFrame.BorderBrush" Value="{ThemeResource ToastSuccessBorderBrush}" />
+                        <Setter Target="BannerInfoBar.Foreground" Value="{ThemeResource ToastSuccessForegroundBrush}" />
+                        <Setter Target="BannerInfoBar.CloseButtonStyle" Value="{StaticResource ToastSuccessCloseButtonStyle}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Warning">
+                    <VisualState.Setters>
+                        <Setter Target="BannerFrame.Background" Value="{ThemeResource ToastWarningBackgroundBrush}" />
+                        <Setter Target="BannerFrame.BorderBrush" Value="{ThemeResource ToastWarningBorderBrush}" />
+                        <Setter Target="BannerInfoBar.Foreground" Value="{ThemeResource ToastWarningForegroundBrush}" />
+                        <Setter Target="BannerInfoBar.CloseButtonStyle" Value="{StaticResource ToastWarningCloseButtonStyle}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Error">
+                    <VisualState.Setters>
+                        <Setter Target="BannerFrame.Background" Value="{ThemeResource ToastErrorBackgroundBrush}" />
+                        <Setter Target="BannerFrame.BorderBrush" Value="{ThemeResource ToastErrorBorderBrush}" />
+                        <Setter Target="BannerInfoBar.Foreground" Value="{ThemeResource ToastErrorForegroundBrush}" />
+                        <Setter Target="BannerInfoBar.CloseButtonStyle" Value="{StaticResource ToastErrorCloseButtonStyle}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
         <Grid.Shadow>
             <ThemeShadow />
         </Grid.Shadow>
         <Border
             x:Name="BannerFrame"
-            Background="{ThemeResource ToastSurfaceBackgroundBrush}"
-            BorderBrush="{ThemeResource ToastBorderBrush}"
+            Background="{ThemeResource ToastSuccessBackgroundBrush}"
+            BorderBrush="{ThemeResource ToastSuccessBorderBrush}"
             BorderThickness="1"
             CornerRadius="16">
             <Grid>
@@ -32,28 +156,10 @@
                     CornerRadius="15"
                     IsClosable="True"
                     IsOpen="False"
-                    MinHeight="82"
-                    Padding="6,4,6,14"
+                    IsIconVisible="True"
+                    MinHeight="48"
+                    Padding="6,4"
                     local:InfoBarElevationBehavior.IsEnabled="False" />
-                <Border
-                    x:Name="CountdownTrack"
-                    Margin="18,0,18,9"
-                    VerticalAlignment="Bottom"
-                    Background="{ThemeResource ToastCountdownTrackBrush}"
-                    CornerRadius="2"
-                    IsHitTestVisible="False">
-                    <ProgressBar
-                        x:Name="CountdownProgress"
-                        Height="3"
-                        HorizontalAlignment="Stretch"
-                        AutomationProperties.AccessibilityView="Raw"
-                        Background="Transparent"
-                        CornerRadius="2"
-                        Foreground="{ThemeResource ToastCountdownForegroundBrush}"
-                        Maximum="100"
-                        Minimum="0"
-                        Value="0" />
-                </Border>
             </Grid>
         </Border>
     </Grid>

@@ -132,6 +132,22 @@ public sealed class LocalStore
         string origin) =>
         _activity.RegisterScreenshotCapture(captureId, installationId, capturedAt, origin);
 
+    /// <summary>Marks one retained manual capture as important.</summary>
+    /// <param name="captureId">The shared capture identity.</param>
+    internal void RegisterVipScreenshot(string captureId) => _activity.RegisterVipScreenshot(captureId);
+
+    /// <summary>Updates the user note for one existing VIP capture.</summary>
+    /// <param name="request">The capture identity and plain-text note.</param>
+    internal bool SaveVipScreenshotNote(VipScreenshotNoteRequest request) => _activity.SaveVipScreenshotNote(request);
+
+    /// <summary>Returns VIP dates only when their screenshot files remain in the retained gallery.</summary>
+    /// <param name="request">The inclusive local date range.</param>
+    /// <param name="cancellationToken">Cancels the bounded gallery checks.</param>
+    internal IReadOnlyList<DateOnly> GetVipScreenshotDates(VipScreenshotDatesRequest request, CancellationToken cancellationToken) =>
+        _activity.GetVipScreenshotDates(request, cancellationToken)
+            .Where(date => GetScreenshotGallery(date, cancellationToken).Items.Any(item => item.IsVip))
+            .ToArray();
+
     private void InitializeInstallationMetadata(AppSettings settings, bool activityDatabaseExisted)
     {
         var observedAt = DateTimeOffset.UtcNow;
@@ -379,12 +395,12 @@ public sealed class LocalStore
         _activity.RecoverInterruptedAiReprocessJob(jobId, updatedAt);
 
     /// <summary>Prunes completed historical-reprocessing checkpoints outside screenshot retention.</summary>
-    internal int PruneTerminalAiReprocessJobs(DateTimeOffset screenshotCutoffUtc) =>
-        _activity.DeleteTerminalAiReprocessJobsBefore(screenshotCutoffUtc);
+    internal int PruneTerminalAiReprocessJobs(DateTimeOffset screenshotCutoffUtc, CancellationToken cancellationToken = default) =>
+        _activity.DeleteTerminalAiReprocessJobsBefore(screenshotCutoffUtc, cancellationToken);
 
     /// <summary>Prunes expired capture provenance after all retained references have disappeared.</summary>
-    internal int PruneOrphanedScreenshotCaptures(DateTimeOffset screenshotCutoffUtc) =>
-        _activity.DeleteOrphanedScreenshotCapturesBefore(screenshotCutoffUtc);
+    internal int PruneOrphanedScreenshotCaptures(DateTimeOffset screenshotCutoffUtc, CancellationToken cancellationToken = default) =>
+        _activity.DeleteOrphanedScreenshotCapturesBefore(screenshotCutoffUtc, cancellationToken);
 
     /// <summary>Deletes persisted interval telemetry for one retained screenshot.</summary>
     internal int DeleteScreenshotIntervalTelemetry(string screenshotPath) =>
@@ -516,6 +532,17 @@ public sealed class LocalStore
 
     /// <summary>Persists one sanitized standalone AI request-usage record in SQLite.</summary>
     internal void AppendAiUsage(AiRequestUsageRecord usage) => _activity.AppendStandaloneAiRequest(usage);
+
+    // usage identifies all reserved or completed rows; the update commits once for the whole batch.
+    // token cancels the atomic telemetry update.
+    internal void SaveTimesheetUsage(IReadOnlyList<AiRequestUsageRecord> usage, CancellationToken token) => _activity.SaveTimesheetUsage(usage, token);
+
+    // identities belongs to a batch known not to have been submitted; token cancels the atomic release.
+    internal void ReleaseTimesheetReservations(IReadOnlyList<string> identities, CancellationToken token) => _activity.ReleaseTimesheetReservations(identities, token);
+
+    // fromUtc and toUtc bound the retained samples; visitor receives each overlap and token cancels the scan.
+    internal void VisitTimesheetSamples(DateTimeOffset fromUtc, DateTimeOffset toUtc,
+        Action<ActivitySample> visitor, CancellationToken token) => _activity.VisitOverlapping(fromUtc, toUtc, visitor, token);
 
     /// <summary>Replaces the cached AI pricing rows for one provider.</summary>
     internal void ReplaceAiModelPricing(string provider, IReadOnlyList<AiModelPricing> prices) =>
@@ -751,7 +778,7 @@ public sealed class LocalStore
     }
 
     /// <summary>Removes capture provenance after the last physical artifact and persisted child are gone.</summary>
-    internal int DeleteScreenshotCaptureIfOrphaned(string screenshotPath)
+    internal int DeleteScreenshotCaptureIfOrphaned(string screenshotPath, bool hasPhysicalArtifact)
     {
         if (!ScreenCaptureService.IsOwnedArtifact(screenshotPath) || !Path.IsPathFullyQualified(screenshotPath))
         {
@@ -765,15 +792,6 @@ public sealed class LocalStore
             return 0;
         }
 
-        var settings = LoadSettings();
-        var screenshotRoot = string.IsNullOrWhiteSpace(settings.ScreenshotDirectory)
-            ? _utilities.GetDefaultScreenshotDirectory()
-            : settings.ScreenshotDirectory;
-        var hasPhysicalArtifact = ScreenshotStorageLayout.EnumerateOwnedArtifacts(screenshotRoot)
-            .Any(path => string.Equals(
-                TryGetCaptureId(ScreenshotIdentity(Path.GetFileName(path))),
-                captureId,
-                StringComparison.Ordinal));
         return hasPhysicalArtifact ? 0 : _activity.DeleteOrphanedScreenshotCapture(captureId);
     }
 
@@ -850,7 +868,11 @@ public sealed class LocalStore
             .ToArray();
         var provenanceByCapture = _activity.LoadScreenshotCaptures(captureIds);
         var hardwareByCapture = _activity.LoadCaptureHardwareSnapshots(captureIds, cancellationToken);
+        // One incomplete historical capture cannot hide the remaining day. Never infer its installation owner.
+        var unavailableArtifacts = retainedFiles.Count(file => !provenanceByCapture.ContainsKey(
+            TryGetCaptureId(artifactIdentities[file.FullName])!));
         var sources = retainedFiles
+            .Where(file => provenanceByCapture.ContainsKey(TryGetCaptureId(artifactIdentities[file.FullName])!))
             .Select(file =>
             {
                 var artifactIdentity = artifactIdentities[file.FullName];
@@ -937,10 +959,12 @@ public sealed class LocalStore
                 source.Telemetry?.GpuUsagePercent,
                 source.Provenance.Installation,
                 analysis is not null || textSnapshot is not null || source.Telemetry is not null || hardwareSnapshot is not null,
-                HardwareSnapshot: hardwareSnapshot));
+                HardwareSnapshot: hardwareSnapshot,
+                IsVip: source.Provenance.IsVip,
+                UserNote: source.Provenance.UserNote));
         }
 
-        return new ScreenshotGallery(date, items);
+        return new ScreenshotGallery(date, items, unavailableArtifacts);
     }
 
     /// <summary>Loads the most recent local day that still has retained screenshot artifacts.</summary>
@@ -1499,10 +1523,12 @@ public sealed class LocalStore
 
     /// <summary>Removes expired records from the current SQLite store.</summary>
     /// <param name="cutoffUtc">Records older than this instant are removed.</param>
+    /// <param name="progress">Receives the number of records removed inside the pending transaction.</param>
+    /// <param name="cancellationToken">Interrupts SQLite work and rolls back uncommitted record deletions.</param>
     /// <returns>Number of expired records removed across local data files.</returns>
-    public int ApplyRetention(DateTimeOffset cutoffUtc)
+    public int ApplyRetention(DateTimeOffset cutoffUtc, Action<int>? progress = null, CancellationToken cancellationToken = default)
     {
-        var removed = _activity.ApplyRetention(cutoffUtc);
+        var removed = _activity.ApplyRetention(cutoffUtc, progress, cancellationToken);
         if (removed > 0)
         {
             // Retention can invalidate an already materialized dashboard window; force one bounded reload.

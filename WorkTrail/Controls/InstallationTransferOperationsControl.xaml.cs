@@ -218,9 +218,7 @@ public sealed partial class InstallationTransferOperationsControl : UserControl
         {
             return true;
         }
-        await Context.Dialogs.ShowInformativeAsync(Context.OwnerWindow,
-            DialogRequest.Informative(_strings.Translate("Premium.UpgradeTitle"),
-                _strings.Translate("Premium.Required"), _strings.Translate("Dialog.Ok")));
+        await Context.Dialogs.ShowPremiumUpgradeAsync(Context.Application, Context.OwnerWindow, _strings.Translate);
         return false;
     }
 
