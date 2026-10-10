@@ -2,6 +2,14 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-10
+
+### First-person, problem-first README writing
+
+- Align the repository writing rule with AgentInbox and PromptMeUp: open with my concrete daily-work problem, explain how I solved it, and use first person in author copy, captions, and provenance notes.
+- Preserve contributor credits and distinguish implemented, tested, and planned behavior.
+- Documentation-only change; no tests, builds, packaging, installation, or Git delivery were performed.
+
 ## 2026-10-09
 
 ### Primary-window snap guides
