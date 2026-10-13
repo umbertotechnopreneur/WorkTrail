@@ -17,6 +17,7 @@
  * VBWR E */
 
 
+using System.Globalization;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
@@ -367,7 +368,7 @@ public sealed partial class WorldClockWindow : Window
         var narrowHeader = RootGrid.ActualWidth < 880d;
         ReferenceInstantLabel.Text = T("WorldClock.ReferenceInstant");
         ReferenceInstantLabel.Visibility = optionsVisible || narrowHeader ? Visibility.Collapsed : Visibility.Visible;
-        ReferenceInstantText.FontSize = narrowHeader ? 13d : 15d;
+        ReferenceInstantText.FontSize = narrowHeader ? 12d : 13d;
         OptionsHeaderLabel.Visibility = optionsVisible ? Visibility.Visible : Visibility.Collapsed;
         HeaderBackButton.Visibility = optionsVisible ? Visibility.Visible : Visibility.Collapsed;
         TitleBarLogo.Visibility = optionsVisible ? Visibility.Collapsed : Visibility.Visible;
@@ -607,6 +608,8 @@ public sealed partial class WorldClockWindow : Window
                 ReferenceDatePicker.Date = null;
                 ReferenceTimeZoneText.Text = "—";
                 ReferenceInstantText.Text = "-- · --:--";
+                ReferenceWeekText.Text = string.Empty;
+                Title = T("WorldClock.Landmark");
             }
             finally
             {
@@ -820,11 +823,18 @@ public sealed partial class WorldClockWindow : Window
             var referenceInstantText = referenceClock.LocalTime
                 .ToString("dd MMM yyyy · HH:mm", _strings.Culture)
                 .ToUpper(_strings.Culture);
+            var referenceDate = referenceClock.LocalTime.Date;
+            var referenceWeekText = string.Create(
+                _strings.Culture,
+                $"{T("ActivityCalendar.WeekTab")} {ISOWeek.GetWeekOfYear(referenceDate)} · {ISOWeek.GetYear(referenceDate)}");
             ReferenceInstantText.Text = referenceInstantText;
+            ReferenceWeekText.Text = referenceWeekText;
+            Title = $"{T("WorldClock.Landmark")} · {referenceWeekText}";
+            var referenceInstantDescription = $"{referenceInstantText} · {referenceWeekText}";
             AutomationProperties.SetName(
                 ReferenceInstantButton,
-                $"{T("WorldClock.ReferenceInstant")}: {referenceInstantText}");
-            ToolTipService.SetToolTip(ReferenceInstantButton, referenceInstantText);
+                $"{T("WorldClock.ReferenceInstant")}: {referenceInstantDescription}");
+            ToolTipService.SetToolTip(ReferenceInstantButton, referenceInstantDescription);
         }
         finally
         {

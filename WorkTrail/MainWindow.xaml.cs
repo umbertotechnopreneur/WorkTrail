@@ -1244,6 +1244,40 @@ public sealed partial class MainWindow : Window
         ShowAboutWindow();
     }
 
+    private async void VibeWareManifestoButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_dashboardSurfaceClosed || !VibeWareManifestoButton.IsEnabled)
+        {
+            return;
+        }
+
+        VibeWareManifestoButton.IsEnabled = false;
+        try
+        {
+            var result = await _application.OpenProductLinkAsync("vibeware-manifesto", _lifecycle.Token);
+            if (!result.Succeeded && !_dashboardSurfaceClosed)
+            {
+                await _dialogs.ShowInformativeAsync(
+                    this,
+                    DialogRequest.Informative(
+                        T("About.LinkFailed"),
+                        T("About.LinkFailed.Description"),
+                        T("Dialog.Ok")));
+            }
+        }
+        catch (OperationCanceledException) when (_dashboardSurfaceClosed)
+        {
+            // Closing the main window cancels its pending link request.
+        }
+        finally
+        {
+            if (!_dashboardSurfaceClosed)
+            {
+                VibeWareManifestoButton.IsEnabled = true;
+            }
+        }
+    }
+
     private void ShowAboutWindow()
     {
         if (_aboutWindow is null)
@@ -1585,7 +1619,8 @@ public sealed partial class MainWindow : Window
             ConfigurePlayerColumns(Math.Max(1d, CurrentLogicalWindowWidth - 56d));
             ApplyPlayerDetailLevel(MainPlayerDetailLevel.Full);
             PlayerLayout.Measure(new Size(PlayerLayout.Width, double.PositiveInfinity));
-            measuredHeight = PlayerLayout.DesiredSize.Height + 74d;
+            VibeWareFooter.Measure(new Size(PlayerLayout.Width, double.PositiveInfinity));
+            measuredHeight = PlayerLayout.DesiredSize.Height + VibeWareFooter.DesiredSize.Height + 74d;
         }
         else
         {
@@ -1615,18 +1650,20 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var viewportHeight = Math.Max(0d, PlayerViewport.ActualHeight - VibeWareFooter.ActualHeight
+            - VibeWareFooter.Margin.Top - VibeWareFooter.Margin.Bottom);
         ConfigurePlayerColumns(PlayerViewport.ActualWidth);
         ApplyPlayerDetailLevel(MainPlayerDetailLevel.Full);
         var fullHeight = MeasurePlayerHeight();
         ApplyPlayerDetailLevel(MainPlayerDetailLevel.Compact);
         var compactHeight = MeasurePlayerHeight();
-        var level = MainPlayerResponsiveLayout.ResolveDetails(PlayerViewport.ActualHeight, fullHeight, compactHeight);
+        var level = MainPlayerResponsiveLayout.ResolveDetails(viewportHeight, fullHeight, compactHeight);
         ApplyPlayerDetailLevel(level);
         var measuredHeight = MeasurePlayerHeight();
         if (_layoutState.IsActivityScoreVisible && level != MainPlayerDetailLevel.Summary)
         {
             ActivityChartRow.Height = new GridLength(MainPlayerResponsiveLayout.ResolveChartHeight(
-                PlayerViewport.ActualHeight, measuredHeight, ActivityChartRow.Height.Value));
+                viewportHeight, measuredHeight, ActivityChartRow.Height.Value));
         }
 
         ResizeActivityBars();
@@ -2224,6 +2261,7 @@ public sealed partial class MainWindow : Window
         UiLocalization.SetAccessibleLabel(SensorsButton, T("Sensors.Open"));
         UiLocalization.SetAccessibleLabel(TrackingButton, T(_isTracking ? "TrackingActionPause" : "TrackingActionStart"));
         UiLocalization.SetAccessibleLabel(TakeScreenshotButton, T("Snapshot.Take"));
+        UiLocalization.SetAccessibleLabel(VibeWareManifestoButton, $"VibeWare · {T("About.VibeWare.Manifesto")}");
         AutomationProperties.SetName(TrackingStatusToast, T("Main.TrackingStatus"));
         AutomationProperties.SetName(ActivityScoreBarHost, T("Activity.LastThirtyMinutes"));
         UpdateScreenshotPreviewAccessibility();

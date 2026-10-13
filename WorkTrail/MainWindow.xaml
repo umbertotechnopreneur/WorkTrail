@@ -295,6 +295,10 @@ VBWR E -->
                     </ResourceDictionary>
                 </Border.Resources>
                 <Grid x:Name="PlayerViewport" SizeChanged="PlayerViewport_SizeChanged">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <!-- Reflow first; fit only unusually small viewports after compact disclosure. -->
                     <Viewbox x:Name="PlayerFit" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" VerticalAlignment="Top">
                         <Grid x:Name="PlayerLayout" Width="520" RowSpacing="6">
@@ -1130,6 +1134,52 @@ VBWR E -->
                         </Grid>
                     </Grid>
                     </Viewbox>
+                    <StackPanel
+                        x:Name="VibeWareFooter"
+                        Grid.Row="1"
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Orientation="Horizontal"
+                        SizeChanged="PlayerViewport_SizeChanged"
+                        Spacing="6">
+                        <Image
+                            Width="20"
+                            Height="20"
+                            VerticalAlignment="Center"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Stretch="Uniform">
+                            <Image.Source>
+                                <BitmapImage DecodePixelWidth="80" UriSource="ms-appx:///Assets/VibeWareLogo.png" />
+                            </Image.Source>
+                        </Image>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="11"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                            <Run Text="This is " /><Run FontWeight="SemiBold" Text="VibeWare" />
+                        </TextBlock>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            AutomationProperties.AccessibilityView="Raw"
+                            FontSize="11"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="·" />
+                        <HyperlinkButton
+                            x:Name="VibeWareManifestoButton"
+                            AutomationProperties.AutomationId="Main.VibeWareManifestoButton"
+                            MinHeight="24"
+                            Padding="2,4"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="VibeWare manifesto"
+                            CharacterSpacing="80"
+                            Click="VibeWareManifestoButton_Click"
+                            Content="MANIFESTO"
+                            FontSize="10"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            ToolTipService.ToolTip="VibeWare manifesto" />
+                    </StackPanel>
                 </Grid>
             </Border>
 

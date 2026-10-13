@@ -175,6 +175,7 @@ VBWR E -->
                     Height="40"
                     MaxWidth="328"
                     Margin="0,0,8,0"
+                    Padding="11,2"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Stretch"
                     VerticalAlignment="Center"
@@ -185,14 +186,23 @@ VBWR E -->
                     CornerRadius="4"
                     Tag="WorldClock.ReferenceInstant">
                     <DropDownButton.Content>
-                        <TextBlock
-                            x:Name="ReferenceInstantText"
-                            HorizontalAlignment="Center"
-                            CharacterSpacing="90"
-                            FontFamily="Segoe UI Variable Text"
-                            FontSize="15"
-                            TextTrimming="CharacterEllipsis"
-                            Text="-- · --:--" />
+                        <StackPanel>
+                            <TextBlock
+                                x:Name="ReferenceInstantText"
+                                HorizontalAlignment="Center"
+                                CharacterSpacing="90"
+                                FontFamily="Segoe UI Variable Text"
+                                FontSize="13"
+                                TextTrimming="CharacterEllipsis"
+                                Text="-- · --:--" />
+                            <TextBlock
+                                x:Name="ReferenceWeekText"
+                                HorizontalAlignment="Center"
+                                FontFamily="Segoe UI Variable Text"
+                                FontSize="11"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
                     </DropDownButton.Content>
                     <DropDownButton.Flyout>
                         <Flyout
