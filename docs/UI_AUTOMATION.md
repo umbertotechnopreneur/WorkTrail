@@ -10,7 +10,7 @@ live inspection of the installed app's automation tree.
 
 | UI module | Converted source | Coverage | Runtime verification |
 | --- | --- | --- | --- |
-| Main window | `MainWindow.xaml` | 33 commands, including unopened menus; tracking and visibility names retain their state updates | Pending |
+| Main window | `MainWindow.xaml` | 34 commands, including unopened menus and the VibeWare manifesto link; tracking and visibility names retain their state updates | Pending |
 | Report export | `ReportExportWindow.xaml` | 60 selectors for navigation, dates, content, editable AI summaries, batch reports, a collapsible Excel preview, generation, opening and copying the file path | Pending |
 | Main settings | `Controls/OptionsControl.xaml` | 40 controls, including screenshot notifications; labels follow the selected language | Pending |
 | Data retention | `Controls/RetentionOperationsControl.xaml` | 18 controls; premium labels retain the existing premium suffix | Pending |

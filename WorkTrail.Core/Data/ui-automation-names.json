@@ -2,6 +2,7 @@
   "Main.TitleBarBackButton": "QuickSetup.Back",
   "Main.WorldClockButton": "WorldClock.OpenWindow",
   "Main.SensorsButton": "Sensors.Open",
+  "Main.VibeWareManifestoButton": "About.VibeWare.Manifesto",
   "Main.TitleBarMoreButton": "Main.Menu.Open",
   "Main.TitleBarSearchButton": "Search.Title",
   "Main.TitleBarMinimizeToTrayButton": "Main.Menu.MinimizeToTray",

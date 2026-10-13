@@ -1167,6 +1167,7 @@ VBWR E -->
                             Text="·" />
                         <HyperlinkButton
                             x:Name="VibeWareManifestoButton"
+                            AutomationProperties.AutomationId="Main.VibeWareManifestoButton"
                             MinHeight="24"
                             Padding="2,4"
                             VerticalAlignment="Center"
