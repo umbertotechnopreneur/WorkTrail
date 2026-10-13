@@ -2,6 +2,32 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-11
+
+### Debug MSIX 1.0.6.15 installed
+
+- Built and signed the Debug x64 MSIX with the world-clock ISO week and main-window
+  VibeWare signature changes, then installed it for the current Windows user.
+- Windows reported version 1.0.6.15, X64 architecture and Ok package status.
+- Retained the installer and completed Debug build cleanup. Automated tests, formatting,
+  manifesto-link interaction and native visual verification were not performed.
+
+### Main-window VibeWare signature
+
+- Add the existing VibeWare logo and the requested English signature, "This is VibeWare
+  · MANIFESTO", at the bottom right of the player surface, with a separate footer row.
+- Open the existing manifesto product link through the application service, reuse localized
+  accessibility and failure messages, and include the footer in responsive height calculations.
+- Source changes only; builds, tests, formatting and native UI verification were not run.
+
+### World-clock title-bar week
+
+- Show the reference date's ISO week number and ISO week-year beneath the existing date
+  and time, and include them in the window title, accessible name and tooltip.
+- Reuse the localized week label and refresh it with the selected reference clock;
+  clear it when no clocks remain. Keep the compact title-bar field within its existing width.
+- Source changes only; builds, tests, formatting and native UI verification were not run.
+
 ## 2026-10-10
 
 ### First-person, problem-first README writing

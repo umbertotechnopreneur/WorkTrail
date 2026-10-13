@@ -29,6 +29,16 @@ These instructions apply to every change in this repository.
 - For an authorized Debug MSIX build or reinstall, use the fast path: reuse the known working configuration and certificate, build the package, attempt installation immediately, and verify only the installation result, installed version, and package status. Diagnose the signature, manifest, and dependencies only after an installation failure. Do not run unrequested UI tests. Keep full validation for Release and Store packages. Run any required cleanup silently and report it concisely.
 - Preserve unrelated changes. Never commit credentials, tokens, private/local data, logs, generated artifacts, machine paths, `.env`, `bin/`, `obj/`, `artifacts/`, or `.vs/`.
 
+## Mandatory artifact cleanup
+
+- Every authorized local or CI build, test, packaging, installation, or artifact-download task includes cleanup of its own generated output. Apply this to Debug, Release, and Microsoft Store work, including failed attempts. This rule does not authorize starting builds or tests.
+- Use task-specific subdirectories under ignored `artifacts/` for temporary output. Before reusing a build directory, remove its obsolete transient contents while preserving pending deliverables. Do not run builds concurrently in the same checkout.
+- After the last use and before handoff, run `dotnet clean` with the matching configuration, platform, runtime, and output paths, then remove task-owned intermediates that it leaves behind: `publish`, `payload`, `bin`, `obj`, temporary caches, scratch files, transport archives, disposable test profiles, and unnecessary logs. Clean task-owned temporary directories too; `dotnet clean` alone is not sufficient. Do not retain whole historical build/run directories.
+- Retain only the latest validated MSIX for each requested channel and architecture, with matching checksums, minimal package metadata, and any small verification record needed for handoff. Preserve Store packages awaiting upload until the owner confirms upload, and preserve any explicitly requested reinstall/rollback package, backup, or unresolved failure evidence.
+- Remove superseded generated packages and run directories once their replacement is validated and they are no longer needed for pending delivery, reinstall, rollback, or diagnosis. After a confirmed upload, remove its local bundle unless the owner asks to retain it. Do not accumulate an indefinite archive of installers or full logs.
+- Before recursive removal or moving, resolve and verify every absolute target stays inside this repository's `artifacts/` or the exact temporary directory created by the task; do not follow links outside those roots. Use `pwsh -NoProfile` and literal-path filesystem operations. Never blindly wipe all of `artifacts/`, a shared/system temp directory, unrelated output, user data, backups, or shared SDK/NuGet caches.
+- Verify the cleanup result and report briefly what deliverables remain. If locks, permissions, or approval review prevent cleanup, identify the remaining paths and approximate size; do not claim the directory is clean.
+
 ## Scope, validation, and tooling
 
 - Read no more than five files per task without explicit approval. Warn before broad reads, unbounded searches, or large output; start with scoped `rg`, reuse context, bound output, and expand only when required.
@@ -39,7 +49,7 @@ These instructions apply to every change in this repository.
 - Use PowerShell 7 only and invoke commands through `pwsh -NoProfile`. Prefer `pwsh -NoProfile -File <script.ps1>` and, for short commands, `pwsh -NoProfile -Command '<single-quoted command>'`; pass arguments explicitly instead of composing nested shell strings.
 - Prefer parser checks and dry runs before destructive scripts. Run builds only for supported Windows SDK x64/ARM64 targets.
 - Use ignored `artifacts/` as the only repository-local location for all temporary, generated, compiled, and packaging output created during work, including intermediates, logs, reports, and scratch files; organize them in dedicated subdirectories. Do not write such output at the repository root or beside source files. Scripts must not overwrite tracked manifest templates or release-version inputs.
-- If a task generated build/test output, clean it once after final use with the relevant `dotnet clean` (x64 by default). Preserve the newly validated installer; remove older packages only after verifying that their resolved paths are under this repository's `artifacts/`.
+- If a task generated build/test output, follow Mandatory artifact cleanup after final use with the matching `dotnet clean` (x64 by default), then remove leftover task-owned intermediates. Preserve the newly validated installer and pending Store uploads; prune superseded packages only after checking their retention needs and verifying their resolved paths are under this repository's `artifacts/`.
 
 Authorized checks, when relevant:
 

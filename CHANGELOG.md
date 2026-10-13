@@ -28,6 +28,8 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- The main player shows a VibeWare footer with an accessible link to the manifesto and accounts for the footer when fitting its contents.
+- The world-clock reference header, window title, tooltip, and accessible name show the reference date's ISO week number and week-year.
 - Moving and resizing primary work surfaces show transient alignment guides and snap eligible edges using DPI-scaled ten/twenty logical-pixel snap/preview distances; dialogs, About and temporary windows do not participate.
 - About uses a compact layout, a trail banner, updated localized copy, the full package version, and transparent VibeWare branding with project and manifesto links.
 - Premium restrictions across exports, labels, clocks, schedules, data transfer, and retention share a localized upgrade prompt with a Microsoft Store action.

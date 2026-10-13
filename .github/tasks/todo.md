@@ -9,6 +9,16 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, validate the main-window VibeWare footer at narrow widths,
+  supported text scales and light/dark/high-contrast themes. Check its manifesto link,
+  keyboard focus, failure dialog and placement with expanded or compact player details.
+  Native UI checks require separate authorization.
+
+- [ ] After owner authorization, validate the world-clock title-bar week at narrow widths
+  and supported text scales, with live and custom reference dates, reference-city changes,
+  the ISO week-year boundary, and an empty clock selection. Automated and native
+  checks require separate authorization.
+
 - [ ] After owner authorization, validate native movement and resizing with the installed
   primary-window snap guides: check both guide orientations, preview/active opacity,
   all eight resize directions, retained opposite edges and minimum/maximum sizes,
