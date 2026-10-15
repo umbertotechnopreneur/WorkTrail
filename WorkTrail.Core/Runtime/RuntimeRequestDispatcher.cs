@@ -160,7 +160,7 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.PrivacyRemove => ToResponse(request, await _application.RemovePrivacyRuleAsync(ReadString(request.Payload, "id"), cancellationToken)),
                 RuntimeOperation.PrivacyTestCurrent => ToResponse(request, await _application.TestCurrentPrivacyAsync(cancellationToken)),
                 RuntimeOperation.RetentionStatus => ToResponse(request, await _application.GetRetentionStatusAsync(cancellationToken)),
-                RuntimeOperation.RetentionPreview => ToResponse(request, await _application.PreviewRetentionAsync(cancellationToken)),
+                RuntimeOperation.RetentionPreview => ToResponse(request, await _application.PreviewRetentionAsync(cancellationToken, Read<HistoryDateRange>(request.Payload))),
                 RuntimeOperation.RetentionRun => ToResponse(request, await _application.RunRetentionAsync(Read<RetentionRequest>(request.Payload) ?? new RetentionRequest(false, false), cancellationToken)),
                 RuntimeOperation.AppAtomicResetV1 => ToResponse(request, await _application.PrepareAtomicResetAsync(
                     Read<AtomicResetRequest>(request.Payload) ?? new AtomicResetRequest(false, false),

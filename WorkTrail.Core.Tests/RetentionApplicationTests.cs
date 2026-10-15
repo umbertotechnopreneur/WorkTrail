@@ -36,7 +36,7 @@ public sealed class RetentionApplicationTests
     /// <summary>Persisted capture dates and verified tier limits decide what cleanup removes.</summary>
     [Theory]
     [InlineData(ProductTier.Free, 2, 1)]
-    [InlineData(ProductTier.Premium, 1, 3)]
+    [InlineData(ProductTier.Premium, 1, 12)]
     // tier determines the verified calendar-month limit.
     // expiredCount is the expected number of deleted records and screenshots.
     // maximumMonths is the limit exposed to the passive UI.
@@ -77,11 +77,13 @@ public sealed class RetentionApplicationTests
         Assert.Equal(status.Value.Progress.TotalItems, status.Value.Progress.CompletedItems);
     }
 
-    /// <summary>Scheduled cleanup cannot bypass the monthly due date or manual confirmation.</summary>
+    /// <summary>Scheduled cleanup cannot bypass the daily due date or manual confirmation.</summary>
     [Fact]
     public async Task Cleanup_NotDueAndUnconfirmedRequestsLeaveHistoryUntouched()
     {
         await using var fixture = new Fixture(ProductTier.Free);
+        await fixture.Application.RunRetentionAsync(new RetentionRequest(true, true), CancellationToken.None);
+        var checkpoint = fixture.Store.LoadSettings().LastRetentionCleanupAt;
         var screenshot = fixture.AddHistory(DateTimeOffset.Now.AddMonths(-4), "expired");
         var original = await fixture.Application.GetRetentionStatusAsync(CancellationToken.None);
         Assert.False(original.Value!.IsCleanupDue);
@@ -92,10 +94,10 @@ public sealed class RetentionApplicationTests
         Assert.True(scheduled.Succeeded);
         Assert.Equal("retention.not_due", scheduled.Code);
         Assert.True(File.Exists(screenshot));
-        Assert.Null(fixture.Store.LoadSettings().LastRetentionCleanupAt);
+        Assert.Equal(checkpoint, fixture.Store.LoadSettings().LastRetentionCleanupAt);
     }
 
-    /// <summary>A cancelled request never advances the durable monthly checkpoint.</summary>
+    /// <summary>A cancelled request never advances the durable daily checkpoint.</summary>
     [Fact]
     public async Task Cleanup_CancelledRequestDoesNotDeleteOrAdvanceSchedule()
     {
@@ -150,7 +152,7 @@ public sealed class RetentionApplicationTests
         {
             pendingDeletes = removed;
             if (removed > 0) cancellation.Cancel();
-        }, cancellation.Token));
+        }, cancellationToken: cancellation.Token));
 
         Assert.Equal(2, pendingDeletes);
         Assert.Equal(2, fixture.Store.GetRetentionPreview(cutoff).RecordCount);
@@ -188,10 +190,55 @@ public sealed class RetentionApplicationTests
             if (cancellationScheduled) return;
             cancellationScheduled = true;
             cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
-        }, cancellation.Token));
+        }, cancellationToken: cancellation.Token));
 
         Assert.True(started.Elapsed < TimeSpan.FromSeconds(5), "Cancellation must interrupt the active statement, not wait for the trigger to finish.");
         Assert.Equal(1, fixture.Store.GetRetentionPreview(cutoff).RecordCount);
+        Assert.Null(fixture.Store.LoadSettings().LastRetentionCleanupAt);
+    }
+
+    /// <summary>Both selected local dates are inclusive and adjacent records and images survive.</summary>
+    [Fact]
+    public async Task DateRange_DeletesOnlySelectedDaysWithoutAdvancingAutomaticCleanup()
+    {
+        await using var fixture = new Fixture(ProductTier.Free);
+        var range = new HistoryDateRange(new DateOnly(2026, 8, 10), new DateOnly(2026, 8, 11));
+        var before = fixture.AddHistory(range.Start.AddTicks(-1), "before");
+        var first = fixture.AddHistory(range.Start, "first");
+        var last = fixture.AddHistory(range.EndExclusive.AddTicks(-1), "last");
+        var after = fixture.AddHistory(range.EndExclusive, "after");
+        var preview = await fixture.Application.PreviewRetentionAsync(CancellationToken.None, range);
+        Assert.True(preview.Succeeded);
+        Assert.Equal(2, preview.Value!.RecordCount);
+        Assert.Equal(2, preview.Value.ScreenshotCount);
+        Assert.True(File.Exists(first));
+        var result = await fixture.Application.RunRetentionAsync(new RetentionRequest(true, true, Range: range), CancellationToken.None);
+        Assert.True(result.Succeeded);
+        Assert.True(File.Exists(before));
+        Assert.True(File.Exists(after));
+        Assert.False(File.Exists(first));
+        Assert.False(File.Exists(last));
+        Assert.Equal(2, fixture.Store.GetRetentionPreview(DateTimeOffset.MaxValue).RecordCount);
+        Assert.Null(fixture.Store.LoadSettings().LastRetentionCleanupAt);
+    }
+
+    /// <summary>Invalid ranges, scheduled date ranges and missing confirmation never delete history.</summary>
+    [Fact]
+    public async Task DateRange_RejectsInvalidAndUnconfirmedRequests()
+    {
+        await using var fixture = new Fixture(ProductTier.Premium);
+        var day = new DateOnly(2026, 8, 10);
+        var range = new HistoryDateRange(day, day);
+        var image = fixture.AddHistory(range.Start.AddHours(12), "keep");
+        foreach (var invalid in new[] { new HistoryDateRange(day, day.AddDays(-1)), new HistoryDateRange(day, DateOnly.MaxValue) })
+        {
+            Assert.False((await fixture.Application.PreviewRetentionAsync(CancellationToken.None, invalid)).Succeeded);
+            Assert.False((await fixture.Application.RunRetentionAsync(new RetentionRequest(true, true, Range: invalid), CancellationToken.None)).Succeeded);
+        }
+        Assert.False((await fixture.Application.RunRetentionAsync(new RetentionRequest(true, false, Range: range), CancellationToken.None)).Succeeded);
+        Assert.False((await fixture.Application.RunRetentionAsync(new RetentionRequest(true, true, Scheduled: true, Range: range), CancellationToken.None)).Succeeded);
+        Assert.True(File.Exists(image));
+        Assert.Equal(1, fixture.Store.GetRetentionPreview(DateTimeOffset.MaxValue).RecordCount);
         Assert.Null(fixture.Store.LoadSettings().LastRetentionCleanupAt);
     }
 

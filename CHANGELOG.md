@@ -11,6 +11,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
+- Inline history settings with a configurable storage warning (1 GB by default) and confirmed deletion of an inclusive date range.
 - Process memory monitoring with a 1 GiB limit, a native Windows warning before restart, logged recovery events, and preservation of the tracking state.
 - VibeWare symbol in CLI output, with a tracked source asset.
 - VIP snapshots with a cancellable countdown, optional notes, a featured gallery strip, gold crown badges, and calendar indicators.
@@ -28,6 +29,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- Free history is retained for one calendar month; Premium can retain one to twelve months. Automatic cleanup checks the policy daily while the app is running.
 - The main player shows a VibeWare footer with an accessible link to the manifesto and accounts for the footer when fitting its contents.
 - The world-clock reference header, window title, tooltip, and accessible name show the reference date's ISO week number and week-year.
 - Moving and resizing primary work surfaces show transient alignment guides and snap eligible edges using DPI-scaled ten/twenty logical-pixel snap/preview distances; dialogs, About and temporary windows do not participate.

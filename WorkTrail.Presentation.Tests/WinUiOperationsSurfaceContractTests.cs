@@ -78,7 +78,7 @@ public sealed class WinUiOperationsSurfaceContractTests
                 attribute.Name.LocalName == "Name" && attribute.Value.EndsWith("OperationsLink", StringComparison.Ordinal)))
             .ToArray();
         Assert.True(settingsLinks.Length >= 3);
-        Assert.All(new[] { "SnapshotAiOperationsLink", "PrivacyOperationsLink", "RetentionOperationsLink", "PluginsOperationsLink" },
+        Assert.All(new[] { "SnapshotAiOperationsLink", "PrivacyOperationsLink", "PluginsOperationsLink" },
             name => Assert.Contains(settingsLinks, element => HasName(element, name)));
 
         var privacyLink = settingsLinks.Single(element => HasName(element, "PrivacyOperationsLink"));
@@ -91,7 +91,6 @@ public sealed class WinUiOperationsSurfaceContractTests
         {
             (Name: "SnapshotAiOperationsLink", Color: "#FFE88F6B", Glyph: "\uE7ED"),
             (Name: "PrivacyOperationsLink", Color: "#FFA97BEA", Glyph: "\uE72E"),
-            (Name: "RetentionOperationsLink", Color: "#FF85A8DB", Glyph: "\uE823"),
             (Name: "PluginsOperationsLink", Color: "#FF71CBB7", Glyph: "\uE90F")
         };
         Assert.All(settingsLinkIcons, expected =>
@@ -105,7 +104,7 @@ public sealed class WinUiOperationsSurfaceContractTests
             Assert.Equal("\uE76C", icons[1].Attribute("Glyph")?.Value);
         });
 
-        Assert.All(new[] { snapshots, privacy, retention, plugins, installationTransfer }, document =>
+        Assert.All(new[] { snapshots, privacy, plugins, installationTransfer }, document =>
         {
             Assert.DoesNotContain(document.Descendants(), element => element.Name.LocalName == "InfoBar");
             Assert.Contains(document.Descendants(), element => element.Attribute("Tag")?.Value?.EndsWith(".Description", StringComparison.Ordinal) == true);
@@ -420,49 +419,20 @@ public sealed class WinUiOperationsSurfaceContractTests
         var surface = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
         var source = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml.cs"));
         var operationsSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OperationsControl.xaml.cs"));
-        var sectionTags = new[]
-        {
-            "Operations.Retention.PolicyMonths",
-            "Operations.Retention.Preview",
-            "Operations.Retention.Monthly"
-        };
-
-        Assert.All(sectionTags, tag => Assert.Contains(surface.Descendants(), element =>
-            element.Attribute("Tag")?.Value == tag
-            && element.Attributes().Any(attribute =>
-                attribute.Name.LocalName == "AutomationProperties.HeadingLevel"
-                && attribute.Value == "Level3")));
-        Assert.True(surface.Descendants().Count(element => element.Name.LocalName == "Rectangle") >= 2);
-        Assert.Single(surface.Descendants(), element => element.Name.LocalName == "Border");
-        Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Preview.Description");
-        Assert.Contains(surface.Descendants(), element => element.Attribute("Tag")?.Value == "Operations.Retention.Summary");
-
-        Assert.All(new[]
-        {
-            "Operations.Retention.PreviewAction",
-            "Operations.Retention.CleanupAction"
-        }, tag =>
-        {
-            var button = surface.Descendants().Single(element => element.Name.LocalName == "Button" && element.Attribute("Tag")?.Value == tag);
-            Assert.Equal("Left", button.Attribute("HorizontalAlignment")?.Value);
-            Assert.Equal("False", button.Attribute("IsEnabled")?.Value);
-            Assert.Equal("{StaticResource WrappingActionLabelTemplate}", button.Attribute("ContentTemplate")?.Value);
-        });
-
-        Assert.Equal(2, surface.Descendants().Count(element => element.Name.LocalName == "Button"));
+        var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
+        Assert.Contains(options.Descendants(), element => element.Name.LocalName == "RetentionOperationsControl");
+        Assert.Contains(surface.Descendants(), element => HasName(element, "RetentionMonthsBox"));
+        Assert.Contains(surface.Descendants(), element => HasName(element, "StorageWarningBox"));
+        Assert.Equal(2, surface.Descendants().Count(element => element.Name.LocalName == "CalendarDatePicker"));
+        var deleteButton = surface.Descendants().Single(element => element.Name.LocalName == "Button");
+        Assert.Equal("False", deleteButton.Attribute("IsEnabled")?.Value);
+        Assert.Equal("{StaticResource WrappingActionLabelTemplate}", deleteButton.Attribute("ContentTemplate")?.Value);
+        Assert.Contains("application.PreviewRetentionAsync(token, range)", source, StringComparison.Ordinal);
+        Assert.Contains("if (preview.FileCount == 0) return;", source, StringComparison.Ordinal);
         Assert.Contains("internal async Task LoadAsync()", source, StringComparison.Ordinal);
         Assert.Contains("_ = _retentionSection!.LoadAsync();", operationsSource, StringComparison.Ordinal);
-
-        var directory = surface.Descendants().Single(element => HasName(element, "ScreenshotFolderBox"));
-        var candidatePath = surface.Descendants().Single(element =>
-            element.Name.LocalName == "TextBlock" && element.Attribute("ToolTipService.ToolTip")?.Value == "{Binding}");
-        Assert.Equal("TextBox", directory.Name.LocalName);
-        Assert.Equal("ScreenshotFolderBox_LostFocus", directory.Attribute("LostFocus")?.Value);
-        Assert.Equal("CharacterEllipsis", candidatePath.Attribute("TextTrimming")?.Value);
-        Assert.Equal("1", candidatePath.Attribute("MaxLines")?.Value);
         Assert.Contains("ScreenshotFolderBox.Text = status.ScreenshotDirectory", source, StringComparison.Ordinal);
         Assert.Contains("QueueStorageSave(\"screenshots.directory\"", source, StringComparison.Ordinal);
-        Assert.Contains("Operations.Retention.Preview.Paths", source, StringComparison.Ordinal);
         Assert.DoesNotContain("System.IO", source, StringComparison.Ordinal);
     }
 
@@ -475,7 +445,7 @@ public sealed class WinUiOperationsSurfaceContractTests
         Assert.Contains("Dialogs.ConfirmAsync(", source, StringComparison.Ordinal);
         Assert.Contains("DialogRequest.Confirmation(", source, StringComparison.Ordinal);
         Assert.Contains("if (!confirmed)", source, StringComparison.Ordinal);
-        Assert.Contains("new RetentionRequest(Execute: true, Confirmed: true, OperationId: operationId)", source, StringComparison.Ordinal);
+        Assert.Contains("new RetentionRequest(Execute: true, Confirmed: true, OperationId: operationId, Range: range)", source, StringComparison.Ordinal);
         Assert.Contains("retentionOperationId: operationId", source, StringComparison.Ordinal);
     }
 

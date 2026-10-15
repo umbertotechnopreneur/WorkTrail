@@ -135,9 +135,10 @@ public sealed class WinUiSurfaceContractTests
         var operations = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OperationsControl.xaml"));
 
         var optionExpanders = options.Descendants().Where(element => element.Name.LocalName == "Expander").ToArray();
-        Assert.Equal(2, optionExpanders.Length);
+        Assert.Equal(3, optionExpanders.Length);
         Assert.Contains(optionExpanders, element => HasName(element, "ApiKeyExpander"));
         Assert.Contains(optionExpanders, element => HasName(element, "AiDailyLimitExpander"));
+        Assert.Contains(optionExpanders, element => HasName(element, "RetentionSettingsExpander"));
         Assert.DoesNotContain(operations.Descendants(), element => element.Name.LocalName == "Expander");
         Assert.DoesNotContain(operations.Descendants(), element => element.Attribute("CornerRadius") is not null);
         Assert.DoesNotContain(operations.Descendants(), element => element.Attribute("Click")?.Value == "BackButton_Click");
@@ -1265,7 +1266,7 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains(privacy.Descendants(), element => element.Attribute("Text")?.Value == "{Binding TypeLabel}");
         Assert.Contains("Operations.PrivacyType.{rule.Type}", privacySource, StringComparison.Ordinal);
         Assert.Contains("AutomationProperties.SetName(PrivacyRulesList", privacySource, StringComparison.Ordinal);
-        Assert.Contains("AutomationProperties.SetName(RetentionPathsList", retentionSource, StringComparison.Ordinal);
+        Assert.Contains("AutomationProperties.SetName(DeleteFromPicker", retentionSource, StringComparison.Ordinal);
         Assert.Contains("AutomationProperties.SetName(this, _strings.Translate(\"Screenshots.Caption\"));", viewerSource, StringComparison.Ordinal);
     }
 

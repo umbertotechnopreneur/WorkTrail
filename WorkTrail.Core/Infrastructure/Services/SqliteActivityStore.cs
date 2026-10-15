@@ -1598,16 +1598,19 @@ internal sealed partial class SqliteActivityStore
     }
 
     /// <summary>Removes terminal reprocessing checkpoints whose screenshot day is outside retention.</summary>
-    internal int DeleteTerminalAiReprocessJobsBefore(DateTimeOffset cutoffUtc, CancellationToken cancellationToken = default)
+    internal int DeleteTerminalAiReprocessJobsBefore(DateTimeOffset cutoffUtc, DateTimeOffset? fromUtc = null,
+        CancellationToken cancellationToken = default)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
             DELETE FROM ai_reprocess_jobs
             WHERE range_end_utc_ticks <= $cutoff
+              AND range_start_utc_ticks >= $from
               AND state IN ('completed', 'completed_with_errors', 'failed');
             """;
         command.Parameters.AddWithValue("$cutoff", cutoffUtc.UtcDateTime.Ticks);
+        command.Parameters.AddWithValue("$from", fromUtc?.UtcDateTime.Ticks ?? DateTime.MinValue.Ticks);
         return ExecuteCancellableDelete(command, cancellationToken);
     }
 
@@ -1615,13 +1618,15 @@ internal sealed partial class SqliteActivityStore
     /// Deletes expired capture provenance only after every persisted screenshot, OCR, AI, and
     /// reprocessing reference has been removed.
     /// </summary>
-    internal int DeleteOrphanedScreenshotCapturesBefore(DateTimeOffset cutoffUtc, CancellationToken cancellationToken = default)
+    internal int DeleteOrphanedScreenshotCapturesBefore(DateTimeOffset cutoffUtc, DateTimeOffset? fromUtc = null,
+        CancellationToken cancellationToken = default)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
             DELETE FROM screenshot_captures
             WHERE captured_utc_ticks < $cutoff
+              AND captured_utc_ticks >= $from
               AND NOT EXISTS (
                   SELECT 1 FROM screenshot_interval_telemetry AS telemetry
                   WHERE telemetry.capture_id = screenshot_captures.capture_id)
@@ -1635,6 +1640,7 @@ internal sealed partial class SqliteActivityStore
                   SELECT capture_id FROM ai_reprocess_job_items);
             """;
         command.Parameters.AddWithValue("$cutoff", cutoffUtc.UtcDateTime.Ticks);
+        command.Parameters.AddWithValue("$from", fromUtc?.UtcDateTime.Ticks ?? DateTime.MinValue.Ticks);
         return ExecuteCancellableDelete(command, cancellationToken);
     }
 
@@ -2557,43 +2563,44 @@ internal sealed partial class SqliteActivityStore
     }
 
     /// <summary>Counts expired activity and AI rows without changing them.</summary>
-    internal (int Count, long Bytes) GetRetentionPreview(DateTimeOffset cutoffUtc)
+    internal (int Count, long Bytes) GetRetentionPreview(DateTimeOffset cutoffUtc, DateTimeOffset? fromUtc = null)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT
-                (SELECT COUNT(*) FROM activity_samples WHERE timestamp_utc_ticks < $cutoff),
-                (SELECT COALESCE(SUM(estimated_bytes), 0) FROM activity_samples WHERE timestamp_utc_ticks < $cutoff),
+                (SELECT COUNT(*) FROM activity_samples WHERE timestamp_utc_ticks >= $from AND timestamp_utc_ticks < $cutoff),
+                (SELECT COALESCE(SUM(estimated_bytes), 0) FROM activity_samples WHERE timestamp_utc_ticks >= $from AND timestamp_utc_ticks < $cutoff),
                 (SELECT COUNT(*)
                  FROM ai_request_usage AS request
-                 WHERE request.occurred_utc_ticks < $cutoff
+                 WHERE request.occurred_utc_ticks >= $from AND request.occurred_utc_ticks < $cutoff
                    AND NOT EXISTS (
                        SELECT 1
                        FROM ai_analysis_results AS result
                        WHERE result.attempt_id = request.attempt_id
-                         AND result.timestamp_utc_ticks >= $cutoff)),
-                (SELECT COUNT(*) FROM ai_analysis_results WHERE timestamp_utc_ticks < $cutoff),
+                         AND (result.timestamp_utc_ticks < $from OR result.timestamp_utc_ticks >= $cutoff))),
+                (SELECT COUNT(*) FROM ai_analysis_results WHERE timestamp_utc_ticks >= $from AND timestamp_utc_ticks < $cutoff),
                 (SELECT COALESCE(SUM(
                     length(provider) + length(endpoint_host) + length(requested_model) + length(origin) + length(request_kind)), 0)
                  FROM ai_request_usage AS request
-                 WHERE request.occurred_utc_ticks < $cutoff
+                 WHERE request.occurred_utc_ticks >= $from AND request.occurred_utc_ticks < $cutoff
                    AND NOT EXISTS (
                        SELECT 1
                        FROM ai_analysis_results AS result
                        WHERE result.attempt_id = request.attempt_id
-                         AND result.timestamp_utc_ticks >= $cutoff)),
+                         AND (result.timestamp_utc_ticks < $from OR result.timestamp_utc_ticks >= $cutoff))),
                 (SELECT COALESCE(SUM(length(application) + length(context) + length(summary)), 0)
-                 FROM ai_analysis_results WHERE timestamp_utc_ticks < $cutoff),
-                (SELECT COUNT(*) FROM screenshot_text_snapshots WHERE extracted_utc_ticks < $cutoff),
-                (SELECT COALESCE(SUM(length(snapshot_json) + length(source_path)), 0) FROM screenshot_text_snapshots WHERE extracted_utc_ticks < $cutoff),
-                (SELECT COUNT(*) FROM screenshot_interval_telemetry WHERE captured_utc_ticks < $cutoff),
+                 FROM ai_analysis_results WHERE timestamp_utc_ticks >= $from AND timestamp_utc_ticks < $cutoff),
+                (SELECT COUNT(*) FROM screenshot_text_snapshots WHERE extracted_utc_ticks >= $from AND extracted_utc_ticks < $cutoff),
+                (SELECT COALESCE(SUM(length(snapshot_json) + length(source_path)), 0) FROM screenshot_text_snapshots WHERE extracted_utc_ticks >= $from AND extracted_utc_ticks < $cutoff),
+                (SELECT COUNT(*) FROM screenshot_interval_telemetry WHERE captured_utc_ticks >= $from AND captured_utc_ticks < $cutoff),
                 (SELECT COUNT(*) FROM capture_hardware_snapshots WHERE capture_id IN
-                    (SELECT capture_id FROM screenshot_captures WHERE captured_utc_ticks < $cutoff)),
+                    (SELECT capture_id FROM screenshot_captures WHERE captured_utc_ticks >= $from AND captured_utc_ticks < $cutoff)),
                 (SELECT COALESCE(SUM(length(snapshot_json)), 0) FROM capture_hardware_snapshots WHERE capture_id IN
-                    (SELECT capture_id FROM screenshot_captures WHERE captured_utc_ticks < $cutoff));
+                    (SELECT capture_id FROM screenshot_captures WHERE captured_utc_ticks >= $from AND captured_utc_ticks < $cutoff));
             """;
         command.Parameters.AddWithValue("$cutoff", cutoffUtc.UtcDateTime.Ticks);
+        command.Parameters.AddWithValue("$from", fromUtc?.UtcDateTime.Ticks ?? DateTime.MinValue.Ticks);
         using var reader = command.ExecuteReader();
         if (!reader.Read())
         {
@@ -2609,7 +2616,8 @@ internal sealed partial class SqliteActivityStore
     // cutoffUtc selects expired records consistently across the transaction.
     // cancellationToken interrupts active SQLite statements and prevents a partial commit.
     // progress reports pending deletions while they can still be rolled back.
-    internal int ApplyRetention(DateTimeOffset cutoffUtc, Action<int>? progress = null, CancellationToken cancellationToken = default)
+    internal int ApplyRetention(DateTimeOffset cutoffUtc, Action<int>? progress = null, DateTimeOffset? fromUtc = null,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var connection = OpenConnection();
@@ -2621,7 +2629,7 @@ internal sealed partial class SqliteActivityStore
         void Delete(string sql, bool countRecords = true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var count = ExecuteDelete(connection, transaction, sql, cutoff, cancellationToken);
+            var count = ExecuteDelete(connection, transaction, sql, cutoff, fromUtc?.UtcDateTime.Ticks ?? DateTime.MinValue.Ticks, cancellationToken);
             if (countRecords) removed = checked(removed + count);
             progress?.Invoke(removed);
             cancellationToken.ThrowIfCancellationRequested();
@@ -2631,24 +2639,24 @@ internal sealed partial class SqliteActivityStore
             Delete("""
             DELETE FROM ai_analysis_search
             WHERE correlation_id IN (
-                SELECT correlation_id FROM ai_analysis_results WHERE timestamp_utc_ticks < $cutoff);
+                SELECT correlation_id FROM ai_analysis_results WHERE timestamp_utc_ticks >= $from AND timestamp_utc_ticks < $cutoff);
             """, countRecords: false);
             Delete("""
-            DELETE FROM ai_analysis_results WHERE timestamp_utc_ticks < $cutoff;
+            DELETE FROM ai_analysis_results WHERE timestamp_utc_ticks >= $from AND timestamp_utc_ticks < $cutoff;
             """);
             Delete("""
             DELETE FROM ai_request_usage
-            WHERE occurred_utc_ticks < $cutoff
+            WHERE occurred_utc_ticks >= $from AND occurred_utc_ticks < $cutoff
               AND NOT EXISTS (
                   SELECT 1 FROM ai_analysis_results
                   WHERE ai_analysis_results.attempt_id = ai_request_usage.attempt_id);
             """);
-            Delete("DELETE FROM activity_samples WHERE timestamp_utc_ticks < $cutoff;");
-            Delete("DELETE FROM screenshot_text_snapshots WHERE extracted_utc_ticks < $cutoff;");
-            Delete("DELETE FROM screenshot_interval_telemetry WHERE captured_utc_ticks < $cutoff;");
+            Delete("DELETE FROM activity_samples WHERE timestamp_utc_ticks >= $from AND timestamp_utc_ticks < $cutoff;");
+            Delete("DELETE FROM screenshot_text_snapshots WHERE extracted_utc_ticks >= $from AND extracted_utc_ticks < $cutoff;");
+            Delete("DELETE FROM screenshot_interval_telemetry WHERE captured_utc_ticks >= $from AND captured_utc_ticks < $cutoff;");
             Delete("""
             DELETE FROM capture_hardware_snapshots WHERE capture_id IN
-                (SELECT capture_id FROM screenshot_captures WHERE captured_utc_ticks < $cutoff);
+                (SELECT capture_id FROM screenshot_captures WHERE captured_utc_ticks >= $from AND captured_utc_ticks < $cutoff);
             """);
             cancellationToken.ThrowIfCancellationRequested();
             transaction.Commit();
@@ -3286,13 +3294,14 @@ internal sealed partial class SqliteActivityStore
 
     private SqliteConnection OpenConnection() => _connections.Open();
 
-    private static int ExecuteDelete(SqliteConnection connection, SqliteTransaction transaction, string sql, long cutoff,
+    private static int ExecuteDelete(SqliteConnection connection, SqliteTransaction transaction, string sql, long cutoff, long from,
         CancellationToken cancellationToken)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = sql;
         command.Parameters.AddWithValue("$cutoff", cutoff);
+        command.Parameters.AddWithValue("$from", from);
         return ExecuteCancellableDelete(command, cancellationToken);
     }
 

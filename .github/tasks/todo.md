@@ -9,6 +9,16 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, validate the inline history settings on Windows at
+  narrow widths, supported text scales and themes: retention selection and upgrade
+  prompt, storage warning threshold, inclusive date selection, deletion confirmation,
+  cancellation and recovery. The focused automated checks and Debug x64 build passed;
+  native interaction and production automatic maintenance remain unverified.
+
+- [ ] Replace the Debug MSIX installation helper's whole-artifacts deletion with
+  verified task-owned cleanup. Preserve pending installers and unrelated output;
+  use isolated build/package paths until this is corrected.
+
 - [ ] After owner authorization, validate the main-window VibeWare footer at narrow widths,
   supported text scales and light/dark/high-contrast themes. Check its manifesto link,
   keyboard focus, failure dialog and placement with expanded or compact player details.

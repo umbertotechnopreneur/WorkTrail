@@ -111,15 +111,13 @@ public sealed class PremiumUiContractTests
     public void Retention_ExtendedChoicesUseSharedPremiumBadge()
     {
         var document = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
-        foreach (var buttonName in new[] { "TwoMonthsButton", "ThreeMonthsButton" })
-        {
-            var button = document.Descendants().Single(element => Name(element) == buttonName);
-            Assert.Single(button.Descendants(), element => element.Name.LocalName == "PremiumBadge");
-        }
-        var free = document.Descendants().Single(element => Name(element) == "OneMonthButton");
-        Assert.DoesNotContain(free.Descendants(), element => element.Name.LocalName == "PremiumBadge");
-        foreach (var name in new[] { "FirstActivationText", "LastCleanupText", "NextCleanupText" })
-            Assert.Single(document.Descendants(), element => Name(element) == name);
+        Assert.Single(document.Descendants(), element => Name(element) == "RetentionMonthsBox");
+        Assert.Single(document.Descendants(), element => Name(element) == "TierBadge");
+        Assert.Single(document.Descendants(), element => Name(element) == "StorageWarningBox");
+        var source = File.ReadAllText(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml.cs"));
+        Assert.Contains("months > status.MaximumMonths", source, StringComparison.Ordinal);
+        Assert.Contains("Context.Dialogs.ShowPremiumUpgradeAsync", source, StringComparison.Ordinal);
+
     }
 
     /// <summary>The folder editor and keep-captures toggle have a single home on the retention page.</summary>
@@ -149,7 +147,7 @@ public sealed class PremiumUiContractTests
         Assert.DoesNotContain("ApplyTaskbarWidgetSettings", app, StringComparison.Ordinal);
     }
 
-    /// <summary>Monthly cleanup is queued only after the workspace and restored windows are ready.</summary>
+    /// <summary>Daily cleanup is queued only after the workspace and restored windows are ready.</summary>
     [Fact]
     public void RetentionStartup_WaitsForWorkspaceAndRestoration()
     {
@@ -159,7 +157,7 @@ public sealed class PremiumUiContractTests
         var maintenance = app.IndexOf("StartRetentionMaintenance();", StringComparison.Ordinal);
         Assert.True(ready >= 0 && ready < restored && restored < maintenance);
         Assert.Contains("DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()", app, StringComparison.Ordinal);
-        Assert.Contains("Scheduled: true, OperationId: operationId", app, StringComparison.Ordinal);
+        Assert.Contains("new RetentionRequest(true, false, Scheduled: true)", app, StringComparison.Ordinal);
     }
 
     private static string? Name(XElement element) => element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")?.Value;

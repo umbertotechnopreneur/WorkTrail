@@ -132,8 +132,9 @@ public sealed partial class OptionsControl : UserControl
             AutomationProperties.SetHelpText(SnapshotAiOperationsLink, T("Options.Navigation.SnapshotAi.Description"));
             AutomationProperties.SetName(PrivacyOperationsLink, T("Options.Navigation.Privacy.Action"));
             AutomationProperties.SetHelpText(PrivacyOperationsLink, T("Options.Navigation.Privacy.Description"));
-            AutomationProperties.SetName(RetentionOperationsLink, T("Options.Navigation.Retention.Action"));
-            AutomationProperties.SetHelpText(RetentionOperationsLink, T("Options.Navigation.Retention.Description"));
+            RetentionSettingsExpander.Header = T("History.Title");
+            AutomationProperties.SetName(RetentionSettingsExpander, T("History.Title"));
+            HistorySettings.ApplyLanguage(language);
             AutomationProperties.SetName(PluginsOperationsLink, T("Options.Navigation.Plugins.Action"));
             AutomationProperties.SetHelpText(PluginsOperationsLink, T("Options.Navigation.Plugins.Description"));
             UpdateApiKeyPresentation();
@@ -251,8 +252,15 @@ public sealed partial class OptionsControl : UserControl
     private void PrivacyOperationsLink_Click(object sender, RoutedEventArgs e) =>
         OperationsSectionRequested?.Invoke(OperationsSection.Privacy);
 
-    private void RetentionOperationsLink_Click(object sender, RoutedEventArgs e) =>
-        OperationsSectionRequested?.Invoke(OperationsSection.Retention);
+    /// <summary>Attaches the inline history settings to the shared dialogs and application facade.</summary>
+    internal void InitializeHistory(IWorkTrailApplication application, MicaDialogService dialogs, Window owner, TimedInfoBar banner) =>
+        HistorySettings.Initialize(application, dialogs, owner, banner);
+
+    private async void RetentionSettingsExpander_Expanding(Expander sender, ExpanderExpandingEventArgs args)
+    {
+        await HistorySettings.LoadAsync();
+        NotifyLayoutChanged();
+    }
 
     private void PluginsOperationsLink_Click(object sender, RoutedEventArgs e) =>
         OperationsSectionRequested?.Invoke(OperationsSection.Plugins);

@@ -164,7 +164,8 @@ public sealed record AppSettings(
     string AstronomyAgendaCityId = "",
     IReadOnlyList<string>? AstronomyAgendaCountryCodes = null,
     bool AstronomyAgendaShowSaints = true,
-    bool NotificationsEnabled = true);
+    bool NotificationsEnabled = true,
+    int HistoryWarningMegabytes = 1024);
 
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,

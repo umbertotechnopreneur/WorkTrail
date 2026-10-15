@@ -650,6 +650,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>Shows the configured history-size warning and points to inline history settings.</summary>
+    internal void ShowHistoryStorageWarning(RetentionStatus status)
+    {
+        var size = (status.StorageBytes / (1024d * 1024d * 1024d)).ToString("0.##", _strings.Culture) + " GB";
+        var limit = (status.HistoryWarningMegabytes / 1024d).ToString("0.##", _strings.Culture) + " GB";
+        _dialogs.Notifications.ShowWarning(MainNotificationBanner, T("History.WarningTitle"),
+            _strings.Format("History.WarningMessage", size, limit));
+    }
+
     /// <summary>Shows a localized warning when the independent world-clock surface cannot open.</summary>
     internal void ShowWorldClockOpenFailure() =>
         _dialogs.Notifications.ShowWarning(
@@ -947,6 +956,7 @@ public sealed partial class MainWindow : Window
         options.OperationsSectionRequested += OptionsControl_OperationsSectionRequested;
         options.SearchIndexingRequested += OptionsControl_SearchIndexingRequested;
         options.ManageLabelsRequested += OptionsControl_ManageLabelsRequested;
+        options.InitializeHistory(_application, _dialogs, this, MainNotificationBanner);
         var initialization = options.InitializeAsync(_application, AiState, _lifecycle.Token);
         _optionsInitializationTask = CompleteOptionsInitializationAsync(options, initialization);
         return _optionsInitializationTask;

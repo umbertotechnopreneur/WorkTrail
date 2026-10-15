@@ -547,7 +547,7 @@ public sealed class CliRouterTests
             RetentionStatusReads++;
             return Success(new RetentionStatus(30, 30, "private-test-path"), "retention.status.loaded");
         }
-        public Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken) => Unsupported<RetentionPreview>();
+        public Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken, HistoryDateRange? range = null) => Unsupported<RetentionPreview>();
         public Task<OperationResult<RetentionPreview>> RunRetentionAsync(RetentionRequest request, CancellationToken cancellationToken) => Unsupported<RetentionPreview>();
 
         public Task<OperationResult<AtomicResetPlan>> PrepareAtomicResetAsync(AtomicResetRequest request, CancellationToken cancellationToken) => Unsupported<AtomicResetPlan>();

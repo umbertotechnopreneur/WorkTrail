@@ -432,47 +432,10 @@ VBWR E -->
                         </HyperlinkButton>
                     </StackPanel>
 
-                    <StackPanel Margin="0" Spacing="0">
-                        <TextBlock
-                            Tag="Options.Navigation.Retention.Title"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="Data retention"
-                            Visibility="Collapsed" />
-                        <TextBlock
-                            Tag="Options.Navigation.Retention.Description"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="Review how long activity and screen captures remain on this PC, preview cleanup, and remove eligible data with confirmation."
-                            TextWrapping="Wrap"
-                            Visibility="Collapsed" />
-                        <HyperlinkButton AutomationProperties.AutomationId="Settings.RetentionOperationsLink"
-                            x:Name="RetentionOperationsLink"
-                            MinHeight="36"
-                            Padding="0,8"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Stretch"
-                            Click="RetentionOperationsLink_Click">
-                            <Grid ColumnSpacing="7">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#FF85A8DB" Glyph="&#xE823;" />
-                                <TextBlock
-                                    Grid.Column="1"
-                                    Tag="Options.Navigation.Retention.Action"
-                                    Text="Open data-retention settings"
-                                    TextWrapping="Wrap" />
-                                <FontIcon
-                                    Grid.Column="2"
-                                    AutomationProperties.AccessibilityView="Raw"
-                                    FontFamily="Segoe Fluent Icons"
-                                    FontSize="12"
-                                    Glyph="&#xE76C;" />
-                            </Grid>
-                        </HyperlinkButton>
-                    </StackPanel>
+                    <Expander x:Name="RetentionSettingsExpander" AutomationProperties.AutomationId="Settings.RetentionSettingsExpander"
+                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Expanding="RetentionSettingsExpander_Expanding">
+                        <controls:RetentionOperationsControl x:Name="HistorySettings" />
+                    </Expander>
 
                     <StackPanel Margin="0" Spacing="0">
                         <TextBlock

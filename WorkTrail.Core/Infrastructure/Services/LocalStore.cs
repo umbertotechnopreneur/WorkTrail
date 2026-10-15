@@ -412,12 +412,14 @@ public sealed class LocalStore
         _activity.RecoverInterruptedAiReprocessJob(jobId, updatedAt);
 
     /// <summary>Prunes completed historical-reprocessing checkpoints outside screenshot retention.</summary>
-    internal int PruneTerminalAiReprocessJobs(DateTimeOffset screenshotCutoffUtc, CancellationToken cancellationToken = default) =>
-        _activity.DeleteTerminalAiReprocessJobsBefore(screenshotCutoffUtc, cancellationToken);
+    internal int PruneTerminalAiReprocessJobs(DateTimeOffset screenshotCutoffUtc, DateTimeOffset? fromUtc = null,
+        CancellationToken cancellationToken = default) =>
+        _activity.DeleteTerminalAiReprocessJobsBefore(screenshotCutoffUtc, fromUtc, cancellationToken);
 
     /// <summary>Prunes expired capture provenance after all retained references have disappeared.</summary>
-    internal int PruneOrphanedScreenshotCaptures(DateTimeOffset screenshotCutoffUtc, CancellationToken cancellationToken = default) =>
-        _activity.DeleteOrphanedScreenshotCapturesBefore(screenshotCutoffUtc, cancellationToken);
+    internal int PruneOrphanedScreenshotCaptures(DateTimeOffset screenshotCutoffUtc, DateTimeOffset? fromUtc = null,
+        CancellationToken cancellationToken = default) =>
+        _activity.DeleteOrphanedScreenshotCapturesBefore(screenshotCutoffUtc, fromUtc, cancellationToken);
 
     /// <summary>Deletes persisted interval telemetry for one retained screenshot.</summary>
     internal int DeleteScreenshotIntervalTelemetry(string screenshotPath) =>
@@ -1530,10 +1532,11 @@ public sealed class LocalStore
 
     /// <summary>Counts expired local records and their estimated or encoded size without changing the data files.</summary>
     /// <param name="cutoffUtc">Records older than this instant are counted.</param>
+    /// <param name="fromUtc">Optional inclusive lower bound for a manual date range.</param>
     /// <returns>Record-level retention preview with affected file paths.</returns>
-    public DataRetentionPreview GetRetentionPreview(DateTimeOffset cutoffUtc)
+    public DataRetentionPreview GetRetentionPreview(DateTimeOffset cutoffUtc, DateTimeOffset? fromUtc = null)
     {
-        var samples = _activity.GetRetentionPreview(cutoffUtc);
+        var samples = _activity.GetRetentionPreview(cutoffUtc, fromUtc);
         var paths = samples.Count > 0 ? new[] { _activity.DatabasePath } : Array.Empty<string>();
         return new DataRetentionPreview(samples.Count, samples.Bytes, paths);
     }
@@ -1542,10 +1545,12 @@ public sealed class LocalStore
     /// <param name="cutoffUtc">Records older than this instant are removed.</param>
     /// <param name="progress">Receives the number of records removed inside the pending transaction.</param>
     /// <param name="cancellationToken">Interrupts SQLite work and rolls back uncommitted record deletions.</param>
+    /// <param name="fromUtc">Optional inclusive lower bound; earlier history is preserved.</param>
     /// <returns>Number of expired records removed across local data files.</returns>
-    public int ApplyRetention(DateTimeOffset cutoffUtc, Action<int>? progress = null, CancellationToken cancellationToken = default)
+    public int ApplyRetention(DateTimeOffset cutoffUtc, Action<int>? progress = null, DateTimeOffset? fromUtc = null,
+        CancellationToken cancellationToken = default)
     {
-        var removed = _activity.ApplyRetention(cutoffUtc, progress, cancellationToken);
+        var removed = _activity.ApplyRetention(cutoffUtc, progress, fromUtc, cancellationToken);
         if (removed > 0)
         {
             // Retention can invalidate an already materialized dashboard window; force one bounded reload.
