@@ -58,7 +58,10 @@ public enum ScreenshotCaptureDecision
     ScreenshotsDisabled,
 
     /// <summary>The current foreground context is private or cannot be proven safe.</summary>
-    PrivacyBlocked
+    PrivacyBlocked,
+
+    /// <summary>The scheduled capture exceeded its configured input-inactivity timeout.</summary>
+    UserIdle
 }
 
 /// <summary>Describes the foreground target observed at the capture boundary.</summary>
@@ -134,6 +137,22 @@ public sealed class ScreenCaptureService : IScreenCaptureService
             throw new ArgumentException("Screenshot capture mode must be 'all-screens' or 'active-window'.", nameof(captureMode));
         }
 
+        if (validatedOrigin == ScreenshotCaptureOrigins.Scheduled)
+        {
+            var privacyPolicy = authorizeCapture;
+            var capturePolicy = ScreenshotCaptureRules.Load();
+            // Probe inside the native implementation so fake capture services remain desktop-independent.
+            // An unavailable/idle desktop is a skipped scheduled attempt, not a screenshot failure notice.
+            if (!ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value))
+                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.UserIdle);
+            authorizeCapture = context =>
+            {
+                var decision = privacyPolicy(context);
+                return decision != ScreenshotCaptureDecision.Allowed ? decision
+                    : ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value)
+                        ? ScreenshotCaptureDecision.Allowed : ScreenshotCaptureDecision.UserIdle;
+            };
+        }
         var foreground = CaptureForegroundTarget();
         EnsureCaptureAllowed(authorizeCapture(foreground.ToCaptureContext()));
         return CaptureTargets(directory, captureId, validatedOrigin, capturedAt, foreground, captureMode == "active-window", authorizeCapture);
@@ -169,7 +188,9 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         var displays = EnumerateDisplays();
         var visibleWindows = ReadVisibleWindows();
         var windows = visibleWindows.Select(window => new CaptureWindow(window.WindowHandle, window.Bounds,
-            window.Context.ProcessName, window.Context.ApplicationName, window.Context.WindowTitle,
+            window.Context.ProcessName, window.Context.ApplicationName,
+            _settingsSnapshot is null || ActivityContextProviderRegistry.IsDetailEnabled(window.Context.ProcessName, _settingsSnapshot.Value)
+                ? window.Context.WindowTitle : string.Empty,
             window.IsApplicationWindow)).ToArray();
         var policy = ScreenshotCaptureRules.Load();
         var targets = policy.Plan(displays, foreground, windows, activeWindowOnly);
@@ -210,7 +231,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                     screen.Index == focusedDisplay.Index,
                     isWindow ? target.ApplicationName : screen.Index == focusedDisplay.Index && !foregroundExcluded ? focusMetadata.ApplicationName : string.Empty,
                     isWindow ? retainTitle ? target.WindowTitle : string.Empty : screen.Index == focusedDisplay.Index && !foregroundExcluded ? focusMetadata.WindowTitle : string.Empty,
-                    target.RelatedScreenIndices, target.Priority, target.ForAnalysis, target.ForGallery, target.Attention));
+                    target.RelatedScreenIndices, target.Priority, target.ForAnalysis, target.ForGallery, target.Attention, target.RuleReason, target.MicroPromptIds));
             }
         }
         catch

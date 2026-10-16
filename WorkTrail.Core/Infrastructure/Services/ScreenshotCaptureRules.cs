@@ -7,7 +7,10 @@ namespace WorkTrail.Services;
 /// <summary>Ordered internal capture policy, shipped as data without a user-facing editor.</summary>
 internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRule> Rules,
     IReadOnlyList<ScreenshotApplicationProfile>? ApplicationProfiles = null,
-    IReadOnlyList<string>? AnalysisBlacklist = null)
+    IReadOnlyList<string>? AnalysisBlacklist = null,
+    IReadOnlyList<ScreenshotContextRule>? ContextRules = null,
+    int DefaultIdleTimeoutSeconds = 60,
+    IReadOnlyDictionary<string, string>? MicroPrompts = null)
 {
     internal static ScreenshotCaptureRules Load()
     {
@@ -25,6 +28,10 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
 
     internal void Validate()
     {
+        if (DefaultIdleTimeoutSeconds is < 1 or > 7200)
+            throw new InvalidDataException("Default capture inactivity timeout must be between 1 and 7200 seconds.");
+        if (MicroPrompts?.Any(entry => string.IsNullOrWhiteSpace(entry.Key) || string.IsNullOrWhiteSpace(entry.Value)) == true)
+            throw new InvalidDataException("Micro-prompts require nonempty identifiers and instructions.");
         if (Rules is null || Rules.Count == 0) throw new InvalidDataException("Screenshot capture rules must not be empty.");
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var rule in Rules)
@@ -36,6 +43,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
             if ((!windowSubject && !monitorSubject) || rule.Capture != (windowSubject ? "window" : "monitor")
                 || rule.Priority is not ("primary" or "secondary" or "context")
                 || rule.Destination is not ("analysis" or "gallery" or "both")
+                || !double.IsFinite(rule.MinimumVisibleFraction) || rule.MinimumVisibleFraction is < 0 or > 1
+                || (rule.RequireSecondaryMatch && rule.Subject != "secondary-windows")
                 || (rule.ProcessNames is not null && (!windowSubject || rule.ProcessNames.Any(string.IsNullOrWhiteSpace))))
                 throw new InvalidDataException($"Screenshot capture rule '{rule.Id}' is invalid.");
         }
@@ -47,12 +56,55 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                 || string.IsNullOrWhiteSpace(profile.Label) || profile.ProcessNames is not { Count: > 0 }
                 || profile.ActiveAttention is not ("high" or "normal" or "low")
                 || profile.BackgroundAttention is not ("high" or "normal" or "low")
+                || profile.IdleTimeoutMinutes is < 1 or > 120
                 || profile.ProcessNames.Any(process => string.IsNullOrWhiteSpace(process) || !processes.Add(process)))
                 throw new InvalidDataException("Screenshot application profiles require unique process aliases and valid attention values.");
+            ValidateMicroPrompts(profile.MicroPromptIds);
         }
         if (AnalysisBlacklist?.Any(string.IsNullOrWhiteSpace) == true)
             throw new InvalidDataException("Screenshot analysis blacklist contains an empty process name.");
+        var contextIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rule in ContextRules ?? [])
+        {
+            if (rule is null || string.IsNullOrWhiteSpace(rule.Id) || !contextIds.Add(rule.Id)
+                || rule.ProcessNames is not { Count: > 0 } || rule.ProcessNames.Any(string.IsNullOrWhiteSpace)
+                || rule.TitleContainsAny is not { Count: > 0 } || rule.TitleContainsAny.Any(string.IsNullOrWhiteSpace)
+                || rule.ActiveAttention is not (null or "high" or "normal" or "low")
+                || rule.BackgroundAttention is not (null or "high" or "normal" or "low")
+                || rule.IdleTimeoutMinutes is < 1 or > 120)
+                throw new InvalidDataException("Context rules require unique IDs, process-scoped title hints and valid policy values.");
+            ValidateMicroPrompts(rule.MicroPromptIds);
+        }
     }
+
+    private void ValidateMicroPrompts(IReadOnlyList<string>? ids)
+    {
+        if (ids?.Any(id => string.IsNullOrWhiteSpace(id) || MicroPrompts?.ContainsKey(id) != true) == true)
+            throw new InvalidDataException("A screenshot profile references an unknown micro-prompt.");
+    }
+
+    /// <summary>Resolves selection hints, never inferred user activity, from one visible window.</summary>
+    internal ScreenshotWindowPolicy ResolveWindowPolicy(string processName, string windowTitle)
+    {
+        var profile = ApplicationProfiles?.FirstOrDefault(item =>
+            item.ProcessNames.Contains(processName, StringComparer.OrdinalIgnoreCase));
+        // Explicit precedence, then stable ID order: JSON reordering cannot change a tie.
+        var rule = ContextRules?.Where(item => item.Enabled
+            && item.ProcessNames.Contains(processName, StringComparer.OrdinalIgnoreCase)
+            && item.TitleContainsAny.Any(hint => windowTitle.Contains(hint, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(item => item.Priority).ThenBy(item => item.Id, StringComparer.Ordinal).FirstOrDefault();
+        return new ScreenshotWindowPolicy(
+            rule?.ActiveAttention ?? profile?.ActiveAttention ?? "normal",
+            rule?.BackgroundAttention ?? profile?.BackgroundAttention ?? "normal",
+            rule?.CaptureSecondary ?? profile?.CaptureSecondary ?? (profile is not null && profile.BackgroundAttention != "low"),
+            (rule?.IdleTimeoutMinutes ?? profile?.IdleTimeoutMinutes) is { } minutes ? minutes * 60 : DefaultIdleTimeoutSeconds,
+            rule is not null ? $"title-hint:{rule.Id}" : profile is not null ? $"app-profile:{profile.Id}" : "default",
+            rule?.MicroPromptIds ?? profile?.MicroPromptIds ?? []);
+    }
+
+    /// <summary>Total allowed input-idle time, not additional active work or evidence of a meeting.</summary>
+    internal int GetIdleTimeoutSeconds(string processName, string windowTitle) =>
+        ResolveWindowPolicy(processName, windowTitle).IdleTimeoutSeconds;
 
     internal IReadOnlyList<CaptureImageTarget> Plan(IReadOnlyList<CaptureDisplay> displays,
         ForegroundCaptureTarget foreground, IReadOnlyList<CaptureWindow> windows, bool activeWindowOnly)
@@ -84,8 +136,12 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                 if (!active && !window.IsApplicationWindow) continue;
                 if ((rule.Subject == "active-window") != active ||
                     (rule.ProcessNames is { Count: > 0 } && !rule.ProcessNames.Contains(window.ProcessName, StringComparer.OrdinalIgnoreCase))) continue;
+                var windowPolicy = ResolveWindowPolicy(window.ProcessName, window.WindowTitle);
+                if (!active && rule.RequireSecondaryMatch && !windowPolicy.CaptureSecondary) continue;
                 var regions = VisibleRegions(displays, windows, index);
                 if (regions.Count == 0) continue;
+                var onScreenArea = displays.Sum(display => Area(Intersect(display.Bounds, window.Bounds)));
+                if (onScreenArea == 0 || regions.Sum(Area) / (double)onScreenArea < rule.MinimumVisibleFraction) continue;
                 var bounds = new NativeMethods.Rect
                 {
                     Left = regions.Min(region => region.Left),
@@ -99,7 +155,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                 AddTarget(result, new CaptureImageTarget(active ? "active-window" : $"secondary-window-{index + 1}",
                     active ? "active-window" : "secondary-window", display, bounds, regions.ToArray(), related,
                     window.WindowHandle, window.ApplicationName, window.WindowTitle, rule.Priority,
-                    rule.Destination != "gallery", rule.Destination != "analysis"));
+                    rule.Destination != "gallery", rule.Destination != "analysis",
+                    RuleReason: windowPolicy.Reason, MicroPromptIds: windowPolicy.MicroPromptIds));
             }
         }
         // Apply vetoes after destination union: another matching rule must never restore AI access.
@@ -109,10 +166,9 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
         result = result.Select(target =>
         {
             var window = windows.FirstOrDefault(item => item.WindowHandle == target.WindowHandle);
-            var profile = window is null ? null : ApplicationProfiles?.FirstOrDefault(item =>
-                item.ProcessNames.Contains(window.ProcessName, StringComparer.OrdinalIgnoreCase));
-            var attention = profile is null ? "normal" : target.WindowHandle == foreground.WindowHandle
-                ? profile.ActiveAttention : profile.BackgroundAttention;
+            var windowPolicy = window is null ? null : ResolveWindowPolicy(window.ProcessName, window.WindowTitle);
+            var attention = windowPolicy is null ? "normal" : target.WindowHandle == foreground.WindowHandle
+                ? windowPolicy.ActiveAttention : windowPolicy.BackgroundAttention;
             var blocked = (window is not null && IsBlacklisted(window.ProcessName))
                 || target.VisibleRegions.Any(region => blockedRegions.Any(blockedRegion => HasArea(Intersect(region, blockedRegion))));
             return target with { Attention = attention, ForAnalysis = target.ForAnalysis && !blocked };
@@ -178,10 +234,20 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
 }
 
 internal sealed record ScreenshotCaptureRule(string Id, bool Enabled, string Subject, string Capture,
-    string Priority, string Destination, IReadOnlyList<string>? ProcessNames = null);
+    string Priority, string Destination, IReadOnlyList<string>? ProcessNames = null,
+    bool RequireSecondaryMatch = false, double MinimumVisibleFraction = 0);
 
 internal sealed record ScreenshotApplicationProfile(string Id, string Label, IReadOnlyList<string> ProcessNames,
-    string ActiveAttention, string BackgroundAttention);
+    string ActiveAttention, string BackgroundAttention, int? IdleTimeoutMinutes = null, bool? CaptureSecondary = null,
+    IReadOnlyList<string>? MicroPromptIds = null);
+
+internal sealed record ScreenshotContextRule(string Id, bool Enabled, int Priority,
+    IReadOnlyList<string> ProcessNames, IReadOnlyList<string> TitleContainsAny,
+    string? ActiveAttention = null, string? BackgroundAttention = null,
+    bool? CaptureSecondary = null, int? IdleTimeoutMinutes = null, IReadOnlyList<string>? MicroPromptIds = null);
+
+internal sealed record ScreenshotWindowPolicy(string ActiveAttention, string BackgroundAttention,
+    bool CaptureSecondary, int IdleTimeoutSeconds, string Reason, IReadOnlyList<string> MicroPromptIds);
 
 /// <summary>Visible top-level window facts in desktop z order, before selecting policy subjects.</summary>
 internal sealed record CaptureWindow(IntPtr WindowHandle, NativeMethods.Rect Bounds, string ProcessName,
@@ -190,7 +256,7 @@ internal sealed record CaptureWindow(IntPtr WindowHandle, NativeMethods.Rect Bou
 internal sealed record CaptureImageTarget(string Stem, string Role, CaptureDisplay Display,
     NativeMethods.Rect Bounds, IReadOnlyList<NativeMethods.Rect> VisibleRegions, IReadOnlyList<int> RelatedScreenIndices,
     IntPtr WindowHandle, string ApplicationName, string WindowTitle, string Priority, bool ForAnalysis, bool ForGallery,
-    string Attention = "normal");
+    string Attention = "normal", string RuleReason = "capture-rule", IReadOnlyList<string>? MicroPromptIds = null);
 
 /// <summary>Associates one image with its physical screen, visible desktop region and rule destinations.</summary>
 public sealed record ScreenshotImageMetadata(
@@ -213,4 +279,4 @@ public sealed record ScreenshotImageMetadata(
     string Priority = "context",
     bool ForAnalysis = true,
     bool ForGallery = true,
-    string Attention = "normal");
+    string Attention = "normal", string RuleReason = "capture-rule", IReadOnlyList<string>? MicroPromptIds = null);

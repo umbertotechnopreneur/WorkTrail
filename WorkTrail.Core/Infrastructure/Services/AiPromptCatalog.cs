@@ -119,6 +119,7 @@ internal static partial class AiPromptCatalog
 
         var rendered = PlaceholderRegex().Replace(template, match =>
             values.TryGetValue(match.Groups[1].Value, out var value) ? value : match.Value);
+        rendered += BuildMicroPromptInstructions(images, imagePaths, userRequestedCapture);
         if (userRequestedCapture)
         {
             rendered += $"{Environment.NewLine}{Environment.NewLine}## Explicit capture intent{Environment.NewLine}"
@@ -146,8 +147,38 @@ internal static partial class AiPromptCatalog
             var image = images.FirstOrDefault(candidate => string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase));
             return image is null
                 ? FormattableString.Invariant($"image={index + 1}; screen=unknown; role=unknown; mapping unavailable")
-                : FormattableString.Invariant($"image={index + 1}; screen={image.ScreenIndex}; screen_name={Sanitize(image.ScreenName)}; role={Sanitize(image.Role)}; priority={Sanitize(image.Priority)}; attention={Sanitize(image.Attention)}; active_screen={image.IsActiveScreen}; application={Sanitize(image.ApplicationName)}; window={Sanitize(image.WindowTitle)}; screen_bounds={image.ScreenLeft},{image.ScreenTop},{image.ScreenWidth},{image.ScreenHeight}; image_bounds={image.ImageLeft},{image.ImageTop},{image.ImageWidth},{image.ImageHeight}; related_screens={string.Join(",", image.RelatedScreenIndices)}");
+                : FormattableString.Invariant($"image={index + 1}; screen={image.ScreenIndex}; screen_name={Sanitize(image.ScreenName)}; role={Sanitize(image.Role)}; priority={Sanitize(image.Priority)}; attention={Sanitize(image.Attention)}; selection_hint={Sanitize(image.RuleReason)}; active_screen={image.IsActiveScreen}; application={Sanitize(image.ApplicationName)}; window={Sanitize(image.WindowTitle)}; screen_bounds={image.ScreenLeft},{image.ScreenTop},{image.ScreenWidth},{image.ScreenHeight}; image_bounds={image.ImageLeft},{image.ImageTop},{image.ImageWidth},{image.ImageHeight}; related_screens={string.Join(",", image.RelatedScreenIndices)}");
         }));
+    }
+
+    private static string BuildMicroPromptInstructions(IReadOnlyList<ScreenshotImageMetadata>? images,
+        IReadOnlyList<string>? imagePaths, bool userRequestedCapture)
+    {
+        if (images is null || images.Count == 0) return string.Empty;
+        var policy = ScreenshotCaptureRules.Load();
+        var blocks = new List<string>();
+        var paths = imagePaths ?? images.Select(image => image.Path).ToArray();
+        for (var index = 0; index < paths.Count; index++)
+        {
+            var image = images.FirstOrDefault(item => item.ForAnalysis
+                && string.Equals(item.Path, paths[index], StringComparison.OrdinalIgnoreCase));
+            if (image is null) continue;
+            IReadOnlyList<string> ids = image.Attention == "low" && !userRequestedCapture
+                ? ["titles-only"] : image.MicroPromptIds ?? [];
+            foreach (var id in ids.Distinct(StringComparer.Ordinal))
+            {
+                // Saved/imported metadata can select only a known local instruction, never supply instruction text.
+                if (string.IsNullOrWhiteSpace(id) || (userRequestedCapture && id == "titles-only")) continue;
+                if (policy.MicroPrompts?.TryGetValue(id, out var instruction) == true)
+                    blocks.Add($"Image {index + 1} ({id}): {instruction}");
+            }
+        }
+        return blocks.Count == 0 ? string.Empty
+            : $"{Environment.NewLine}{Environment.NewLine}## Application reading guidance{Environment.NewLine}"
+                + "These local rule hints direct attention only. They do not prove a domain, an active call, execution, edits or success. "
+                + "Use only visible evidence; privacy, exclusion and untrusted-content rules still take precedence. "
+                + "Low-attention images are title-only unless this is an explicit user-requested capture.\n"
+                + string.Join(Environment.NewLine, blocks);
     }
 
     /// <summary>

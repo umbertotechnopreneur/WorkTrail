@@ -4,6 +4,19 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-17
 
+### Context-aware capture policy
+
+- Expand developer, terminal and database profiles; add process-scoped title hints,
+  deterministic precedence and a minimum visible fraction for selected secondary crops.
+- Add configurable input-idle capture limits (Teams 10 minutes, Zoom 15), checked at
+  the native pixel boundary without altering activity samples or report accounting.
+- Compose per-image micro-prompts from an internal registry. Low attention reads
+  titles only; manual Complete analysis remains an explicit override. Persist routing
+  IDs/reasons with image metadata, not arbitrary instruction text.
+- Browser rules use labeled title hints, not verified domains or inactive tabs.
+  Added regression coverage; C# formatting and verification passed. Tests, build
+  and native validation are pending.
+
 ### Rule-driven capture and content-first descriptions
 
 - Add an internal embedded capture policy, active-window crops and optional monitor

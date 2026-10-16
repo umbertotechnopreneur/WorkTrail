@@ -11,6 +11,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
+- Context-specific screenshot micro-prompts, process-scoped title hints, selected secondary-window crops and configurable inactivity timeouts, including Teams and Zoom presets. Browser titles remain heuristic hints, not verified domains; low-attention analysis reads titles only.
 - Internal screenshot capture rules with active/secondary window crops, monitor identities, separate AI/gallery destinations, application attention presets and an analysis blacklist.
 - Codex CLI screenshot descriptions using ChatGPT sign-in, with installation detection, setup guidance and actionable connection errors.
 - Inline history settings with a configurable storage warning (1 GB by default) and confirmed deletion of an inclusive date range.

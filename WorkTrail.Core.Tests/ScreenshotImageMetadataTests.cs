@@ -112,6 +112,49 @@ public sealed class ScreenshotImageMetadataTests
     }
 
     [Fact]
+    public void RegisterAndReload_PreservesReadingHintIdsAndSelectionReason()
+    {
+        WithStore((store, directory, installationId) =>
+        {
+            var captureId = Guid.NewGuid().ToString("N");
+            var query = Image(directory, captureId, "active-window", 2, "active-window") with
+            {
+                ApplicationName = "SQL Server Management Studio",
+                WindowTitle = "SQLQuery1.sql",
+                Attention = "high",
+                RuleReason = "title-hint:sql-query",
+                MicroPromptIds = ["sql"]
+            };
+            var debugger = Image(directory, captureId, "secondary-window-1", 1, "secondary-window") with
+            {
+                ApplicationName = "Visual Studio",
+                WindowTitle = "Project (Debugging)",
+                Attention = "high",
+                RuleReason = "title-hint:ide-debugging",
+                MicroPromptIds = ["code", "debugger"]
+            };
+            store.RegisterScreenshotCapture(captureId, installationId, DateTimeOffset.UtcNow, "manual", [query, debugger]);
+
+            var reloaded = new SqliteActivityStore(Path.Combine(directory, SqliteActivityStore.DatabaseFileName));
+            var loaded = reloaded.LoadScreenshotImages([debugger.Path, query.Path]);
+
+            Assert.Equal(2, loaded.Count);
+            Assert.Equal("title-hint:ide-debugging", loaded[0].RuleReason);
+            Assert.Equal(new[] { "code", "debugger" }, loaded[0].MicroPromptIds);
+            Assert.Equal("title-hint:sql-query", loaded[1].RuleReason);
+            Assert.Equal(new[] { "sql" }, loaded[1].MicroPromptIds);
+            Assert.Equal("high", loaded[0].Attention);
+            Assert.Equal("high", loaded[1].Attention);
+            var prompt = AiPromptCatalog.RenderScreenshotAnalysis("balanced", null, _ => "{{IMAGE_MANIFEST}}",
+                images: loaded, imagePaths: [debugger.Path, query.Path]);
+            Assert.Contains("Image 1 (debugger):", prompt);
+            Assert.Contains("Image 2 (sql):", prompt);
+            Assert.Contains("selection_hint=title-hint:ide-debugging", prompt);
+            Assert.Contains("selection_hint=title-hint:sql-query", prompt);
+        });
+    }
+
+    [Fact]
     public void DeleteCapture_CascadesAllImageMetadata()
     {
         WithStore((store, directory, installationId) =>

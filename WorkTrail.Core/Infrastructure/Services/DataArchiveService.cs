@@ -781,6 +781,8 @@ internal sealed class DataArchiveService
                 || image.Role is not ("active-window" or "secondary-window" or "monitor-context")
                 || image.Priority is not ("primary" or "secondary" or "context")
                 || image.Attention is not ("high" or "normal" or "low")
+                || string.IsNullOrWhiteSpace(image.RuleReason)
+                || image.MicroPromptIds?.Any(string.IsNullOrWhiteSpace) == true
                 || (!image.ForAnalysis && !image.ForGallery)
                 || image.ScreenIndex < 1 || string.IsNullOrWhiteSpace(image.ScreenName)
                 || image.ScreenWidth <= 0 || image.ScreenHeight <= 0

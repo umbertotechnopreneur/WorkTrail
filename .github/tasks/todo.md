@@ -9,14 +9,17 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
-- [ ] After owner authorization, format and validate the rule-driven screenshot
+- [ ] After owner authorization, validate the rule-driven screenshot
   engine and Balanced/Complete analysis: Core/Presentation tests, Debug x64 build,
   then native crop/privacy behavior on one, two and three mixed-DPI monitors.
   Check live and historical API/CLI descriptions, gallery monitor sections,
   metadata archive roundtrips, occluded secondary windows, destination isolation,
-  application attention, blacklist image/context isolation, interrupted transient
-  cleanup and response-truncation failures. No build or tests
-  have been run for this implementation.
+  application attention, title-hint precedence, micro-prompt routing, title-only/manual
+  overrides, idle boundaries and clock rollover, blacklist image/context isolation,
+  interrupted transient cleanup and response-truncation failures. Check lock/unlock,
+  pause/resume, renamed/translated titles and disabled detail collectors on Windows.
+  The current context/idle/micro-prompt changes have not been built or tested; the
+  earlier 1.0.6.22 Debug package predates these changes and the manual override.
 
 - [ ] After owner authorization, build and validate AI-spending removal: fresh
   database creation, request/token reports, daily request limits, exports and

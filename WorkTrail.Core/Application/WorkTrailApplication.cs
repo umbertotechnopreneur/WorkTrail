@@ -429,13 +429,20 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     captureRoot,
                     mode,
                     request.CaptureOrigin,
-                    EvaluateCaptureDecision),
+                    context => request.CaptureOrigin == ScreenshotCaptureOrigins.Scheduled
+                        ? EvaluateScheduledCaptureDecision(context)
+                        : EvaluateCaptureDecision(context)),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (ScreenshotCapturePreconditionException exception)
         {
             // Settings and foreground privacy are re-evaluated inside the worker immediately before pixels.
             return CapturePreconditionFailure<ScreenshotCaptureResult>(exception.Decision);
+        }
+        catch (ScreenshotIdlePolicyException exception)
+        {
+            _logger.LogWarning("Scheduled screen capture skipped because the idle policy was unavailable. ExceptionType={ExceptionType}", exception.InnerException?.GetType().Name);
+            return CapturePreconditionFailure<ScreenshotCaptureResult>(ScreenshotCaptureDecision.UserIdle);
         }
         catch (Exception exception)
         {
@@ -1707,12 +1714,19 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                                 captureOrigin: string.Equals(origin, "snapshot.scheduled", StringComparison.Ordinal)
                                     ? ScreenshotCaptureOrigins.Scheduled
                                     : ScreenshotCaptureOrigins.Manual,
-                                authorizeCapture: EvaluateCaptureDecision),
+                                authorizeCapture: context => string.Equals(origin, "snapshot.scheduled", StringComparison.Ordinal)
+                                    ? EvaluateScheduledCaptureDecision(context)
+                                    : EvaluateCaptureDecision(context)),
                             cancellationToken).ConfigureAwait(false);
                     }
                     catch (ScreenshotCapturePreconditionException exception)
                     {
                         return CapturePreconditionFailure<AiAnalysis>(exception.Decision);
+                    }
+                    catch (ScreenshotIdlePolicyException exception)
+                    {
+                        _logger.LogWarning("Scheduled screen capture skipped because the idle policy was unavailable. ExceptionType={ExceptionType}", exception.InnerException?.GetType().Name);
+                        return CapturePreconditionFailure<AiAnalysis>(ScreenshotCaptureDecision.UserIdle);
                     }
                     catch (Exception exception)
                     {
@@ -2605,10 +2619,22 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private ScreenshotCaptureDecision EvaluateCaptureDecision(ScreenshotCaptureContext context) =>
         TrackingDomainService.EvaluateScreenshotCapture(_settingsSnapshot.Value, context);
 
+    private ScreenshotCaptureDecision EvaluateScheduledCaptureDecision(ScreenshotCaptureContext context)
+    {
+        var settings = _settingsSnapshot.Value;
+        var decision = TrackingDomainService.EvaluateScreenshotCapture(settings, context);
+        if (decision != ScreenshotCaptureDecision.Allowed) return decision;
+        // Recheck scheduling gates inside the capture worker after any queue wait, without affecting manual captures.
+        return _tracking.IsTracking && ActiveHoursSchedule.IsWithinActiveHours(settings.ActiveHours, DateTimeOffset.Now)
+            ? ScreenshotCaptureDecision.Allowed
+            : ScreenshotCaptureDecision.UserIdle;
+    }
+
     private static OperationResult<T> CapturePreconditionFailure<T>(ScreenshotCaptureDecision decision) => decision switch
     {
         ScreenshotCaptureDecision.ScreenshotsDisabled => OperationResult<T>.Failure("screenshot.disabled", "ScreenshotsDisabled"),
         ScreenshotCaptureDecision.PrivacyBlocked => OperationResult<T>.Failure("privacy.blocked", "PrivacyBlocked"),
+        ScreenshotCaptureDecision.UserIdle => OperationResult<T>.Failure("screenshot.idle", "SnapshotScheduleNotDue"),
         _ => throw new ArgumentOutOfRangeException(nameof(decision), decision, "Allowed capture cannot be mapped to a failure.")
     };
 
@@ -2760,6 +2786,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     CancellationToken.None);
                 if (!scheduledCapture.Succeeded || scheduledCapture.Value is not { } retainedCapture)
                 {
+                    if (scheduledCapture.Code == "screenshot.idle") return;
                     _logger.LogWarning("Scheduled screen capture failed. Code={Code}", scheduledCapture.Code);
                     return;
                 }
@@ -2775,6 +2802,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     _logger.LogWarning("Scheduled snapshot retained without AI analysis. Code={Code}", analysis.Code);
                 }
             }
+        }
+        catch (ScreenshotIdlePolicyException exception)
+        {
+            _logger.LogWarning("Scheduled screen capture skipped because the idle policy was unavailable. ExceptionType={ExceptionType}", exception.InnerException?.GetType().Name);
         }
         catch (Exception exception)
         {

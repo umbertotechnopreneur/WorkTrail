@@ -95,8 +95,20 @@ public sealed class ScreenCaptureServiceTests
         Assert.Equal("active-window", rules.Rules[0].Subject);
         Assert.Equal("secondary-windows", rules.Rules[1].Subject);
         Assert.All(rules.Rules.Skip(2), rule => Assert.Equal("gallery", rule.Destination));
-        Assert.Equal(23, rules.ApplicationProfiles!.Count(profile => profile.ActiveAttention == "high"));
-        Assert.Equal(23, rules.ApplicationProfiles.Count(profile => profile.ActiveAttention == "low"));
+        Assert.True(rules.Rules[1].RequireSecondaryMatch);
+        Assert.Equal(0.15, rules.Rules[1].MinimumVisibleFraction);
+        var profiles = rules.ApplicationProfiles!;
+        foreach (var id in new[] { "word", "excel", "teams", "visual-studio", "visual-studio-code", "notepad",
+            "windows-terminal", "console-host", "ssms", "oracle-sql-developer", "datagrip", "jetbrains" })
+            Assert.Equal("high", Assert.Single(profiles.Where(profile => profile.Id == id)).ActiveAttention);
+        foreach (var id in new[] { "spotify", "explorer", "settings" })
+            Assert.Equal("low", Assert.Single(profiles.Where(profile => profile.Id == id)).ActiveAttention);
+        Assert.Contains("Code - Insiders", Assert.Single(profiles.Where(profile => profile.Id == "visual-studio-code")).ProcessNames);
+        Assert.Contains("WindowsTerminal", Assert.Single(profiles.Where(profile => profile.Id == "windows-terminal")).ProcessNames);
+        Assert.Contains("Ssms", Assert.Single(profiles.Where(profile => profile.Id == "ssms")).ProcessNames);
+        Assert.Contains("sqldeveloper64W", Assert.Single(profiles.Where(profile => profile.Id == "oracle-sql-developer")).ProcessNames);
+        Assert.DoesNotContain(profiles, profile => profile.ProcessNames.Contains("java", StringComparer.OrdinalIgnoreCase)
+            || profile.ProcessNames.Contains("javaw", StringComparer.OrdinalIgnoreCase));
         Assert.DoesNotContain("ApplicationFrameHost", rules.AnalysisBlacklist!);
         Assert.DoesNotContain("msedgewebview2", rules.AnalysisBlacklist!);
     }
@@ -206,7 +218,7 @@ public sealed class ScreenCaptureServiceTests
         var front = new NativeMethods.Rect { Left = 20, Top = 20, Right = 80, Bottom = 80 };
         var foreground = new ForegroundCaptureTarget((IntPtr)1, front, "chat", "Chat", "Topic", "Chat");
         var targets = ScreenshotCaptureRules.Load().Plan([new CaptureDisplay(1, full)], foreground,
-            [new CaptureWindow((IntPtr)1, front, "chat", "Chat", "Chat"), new CaptureWindow((IntPtr)2, full, "word", "Word", "Document")], false);
+            [new CaptureWindow((IntPtr)1, front, "chat", "Chat", "Chat"), new CaptureWindow((IntPtr)2, full, "winword", "Word", "Document")], false);
         var secondary = Assert.Single(targets.Where(target => target.Role == "secondary-window"));
         Assert.Equal(4, secondary.VisibleRegions.Count);
         Assert.Equal(6400, secondary.VisibleRegions.Sum(region => (region.Right - region.Left) * (region.Bottom - region.Top)));
@@ -237,7 +249,7 @@ public sealed class ScreenCaptureServiceTests
         var targets = ScreenshotCaptureRules.Load().Plan([new CaptureDisplay(1, full)], foreground,
             [new CaptureWindow((IntPtr)9, overlay, "shell", "Shell", "", false),
              new CaptureWindow((IntPtr)1, full, "chat", "Chat", "Chat"),
-             new CaptureWindow((IntPtr)2, full, "word", "Word", "Document")], false);
+             new CaptureWindow((IntPtr)2, full, "winword", "Word", "Document")], false);
         Assert.DoesNotContain(targets, target => target.Role == "secondary-window");
         var active = Assert.Single(targets.Where(target => target.Role == "active-window"));
         Assert.Equal(10, active.Bounds.Top);
