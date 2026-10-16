@@ -461,7 +461,7 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public Task<OperationResult<RetentionStatus>> GetRetentionStatusAsync(CancellationToken cancellationToken) => SendAsync<RetentionStatus>(RuntimeOperation.RetentionStatus, null, cancellationToken);
     /// <inheritdoc />
-    public Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken) => SendAsync<RetentionPreview>(RuntimeOperation.RetentionPreview, null, cancellationToken);
+    public Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken, HistoryDateRange? range = null) => SendAsync<RetentionPreview>(RuntimeOperation.RetentionPreview, range, cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<RetentionPreview>> RunRetentionAsync(RetentionRequest request, CancellationToken cancellationToken) => SendAsync<RetentionPreview>(RuntimeOperation.RetentionRun, request, cancellationToken);
     /// <inheritdoc />

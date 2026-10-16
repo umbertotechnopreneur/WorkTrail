@@ -46,17 +46,26 @@ public sealed partial class RetentionOperationsControl : UserControl
     private int _pendingStorageSaves;
 
     /// <summary>Creates the independent retention operations surface.</summary>
-    public RetentionOperationsControl() => InitializeComponent();
+    public RetentionOperationsControl()
+    {
+        InitializeComponent();
+        StorageWarningBox.NumberFormatter = new Windows.Globalization.NumberFormatting.DecimalFormatter { FractionDigits = 2 };
+    }
 
     /// <summary>Applies an explicit language override or resolves the Windows UI language for system mode.</summary>
     public void ApplyLanguage(string language)
     {
         _strings = new LocalizationService(language);
         UiLocalization.Apply(this, _strings);
-        PreviewPathsExpander.Header = _strings.Translate("Operations.Retention.Preview.Paths");
+        CaptureStorageExpander.Header = _strings.Translate("History.CaptureSettings");
+        RetentionMonthsBox.Header = _strings.Translate("Operations.Retention.PolicyMonths");
+        StorageWarningBox.Header = _strings.Translate("History.WarningThreshold");
+        DeleteFromPicker.Header = _strings.Translate("History.From");
+        DeleteToPicker.Header = _strings.Translate("History.To");
+        DeleteFromPicker.PlaceholderText = DeleteToPicker.PlaceholderText = _strings.Translate("History.SelectDate");
         CaptureSettingsExpander.Header = _strings.Translate("Options.Section.Snapshots");
         OcrSettingsExpander.Header = _strings.Translate("Options.Ocr.Section");
-        TierBadge.Text = TwoMonthsBadge.Text = ThreeMonthsBadge.Text = _strings.Translate("Premium.Badge");
+        TierBadge.Text = _strings.Translate("Premium.Badge");
         UiLocalization.SetAccessibleLabel(OpenFolderButton, _strings.Translate("Options.OpenFolderAction"));
         AutomationProperties.SetName(KeepScreenshotsSwitch, _strings.Translate("Options.KeepSnapshots.Header"));
         AutomationProperties.SetName(ScreenshotsEnabledSwitch, _strings.Translate("Options.SnapshotsEnabled.Header"));
@@ -64,6 +73,13 @@ public sealed partial class RetentionOperationsControl : UserControl
         _renderingStorageSettings = true;
         try
         {
+            RetentionMonthsBox.Items.Clear();
+            for (var months = 1; months <= 12; months++)
+                RetentionMonthsBox.Items.Add(new ComboBoxItem
+                {
+                    Tag = months,
+                    Content = months == 1 ? _strings.Translate("Operations.Retention.OneMonth") : _strings.Format("History.Months", months)
+                });
             OcrLanguageBox.Items.Clear();
             foreach (var ocrLanguage in SettingsCatalog.Definitions.Single(setting => setting.Key == "ocr.language").AllowedValues)
             {
@@ -74,7 +90,10 @@ public sealed partial class RetentionOperationsControl : UserControl
             }
         }
         finally { _renderingStorageSettings = false; }
-        AutomationProperties.SetName(RetentionPathsList, _strings.Translate("Operations.Retention.Preview.Paths"));
+        AutomationProperties.SetName(RetentionMonthsBox, _strings.Translate("Operations.Retention.PolicyMonths"));
+        AutomationProperties.SetName(StorageWarningBox, _strings.Translate("History.WarningThreshold"));
+        AutomationProperties.SetName(DeleteFromPicker, _strings.Translate("History.From"));
+        AutomationProperties.SetName(DeleteToPicker, _strings.Translate("History.To"));
         RenderRetentionStatus();
         RenderRetentionPreviewState();
     }
@@ -136,25 +155,21 @@ public sealed partial class RetentionOperationsControl : UserControl
 
     private void RenderRetentionStatus()
     {
-        RetentionPreviewButton.IsEnabled = RetentionCleanupButton.IsEnabled = !_loadingPolicy && _retentionStatus is not null;
-        OpenFolderButton.IsEnabled = OneMonthButton.IsEnabled = RetentionPreviewButton.IsEnabled;
-        ScreenshotFolderBox.IsEnabled = KeepScreenshotsSwitch.IsEnabled = RetentionPreviewButton.IsEnabled;
-        ScreenshotsEnabledSwitch.IsEnabled = ScreenshotModeBox.IsEnabled = OcrEnabledSwitch.IsEnabled = RetentionPreviewButton.IsEnabled;
-        OcrLanguageBox.IsEnabled = RetentionPreviewButton.IsEnabled && _retentionStatus?.OcrEnabled == true;
-        HardwareSaveSnapshotsSwitch.IsEnabled = RetentionPreviewButton.IsEnabled && _retentionStatus?.HardwareSensorsEnabled == true;
-        TwoMonthsButton.IsEnabled = ThreeMonthsButton.IsEnabled = RetentionPreviewButton.IsEnabled;
-        TierBadge.Visibility = _retentionStatus?.MaximumMonths == 3 ? Visibility.Visible : Visibility.Collapsed;
-        OneMonthButton.IsChecked = _retentionStatus?.DataRetentionDays == 30;
-        TwoMonthsButton.IsChecked = _retentionStatus?.DataRetentionDays == 60;
-        ThreeMonthsButton.IsChecked = _retentionStatus?.DataRetentionDays == 90;
-        AutomationProperties.SetName(OneMonthButton, _strings.Translate("Operations.Retention.OneMonth"));
-        AutomationProperties.SetName(TwoMonthsButton, _strings.Translate("Operations.Retention.TwoMonths") + " · " + _strings.Translate("Premium.Badge"));
-        AutomationProperties.SetName(ThreeMonthsButton, _strings.Translate("Operations.Retention.ThreeMonths") + " · " + _strings.Translate("Premium.Badge"));
-        FirstActivationText.Text = FormatDate(_retentionStatus?.FirstActivationDate);
-        LastCleanupText.Text = _retentionStatus?.LastCleanupDate is { } last ? FormatDate(last) : _strings.Translate("Operations.Retention.Never");
-        NextCleanupText.Text = FormatDate(_retentionStatus?.NextCleanupDate);
-        MonthlyScheduleText.Text = _retentionStatus?.FirstActivationDate is { } first
-            ? _strings.Format("Operations.Retention.MonthlyDay", first.Day) : string.Empty;
+        var ready = !_loadingPolicy && !_confirmationOpen && _retentionStatus is not null;
+        RetentionCleanupButton.IsEnabled = ready && SelectedRange() is { IsValid: true };
+        DeleteFromPicker.IsEnabled = DeleteToPicker.IsEnabled = ready;
+        OpenFolderButton.IsEnabled = RetentionMonthsBox.IsEnabled = StorageWarningBox.IsEnabled = ready;
+        ScreenshotFolderBox.IsEnabled = KeepScreenshotsSwitch.IsEnabled = ready;
+        ScreenshotsEnabledSwitch.IsEnabled = ScreenshotModeBox.IsEnabled = OcrEnabledSwitch.IsEnabled = ready;
+        OcrLanguageBox.IsEnabled = ready && _retentionStatus?.OcrEnabled == true;
+        HardwareSaveSnapshotsSwitch.IsEnabled = ready && _retentionStatus?.HardwareSensorsEnabled == true;
+        TierBadge.Visibility = _retentionStatus?.MaximumMonths == 12 ? Visibility.Visible : Visibility.Collapsed;
+        StorageWarning.IsOpen = _retentionStatus?.IsStorageWarning == true;
+        StorageWarning.Title = _strings.Translate("History.WarningTitle");
+        StorageWarning.Message = _retentionStatus is { } storage
+            ? _strings.Format("History.WarningMessage", FormatBytes(storage.StorageBytes), FormatBytes(storage.HistoryWarningMegabytes * 1024L * 1024L)) : string.Empty;
+        StorageUsageText.Text = _retentionStatus is { } usage
+            ? _strings.Format("History.Usage", FormatBytes(usage.StorageBytes)) : string.Empty;
         if (_retentionStatus is { } status)
         {
             RetentionStatusText.Text = _strings.Format(
@@ -164,6 +179,9 @@ public sealed partial class RetentionOperationsControl : UserControl
             _renderingStorageSettings = true;
             try
             {
+                RetentionMonthsBox.SelectedItem = RetentionMonthsBox.Items.OfType<ComboBoxItem>()
+                    .SingleOrDefault(item => item.Tag is int months && months == status.DataRetentionDays / 30);
+                StorageWarningBox.Value = status.HistoryWarningMegabytes / 1024d;
                 ScreenshotFolderBox.Text = status.ScreenshotDirectory;
                 KeepScreenshotsSwitch.IsOn = status.KeepScreenshots;
                 ScreenshotsEnabledSwitch.IsOn = status.ScreenshotsEnabled;
@@ -187,27 +205,36 @@ public sealed partial class RetentionOperationsControl : UserControl
         finally { _renderingStorageSettings = false; }
     }
 
-    // date is the local schedule date, or an unavailable value rendered as an em dash.
-    private string FormatDate(DateOnly? date) => date?.ToString("D", _strings.Culture) ?? "—";
+    private HistoryDateRange? SelectedRange() => DeleteFromPicker.Date is { } from && DeleteToPicker.Date is { } to
+        ? new HistoryDateRange(DateOnly.FromDateTime(from.DateTime), DateOnly.FromDateTime(to.DateTime)) : null;
 
-    // sender identifies the selected one-, two-, or three-month choice.
-    // e contains the routed click notification.
-    private async void RetentionMonth_Click(object sender, RoutedEventArgs e)
+    private void DeleteRange_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
     {
+        _retentionPreview = null;
+        RenderRetentionPreviewState();
+        RenderRetentionStatus();
+    }
+
+    private void StorageWarningBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (_renderingStorageSettings || !double.IsFinite(args.NewValue)) return;
+        var megabytes = Math.Clamp((int)Math.Round(args.NewValue * 1024d), 103, 1048576);
+        QueueStorageSave("retention.warning_mb", megabytes.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private async void RetentionMonthsBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_renderingStorageSettings || _loadingPolicy || _confirmationOpen
+            || RetentionMonthsBox.SelectedItem is not ComboBoxItem { Tag: int months }) return;
         await _storageSaveQueue;
-        var months = ReferenceEquals(sender, OneMonthButton) ? 1 : ReferenceEquals(sender, TwoMonthsButton) ? 2 : 3;
-        if (_retentionStatus is null || _loadingPolicy)
+        if (_retentionStatus is not { } status) return;
+        if (months > status.MaximumMonths)
         {
-            RenderRetentionStatus();
-            return;
-        }
-        if (months > _retentionStatus.MaximumMonths)
-        {
-            // An upgrade click must restore the saved choice without submitting a settings mutation.
             RenderRetentionStatus();
             await Context.Dialogs.ShowPremiumUpgradeAsync(Context.Application, Context.OwnerWindow, _strings.Translate);
             return;
         }
+        if (status.DataRetentionDays == months * 30 && status.ScreenshotRetentionDays == months * 30) return;
         var days = (months * 30).ToString(CultureInfo.InvariantCulture);
         var result = await Context.ExecuteAsync((application, token) => application.PatchSettingsAsync(
             new SettingsPatch(new Dictionary<string, string?> { ["retention.data_days"] = days, ["retention.screenshots_days"] = days }), token));
@@ -276,6 +303,7 @@ public sealed partial class RetentionOperationsControl : UserControl
             "sensors.save_snapshots" => status.HardwareSaveSnapshots ? "true" : "false",
             "ocr.enabled" => status.OcrEnabled ? "true" : "false",
             "ocr.language" => status.OcrLanguage,
+            "retention.warning_mb" => status.HistoryWarningMegabytes.ToString(CultureInfo.InvariantCulture),
             _ => throw new InvalidOperationException("The retention page cannot submit an undeclared storage preference.")
         };
         var unchanged = value == current;
@@ -307,7 +335,8 @@ public sealed partial class RetentionOperationsControl : UserControl
                     OcrEnabled = updated.OcrEnabled,
                     OcrLanguage = updated.OcrLanguage,
                     HardwareSaveSnapshots = updated.HardwareSaveSnapshots,
-                    HardwareSensorsEnabled = updated.HardwareSensorsEnabled
+                    HardwareSensorsEnabled = updated.HardwareSensorsEnabled,
+                    HistoryWarningMegabytes = updated.HistoryWarningMegabytes
                 };
                 _retentionPreview = null;
                 RenderRetentionPreviewState();
@@ -318,19 +347,6 @@ public sealed partial class RetentionOperationsControl : UserControl
         {
             // Preserve pending edits until the last save finishes, then restore authoritative values.
             if (--_pendingStorageSaves == 0) RenderRetentionStatus();
-        }
-    }
-
-    private async void RetentionPreviewButton_Click(object sender, RoutedEventArgs e)
-    {
-        await _storageSaveQueue;
-        var result = await Context.ExecuteWithProgressAsync(
-            (application, token) => application.PreviewRetentionAsync(token),
-            _strings.Translate("Operations.Retention.PreviewAction"),
-            _strings.Translate("Operations.Retention.Preview.Description"));
-        if (result is { Succeeded: true, Value: { } preview })
-        {
-            RenderRetentionPreview(preview, executed: false);
         }
     }
 
@@ -346,25 +362,30 @@ public sealed partial class RetentionOperationsControl : UserControl
             return;
         }
 
+        var range = SelectedRange();
+        if (range is not { IsValid: true }) return;
         _confirmationOpen = true;
+        RenderRetentionStatus();
         try
         {
             var previewResult = await Context.ExecuteWithProgressAsync(
-                (application, token) => application.PreviewRetentionAsync(token),
-                _strings.Translate("Operations.Retention.PreviewAction"),
-                _strings.Translate("Operations.Retention.Preview.Description"));
+                (application, token) => application.PreviewRetentionAsync(token, range),
+                _strings.Translate("History.ReviewDelete"),
+                _strings.Translate("History.DeleteDescription"));
             if (previewResult is not { Succeeded: true, Value: { } preview })
             {
                 return;
             }
 
             RenderRetentionPreview(preview, executed: false);
+            if (preview.FileCount == 0) return;
             var confirmed = await Context.Dialogs.ConfirmAsync(
                 Context.OwnerWindow,
                 DialogRequest.Confirmation(
                     _strings.Translate("Operations.Retention.Confirm.Title"),
-                    _strings.Format("Operations.Retention.Confirm.Message", preview.FileCount, FormatBytes(preview.TotalBytes)),
-                    _strings.Translate("Dialog.Ok"),
+                    _strings.Format("History.Confirm", range.From.ToString("d", _strings.Culture), range.To.ToString("d", _strings.Culture),
+                        preview.RecordCount, preview.ScreenshotCount, FormatBytes(preview.TotalBytes)),
+                    _strings.Translate("History.DeleteAction"),
                     _strings.Translate("Dialog.Cancel")));
             if (!confirmed)
             {
@@ -377,13 +398,13 @@ public sealed partial class RetentionOperationsControl : UserControl
 
             var operationId = Guid.NewGuid();
             var runResult = await Context.ExecuteWithProgressAsync(
-                (application, token) => application.RunRetentionAsync(new RetentionRequest(Execute: true, Confirmed: true, OperationId: operationId), token),
+                (application, token) => application.RunRetentionAsync(new RetentionRequest(Execute: true, Confirmed: true, OperationId: operationId, Range: range), token),
                 _strings.Translate("Operations.Retention.Progress.Cleanup.Title"),
-                _strings.Translate("Operations.Retention.ProgressDescription"), retentionOperationId: operationId);
+                _strings.Translate("History.DeleteProgress"), retentionOperationId: operationId);
             if (runResult is { Succeeded: true, Value: { } deleted })
             {
                 RenderRetentionPreview(deleted, executed: true);
-                var statusResult = await Context.Application.GetRetentionStatusAsync(System.Threading.CancellationToken.None);
+                var statusResult = await Context.ExecuteAsync((application, token) => application.GetRetentionStatusAsync(token), showSuccess: false);
                 if (statusResult is { Succeeded: true, Value: { } updatedStatus }) _retentionStatus = updatedStatus;
                 RenderRetentionStatus();
             }
@@ -409,6 +430,7 @@ public sealed partial class RetentionOperationsControl : UserControl
         finally
         {
             _confirmationOpen = false;
+            RenderRetentionStatus();
         }
     }
 
@@ -423,19 +445,13 @@ public sealed partial class RetentionOperationsControl : UserControl
     {
         if (_retentionPreview is not { } preview)
         {
-            RetentionPreviewText.Text = _strings.Translate("Operations.Initial.RetentionPreview");
-            RetentionPathsList.ItemsSource = null;
-            RecordsPreviewText.Text = ScreenshotsPreviewText.Text = TotalPreviewText.Text = "—";
+            RetentionPreviewText.Text = SelectedRange() is { IsValid: false }
+                ? _strings.Translate("HistoryRangeInvalid") : string.Empty;
             return;
         }
-
-        RetentionPreviewText.Text = _retentionExecuted
-            ? _strings.Format("Operations.Retention.Deleted", preview.FileCount, FormatBytes(preview.TotalBytes))
-            : _strings.Format("Operations.Retention.Eligible", preview.FileCount, FormatBytes(preview.TotalBytes));
-        RetentionPathsList.ItemsSource = preview.Paths.ToArray();
-        RecordsPreviewText.Text = _strings.Format("Operations.Retention.RecordSummary", preview.RecordCount, FormatBytes(preview.ActivityBytes));
-        ScreenshotsPreviewText.Text = _strings.Format("Operations.Retention.ScreenshotSummary", preview.ScreenshotCount, FormatBytes(preview.ScreenshotBytes));
-        TotalPreviewText.Text = FormatBytes(preview.TotalBytes);
+        RetentionPreviewText.Text = preview.FileCount == 0 ? _strings.Translate("History.Empty")
+            : _strings.Format(_retentionExecuted ? "History.Deleted" : "History.Preview",
+                preview.RecordCount, preview.ScreenshotCount, FormatBytes(preview.TotalBytes));
     }
 
     private string FormatBytes(long bytes)

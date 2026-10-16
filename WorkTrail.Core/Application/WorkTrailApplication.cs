@@ -2022,7 +2022,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         OperationResult<RetentionStatus>.Success("retention.status.loaded", "RetentionStatusLoaded",
             await Task.Run(() => BuildRetentionStatus(DateTimeOffset.Now), cancellationToken).ConfigureAwait(false));
 
-    // now supplies the local date used to decide whether the monthly cleanup is due.
+    // now supplies the local date used to decide whether the daily cleanup is due.
     // InvalidOperationException reports a missing durable installation profile.
     private RetentionStatus BuildRetentionStatus(DateTimeOffset now)
     {
@@ -2040,21 +2040,24 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             settings.ScreenshotDirectory, RetentionPolicy.MaximumMonths(tier), first, last, next,
             DateOnly.FromDateTime(now.LocalDateTime) >= next, Volatile.Read(ref _retentionCleanupProgress), settings.KeepScreenshots,
             settings.ScreenshotsEnabled, settings.ScreenshotCaptureMode, settings.OcrEnabled, settings.OcrLanguage,
-            settings.HardwareSaveSnapshots, settings.HardwareSensorsEnabled);
+            settings.HardwareSaveSnapshots, settings.HardwareSensorsEnabled,
+            MeasureHistoryStorage(settings.ScreenshotDirectory), settings.HistoryWarningMegabytes);
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken) =>
-        OperationResult<RetentionPreview>.Success(
+    public async Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken, HistoryDateRange? range = null) =>
+        range is { IsValid: false } ? InvalidHistoryRange() : OperationResult<RetentionPreview>.Success(
             "retention.preview.loaded",
             "RetentionPreviewLoaded",
-            await Task.Run(() => BuildRetentionPreview(cancellationToken), cancellationToken).ConfigureAwait(false));
+            await Task.Run(() => BuildRetentionPreview(cancellationToken, range: range), cancellationToken).ConfigureAwait(false));
 
     /// <inheritdoc />
-    /// <param name="request">Confirmed manual cleanup or an installation-anchored scheduled check.</param>
+    /// <param name="request">Confirmed manual cleanup or a daily scheduled check.</param>
     /// <param name="cancellationToken">Stops cleanup without advancing its durable checkpoint.</param>
     public Task<OperationResult<RetentionPreview>> RunRetentionAsync(RetentionRequest request, CancellationToken cancellationToken) => MutateVisualStateAsync(() => Task.Run(async () =>
     {
+        if (request.Range is { IsValid: false } || (request.Scheduled && request.Range is not null))
+            return InvalidHistoryRange();
         if (!request.Execute || (!request.Confirmed && !request.Scheduled))
         {
             return OperationResult<RetentionPreview>.Failure("retention.confirmation.required", "RetentionConfirmationRequired", new ValidationIssue("confirmation", "required", "RetentionConfirmationRequired"));
@@ -2067,13 +2070,17 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         await RecoverScreenshotDeletionsAsync(cancellationToken).ConfigureAwait(false);
         var settings = _settingsSnapshot.Value;
         var tier = _featureAccess.Snapshot.Tier;
-        _screenshotPublications.CleanupUnclaimedStages(settings.ScreenshotDirectory,
-            now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier)), cancellationToken);
-        _screenshotPublications.CleanupUnclaimedStages(_screenshotPublications.TransientRoot, now.AddDays(-1), cancellationToken);
+        var screenshotCutoff = request.Range?.EndExclusive ?? now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
+        var dataCutoff = request.Range?.EndExclusive ?? now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier));
+        if (request.Range is null)
+        {
+            _screenshotPublications.CleanupUnclaimedStages(settings.ScreenshotDirectory, screenshotCutoff, cancellationToken);
+            _screenshotPublications.CleanupUnclaimedStages(_screenshotPublications.TransientRoot, now.AddDays(-1), cancellationToken);
+        }
         var deletionBatch = new ScreenshotDeletionJournal.Batch();
         var ownedArtifacts = deletionBatch.Inventory(ScreenshotStorageLayout.NormalizeRoot(settings.ScreenshotDirectory), cancellationToken)
             .Values.SelectMany(paths => paths).ToArray();
-        var preview = BuildRetentionPreview(cancellationToken, now, tier, ownedArtifacts);
+        var preview = BuildRetentionPreview(cancellationToken, now, tier, ownedArtifacts, request.Range);
         if (preview.Paths.Any(ScreenCaptureService.IsOwnedArtifact)) _screenshotNotifications?.Clear();
         var operationId = request.OperationId == Guid.Empty ? Guid.NewGuid() : request.OperationId;
         long completedItems = 0;
@@ -2100,24 +2107,24 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         cancellationToken.ThrowIfCancellationRequested();
         Report("Records");
         var deletedScreenshots = completedItems;
-        _store.ApplyRetention(now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier)),
+        _store.ApplyRetention(dataCutoff,
             removedRecords =>
             {
                 completedItems = deletedScreenshots + Math.Min(removedRecords, preview.RecordCount);
                 Report("Records");
-            }, cancellationToken);
+            }, request.Range?.Start, cancellationToken);
         completedItems = deletedScreenshots + preview.RecordCount;
         Report("Search");
-        var screenshotCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
-        _store.PruneTerminalAiReprocessJobs(screenshotCutoff, cancellationToken);
+        _store.PruneTerminalAiReprocessJobs(screenshotCutoff, request.Range?.Start, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        _store.PruneOrphanedScreenshotCaptures(screenshotCutoff, cancellationToken);
+        _store.PruneOrphanedScreenshotCaptures(screenshotCutoff, request.Range?.Start, cancellationToken);
 
         await _search.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         foreach (var deletion in deletions) _screenshotDeletions.Complete(deletion);
         cancellationToken.ThrowIfCancellationRequested();
-        // Advance the monthly schedule only after deletion and derived-index synchronization succeed.
-        PersistSettings(_settingsSnapshot.Value with { LastRetentionCleanupAt = now });
+        // Advance the daily schedule only after deletion and derived-index synchronization succeed.
+        if (request.Range is null) PersistSettings(_settingsSnapshot.Value with { LastRetentionCleanupAt = now });
+        InvalidateHistoryStorageMeasurement();
         Report("Completed");
         return OperationResult<RetentionPreview>.Success("retention.completed", "RetentionCompleted", preview);
     }, cancellationToken), cancellationToken);
@@ -3299,14 +3306,15 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     // referenceTime fixes the cutoff for one cleanup operation.
     // effectiveTier fixes the commercial retention limit for the same operation.
     // screenshotArtifacts reuses the bulk deletion inventory instead of scanning the root again.
+    // range overrides automatic retention with the explicitly selected local calendar days.
     private RetentionPreview BuildRetentionPreview(CancellationToken cancellationToken, DateTimeOffset? referenceTime = null,
-        ProductTier? effectiveTier = null, IReadOnlyList<string>? screenshotArtifacts = null)
+        ProductTier? effectiveTier = null, IReadOnlyList<string>? screenshotArtifacts = null, HistoryDateRange? range = null)
     {
         var settings = _settingsSnapshot.Value;
         var now = referenceTime ?? DateTimeOffset.Now;
         var tier = effectiveTier ?? _featureAccess.Snapshot.Tier;
-        var screenshotCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
-        var dataCutoff = now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier));
+        var screenshotCutoff = range?.EndExclusive ?? now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier));
+        var dataCutoff = range?.EndExclusive ?? now.AddMonths(-RetentionPolicy.EffectiveMonths(settings.DataRetentionDays, tier));
         var retainedScreenshotPaths = screenshotArtifacts?.ToArray() ?? (Directory.Exists(settings.ScreenshotDirectory)
             ? ScreenshotStorageLayout.EnumerateOwnedArtifacts(settings.ScreenshotDirectory).ToArray()
             : []);
@@ -3320,10 +3328,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 var capturedAt = capturedAtByPath.TryGetValue(path, out var persistedCapturedAt)
                     ? persistedCapturedAt
                     : new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);
-                return capturedAt < screenshotCutoff;
+                return capturedAt < screenshotCutoff && (range is null || capturedAt >= range.Start);
             })
             .ToArray();
-        var dataPreview = _store.GetRetentionPreview(dataCutoff);
+        var dataPreview = _store.GetRetentionPreview(dataCutoff, range?.Start);
         var paths = screenshotPaths.Concat(dataPreview.Paths).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var screenshotBytes = screenshotPaths.Sum(path => new FileInfo(path).Length);
         return new RetentionPreview(screenshotPaths.Length + dataPreview.RecordCount, screenshotBytes + dataPreview.TotalBytes, paths,

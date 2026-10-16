@@ -37,61 +37,35 @@ VBWR E -->
                 <TextBlock Tag="Operations.Retention.Summary" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Spacing="8">
-                <TextBlock Tag="Operations.Retention.PolicyMonths" AutomationProperties.HeadingLevel="Level3" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                <Grid ColumnSpacing="4">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <ToggleButton AutomationProperties.AutomationId="Retention.OneMonthButton" x:Name="OneMonthButton" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><TextBlock Tag="Operations.Retention.OneMonth" Text="1 month" /></ToggleButton>
-                    <ToggleButton AutomationProperties.AutomationId="Retention.TwoMonthsButton" x:Name="TwoMonthsButton" Grid.Column="1" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><StackPanel Spacing="4"><TextBlock Tag="Operations.Retention.TwoMonths" Text="2 months" TextAlignment="Center" TextWrapping="Wrap" /><controls:PremiumBadge x:Name="TwoMonthsBadge" HorizontalAlignment="Center" /></StackPanel></ToggleButton>
-                    <ToggleButton AutomationProperties.AutomationId="Retention.ThreeMonthsButton" x:Name="ThreeMonthsButton" Grid.Column="2" HorizontalAlignment="Stretch" Click="RetentionMonth_Click" IsEnabled="False"><StackPanel Spacing="4"><TextBlock Tag="Operations.Retention.ThreeMonths" Text="3 months" TextAlignment="Center" TextWrapping="Wrap" /><controls:PremiumBadge x:Name="ThreeMonthsBadge" HorizontalAlignment="Center" /></StackPanel></ToggleButton>
-                </Grid>
+                <ComboBox x:Name="RetentionMonthsBox" AutomationProperties.AutomationId="Retention.MonthsBox"
+                          Header="Keep history for" HorizontalAlignment="Stretch" IsEnabled="False"
+                          SelectionChanged="RetentionMonthsBox_SelectionChanged" />
                 <TextBlock Tag="Operations.Retention.Limits" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 <TextBlock x:Name="RetentionStatusText" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
+                <TextBlock Tag="History.DailyCleanup" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
             </StackPanel>
-            <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-            <StackPanel Spacing="12">
-                <TextBlock Tag="Operations.Retention.Monthly" AutomationProperties.HeadingLevel="Level3" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                <TextBlock Tag="Operations.Retention.Ready" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                <Grid ColumnSpacing="8" RowSpacing="8">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions><RowDefinition Height="20" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                    <Rectangle Grid.ColumnSpan="3" Height="1" Margin="40,0" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                    <Ellipse Width="12" Height="12" Fill="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <Ellipse Grid.Column="1" Width="12" Height="12" Fill="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <Ellipse Grid.Column="2" Width="16" Height="16" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-                    <TextBlock Grid.Row="1" Tag="Operations.Retention.FirstActivation" TextAlignment="Center" TextWrapping="Wrap" FontWeight="SemiBold" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Tag="Operations.Retention.LastCleanup" TextAlignment="Center" TextWrapping="Wrap" FontWeight="SemiBold" />
-                    <TextBlock Grid.Row="1" Grid.Column="2" Tag="Operations.Retention.NextCleanup" TextAlignment="Center" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                    <TextBlock x:Name="FirstActivationText" Grid.Row="2" TextAlignment="Center" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock x:Name="LastCleanupText" Grid.Row="2" Grid.Column="1" TextAlignment="Center" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock x:Name="NextCleanupText" Grid.Row="2" Grid.Column="2" TextAlignment="Center" TextWrapping="Wrap" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                </Grid>
-                <TextBlock x:Name="MonthlyScheduleText" TextWrapping="Wrap" />
+            <StackPanel Spacing="8">
+                <TextBlock x:Name="StorageUsageText" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                <NumberBox x:Name="StorageWarningBox" AutomationProperties.AutomationId="Retention.StorageWarningBox"
+                           Header="Warn above (GB)" Minimum="0.1" Maximum="1024" SmallChange="1" LargeChange="10"
+                           SpinButtonPlacementMode="Compact" ValueChanged="StorageWarningBox_ValueChanged" IsEnabled="False" />
+                <InfoBar x:Name="StorageWarning" Severity="Warning" IsOpen="False" IsClosable="False" />
             </StackPanel>
             <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
             <StackPanel Spacing="8">
-                <TextBlock Tag="Operations.Retention.Preview" AutomationProperties.HeadingLevel="Level3" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                <TextBlock Tag="Operations.Retention.Preview.Description" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                <Border Padding="12" CornerRadius="4" BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
-                    <Grid ColumnSpacing="16" RowSpacing="8">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                        <TextBlock Tag="Operations.Retention.Records" Text="Activity" TextWrapping="Wrap" /><TextBlock x:Name="RecordsPreviewText" Grid.Column="1" Text="—" TextAlignment="Right" TextWrapping="Wrap" />
-                        <TextBlock Grid.Row="1" Tag="Operations.Retention.Screenshots" Text="Screenshots" TextWrapping="Wrap" /><TextBlock x:Name="ScreenshotsPreviewText" Grid.Row="1" Grid.Column="1" Text="—" TextAlignment="Right" TextWrapping="Wrap" />
-                        <TextBlock Grid.Row="2" Tag="Operations.Retention.Total" FontWeight="SemiBold" Text="Potential total" TextWrapping="Wrap" /><TextBlock x:Name="TotalPreviewText" Grid.Row="2" Grid.Column="1" FontWeight="SemiBold" Text="—" TextAlignment="Right" TextWrapping="Wrap" />
-                    </Grid>
-                </Border>
+                <TextBlock Tag="History.DeleteTitle" AutomationProperties.HeadingLevel="Level3" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <TextBlock Tag="History.DeleteDescription" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                <CalendarDatePicker x:Name="DeleteFromPicker" AutomationProperties.AutomationId="Retention.DeleteFromPicker"
+                                    HorizontalAlignment="Stretch" DateChanged="DeleteRange_DateChanged" />
+                <CalendarDatePicker x:Name="DeleteToPicker" AutomationProperties.AutomationId="Retention.DeleteToPicker"
+                                    HorizontalAlignment="Stretch" DateChanged="DeleteRange_DateChanged" />
+                <Button x:Name="RetentionCleanupButton" AutomationProperties.AutomationId="Retention.RetentionCleanupButton"
+                        Tag="History.ReviewDelete" Content="Review and delete..." Click="RunRetentionButton_Click"
+                        ContentTemplate="{StaticResource WrappingActionLabelTemplate}" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" />
                 <TextBlock x:Name="RetentionPreviewText" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
-                <Grid ColumnSpacing="12">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <Button AutomationProperties.AutomationId="Retention.RetentionPreviewButton" x:Name="RetentionPreviewButton" Tag="Operations.Retention.PreviewAction" Content="Show preview" Click="RetentionPreviewButton_Click" HorizontalAlignment="Left" ContentTemplate="{StaticResource WrappingActionLabelTemplate}" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" />
-                    <Button AutomationProperties.AutomationId="Retention.RetentionCleanupButton" x:Name="RetentionCleanupButton" Grid.Column="1" Tag="Operations.Retention.CleanupAction" Content="Review and delete…" Click="RunRetentionButton_Click" HorizontalAlignment="Left" ContentTemplate="{StaticResource WrappingActionLabelTemplate}" IsEnabled="False" />
-                </Grid>
-                <Expander AutomationProperties.AutomationId="Retention.PreviewPathsExpander" x:Name="PreviewPathsExpander" HorizontalAlignment="Stretch">
-                    <ListView AutomationProperties.AutomationId="Retention.RetentionPathsList" x:Name="RetentionPathsList" MaxHeight="120" SelectionMode="None"><ListView.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" FontSize="12" FontFamily="Cascadia Mono" IsTextSelectionEnabled="True" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding}" /></DataTemplate></ListView.ItemTemplate></ListView>
-                </Expander>
             </StackPanel>
-            <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-            <StackPanel Spacing="8">
+            <Expander x:Name="CaptureStorageExpander" AutomationProperties.AutomationId="Retention.CaptureStorageExpander" HorizontalAlignment="Stretch">
+                <StackPanel Spacing="8">
                 <TextBox AutomationProperties.AutomationId="Retention.ScreenshotFolderBox" x:Name="ScreenshotFolderBox" Tag="Options.SnapshotFolder" Header="Screen-capture folder"
                          PlaceholderText="Folder for screen captures" LostFocus="ScreenshotFolderBox_LostFocus" IsEnabled="False" />
                 <HyperlinkButton AutomationProperties.AutomationId="Retention.OpenFolderButton" x:Name="OpenFolderButton" Padding="0,5,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
@@ -147,7 +121,8 @@ VBWR E -->
                                    Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Expander>
-            </StackPanel>
+                </StackPanel>
+            </Expander>
         </StackPanel>
     </Grid>
 </UserControl>

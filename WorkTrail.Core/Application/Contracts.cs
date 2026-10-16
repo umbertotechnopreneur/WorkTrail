@@ -473,7 +473,24 @@ public static class QuickSetupProfileIds
 public sealed record QuickSetupProfileRequest(string ProfileId, bool StartWithWindows);
 
 /// <summary>Requests a retention preview or confirmed cleanup.</summary>
-public sealed record RetentionRequest(bool Execute, bool Confirmed, bool Scheduled = false, Guid OperationId = default);
+public sealed record RetentionRequest(bool Execute, bool Confirmed, bool Scheduled = false, Guid OperationId = default,
+    HistoryDateRange? Range = null);
+
+/// <summary>Selects inclusive local calendar dates for manual history deletion.</summary>
+public sealed record HistoryDateRange(DateOnly From, DateOnly To)
+{
+    /// <summary>Rejects reversed dates and an end date that cannot form an exclusive boundary.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsValid => From > DateOnly.MinValue && From <= To && To < DateOnly.MaxValue;
+
+    /// <summary>Gets the first selected local midnight as an instant.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DateTimeOffset Start => new(From.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local));
+
+    /// <summary>Gets local midnight after the final selected day, including daylight-saving changes.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DateTimeOffset EndExclusive => new(To.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Local));
+}
 
 /// <summary>Describes the runtime reachable through the local IPC host.</summary>
 public sealed record RuntimeHealth(
@@ -518,7 +535,11 @@ public sealed record RetentionStatus(int DataRetentionDays, int ScreenshotRetent
     DateOnly? NextCleanupDate = null, bool IsCleanupDue = false, RetentionCleanupProgress? Progress = null,
     bool KeepScreenshots = false, bool ScreenshotsEnabled = false, string ScreenshotCaptureMode = "all-screens",
     bool OcrEnabled = false, string OcrLanguage = "system", bool HardwareSaveSnapshots = true,
-    bool HardwareSensorsEnabled = true);
+    bool HardwareSensorsEnabled = true, long StorageBytes = 0, int HistoryWarningMegabytes = 1024)
+{
+    /// <summary>Reports whether measured local history exceeds the saved warning threshold.</summary>
+    public bool IsStorageWarning => StorageBytes > HistoryWarningMegabytes * 1024L * 1024L;
+}
 
 /// <summary>Requires both destructive confirmations before an atomic application reset can be prepared.</summary>
 public sealed record AtomicResetRequest(bool FirstConfirmation, bool FinalConfirmation);
@@ -976,7 +997,7 @@ public interface IWorkTrailApplication : IAsyncDisposable
     Task<OperationResult<RetentionStatus>> GetRetentionStatusAsync(CancellationToken cancellationToken);
 
     /// <summary>Previews retention candidates without changing files.</summary>
-    Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken);
+    Task<OperationResult<RetentionPreview>> PreviewRetentionAsync(CancellationToken cancellationToken, HistoryDateRange? range = null);
 
     /// <summary>Executes a confirmed retention cleanup.</summary>
     Task<OperationResult<RetentionPreview>> RunRetentionAsync(RetentionRequest request, CancellationToken cancellationToken);

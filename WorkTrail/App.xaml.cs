@@ -65,6 +65,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private DispatcherQueueTimer? _retentionTimer;
     private bool _retentionCheckInProgress;
     private bool _retentionDeferredForSession;
+    private int? _historyWarningShownForThreshold;
 #if DEBUG
     private static readonly bool AutomaticRetentionEnabled = false;
 #else
@@ -1382,14 +1383,13 @@ public partial class App : Microsoft.UI.Xaml.Application
         {
             // Development packages keep real diagnostic data; manual retention remains available.
             _logger.LogInformation("Automatic retention is disabled in Debug builds.");
-            return;
         }
         if (_retentionTimer is not null || Volatile.Read(ref _shutdownStarted) != 0) return;
         _retentionTimer = _dispatcherQueue.CreateTimer();
         _retentionTimer.Interval = TimeSpan.FromHours(1);
         _retentionTimer.Tick += RetentionTimer_Tick;
         _retentionTimer.Start();
-        // Workspace initialization and restoration have completed; yield once more before opening a modal.
+        // Measure storage and check cleanup only after workspace initialization and restoration.
         if (!_dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()))
             _logger.LogWarning("Scheduled retention could not be queued after UI startup.");
     }
@@ -1400,7 +1400,7 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private async Task CheckScheduledRetentionAsync()
     {
-        if (!AutomaticRetentionEnabled || _retentionDeferredForSession || _retentionCheckInProgress
+        if (_retentionCheckInProgress
             || _window is null || _applicationFacade is null || Volatile.Read(ref _shutdownStarted) != 0) return;
         _retentionCheckInProgress = true;
         try
@@ -1410,26 +1410,40 @@ public partial class App : Microsoft.UI.Xaml.Application
             if (settings is not { Succeeded: true, Value: { QuickSetupCompleted: true } }) return;
             var status = await application.GetRetentionStatusAsync(CancellationToken.None);
             if (!status.Succeeded) throw new InvalidOperationException("Scheduled retention status could not be loaded.");
-            if (status.Value is not { IsCleanupDue: true } || _window is null) return;
-            var owner = _window;
-            var strings = new LocalizationService(settings.Value.UiLanguage);
-            var operationId = Guid.NewGuid();
-            var result = await _dialogs.RunWithProgressAsync(application, owner,
-                (owner.Content as FrameworkElement)?.ActualTheme ?? throw new InvalidOperationException("Retention progress requires window content."),
-                strings.Translate("Operations.Retention.Progress.Cleanup.Title"),
-                strings.Translate("Operations.Retention.ProgressDescription"),
-                (facade, token) => facade.RunRetentionAsync(new RetentionRequest(true, false, Scheduled: true, OperationId: operationId), token),
-                retentionOperationId: operationId);
-            if (!result.Succeeded) throw new InvalidOperationException($"Scheduled retention failed ({result.Code}).");
+            if (AutomaticRetentionEnabled && !_retentionDeferredForSession && status.Value is { IsCleanupDue: true })
+            {
+                // Automatic maintenance runs behind the facade without opening a daily modal dialog.
+                var result = await application.RunRetentionAsync(new RetentionRequest(true, false, Scheduled: true), CancellationToken.None);
+                if (!result.Succeeded) throw new InvalidOperationException($"Scheduled retention failed ({result.Code}).");
+                status = await application.GetRetentionStatusAsync(CancellationToken.None);
+                if (!status.Succeeded) throw new InvalidOperationException("Storage status could not be refreshed after cleanup.");
+            }
+            if (status.Value is { } storage)
+            {
+                if (!storage.IsStorageWarning) _historyWarningShownForThreshold = null;
+                else if (settings.Value.NotificationsEnabled && _window is not null
+                    && _historyWarningShownForThreshold != storage.HistoryWarningMegabytes)
+                {
+                    _window.ShowHistoryStorageWarning(storage);
+                    _historyWarningShownForThreshold = storage.HistoryWarningMegabytes;
+                }
+            }
         }
         catch (OperationCanceledException)
         {
-            // Respect cancellation for this session without claiming a completed monthly cleanup.
+            // Respect cancellation for this session without claiming a completed daily cleanup.
             _retentionDeferredForSession = true;
         }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Scheduled retention failed; the next ready-state check will retry.");
+            if (_window is not null && Volatile.Read(ref _shutdownStarted) == 0)
+            {
+                var strings = new LocalizationService(_uiLanguage);
+                await _dialogs.ShowInformativeAsync(_window, DialogRequest.Informative(
+                    strings.Translate("Operations.Status.Failed.Title"),
+                    strings.Translate("Operations.Status.RuntimeUnavailable.Message"), strings.Translate("Dialog.Ok")));
+            }
         }
         finally { _retentionCheckInProgress = false; }
     }

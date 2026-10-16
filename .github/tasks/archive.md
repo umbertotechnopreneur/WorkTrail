@@ -2,6 +2,24 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-15
+
+### Inline history retention and date-range cleanup
+
+- Keep Free retention at one calendar month and extend Premium selections through
+  twelve months, enforced by the shared application policy and settings validation.
+- Put history settings directly inside Settings, with measured local storage,
+  a configurable warning that defaults to 1 GB, and one review-and-delete action
+  for inclusive local calendar dates. Keep capture options in a collapsed section.
+- Reuse serialized cleanup, screenshot deletion recovery and search synchronization
+  for manual date ranges. Preserve data outside the range and the automatic cleanup
+  checkpoint; run automatic maintenance daily without a modal progress window.
+- Update shared runtime contracts, accessibility names, all supported locales and
+  focused retention/presentation tests. The final focused run passed 82 core tests,
+  60 presentation tests and 25 CLI tests. C# formatting and its verification passed;
+  the Debug Windows x64 build completed with zero warnings and zero errors.
+  Native UI validation and production automatic maintenance remain pending.
+
 ## 2026-10-11
 
 ### Debug MSIX 1.0.6.15 installed

@@ -119,8 +119,9 @@ public static class SettingsCatalog
         Text("active_hours.sunday.breaks", "Informational Sunday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
         Boolean("startup.enabled", "Start WorkTrail after Windows sign-in."),
         Boolean("tracking.start_on_launch", "Start tracking on the next application launch.", requiresRestart: true),
-        Integer("retention.screenshots_days", "Calendar-month screenshot retention: 30, 60 or 90 selects 1, 2 or 3 months. Free is limited to 30."),
-        Integer("retention.data_days", "Calendar-month activity retention: 30, 60 or 90 selects 1, 2 or 3 months. Free is limited to 30."),
+        Integer("retention.screenshots_days", "Calendar-month screenshot retention: multiples of 30 from 30 to 360 select 1 to 12 months. Free is limited to 30."),
+        Integer("retention.data_days", "Calendar-month activity retention: multiples of 30 from 30 to 360 select 1 to 12 months. Free is limited to 30."),
+        Integer("retention.warning_mb", "Local history storage warning threshold in MB, from 100 to 1048576. Default: 1024 (1 GB)."),
         Boolean("plugins.word.enabled", "Enable safe Microsoft Word context details."),
         Boolean("plugins.excel.enabled", "Enable safe Microsoft Excel context details."),
         Boolean("plugins.vscode.enabled", "Enable safe Visual Studio Code context details."),
@@ -193,6 +194,7 @@ public static class SettingsCatalog
             "tracking.start_on_launch" => settings.StartTrackingOnLaunch,
             "retention.screenshots_days" => settings.ScreenshotRetentionDays,
             "retention.data_days" => settings.DataRetentionDays,
+            "retention.warning_mb" => settings.HistoryWarningMegabytes,
             "plugins.word.enabled" => settings.EnableWordDetailPlugin,
             "plugins.excel.enabled" => settings.EnableExcelDetailPlugin,
             "plugins.vscode.enabled" => settings.EnableVsCodeDetailPlugin,
@@ -321,8 +323,9 @@ public static class SettingsCatalog
                 case "activity.label.select" when (current.ActivityLabels ?? []).FirstOrDefault(label => label.Id == value) is { } selectedLabel: current = current with { SpanLabel = selectedLabel.Name }; break;
                 case "startup.enabled" when TryBoolean(value, out var startup): current = current with { StartWithWindows = startup }; break;
                 case "tracking.start_on_launch" when TryBoolean(value, out var startOnLaunch): current = current with { StartTrackingOnLaunch = startOnLaunch }; break;
-                case "retention.screenshots_days" when TryInteger(value, 30, 90, out var screenshotDays) && screenshotDays is 30 or 60 or 90: current = current with { ScreenshotRetentionDays = screenshotDays }; break;
-                case "retention.data_days" when TryInteger(value, 30, 90, out var dataDays) && dataDays is 30 or 60 or 90: current = current with { DataRetentionDays = dataDays }; break;
+                case "retention.screenshots_days" when TryInteger(value, 30, 360, out var screenshotDays) && screenshotDays % 30 == 0: current = current with { ScreenshotRetentionDays = screenshotDays }; break;
+                case "retention.data_days" when TryInteger(value, 30, 360, out var dataDays) && dataDays % 30 == 0: current = current with { DataRetentionDays = dataDays }; break;
+                case "retention.warning_mb" when TryInteger(value, 100, 1048576, out var warningMb): current = current with { HistoryWarningMegabytes = warningMb }; break;
                 case "plugins.word.enabled" when TryBoolean(value, out var word): current = current with { EnableWordDetailPlugin = word }; break;
                 case "plugins.excel.enabled" when TryBoolean(value, out var excel): current = current with { EnableExcelDetailPlugin = excel }; break;
                 case "plugins.vscode.enabled" when TryBoolean(value, out var vscode): current = current with { EnableVsCodeDetailPlugin = vscode }; break;
@@ -392,6 +395,7 @@ public static class SettingsCatalog
             // Existing day settings now represent fixed month choices; cleanup uses AddMonths, never AddDays.
             DataRetentionDays = RetentionPolicy.NormalizeDays(settings.DataRetentionDays),
             ScreenshotRetentionDays = RetentionPolicy.NormalizeDays(settings.ScreenshotRetentionDays),
+            HistoryWarningMegabytes = Math.Clamp(settings.HistoryWarningMegabytes, 100, 1048576),
             OpenAiDailyLimit = Math.Clamp(settings.OpenAiDailyLimit, MinimumAiDailyLimit, MaximumAiDailyLimit),
             OpenAiDailyCostUsd = Math.Max(0m, settings.OpenAiDailyCostUsd),
             EstimatedCostPerAnalysisUsd = Math.Clamp(settings.EstimatedCostPerAnalysisUsd, 0m, 1_000m),
