@@ -10,7 +10,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
     IReadOnlyList<string>? AnalysisBlacklist = null,
     IReadOnlyList<ScreenshotContextRule>? ContextRules = null,
     int DefaultIdleTimeoutSeconds = 60,
-    IReadOnlyDictionary<string, string>? MicroPrompts = null)
+    IReadOnlyDictionary<string, string>? MicroPrompts = null,
+    ScreenshotSimilarityOptions? Similarity = null)
 {
     internal static ScreenshotCaptureRules Load()
     {
@@ -28,6 +29,7 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
 
     internal void Validate()
     {
+        Similarity?.Validate();
         if (DefaultIdleTimeoutSeconds is < 1 or > 7200)
             throw new InvalidDataException("Default capture inactivity timeout must be between 1 and 7200 seconds.");
         if (MicroPrompts?.Any(entry => string.IsNullOrWhiteSpace(entry.Key) || string.IsNullOrWhiteSpace(entry.Value)) == true)
@@ -60,6 +62,7 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                 || profile.ProcessNames.Any(process => string.IsNullOrWhiteSpace(process) || !processes.Add(process)))
                 throw new InvalidDataException("Screenshot application profiles require unique process aliases and valid attention values.");
             ValidateMicroPrompts(profile.MicroPromptIds);
+            profile.Similarity?.Validate();
         }
         if (AnalysisBlacklist?.Any(string.IsNullOrWhiteSpace) == true)
             throw new InvalidDataException("Screenshot analysis blacklist contains an empty process name.");
@@ -74,6 +77,7 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                 || rule.IdleTimeoutMinutes is < 1 or > 120)
                 throw new InvalidDataException("Context rules require unique IDs, process-scoped title hints and valid policy values.");
             ValidateMicroPrompts(rule.MicroPromptIds);
+            rule.Similarity?.Validate();
         }
     }
 
@@ -99,7 +103,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
             rule?.CaptureSecondary ?? profile?.CaptureSecondary ?? (profile is not null && profile.BackgroundAttention != "low"),
             (rule?.IdleTimeoutMinutes ?? profile?.IdleTimeoutMinutes) is { } minutes ? minutes * 60 : DefaultIdleTimeoutSeconds,
             rule is not null ? $"title-hint:{rule.Id}" : profile is not null ? $"app-profile:{profile.Id}" : "default",
-            rule?.MicroPromptIds ?? profile?.MicroPromptIds ?? []);
+            rule?.MicroPromptIds ?? profile?.MicroPromptIds ?? [],
+            rule?.Similarity ?? profile?.Similarity ?? Similarity ?? new ScreenshotSimilarityOptions());
     }
 
     /// <summary>Total allowed input-idle time, not additional active work or evidence of a meeting.</summary>
@@ -239,15 +244,17 @@ internal sealed record ScreenshotCaptureRule(string Id, bool Enabled, string Sub
 
 internal sealed record ScreenshotApplicationProfile(string Id, string Label, IReadOnlyList<string> ProcessNames,
     string ActiveAttention, string BackgroundAttention, int? IdleTimeoutMinutes = null, bool? CaptureSecondary = null,
-    IReadOnlyList<string>? MicroPromptIds = null);
+    IReadOnlyList<string>? MicroPromptIds = null, ScreenshotSimilarityOptions? Similarity = null);
 
 internal sealed record ScreenshotContextRule(string Id, bool Enabled, int Priority,
     IReadOnlyList<string> ProcessNames, IReadOnlyList<string> TitleContainsAny,
     string? ActiveAttention = null, string? BackgroundAttention = null,
-    bool? CaptureSecondary = null, int? IdleTimeoutMinutes = null, IReadOnlyList<string>? MicroPromptIds = null);
+    bool? CaptureSecondary = null, int? IdleTimeoutMinutes = null, IReadOnlyList<string>? MicroPromptIds = null,
+    ScreenshotSimilarityOptions? Similarity = null);
 
 internal sealed record ScreenshotWindowPolicy(string ActiveAttention, string BackgroundAttention,
-    bool CaptureSecondary, int IdleTimeoutSeconds, string Reason, IReadOnlyList<string> MicroPromptIds);
+    bool CaptureSecondary, int IdleTimeoutSeconds, string Reason, IReadOnlyList<string> MicroPromptIds,
+    ScreenshotSimilarityOptions Similarity);
 
 /// <summary>Visible top-level window facts in desktop z order, before selecting policy subjects.</summary>
 internal sealed record CaptureWindow(IntPtr WindowHandle, NativeMethods.Rect Bounds, string ProcessName,

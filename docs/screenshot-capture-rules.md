@@ -26,6 +26,46 @@ Window crops contain only visible desktop regions. Higher windows occlude lower 
 
 Rules do not override capture privacy checks. Capture validates the desktop scene around pixel acquisition; a changed scene is rejected rather than retaining misleading visibility masks. Panoramas contain the visible monitor, so a process filter on a window rule is not a privacy exclusion for a separate monitor rule. Privacy exclusions remain the authority for both destinations.
 
+## Automatic near-duplicate filtering
+
+The `similarity` object controls a local, in-memory RGB thumbnail comparison. It runs
+after pixel acquisition and privacy/scene checks, but before WEBP encoding, disk writes
+or AI submission. No OCR or model is involved. Manual captures bypass it.
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Enable the comparison for scheduled captures |
+| `sampleWidth`, `sampleHeight` | `128`, `96` | Thumbnail dimensions, each 16–512 |
+| `maxMeanDifference` | `0.25` | Maximum mean absolute RGB channel difference, 0–255 |
+| `maxChangedPixelFraction` | `0.0001` | Maximum fraction of sampled pixels above the channel threshold |
+| `pixelDifferenceThreshold` | `6` | A sampled pixel changes when any channel differs by more than this |
+| `maxPixelDifference` | `24` | Keep an image when even one sampled channel exceeds this difference |
+| `forceRefreshMinutes` | `15` | Keep the next eligible scheduled image at or after this age |
+| `maxEntries` | `128` | Maximum remembered fingerprints; oldest retained entries are evicted |
+
+All three difference limits must pass to skip an image. The baseline advances only
+after successful publication of a retained gallery image, never after a skipped or
+failed capture. Deleting its retained file invalidates that baseline. Transient
+analysis-only images do not seed the cache. The cache is
+process-local and starts empty after restart; no thumbnails are stored in the database.
+
+An application profile or matching context rule can supply a complete `similarity`
+object. Precedence is context, application, global; omitted fields inside an override
+use the standard defaults, not a field-by-field merge. Spotify allows a mean difference
+of 1.5 and 2% changed pixels, with no strongest-pixel veto, to tolerate small playback
+progress changes. Its changed window title still forces a new candidate.
+
+Identity includes window handle, title, geometry, monitor, visible regions and rule
+destinations. A matching identity is necessary, never sufficient: pixels are compared
+too. Monitor panoramas use the global conservative settings and their visible scene
+identity, not the Spotify override. Sampling is lossy; tiny text edits can be missed,
+so these defaults need native validation and sensitive profiles can disable filtering.
+
+Images are filtered independently. Kept images retain their actual monitor IDs; old
+images are never relabeled with the new timestamp. If every image is unchanged, the
+scheduled attempt ends quietly without files, a notification or an AI request. A
+partially changed pass submits only its newly captured eligible images.
+
 ## Application attention
 
 `applicationProfiles` contains `id`, `label`, `processNames`, `activeAttention`, `backgroundAttention` and optional `captureSecondary`, `idleTimeoutMinutes` and `microPromptIds`. Attention accepts `high`, `normal` or `low`. Process aliases use exact case-insensitive matching; duplicate aliases across profiles are rejected. Unrecognized foreground processes get normal attention. If `captureSecondary` is omitted, a known profile is eligible unless its background attention is low. Rule priority controls image ordering; attention controls reading depth.

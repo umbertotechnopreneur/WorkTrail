@@ -115,6 +115,119 @@ public sealed class RuntimeCaptureSafetyTests
         finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
     }
 
+    /// <summary>Comparison baselines are committed only after publication and only for retained captures.</summary>
+    /// <param name="keep">Whether the application retains the published image.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CapturePublication_ReportsRetentionOnlyAfterFinalFileExists(bool keep)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            var capture = new BoundaryCaptureService(dataDirectory);
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture, startTimer: false);
+
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", keep, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true), CancellationToken.None);
+
+            Assert.True(result.Succeeded);
+            var published = Assert.IsType<ScreenshotCaptureResult>(result.Value);
+            var observation = Assert.Single(capture.PublicationCalls);
+            Assert.Equal(published.CaptureId, observation.CaptureId);
+            Assert.Equal(keep, observation.Retained);
+            Assert.True(observation.FinalFileExists);
+            Assert.False(observation.StagedFileExists);
+            Assert.Equal(keep, File.Exists(capture.OutputPath));
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>A missing staged artifact rejects publication without committing a comparison baseline or preview.</summary>
+    [Fact]
+    public async Task CapturePublication_FailureDiscardsBaselineWithoutReportingRetention()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false,
+                NotificationsEnabled = true,
+                ScreenshotNotificationsEnabled = true
+            };
+            store.SaveSettings(settings);
+            var notifications = new RecordingScreenshotNotifications();
+            BoundaryCaptureService? capture = null;
+            capture = new BoundaryCaptureService(dataDirectory,
+                afterCapture: () => File.Delete(ScreenshotPublicationJournal.StagingPath(capture!.OutputPath)));
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture,
+                startTimer: false, screenshotNotifications: notifications);
+
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true), CancellationToken.None);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal("screenshot.telemetry.persistence.failed", result.Code);
+            var observation = Assert.Single(capture.PublicationCalls);
+            Assert.False(observation.Retained);
+            Assert.False(observation.FinalFileExists);
+            Assert.False(observation.StagedFileExists);
+            Assert.False(File.Exists(capture.OutputPath));
+            Assert.Empty(notifications.Paths);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>An unchanged automatic capture is a quiet skip, never a preview or provider request.</summary>
+    [Fact]
+    public async Task Capture_UnchangedSkipsPublicationPreviewAndAi()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = true,
+                NotificationsEnabled = true,
+                ScreenshotNotificationsEnabled = true
+            };
+            store.SaveSettings(settings);
+            var notifications = new RecordingScreenshotNotifications();
+            var analysis = new RecordingAiAnalysisService();
+            var capture = new BoundaryCaptureService(dataDirectory,
+                beforeAuthorization: () => throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unchanged));
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture,
+                startTimer: false, screenshotNotifications: notifications, analysis: analysis);
+
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", Keep: true, ScreenshotCaptureOrigins.Scheduled, DeferAiAnalysis: false), CancellationToken.None);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal("screenshot.unchanged", result.Code);
+            Assert.Equal(0, capture.PixelReadCount);
+            Assert.Empty(capture.PublicationCalls);
+            Assert.Empty(notifications.Paths);
+            Assert.Equal(0, analysis.CallCount);
+            Assert.False(File.Exists(capture.OutputPath));
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
     /// <summary>VIP importance and its user note survive reopening; deleting the last artifact removes its calendar indicator.</summary>
     [Fact]
     public async Task VipCapture_PersistsNoteAndClearsCalendarAfterDeletion()
@@ -480,7 +593,8 @@ public sealed class RuntimeCaptureSafetyTests
         IScreenCaptureService capture,
         bool startTimer,
         TrackingDomainService? tracking = null,
-        IScreenshotNotificationService? screenshotNotifications = null)
+        IScreenshotNotificationService? screenshotNotifications = null,
+        IAiAnalysisService? analysis = null)
     {
         var utilities = new UtilityService();
         return new WorkTrailApplication(
@@ -488,7 +602,7 @@ public sealed class RuntimeCaptureSafetyTests
             utilities,
             tracking ?? new TrackingDomainService(store, settings),
             capture,
-            new OpenAiAnalysisService(store, capture),
+            analysis ?? new OpenAiAnalysisService(store, capture),
             new StartupService(),
             new BuildInformationService(),
             settingsSnapshot: settings,
@@ -545,6 +659,31 @@ public sealed class RuntimeCaptureSafetyTests
         public void Dispose() { }
     }
 
+    private sealed class RecordingAiAnalysisService : IAiAnalysisService
+    {
+        internal int CallCount { get; private set; }
+
+        /// <inheritdoc />
+        public Task<AiAnalysis> AnalyzeCurrentScreenAsync(AnalysisContextSnapshot? activity, bool allowCapture = true,
+            string origin = "manual", CancellationToken cancellationToken = default) => RejectUnexpectedAnalysis();
+
+        /// <inheritdoc />
+        public Task<AiAnalysis> AnalyzeCapturedScreenAsync(AnalysisContextSnapshot? activity,
+            ScreenshotCaptureResult captureResult, bool keepCapture, string origin,
+            CancellationToken cancellationToken = default) => RejectUnexpectedAnalysis();
+
+        /// <inheritdoc />
+        public Task<AiAnalysis> AnalyzeHistoricalCapturedScreenAsync(AnalysisContextSnapshot activity,
+            ScreenshotCaptureResult captureResult, string origin,
+            CancellationToken cancellationToken = default) => RejectUnexpectedAnalysis();
+
+        private Task<AiAnalysis> RejectUnexpectedAnalysis()
+        {
+            CallCount++;
+            throw new InvalidOperationException("An unchanged capture must never reach AI analysis.");
+        }
+    }
+
     private sealed class NotificationCaptureService(bool keep) : IScreenCaptureService
     {
         /// <inheritdoc />
@@ -573,7 +712,7 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
-    private sealed class BoundaryCaptureService : IScreenCaptureService
+    private sealed class BoundaryCaptureService : IScreenCaptureService, IScreenshotCapturePublicationObserver
     {
         private readonly Action _beforeAuthorization;
         private readonly Action _afterCapture;
@@ -596,9 +735,14 @@ public sealed class RuntimeCaptureSafetyTests
 
         internal int PixelReadCount { get; private set; }
 
-        internal string OutputPath { get; }
+        internal string OutputPath { get; private set; }
+
+        internal List<(string CaptureId, bool Retained, bool FinalFileExists, bool StagedFileExists)> PublicationCalls { get; } = [];
 
         internal TaskCompletionSource<bool> Captured { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void IScreenshotCapturePublicationObserver.CompletePublication(string captureId, bool retained) =>
+            PublicationCalls.Add((captureId, retained, File.Exists(OutputPath), File.Exists(ScreenshotPublicationJournal.StagingPath(OutputPath))));
 
         /// <inheritdoc />
         public ScreenshotCaptureResult CaptureByMode(
@@ -615,6 +759,8 @@ public sealed class RuntimeCaptureSafetyTests
             }
 
             PixelReadCount++;
+            OutputPath = Path.Combine(ScreenshotStorageLayout.GetDayDirectory(directory, _capturedAt),
+                $"{_captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
             Directory.CreateDirectory(Path.GetDirectoryName(OutputPath)!);
             File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(OutputPath), [1, 2, 3]);
             _afterCapture();

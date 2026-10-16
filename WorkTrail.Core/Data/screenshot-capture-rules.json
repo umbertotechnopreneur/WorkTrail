@@ -1,5 +1,6 @@
 {
   "defaultIdleTimeoutSeconds": 60,
+  "similarity": { "enabled": true, "sampleWidth": 128, "sampleHeight": 96, "maxMeanDifference": 0.25, "maxChangedPixelFraction": 0.0001, "pixelDifferenceThreshold": 6, "maxPixelDifference": 24, "forceRefreshMinutes": 15, "maxEntries": 128 },
   "rules": [
     { "id": "active-content", "enabled": true, "subject": "active-window", "capture": "window", "priority": "primary", "destination": "both" },
     { "id": "secondary-content", "enabled": true, "subject": "secondary-windows", "capture": "window", "priority": "secondary", "destination": "both", "requireSecondaryMatch": true, "minimumVisibleFraction": 0.15 },
@@ -44,7 +45,7 @@
     {"id":"sublime","label":"Sublime Text","processNames":["sublime_text"],"activeAttention":"high","backgroundAttention":"normal","microPromptIds":["code"]},
     {"id":"postman","label":"Postman","processNames":["Postman"],"activeAttention":"high","backgroundAttention":"normal","microPromptIds":["api"]},
     {"id":"power-bi","label":"Power BI Desktop","processNames":["PBIDesktop"],"activeAttention":"high","backgroundAttention":"normal","microPromptIds":["dashboard"]},
-    {"id":"spotify","label":"Spotify","processNames":["Spotify"],"activeAttention":"low","backgroundAttention":"low"},
+    {"id":"spotify","label":"Spotify","processNames":["Spotify"],"activeAttention":"low","backgroundAttention":"low","similarity":{"maxMeanDifference":1.5,"maxChangedPixelFraction":0.02,"pixelDifferenceThreshold":10,"maxPixelDifference":255,"forceRefreshMinutes":15}},
     {"id":"explorer","label":"File Explorer","processNames":["explorer"],"activeAttention":"low","backgroundAttention":"low"},
     {"id":"settings","label":"Windows Settings","processNames":["SystemSettings"],"activeAttention":"low","backgroundAttention":"low"},
     {"id":"calculator","label":"Calculator","processNames":["CalculatorApp","Calculator"],"activeAttention":"low","backgroundAttention":"low"},

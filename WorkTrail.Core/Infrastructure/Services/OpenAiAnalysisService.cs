@@ -142,6 +142,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         {
             _screenshotPublications.Publish(captureResult, captureRoot, settings.InstallationId, settings.KeepScreenshots);
             published = true;
+            (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(captureResult.CaptureId, settings.KeepScreenshots);
             return await AnalyzeCapturedScreenCoreAsync(
                 settings,
                 apiKey,
@@ -154,6 +155,8 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         }
         finally
         {
+            if (!published)
+                (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(captureResult.CaptureId, retained: false);
             if (captureResult.AllScreenshotPaths.Count > 0 && (!settings.KeepScreenshots || !published))
             {
                 try

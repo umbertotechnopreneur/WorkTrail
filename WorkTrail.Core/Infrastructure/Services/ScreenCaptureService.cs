@@ -24,7 +24,9 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using SkiaSharp;
 using WorkTrail.Application;
@@ -48,6 +50,12 @@ public interface IScreenCaptureService
         Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture);
 }
 
+/// <summary>Commits comparison baselines only after the application publishes a retained capture.</summary>
+internal interface IScreenshotCapturePublicationObserver
+{
+    void CompletePublication(string captureId, bool retained);
+}
+
 /// <summary>Classifies the application-owned policy decision made immediately before screenshot pixels are read.</summary>
 public enum ScreenshotCaptureDecision
 {
@@ -61,7 +69,10 @@ public enum ScreenshotCaptureDecision
     PrivacyBlocked,
 
     /// <summary>The scheduled capture exceeded its configured input-inactivity timeout.</summary>
-    UserIdle
+    UserIdle,
+
+    /// <summary>Every selected automatic image is visually unchanged since its last retained capture.</summary>
+    Unchanged
 }
 
 /// <summary>Describes the foreground target observed at the capture boundary.</summary>
@@ -102,7 +113,7 @@ public sealed class ScreenshotCapturePreconditionException : InvalidOperationExc
 /// <summary>
 /// Captures desktop images to WEBP for local history and AI context.
 /// </summary>
-public sealed class ScreenCaptureService : IScreenCaptureService
+public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCapturePublicationObserver
 {
     private const int WebpQuality = 90;
     private static readonly Regex OwnedArtifactName = new(
@@ -110,6 +121,26 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.NonBacktracking);
     private readonly string _appVersion;
     private readonly SettingsSnapshot? _settingsSnapshot;
+    private readonly ScreenshotSimilarityFilter _similarity = new();
+    private readonly object _pendingGate = new();
+    private readonly Dictionary<string, List<PendingFingerprint>> _pendingFingerprints = new(StringComparer.Ordinal);
+
+    private sealed record PendingFingerprint(string Key, ScreenshotVisualFingerprint Fingerprint,
+        DateTimeOffset CapturedAt, ScreenshotSimilarityOptions Options, string Path);
+
+    void IScreenshotCapturePublicationObserver.CompletePublication(string captureId, bool retained)
+    {
+        lock (_pendingGate)
+        {
+            if (!_pendingFingerprints.Remove(captureId, out var pending) || !retained) return;
+            foreach (var candidate in pending)
+            {
+                // Publication and retention can fail independently. Missing files cannot become baselines.
+                if (File.Exists(candidate.Path))
+                    _similarity.Remember(candidate.Key, candidate.Fingerprint, candidate.CapturedAt, candidate.Options, candidate.Path);
+            }
+        }
+    }
 
     /// <summary>
     /// Creates capture service.
@@ -202,10 +233,17 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         var storage = new List<string>(displays.Count);
         var analysis = new List<string>(displays.Count);
         var images = new List<ScreenshotImageMetadata>(targets.Count);
+        var pending = new List<PendingFingerprint>(targets.Count);
         try
         {
             foreach (var target in targets)
             {
+                var processName = windows.FirstOrDefault(window => window.WindowHandle == target.WindowHandle)?.ProcessName;
+                var similarityOptions = target.WindowHandle == IntPtr.Zero
+                    ? policy.Similarity ?? new ScreenshotSimilarityOptions()
+                    : policy.ResolveWindowPolicy(processName ?? string.Empty, target.WindowTitle).Similarity;
+                var similarityKey = validatedOrigin == ScreenshotCaptureOrigins.Scheduled && similarityOptions.Enabled
+                    ? CreateSimilarityKey(directory, target, processName, visibleWindows) : string.Empty;
                 var paths = CaptureRect(
                     captureDirectory,
                     target.Bounds,
@@ -216,13 +254,18 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                     authorizeCapture,
                     foreground,
                     target.VisibleRegions,
-                    visibleWindows);
+                    visibleWindows,
+                    similarityKey,
+                    similarityOptions,
+                    target.ForGallery,
+                    pending);
+
+                if (paths.Stored.Count == 0) continue;
 
                 if (target.ForAnalysis) analysis.AddRange(paths.Analysis);
                 if (target.ForGallery) storage.AddRange(paths.Stored);
                 var screen = target.Display;
                 var isWindow = target.WindowHandle != IntPtr.Zero;
-                var processName = windows.FirstOrDefault(window => window.WindowHandle == target.WindowHandle)?.ProcessName;
                 var retainTitle = _settingsSnapshot is null || string.IsNullOrWhiteSpace(processName)
                     || ActivityContextProviderRegistry.IsDetailEnabled(processName, _settingsSnapshot.Value);
                 images.Add(new ScreenshotImageMetadata(paths.Stored[0], target.Role, screen.Index, screen.Name,
@@ -233,11 +276,24 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                     isWindow ? retainTitle ? target.WindowTitle : string.Empty : screen.Index == focusedDisplay.Index && !foregroundExcluded ? focusMetadata.WindowTitle : string.Empty,
                     target.RelatedScreenIndices, target.Priority, target.ForAnalysis, target.ForGallery, target.Attention, target.RuleReason, target.MicroPromptIds));
             }
+            if (targets.Count > 0 && images.Count == 0)
+                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unchanged);
         }
         catch
         {
             DeletePartialArtifacts(analysis.Concat(storage));
             throw;
+        }
+
+        if (pending.Count > 0)
+        {
+            lock (_pendingGate)
+            {
+                // Normally one pass is in flight. Bound orphaned candidates if an owner abandons publication.
+                while (_pendingFingerprints.Count >= 8)
+                    _pendingFingerprints.Remove(_pendingFingerprints.Keys.First());
+                _pendingFingerprints[captureId] = pending;
+            }
         }
 
         return new ScreenshotCaptureResult(
@@ -248,6 +304,35 @@ public sealed class ScreenCaptureService : IScreenCaptureService
             FocusMetadata: focusMetadata,
             CapturedAt: capturedAt,
             Images: images.AsReadOnly());
+    }
+
+    internal static string CreateSimilarityKey(string directory, CaptureImageTarget target, string? processName,
+        IReadOnlyList<VisibleCaptureWindow> visibleWindows)
+    {
+        static int[] Bounds(NativeMethods.Rect value) => [value.Left, value.Top, value.Right, value.Bottom];
+        // Titles are hints for identity, not proof of unchanged pixels. Hash transient metadata; never log it.
+        var identity = JsonSerializer.Serialize(new
+        {
+            Directory = Path.GetFullPath(directory),
+            target.Role,
+            Handle = target.WindowHandle.ToInt64(),
+            processName,
+            target.WindowTitle,
+            Screen = target.Display.Name,
+            ScreenBounds = Bounds(target.Display.Bounds),
+            Bounds = Bounds(target.Bounds),
+            Regions = target.VisibleRegions.Select(Bounds),
+            target.ForAnalysis,
+            target.ForGallery,
+            target.Attention,
+            target.RuleReason,
+            target.MicroPromptIds,
+            Scene = target.WindowHandle == IntPtr.Zero
+                ? visibleWindows.Where(window => IntersectionArea(target.Bounds, window.Bounds) > 0)
+                    .Select(window => new { Handle = window.WindowHandle.ToInt64(), window.Context, Bounds = Bounds(window.Bounds) }).ToArray()
+                : null
+        });
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
     }
 
     /// <summary>Returns the zero-based display index that contains the largest foreground-window area.</summary>
@@ -397,7 +482,11 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture,
         ForegroundCaptureTarget expectedForeground,
         IReadOnlyList<NativeMethods.Rect> visibleRegions,
-        IReadOnlyList<VisibleCaptureWindow> expectedWindows)
+        IReadOnlyList<VisibleCaptureWindow> expectedWindows,
+        string similarityKey,
+        ScreenshotSimilarityOptions similarityOptions,
+        bool retainBaseline,
+        List<PendingFingerprint> pending)
     {
         var width = rect.Right - rect.Left;
         var height = rect.Bottom - rect.Top;
@@ -431,10 +520,21 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                 EnsureForegroundUnchanged(expectedForeground);
             }
 
+            ScreenshotVisualFingerprint? fingerprint = null;
+            if (validatedOrigin == ScreenshotCaptureOrigins.Scheduled && similarityOptions.Enabled)
+            {
+                // Compare only after privacy/scene checks, before encoding, disk writes or provider submission.
+                fingerprint = ScreenshotVisualFingerprint.Create(bitmap, similarityOptions);
+                if (_similarity.IsUnchanged(similarityKey, fingerprint, capturedAt, similarityOptions, File.Exists))
+                    return (Array.Empty<string>(), Array.Empty<string>());
+            }
+
             // Staging names are excluded from the gallery until Core commits installation provenance.
             ScreenshotStorageLayout.RejectLinks(stagingPath);
             EncodeBitmapAsWebp(bitmap, stagingPath);
             File.SetLastWriteTimeUtc(stagingPath, capturedAt.UtcDateTime);
+            if (fingerprint is not null && retainBaseline)
+                pending.Add(new PendingFingerprint(similarityKey, fingerprint, capturedAt, similarityOptions, screenshotPath));
         }
         catch
         {

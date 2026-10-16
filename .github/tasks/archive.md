@@ -4,6 +4,14 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-17
 
+### Automatic near-duplicate filtering
+
+- Compare in-memory RGB thumbnails after privacy checks and before encoding or AI.
+  Keep manual captures, changed identities and periodic refreshes; configure global,
+  application and context thresholds, including a more tolerant Spotify preset.
+- Advance the bounded cache only after retained publication, and quietly skip a
+  fully unchanged pass. Add regression cases; execution and native validation pending.
+
 ### Context-aware capture policy
 
 - Expand developer, terminal and database profiles; add process-scoped title hints,

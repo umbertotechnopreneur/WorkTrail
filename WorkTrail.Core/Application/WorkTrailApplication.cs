@@ -466,10 +466,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     _store.RegisterVipScreenshot(result.CaptureId);
                 }
             }
+            (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(result.CaptureId, request.Keep);
         }
         catch (Exception exception)
         {
             // A failed durable snapshot cannot be reported as a successful retained capture.
+            (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(result.CaptureId, retained: false);
             CleanupAbandonedCapture(result);
             _logger.LogWarning("Screenshot telemetry persistence failed. ExceptionType={ExceptionType}", exception.GetType().Name);
             return OperationResult<ScreenshotCaptureResult>.Failure("screenshot.telemetry.persistence.failed", "ScreenshotCaptureFailed");
@@ -1740,10 +1742,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                         _screenshotPublications.Publish(capture, captureRoot, settings.InstallationId, settings.KeepScreenshots);
                         if (settings.KeepScreenshots)
                             PersistScreenshotIntervalTelemetry(capture, telemetryIntervalStartedAt, DateTimeOffset.UtcNow);
+                        (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(capture.CaptureId, settings.KeepScreenshots);
                     }
                     catch
                     {
                         // Persist rollback even when publication failed between individual monitor images.
+                        (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(capture.CaptureId, retained: false);
                         CleanupAbandonedCapture(capture);
                         throw;
                     }
@@ -2635,6 +2639,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         ScreenshotCaptureDecision.ScreenshotsDisabled => OperationResult<T>.Failure("screenshot.disabled", "ScreenshotsDisabled"),
         ScreenshotCaptureDecision.PrivacyBlocked => OperationResult<T>.Failure("privacy.blocked", "PrivacyBlocked"),
         ScreenshotCaptureDecision.UserIdle => OperationResult<T>.Failure("screenshot.idle", "SnapshotScheduleNotDue"),
+        ScreenshotCaptureDecision.Unchanged => OperationResult<T>.Failure("screenshot.unchanged", "SnapshotScheduleNotDue"),
         _ => throw new ArgumentOutOfRangeException(nameof(decision), decision, "Allowed capture cannot be mapped to a failure.")
     };
 
@@ -2786,7 +2791,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     CancellationToken.None);
                 if (!scheduledCapture.Succeeded || scheduledCapture.Value is not { } retainedCapture)
                 {
-                    if (scheduledCapture.Code == "screenshot.idle") return;
+                    if (scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged") return;
                     _logger.LogWarning("Scheduled screen capture failed. Code={Code}", scheduledCapture.Code);
                     return;
                 }
