@@ -9,6 +9,16 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, run the focused Codex decoder/settings and window
+  geometry tests, presentation contracts/localization checks and a Debug x64 build.
+  Validate native CLI/API selection, API-key retention, missing/outdated CLI,
+  ChatGPT login expiry, account limits, timeout/cancellation and screenshot output.
+  Confirm no API fallback and no extra cloud OCR call in CLI mode.
+- [ ] After owner authorization, validate restart placement on mixed-DPI displays:
+  unchanged topology, reordered monitors, a disconnected saved monitor and changed
+  scaling. Check main-window manual size, dialogs and workspace shutdown flushing.
+  Existing placements without saved DPI retain physical size on their first restore.
+
 - [ ] After owner authorization, validate the inline history settings on Windows at
   narrow widths, supported text scales and themes: retention selection and upgrade
   prompt, storage warning threshold, inclusive date selection, deletion confirmation,

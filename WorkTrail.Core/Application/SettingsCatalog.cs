@@ -40,8 +40,8 @@ public static class SettingsCatalog
     public const int MaximumAiDailyLimit = 400;
 
     private static readonly string[] BooleanValues = ["true", "false"];
-    private static readonly string[] Providers = ["openai", "openrouter", "anthropic"];
-    private static readonly string[] ApiKeyVariables = ["OPENAI_API_KEY", "WORKTRAIL_OPENAI_APIKEY", "OPENROUTER_API_KEY", "ANTHROPIC_API_KEY"];
+    private static readonly string[] Providers = ["openai", "codex-cli"];
+    private static readonly string[] ApiKeyVariables = ["OPENAI_API_KEY", "WORKTRAIL_OPENAI_APIKEY"];
     private static readonly string[] OutputDetails = ["compact", "balanced", "detailed"];
     private static readonly string[] ReasoningEfforts = ["auto", "none", "low", "medium", "high", "xhigh", "max"];
     private static readonly string[] Themes = ["system", "light", "dark"];
@@ -234,7 +234,9 @@ public static class SettingsCatalog
                 {
                     AiProvider = provider,
                     AiEndpoint = GetDefaultEndpoint(provider),
-                    AiApiKeyName = GetDefaultApiKeyVariable(provider)
+                    AiApiKeyName = Canonical(ApiKeyVariables, current.AiApiKeyName) ?? GetDefaultApiKeyVariable(provider),
+                    // Switching transport requires an explicit activation after reviewing its configuration.
+                    OpenAiEnabled = provider == current.AiProvider && current.OpenAiEnabled
                 };
             }
             else
@@ -358,8 +360,9 @@ public static class SettingsCatalog
         WindowStateService.ValidateOpenStates(settings.WindowOpenStates);
         WindowStateService.ValidateOcrTextSource(settings.OcrTextWindowSource);
         var provider = Canonical(Providers, settings.AiProvider) ?? "openai";
-        var endpoint = IsAllowedEndpoint(settings.AiEndpoint) ? settings.AiEndpoint.Trim() : GetDefaultEndpoint(provider);
-        var keyVariable = Canonical(ApiKeyVariables, settings.AiApiKeyName) ?? GetDefaultApiKeyVariable(provider);
+        var providerSupported = Canonical(Providers, settings.AiProvider) is not null;
+        var endpoint = providerSupported && IsAllowedEndpoint(settings.AiEndpoint) ? settings.AiEndpoint.Trim() : GetDefaultEndpoint(provider);
+        var keyVariable = providerSupported ? Canonical(ApiKeyVariables, settings.AiApiKeyName) ?? GetDefaultApiKeyVariable(provider) : GetDefaultApiKeyVariable(provider);
         var screenshotDirectory = TryDirectory(settings.ScreenshotDirectory, allowEmpty: false, out var normalizedScreenshotDirectory)
             ? normalizedScreenshotDirectory
             : Path.GetFullPath(defaultScreenshotDirectory);
@@ -378,6 +381,7 @@ public static class SettingsCatalog
             OcrLanguage = RequiredPersistedChoice(ProductLanguageCatalog.OcrChoices, settings.OcrLanguage, "ocr.language"),
             SearchLanguage = RequiredPersistedChoice(ProductLanguageCatalog.SearchChoices, settings.SearchLanguage, "search.language"),
             AiProvider = provider,
+            OpenAiEnabled = providerSupported && settings.OpenAiEnabled,
             AiEndpoint = endpoint,
             AiApiKeyName = keyVariable,
             AiOutputDetail = Canonical(OutputDetails, settings.AiOutputDetail) ?? "balanced",
@@ -411,20 +415,10 @@ public static class SettingsCatalog
     }
 
     /// <summary>Returns the built-in endpoint for a supported AI provider.</summary>
-    public static string GetDefaultEndpoint(string? provider) => provider?.ToLowerInvariant() switch
-    {
-        "openrouter" => "https://openrouter.ai/api/v1/chat/completions",
-        "anthropic" => "https://api.anthropic.com/v1/messages",
-        _ => "https://api.openai.com/v1/responses"
-    };
+    public static string GetDefaultEndpoint(string? provider) => "https://api.openai.com/v1/responses";
 
     /// <summary>Returns the built-in API-key environment variable for a supported AI provider.</summary>
-    public static string GetDefaultApiKeyVariable(string? provider) => provider?.ToLowerInvariant() switch
-    {
-        "openrouter" => "OPENROUTER_API_KEY",
-        "anthropic" => "ANTHROPIC_API_KEY",
-        _ => "OPENAI_API_KEY"
-    };
+    public static string GetDefaultApiKeyVariable(string? provider) => "OPENAI_API_KEY";
 
     /// <summary>Returns whether an environment-variable name is permitted for secret storage.</summary>
     public static bool IsAllowedApiKeyVariable(string? value) => Contains(ApiKeyVariables, value);

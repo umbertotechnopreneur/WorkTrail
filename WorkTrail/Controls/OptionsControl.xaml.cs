@@ -323,8 +323,8 @@ public sealed partial class OptionsControl : UserControl
             return;
         }
 
-        var provider = SelectedTag(AiProviderBox, "openai");
-        var keyName = string.IsNullOrWhiteSpace(AiApiKeyNameBox.Text) ? DefaultApiKeyName(provider) : AiApiKeyNameBox.Text.Trim();
+        if (_lastPersistedSettings?.AiProvider != "openai") return;
+        var keyName = _lastPersistedSettings.AiApiKeyName;
         var secret = ApiKeyBox.Password;
         ApiKeyBox.Password = string.Empty;
         var button = (Button)sender;
@@ -375,7 +375,7 @@ public sealed partial class OptionsControl : UserControl
         _updatingAiToggle = true;
         OpenAiEnabledSwitch.IsOn = _aiState.Enabled;
         _updatingAiToggle = false;
-        ShowStatus(T("Options.OpenAi.KeyRequired"));
+        ShowStatus(T(result.Issues.FirstOrDefault()?.MessageKey ?? result.MessageKey));
     }
 
     /// <summary>Queues the validated daily screenshot-processing limit for immediate persistence.</summary>
@@ -471,20 +471,42 @@ public sealed partial class OptionsControl : UserControl
     /// <summary>Forwards the explicit connection-test intent to the owning Mica dialog coordinator.</summary>
     private void TestConnectionButton_Click(object sender, RoutedEventArgs e) => AiConnectionTestRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Applies provider defaults as presentation convenience only.</summary>
-    private void AiProviderBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>Persists the selected connection path through the application facade.</summary>
+    private async void AiConnection_Checked(object sender, RoutedEventArgs e)
     {
-        var provider = SelectedTag(AiProviderBox, "openai");
-        if (IsDefaultOrKnownEndpoint(AiEndpointBox.Text)) AiEndpointBox.Text = DefaultEndpoint(provider);
-        if (IsDefaultOrKnownApiKeyName(AiApiKeyNameBox.Text)) AiApiKeyNameBox.Text = DefaultApiKeyName(provider);
-        QueueAutoSave(
-            new Dictionary<string, string?>
-            {
-                ["ai.provider"] = provider,
-                ["ai.endpoint"] = AiEndpointBox.Text.Trim(),
-                ["ai.key_variable"] = AiApiKeyNameBox.Text.Trim()
-            },
-            refreshAiState: true);
+        if (!CanAutoSave) return;
+        var provider = CodexCliRadioButton.IsChecked == true ? "codex-cli" : "openai";
+        if (provider == _lastPersistedSettings?.AiProvider) return;
+        ApiKeyBox.Password = string.Empty;
+        CodexCliRadioButton.IsEnabled = false;
+        OpenAiApiRadioButton.IsEnabled = false;
+        try
+        {
+            QueueAutoSave("ai.provider", provider, refreshAiState: true);
+            await _autoSaveQueue;
+        }
+        finally
+        {
+            CodexCliRadioButton.IsEnabled = true;
+            OpenAiApiRadioButton.IsEnabled = true;
+        }
+    }
+
+    private async void CodexGuide_Click(object sender, RoutedEventArgs e) => await OpenAiSetupLinkAsync("codex-guide");
+
+    private async void OpenAiGetKey_Click(object sender, RoutedEventArgs e) => await OpenAiSetupLinkAsync("openai-keys");
+
+    private async Task OpenAiSetupLinkAsync(string link)
+    {
+        if (_application is null) return;
+        var result = await _application.OpenProductLinkAsync(link, CancellationToken.None);
+        if (!result.Succeeded) ShowStatus(T(result.MessageKey));
+    }
+
+    private async void CodexRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        if (_aiState is not null) await _aiState.LoadAsync(CancellationToken.None);
+        UpdateAiConnectionPresentation();
     }
 
     /// <summary>Renders the confirmed application preferences without resubmitting edits.</summary>
@@ -507,9 +529,9 @@ public sealed partial class OptionsControl : UserControl
             SearchTypoToleranceSwitch.IsOn = settings.SearchTypoToleranceEnabled;
             StartWithWindowsSwitch.IsOn = settings.StartWithWindows;
             StartTrackingOnLaunchSwitch.IsOn = settings.StartTrackingOnLaunch;
-            SelectTag(AiProviderBox, settings.AiProvider, "openai");
-            AiEndpointBox.Text = string.IsNullOrWhiteSpace(settings.AiEndpoint) ? DefaultEndpoint(settings.AiProvider) : settings.AiEndpoint;
-            AiApiKeyNameBox.Text = string.IsNullOrWhiteSpace(settings.AiApiKeyName) ? DefaultApiKeyName(settings.AiProvider) : settings.AiApiKeyName;
+            CodexCliRadioButton.IsChecked = settings.AiProvider == "codex-cli";
+            OpenAiApiRadioButton.IsChecked = settings.AiProvider == "openai";
+            UpdateAiConnectionPresentation();
             SelectTag(AiOutputDetailBox, settings.AiOutputDetail, "balanced");
             SelectTag(AiReasoningEffortBox, settings.AiReasoningEffort, "auto");
             SelectTag(LanguageBox, settings.UiLanguage, "system");
@@ -586,8 +608,6 @@ public sealed partial class OptionsControl : UserControl
         ShowAiMonthlySpendSwitch.Toggled += (_, _) => QueueAutoSave(
             "ai.show_monthly_spend",
             ShowAiMonthlySpendSwitch.IsOn ? "true" : "false");
-        AiEndpointBox.LostFocus += (_, _) => QueueAutoSave("ai.endpoint", AiEndpointBox.Text.Trim(), refreshAiState: true);
-        AiApiKeyNameBox.LostFocus += (_, _) => QueueAutoSave("ai.key_variable", AiApiKeyNameBox.Text.Trim(), refreshAiState: true);
     }
 
     /// <summary>Persists a valid reasoning effort only with the currently selected, image-capable model.</summary>
@@ -754,6 +774,8 @@ public sealed partial class OptionsControl : UserControl
         if (e.PropertyName is nameof(AiApplicationState.HasKey)
             or nameof(AiApplicationState.CanEnable)
             or nameof(AiApplicationState.Enabled)
+            or nameof(AiApplicationState.Provider)
+            or nameof(AiApplicationState.CodexCliInstalled)
             or nameof(AiApplicationState.IsStatusUnavailable))
         {
             UpdateApiKeyPresentation();
@@ -767,13 +789,14 @@ public sealed partial class OptionsControl : UserControl
 
     private void UpdateApiKeyPresentation()
     {
+        UpdateAiConnectionPresentation();
         AutomationProperties.SetName(OpenAiEnabledSwitch, T("Options.OpenAi.Header"));
         AutomationProperties.SetHelpText(
             OpenAiEnabledSwitch,
             _aiState is null || _aiState.IsStatusUnavailable
-                ? T("Options.ApiKeyStatus.Unavailable")
+                ? T(_lastPersistedSettings?.AiProvider == "codex-cli" ? "Options.Codex.Unavailable" : "Options.ApiKeyStatus.Unavailable")
                 : !_aiState.CanEnable && !_aiState.Enabled
-                    ? T("Options.OpenAi.KeyRequired")
+                    ? T(_aiState.Provider == "codex-cli" ? "Options.Codex.Missing" : "Options.OpenAi.KeyRequired")
                     : string.Empty);
 
         var (messageKey, glyph, visualState, actionKey) = _aiState switch
@@ -854,13 +877,17 @@ public sealed partial class OptionsControl : UserControl
 
     private static void SelectTag(ComboBox comboBox, string value, string fallback) => comboBox.SelectedItem = comboBox.Items.OfType<ComboBoxItem>().FirstOrDefault(item => Equals(item.Tag, value)) ?? comboBox.Items.OfType<ComboBoxItem>().FirstOrDefault(item => Equals(item.Tag, fallback));
 
-    private static string DefaultEndpoint(string provider) => SettingsCatalog.GetDefaultEndpoint(provider);
-
-    private static string DefaultApiKeyName(string provider) => SettingsCatalog.GetDefaultApiKeyVariable(provider);
-
-    private static bool IsDefaultOrKnownEndpoint(string? endpoint) => string.IsNullOrWhiteSpace(endpoint) || endpoint is "https://api.openai.com/v1/responses" or "https://openrouter.ai/api/v1/chat/completions" or "https://api.anthropic.com/v1/messages";
-
-    private static bool IsDefaultOrKnownApiKeyName(string? keyName) => string.IsNullOrWhiteSpace(keyName) || keyName.Trim() is "WORKTRAIL_OPENAI_APIKEY" or "OPENAI_API_KEY" or "OPENROUTER_API_KEY" or "ANTHROPIC_API_KEY";
+    private void UpdateAiConnectionPresentation()
+    {
+        var usesCli = _lastPersistedSettings?.AiProvider == "codex-cli";
+        CodexOptionsPanel.Visibility = usesCli ? Visibility.Visible : Visibility.Collapsed;
+        ApiOptionsPanel.Visibility = usesCli ? Visibility.Collapsed : Visibility.Visible;
+        AiReasoningEffortBox.Visibility = usesCli ? Visibility.Collapsed : Visibility.Visible;
+        CodexStatusText.Text = T(_aiState is null || _aiState.IsStatusUnavailable ? "Options.Codex.Unavailable"
+            : _aiState.CodexCliInstalled ? "Options.Codex.Installed" : "Options.Codex.Missing");
+        AutomationProperties.SetName(CodexCliRadioButton, T("Options.Codex.Label"));
+        AutomationProperties.SetName(OpenAiApiRadioButton, T("Options.OpenAi.Label"));
+    }
 }
 
 internal sealed class AiModelOption(AiModelDescriptor descriptor, SolidColorBrush accentBrush)

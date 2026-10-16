@@ -319,7 +319,7 @@ public sealed record AiScreenshotReprocessPlan(
     int RemainingDailyAllowance,
     int ProcessableTodayCaptureCount,
     int ProcessableTodayScreenshotCount,
-    decimal EstimatedMaximumCostTodayUsd,
+    decimal? EstimatedMaximumCostTodayUsd,
     string Provider,
     string Model,
     bool CanStart,
@@ -386,7 +386,17 @@ public sealed record WindowState(
     int Y,
     int Width,
     int Height,
-    string MonitorDeviceName);
+    string MonitorDeviceName)
+{
+    /// <summary>Gets the effective window DPI; zero identifies a legacy physical-pixel placement.</summary>
+    public uint Dpi { get; init; }
+
+    /// <summary>Gets the work area used to retain monitor-relative offsets after topology changes.</summary>
+    public WindowWorkArea? MonitorWorkArea { get; init; }
+
+    /// <summary>Gets the monitor device interface identity when Windows exposes one.</summary>
+    public string? MonitorId { get; init; }
+}
 
 /// <summary>Identifies the retained screenshot whose existing OCR metadata belongs in the restored text window.</summary>
 public sealed record OcrTextWindowSource(string ScreenshotPath, DateTimeOffset CapturedAt);
@@ -407,6 +417,33 @@ public readonly record struct WindowWorkArea(int X, int Y, int Width, int Height
 /// <summary>Calculates safe window bounds without depending on a windowing API.</summary>
 public static class WindowStateCalculator
 {
+    /// <summary>Retains logical size and monitor-relative position across DPI and display-layout changes.</summary>
+    public static WindowState RebaseToMonitor(
+        WindowState state, WindowWorkArea workArea, string monitorDeviceName, uint dpi,
+        WindowMinimumSize minimumSize)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (dpi == 0) throw new ArgumentOutOfRangeException(nameof(dpi));
+        if (state.Width <= 0 || state.Height <= 0 || minimumSize.Width <= 0 || minimumSize.Height <= 0)
+            throw new InvalidOperationException("Persisted window state or minimum size is invalid.");
+        var ratio = state.Dpi == 0 ? 1d : (double)dpi / state.Dpi;
+        var source = state.MonitorWorkArea;
+        var rebased = state with
+        {
+            X = source is { } oldAreaX ? Round(workArea.X + ((double)state.X - oldAreaX.X) * ratio) : state.X,
+            Y = source is { } oldAreaY ? Round(workArea.Y + ((double)state.Y - oldAreaY.Y) * ratio) : state.Y,
+            Width = Math.Max(1, Round(state.Width * ratio)),
+            Height = Math.Max(1, Round(state.Height * ratio)),
+            Dpi = dpi,
+            MonitorWorkArea = workArea
+        };
+        return ClampToWorkArea(rebased, workArea, monitorDeviceName,
+            Math.Max(1, Round(Math.Ceiling(minimumSize.Width * dpi / 96d))),
+            Math.Max(1, Round(Math.Ceiling(minimumSize.Height * dpi / 96d))));
+    }
+
+    private static int Round(double value) => (int)Math.Clamp(Math.Round(value), int.MinValue, int.MaxValue);
+
     /// <summary>Clamps a saved placement to the supplied monitor work area and minimum usable size.</summary>
     public static WindowState ClampToWorkArea(
         WindowState state,
@@ -548,7 +585,11 @@ public sealed record AtomicResetRequest(bool FirstConfirmation, bool FinalConfir
 public sealed record AtomicResetPlan(string DataDirectory, string ScreenshotDirectory, string ExecutablePath);
 
 /// <summary>Describes safe, non-secret AI configuration state.</summary>
-public sealed record AiStatus(bool Enabled, string Provider, string Model, string Endpoint, string KeyVariable, bool HasKey, bool CanEnable, AnalysisCostGate CostGate);
+public sealed record AiStatus(bool Enabled, string Provider, string Model, string Endpoint, string KeyVariable, bool HasKey, bool CanEnable, AnalysisCostGate CostGate)
+{
+    /// <summary>Reports executable discovery only, without claiming authentication or model access.</summary>
+    public bool CodexCliInstalled { get; init; }
+}
 
 /// <summary>Contains a simplified cached provider price for presentation surfaces.</summary>
 public sealed record AiPricingCostRow(string Model, decimal InputUsdPerMillionTokens, decimal OutputUsdPerMillionTokens);

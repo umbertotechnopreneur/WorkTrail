@@ -157,9 +157,9 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
             remainingAllowance,
             processable.Length,
             processable.Sum(candidate => candidate.ScreenshotPaths.Count),
-            processable.Length * settings.EstimatedCostPerAnalysisUsd,
+            settings.AiProvider == "codex-cli" ? null : processable.Length * settings.EstimatedCostPerAnalysisUsd,
             settings.AiProvider,
-            settings.Model,
+            settings.AiProvider == "codex-cli" ? "codex-default" : settings.Model,
             blockingReason is null,
             blockingReason,
             activeJob?.JobId);
@@ -828,7 +828,9 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
                 SafeToken(item.CaptureId),
                 exception.Failure.FailureCode,
                 exception.Failure.HttpStatusCode);
-            CheckpointItem(item with { AttemptCount = attemptCount }, "failed", "ai.provider.failed", incrementAttempt: false);
+            var failureCode = exception.Failure.FailureCode.StartsWith("codex.", StringComparison.Ordinal)
+                ? exception.Failure.FailureCode : "ai.provider.failed";
+            CheckpointItem(item with { AttemptCount = attemptCount }, "failed", failureCode, incrementAttempt: false);
         }
         catch (InvalidOperationException) when (attemptStarted)
         {
@@ -958,7 +960,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
     {
         var model = string.Equals(settings.AiProvider, "openai", StringComparison.OrdinalIgnoreCase)
             ? _canonicalizeModel(settings.Model)
-            : settings.Model.Trim();
+            : settings.AiProvider == "codex-cli" ? "codex-default" : settings.Model.Trim();
         var source = string.Join(
             '\n',
             settings.AiProvider.Trim().ToLowerInvariant(),

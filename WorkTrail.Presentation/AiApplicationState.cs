@@ -26,6 +26,8 @@ public sealed class AiApplicationState : ViewModelBase
 {
     private readonly IWorkTrailApplication _application;
     private bool _enabled;
+    private string _provider = "openai";
+    private bool _codexCliInstalled;
     private bool _hasKey;
     private bool _canEnable;
     private bool _canToggle;
@@ -41,10 +43,16 @@ public sealed class AiApplicationState : ViewModelBase
     /// <summary>Gets whether AI integration is currently enabled.</summary>
     public bool Enabled { get => _enabled; private set => Set(ref _enabled, value); }
 
+    /// <summary>Gets the selected AI connection path.</summary>
+    public string Provider { get => _provider; private set => Set(ref _provider, value); }
+
+    /// <summary>Gets whether the application found a Codex CLI installation, independently of its login.</summary>
+    public bool CodexCliInstalled { get => _codexCliInstalled; private set => Set(ref _codexCliInstalled, value); }
+
     /// <summary>Gets whether the configured environment variable contains any key value.</summary>
     public bool HasKey { get => _hasKey; private set => Set(ref _hasKey, value); }
 
-    /// <summary>Gets whether the configured key is plausible enough to allow AI activation.</summary>
+    /// <summary>Gets whether the selected transport has its local prerequisite: a plausible key or an installed CLI.</summary>
     public bool CanEnable { get => _canEnable; private set => Set(ref _canEnable, value); }
 
     /// <summary>Gets whether the toggle may be used to enable AI or to turn off an already-enabled invalid state.</summary>
@@ -150,11 +158,13 @@ public sealed class AiApplicationState : ViewModelBase
     private void Apply(AiStatus status)
     {
         Enabled = status.Enabled;
+        Provider = status.Provider;
+        CodexCliInstalled = status.CodexCliInstalled;
         HasKey = status.HasKey;
         CanEnable = status.CanEnable;
         IsStatusUnavailable = false;
-        IsKeyMissing = !status.HasKey;
-        HasInvalidKey = status.HasKey && !status.CanEnable;
+        IsKeyMissing = status.Provider != "codex-cli" && !status.HasKey;
+        HasInvalidKey = status.Provider != "codex-cli" && status.HasKey && !status.CanEnable;
         CostGate = status.CostGate;
         UpdateCanToggle();
     }
@@ -162,6 +172,7 @@ public sealed class AiApplicationState : ViewModelBase
     private void MarkUnavailable()
     {
         IsStatusUnavailable = true;
+        CodexCliInstalled = false;
         HasKey = false;
         CanEnable = false;
         IsKeyMissing = false;

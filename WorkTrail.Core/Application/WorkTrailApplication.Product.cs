@@ -63,6 +63,7 @@ public sealed partial class WorkTrailApplication
             "openweather-pricing" => "https://openweathermap.org/price",
             "openai-keys" => "https://platform.openai.com/api-keys",
             "openai-guide" => "https://developers.openai.com/api/docs/quickstart",
+            "codex-guide" => "https://developers.openai.com/codex/cli",
             "openai-pricing" => "https://developers.openai.com/api/docs/pricing",
             "openrouter-keys" => "https://openrouter.ai/settings/keys",
             "openrouter-guide" => "https://openrouter.ai/docs/quickstart",

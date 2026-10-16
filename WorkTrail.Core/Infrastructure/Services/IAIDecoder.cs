@@ -35,7 +35,7 @@ public sealed record AiProviderRequestOptions(
 public interface IAIDecoder
 {
     /// <summary>
-    /// Provider identifier ("openai", "openrouter", "anthropic").
+    /// Provider identifier ("openai" or "codex-cli").
     /// </summary>
     string Provider { get; }
 

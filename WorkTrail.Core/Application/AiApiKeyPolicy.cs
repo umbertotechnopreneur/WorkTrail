@@ -28,8 +28,6 @@ public static class AiApiKeyPolicy
     public static bool LooksPlausible(string? provider, string? keyVariable, string? secret) => provider?.ToLowerInvariant() switch
     {
         "openai" when IsVariable(keyVariable, "OPENAI_API_KEY", "WORKTRAIL_OPENAI_APIKEY") => LooksLikeOpenAiApiKey(secret),
-        "openrouter" when IsVariable(keyVariable, "OPENROUTER_API_KEY") => HasOpaqueSecretShape(secret),
-        "anthropic" when IsVariable(keyVariable, "ANTHROPIC_API_KEY") => HasOpaqueSecretShape(secret),
         _ => false
     };
 
@@ -37,7 +35,6 @@ public static class AiApiKeyPolicy
     public static bool LooksPlausibleForVariable(string? keyVariable, string? secret) => keyVariable?.ToUpperInvariant() switch
     {
         "OPENAI_API_KEY" or "WORKTRAIL_OPENAI_APIKEY" => LooksLikeOpenAiApiKey(secret),
-        "OPENROUTER_API_KEY" or "ANTHROPIC_API_KEY" => HasOpaqueSecretShape(secret),
         _ => false
     };
 

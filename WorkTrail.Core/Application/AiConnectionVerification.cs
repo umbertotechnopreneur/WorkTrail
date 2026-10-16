@@ -34,8 +34,8 @@ internal sealed class AiConnectionVerification
         Volatile.Write(ref _fingerprint, Fingerprint(settings, secret));
 
     internal bool Matches(AppSettings settings, string? secret) =>
-        !string.IsNullOrEmpty(secret)
-        && string.Equals(Volatile.Read(ref _fingerprint), Fingerprint(settings, secret), StringComparison.Ordinal);
+        (settings.AiProvider == "codex-cli" ? secret == string.Empty : !string.IsNullOrEmpty(secret))
+        && string.Equals(Volatile.Read(ref _fingerprint), Fingerprint(settings, secret ?? string.Empty), StringComparison.Ordinal);
 
     private static string Fingerprint(AppSettings settings, string secret) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new[]

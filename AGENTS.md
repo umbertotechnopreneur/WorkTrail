@@ -2,12 +2,6 @@
 
 These instructions apply to every change in this repository.
 
-## Current feature freeze: September 21-November 15, 2026
-
-- Through November 15, 2026 inclusive, accept only maintenance, stability, performance, documentation corrections, and polish of existing UI. Do not add capabilities or workflows.
-- If the owner requests a feature, remind them of the freeze and suggest deferring it. Proceed only after the owner explicitly grants an exception or ends the freeze.
-- The freeze does not waive approval requirements for tests, builds, Git delivery, installation, or publication.
-
 ## Product and documentation
 
 - Follow the [MeUp style guide](docs/assets/meup/README.md). Keep a common README structure and author signature across AgentInbox, PromptMeUp, and WorkTrail while giving each a distinct accent and concrete benefit.

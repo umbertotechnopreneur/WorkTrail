@@ -214,7 +214,12 @@ public sealed class WindowStateService
         var handle = new IntPtr(windowHandle);
         var monitor = GetMonitorForWindow(handle);
         var rect = GetNormalWindowRect(handle, monitor);
-        var state = new WindowState(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top, monitor.DeviceName);
+        var state = new WindowState(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top, monitor.DeviceName)
+        {
+            Dpi = ReadWindowDpi(handle),
+            MonitorWorkArea = monitor.WorkArea,
+            MonitorId = monitor.DeviceId
+        };
         if (state.Width <= 0 || state.Height <= 0)
         {
             throw new InvalidOperationException("The native window returned invalid bounds.");
@@ -245,22 +250,42 @@ public sealed class WindowStateService
         var handle = new IntPtr(windowHandle);
         var currentMonitor = GetMonitorForWindow(handle);
         var monitors = EnumerateMonitors();
-        var targetMonitor = monitors.FirstOrDefault(candidate => candidate.DeviceName.Equals(savedState.MonitorDeviceName, StringComparison.OrdinalIgnoreCase)) ?? currentMonitor;
-        // A removed or renamed monitor is an expected topology change; the documented fallback is the current monitor.
+        // Device identity takes precedence over DISPLAY1/2, whose numbering can change after docking.
+        var targetMonitor = (!string.IsNullOrWhiteSpace(savedState.MonitorId)
+            ? monitors.FirstOrDefault(candidate => string.Equals(candidate.DeviceId, savedState.MonitorId, StringComparison.OrdinalIgnoreCase))
+            : monitors.FirstOrDefault(candidate => candidate.DeviceName.Equals(savedState.MonitorDeviceName, StringComparison.OrdinalIgnoreCase)))
+            ?? monitors.FirstOrDefault(candidate => candidate.IsPrimary) ?? currentMonitor;
         var minimumSize = GetMinimumSize(windowKey);
-        var safeState = WindowStateCalculator.ClampToWorkArea(
-            savedState,
-            targetMonitor.WorkArea,
-            targetMonitor.DeviceName,
-            minimumSize.Width,
-            minimumSize.Height);
+        // Move to the target before querying effective HWND DPI. The final bounds replace native
+        // WM_DPICHANGED suggestions, so saved dimensions are scaled exactly once.
+        if (!string.Equals(currentMonitor.DeviceName, targetMonitor.DeviceName, StringComparison.OrdinalIgnoreCase))
+        {
+            var landing = WindowStateCalculator.ClampToWorkArea(
+                savedState with { X = targetMonitor.WorkArea.X, Y = targetMonitor.WorkArea.Y },
+                targetMonitor.WorkArea, targetMonitor.DeviceName);
+            ApplyBounds(handle, landing);
+        }
+        var safeState = WindowStateCalculator.RebaseToMonitor(
+            savedState, targetMonitor.WorkArea, targetMonitor.DeviceName, ReadWindowDpi(handle), minimumSize)
+            with
+        { MonitorId = targetMonitor.DeviceId };
         // Geometry restoration must retain visibility, including a main window intentionally hidden in the notification area.
-        if (!SetWindowPos(handle, IntPtr.Zero, safeState.X, safeState.Y, safeState.Width, safeState.Height, SetWindowPosNoActivate | SetWindowPosNoZOrder))
+        ApplyBounds(handle, safeState);
+        return safeState;
+    }
+
+    private static void ApplyBounds(IntPtr handle, WindowState state)
+    {
+        if (!SetWindowPos(handle, IntPtr.Zero, state.X, state.Y, state.Width, state.Height, SetWindowPosNoActivate | SetWindowPosNoZOrder))
         {
             throw new InvalidOperationException($"Unable to restore window bounds (Win32 error {Marshal.GetLastWin32Error()}).");
         }
+    }
 
-        return safeState;
+    private static uint ReadWindowDpi(IntPtr handle)
+    {
+        var dpi = GetDpiForWindow(handle);
+        return dpi != 0 ? dpi : throw new InvalidOperationException("Unable to read the window DPI.");
     }
 
     private static void ValidateRequest(string windowKey, long windowHandle)
@@ -276,7 +301,9 @@ public sealed class WindowStateService
     private static void ValidatePersistedState(WindowState state)
     {
         ArgumentNullException.ThrowIfNull(state);
-        if (state.Width <= 0 || state.Height <= 0 || string.IsNullOrWhiteSpace(state.MonitorDeviceName))
+        if (state.Width <= 0 || state.Height <= 0 || string.IsNullOrWhiteSpace(state.MonitorDeviceName)
+            || state.Dpi > 960 || (state.Dpi != 0 && state.Dpi < 48)
+            || state.MonitorWorkArea is { Width: <= 0 } or { Height: <= 0 })
         {
             throw new InvalidOperationException("Persisted window state is invalid.");
         }
@@ -318,10 +345,14 @@ public sealed class WindowStateService
         }
 
         var work = monitorInfo.WorkArea;
+        var device = new DisplayDevice { Size = (uint)Marshal.SizeOf<DisplayDevice>() };
+        // Virtual/remote displays may not expose interface identity; preserve the GDI name as a legacy fallback.
+        var deviceId = EnumDisplayDevices(monitorInfo.DeviceName, 0, ref device, 1)
+            && !string.IsNullOrWhiteSpace(device.DeviceId) ? device.DeviceId : null;
         return new NativeMonitor(
             monitorInfo.DeviceName,
             new WindowWorkArea(work.Left, work.Top, work.Right - work.Left, work.Bottom - work.Top),
-            monitorInfo.MonitorArea);
+            monitorInfo.MonitorArea, deviceId, (monitorInfo.Flags & 1) != 0);
     }
 
     private static NativeRect GetNormalWindowRect(IntPtr handle, NativeMonitor monitor)
@@ -369,7 +400,18 @@ public sealed class WindowStateService
         return rect;
     }
 
-    private sealed record NativeMonitor(string DeviceName, WindowWorkArea WorkArea, NativeRect MonitorArea);
+    private sealed record NativeMonitor(string DeviceName, WindowWorkArea WorkArea, NativeRect MonitorArea, string? DeviceId, bool IsPrimary);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DisplayDevice
+    {
+        public uint Size;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceString;
+        public uint StateFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceId;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
@@ -411,6 +453,13 @@ public sealed class WindowStateService
     }
 
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr monitorRect, IntPtr data);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr handle);
+
+    [DllImport("user32.dll", EntryPoint = "EnumDisplayDevicesW", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumDisplayDevices(string deviceName, uint deviceIndex, ref DisplayDevice device, uint flags);
 
     [DllImport("user32.dll", EntryPoint = "EnumDisplayMonitors", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

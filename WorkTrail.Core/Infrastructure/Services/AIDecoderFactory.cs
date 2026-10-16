@@ -37,10 +37,9 @@ public static class AIDecoderFactory
         var provider = (settings.AiProvider ?? "openai").ToLowerInvariant();
         return provider switch
         {
-            "openai" or "open-ai" => new OpenAiDecoder(),
-            "openrouter" => new OpenRouterDecoder(),
-            "anthropic" => new AnthropicDecoder(),
-            _ => throw new InvalidOperationException($"Provider AI '{provider}' non supportato. Valori validi: openai, openrouter, anthropic."),
+            "openai" => new OpenAiDecoder(),
+            "codex-cli" => new CodexCliDecoder(),
+            _ => throw new InvalidOperationException($"Unsupported AI provider '{provider}'. Choose openai or codex-cli."),
         };
     }
 }

@@ -30,6 +30,26 @@ namespace WorkTrail.Presentation.Tests;
 
 public sealed class AiApplicationStateTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CliState_UsesInstallationStatusWithoutRequestingAnApiKey(bool installed)
+    {
+        var application = DispatchProxy.Create<IWorkTrailApplication, RecordingAiApplicationProxy>();
+        var recorder = (RecordingAiApplicationProxy)(object)application;
+        recorder.SetCliStatus(installed);
+        var state = new AiApplicationState(application);
+
+        await state.LoadAsync(CancellationToken.None);
+
+        Assert.Equal("codex-cli", state.Provider);
+        Assert.Equal(installed, state.CodexCliInstalled);
+        Assert.Equal(installed, state.CanToggle);
+        Assert.False(state.HasKey);
+        Assert.False(state.IsKeyMissing);
+        Assert.False(state.HasInvalidKey);
+    }
+
     [Fact]
     public async Task SharedState_RefreshesBindingsAfterKeyAndEnabledChanges()
     {
@@ -123,6 +143,14 @@ public sealed class AiApplicationStateTests
         public bool FailNextStatusRead { get; set; }
 
         public bool HoldEnable { get; set; }
+
+        public void SetCliStatus(bool installed) => _status = _status with
+        {
+            Provider = "codex-cli",
+            CodexCliInstalled = installed,
+            HasKey = false,
+            CanEnable = installed
+        };
 
         public void CompleteEnable(bool enabled)
         {

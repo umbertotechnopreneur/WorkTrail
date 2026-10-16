@@ -2520,7 +2520,7 @@ public sealed partial class MainWindow : Window
 
         if (_mainPlacementRestored)
         {
-            var scale = RootGrid.XamlRoot!.RasterizationScale;
+            var scale = WindowInteropService.GetRasterizationScale(WinRT.Interop.WindowNative.GetWindowHandle(this));
             _layoutState.RecordManualSize(_appWindow.Size.Width / scale, _appWindow.Size.Height / scale);
         }
 
@@ -2689,7 +2689,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Calculates the physical AppWindow size for one logical content height.</summary>
     private SizeInt32 GetPhysicalWindowSize(int logicalHeight)
     {
-        var scale = Math.Max(0.1d, RootGrid.XamlRoot?.RasterizationScale ?? _rasterizationScale);
+        var scale = WindowInteropService.GetRasterizationScale(WinRT.Interop.WindowNative.GetWindowHandle(this));
         _rasterizationScale = scale;
 
         var workArea = CurrentWorkArea();
@@ -2708,7 +2708,7 @@ public sealed partial class MainWindow : Window
     {
         get
         {
-            var scale = RootGrid.XamlRoot?.RasterizationScale ?? _rasterizationScale;
+            var scale = WindowInteropService.GetRasterizationScale(WinRT.Interop.WindowNative.GetWindowHandle(this));
             var availableWidth = Math.Max(1d, CurrentWorkArea().Width / scale - LogicalScreenMargin * 2);
             var preferredWidth = _layoutState.Surface == MainWindowSurface.Player
                 ? LogicalWindowWidth
