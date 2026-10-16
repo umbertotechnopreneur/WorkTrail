@@ -60,6 +60,9 @@ public sealed class DialogSessionQueue
     {
         private SemaphoreSlim? _gate = gate;
 
+        /// <summary>
+        /// Releases the modal slot exactly once.
+        /// </summary>
         public void Dispose() => Interlocked.Exchange(ref _gate, null)?.Release();
     }
 }

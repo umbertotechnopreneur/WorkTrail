@@ -438,8 +438,11 @@ public sealed class TrackingDomainService : IDisposable
     {
         internal static DashboardSampleTimestampComparer Instance { get; } = new();
 
+        /// <summary>
+        /// Orders report samples by their stable reporting sequence.
+        /// </summary>
         public int Compare(ReportSourceSample? left, ReportSourceSample? right) =>
-            Nullable.Compare(left?.Timestamp, right?.Timestamp);
+                Nullable.Compare(left?.Timestamp, right?.Timestamp);
     }
 
     /// <summary>

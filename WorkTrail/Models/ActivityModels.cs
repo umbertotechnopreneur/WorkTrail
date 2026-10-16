@@ -23,6 +23,9 @@ using WorkTrail.Services;
 
 namespace WorkTrail;
 
+/// <summary>
+/// Represents one privacy-scoped foreground activity sample and its input counters.
+/// </summary>
 public sealed record ActivitySample(
     DateTimeOffset Timestamp,
     int DurationSeconds,
@@ -66,6 +69,9 @@ public static class ScreenshotCaptureOrigins
     };
 }
 
+/// <summary>
+/// Names the supported anchors for the compact main-window flyout.
+/// </summary>
 public static class FlyoutPositions
 {
     public const string BottomCenter = "bottom-center";
@@ -94,6 +100,9 @@ public sealed record ActiveHoursDay(
     string ActivePeriod = "",
     string BreakPeriods = "");
 
+/// <summary>
+/// Stores the persisted user-configurable settings for WorkTrail.
+/// </summary>
 public sealed record AppSettings(
     string InstallationId = "",
     string Model = "gpt-5.6",
@@ -167,6 +176,9 @@ public sealed record AppSettings(
     bool NotificationsEnabled = true,
     int HistoryWarningMegabytes = 1024);
 
+/// <summary>
+/// Represents one saved AI analysis and its privacy-scoped provenance.
+/// </summary>
 public sealed record AiAnalysis(
     DateTimeOffset Timestamp,
     string Application,
@@ -180,8 +192,14 @@ public sealed record AiAnalysis(
     string? InformationalSchedule = null,
     IReadOnlyList<WorkTrail.Application.ScreenshotTextSnapshot>? TextSnapshots = null);
 
+/// <summary>
+/// Summarizes active time for one application.
+/// </summary>
 public sealed record ApplicationSummary(string Application, long ActiveSeconds);
 
+/// <summary>
+/// Summarizes one day of activity, idle time, input counts, and applications.
+/// </summary>
 public sealed record DailySummary(long ActiveSeconds, long IdleSeconds, long KeyPresses, long MouseClicks, IReadOnlyList<ApplicationSummary> Applications);
 
 /// <summary>Describes the local daily guardrail for visual requests sent to the configured AI provider.</summary>
@@ -222,6 +240,9 @@ public sealed record ActivityScoreState(
     ActivityScoreInterval PreviousSnapshotInterval,
     ActivityScoreInterval LatestSnapshotInterval);
 
+/// <summary>
+/// Represents the bounded live state rendered by subscribed WorkTrail surfaces.
+/// </summary>
 public sealed record DashboardState(
     string StatusLabel,
     string CurrentContext,
@@ -253,6 +274,9 @@ public sealed record DashboardState(
 /// <summary>Describes a retained manual screenshot that can be deleted before deferred analysis begins.</summary>
 public sealed record PendingManualScreenshotState(string ScreenshotPath, DateTimeOffset ExpiresAt);
 
+/// <summary>
+/// Represents the latest persisted activity session for dashboard restoration.
+/// </summary>
 public sealed record LastSessionState(
     DateTimeOffset? Timestamp,
     string Application,
@@ -262,6 +286,9 @@ public sealed record LastSessionState(
     string? ScreenshotPath,
     DateTimeOffset? ScreenshotCapturedAt);
 
+/// <summary>
+/// Captures the privacy-filtered activity context available to screenshot analysis.
+/// </summary>
 public sealed record AnalysisContextSnapshot(
     string Application,
     string Context,

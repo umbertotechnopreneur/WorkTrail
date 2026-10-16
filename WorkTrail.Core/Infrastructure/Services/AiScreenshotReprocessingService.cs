@@ -462,6 +462,9 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Stops the background reprocessing worker and releases its owned resources.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         Task liveOperationsDrained;

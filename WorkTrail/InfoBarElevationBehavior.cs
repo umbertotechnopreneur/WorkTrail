@@ -35,8 +35,14 @@ public static class InfoBarElevationBehavior
         typeof(InfoBarElevationBehavior),
         new PropertyMetadata(false, IsEnabledChanged));
 
+    /// <summary>
+    /// Gets whether the elevation behavior is enabled for an <see cref="InfoBar"/>.
+    /// </summary>
     public static bool GetIsEnabled(DependencyObject element) => (bool)element.GetValue(IsEnabledProperty);
 
+    /// <summary>
+    /// Enables or disables the elevation behavior for an <see cref="InfoBar"/>.
+    /// </summary>
     public static void SetIsEnabled(DependencyObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
     private static void IsEnabledChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)

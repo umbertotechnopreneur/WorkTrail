@@ -312,6 +312,9 @@ public sealed class ActivityMonitorService : IDisposable
         return unchecked((uint)Environment.TickCount - info.Time) / 1000;
     }
 
+    /// <summary>
+    /// Stops sampling and releases the activity-monitor timer.
+    /// </summary>
     public void Dispose()
     {
         Timer? timer;

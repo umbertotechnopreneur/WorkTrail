@@ -80,7 +80,9 @@ public sealed class DashboardRefreshCoordinator : IDisposable
         SignalRefresh();
     }
 
-    /// <summary>Stops the stream and detaches all presentation callbacks.</summary>
+    /// <summary>
+    /// Stops the stream and detaches all presentation callbacks.
+    /// </summary>
     public void Dispose()
     {
         CancellationTokenSource? cancellation;
@@ -291,6 +293,9 @@ public sealed class DashboardRefreshCoordinator : IDisposable
             }
         }
 
+        /// <summary>
+        /// Unsubscribes this surface from future dashboard updates.
+        /// </summary>
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _deactivated, 1) == 0)

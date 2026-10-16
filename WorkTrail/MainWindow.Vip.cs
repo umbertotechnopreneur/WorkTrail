@@ -23,10 +23,14 @@ using WorkTrail.Services;
 
 namespace WorkTrail;
 
+/// <summary>
+/// Handles VIP screenshot capture from the main window while reusing the normal analysis workflow.
+/// </summary>
 public sealed partial class MainWindow
 {
-    // sender identifies the VIP capture button.
-    // e contains the click notification.
+    /// <summary>
+    /// Starts the VIP screenshot capture flow after the main-window command is clicked.
+    /// </summary>
     private async void VipSnapshotButton_Click(object sender, RoutedEventArgs e) => await TakeVipSnapshotAsync();
 
     /// <summary>Runs the shared VIP capture flow from either the player or the tray menu.</summary>
