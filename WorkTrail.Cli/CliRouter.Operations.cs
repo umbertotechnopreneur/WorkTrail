@@ -23,8 +23,14 @@ using WorkTrail.Search;
 
 namespace WorkTrail.Cli;
 
+/// <summary>
+/// Routes command-line maintenance, reporting, and premium feature operations to the application boundary.
+/// </summary>
 public sealed partial class CliRouter
 {
+    /// <summary>
+    /// Confirms that the shared runtime currently permits command-line access.
+    /// </summary>
     private async Task<int?> CheckCliAccessAsync(CancellationToken cancellationToken)
     {
         // Always ask the shared runtime: settings, arguments and stale shell state cannot grant CLI access.
@@ -39,6 +45,9 @@ public sealed partial class CliRouter
             : WriteResult(OperationResult<object>.Failure("cli.premium.required", "CliPremiumRequired"));
     }
 
+    /// <summary>
+    /// Handles local-search status and query commands.
+    /// </summary>
     private async Task<int> SearchAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         if (arguments.Count == 2 && arguments[1].Equals("status", StringComparison.OrdinalIgnoreCase))
@@ -65,7 +74,7 @@ public sealed partial class CliRouter
             return InvalidArguments("text");
         }
 
-        return await WriteAsync(_application.SearchAsync(new SearchRequest
+        var searchRequest = new SearchRequest
         {
             Text = text,
             Kinds = kind is null ? [] : [kind],
@@ -75,9 +84,14 @@ public sealed partial class CliRouter
             Offset = offset ?? 0,
             QueryLanguage = parsed.Value("--query-language"),
             IncludeTextContent = parsed.Contains("--include-text")
-        }, cancellationToken));
+        };
+
+        return await WriteAsync(_application.SearchAsync(searchRequest, cancellationToken));
     }
 
+    /// <summary>
+    /// Handles report requests for a validated date range, time zone, and view.
+    /// </summary>
     private async Task<int> ReportAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         if (!TryParseOptions(arguments, 1, [], ["--from", "--to", "--timezone", "--view"], out var parsed)
@@ -101,6 +115,9 @@ public sealed partial class CliRouter
             : await WriteAsync(_application.GetReportAsync(new ReportQuery(from, to, timeZone, view.Value), cancellationToken));
     }
 
+    /// <summary>
+    /// Handles world-clock catalog, list, and local-time conversion commands.
+    /// </summary>
     private async Task<int> WorldClockAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         if (arguments.Count == 2 && arguments[1].Equals("cities", StringComparison.OrdinalIgnoreCase))
@@ -145,6 +162,9 @@ public sealed partial class CliRouter
         return WriteResult(new OperationResult<object>(true, result.Code, result.MessageKey, value, result.Issues));
     }
 
+    /// <summary>
+    /// Handles screenshot gallery and deletion commands, requiring confirmation for destructive work.
+    /// </summary>
     private async Task<int> ScreenshotMaintenanceAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         switch (arguments[1].ToLowerInvariant())
@@ -182,6 +202,9 @@ public sealed partial class CliRouter
         }
     }
 
+    /// <summary>
+    /// Handles data-archive export, import preview, and confirmed import commands.
+    /// </summary>
     private async Task<int> DataAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         if (arguments.ElementAtOrDefault(1)?.Equals("export", StringComparison.OrdinalIgnoreCase) == true)
@@ -224,6 +247,9 @@ public sealed partial class CliRouter
         return InvalidArguments();
     }
 
+    /// <summary>
+    /// Handles AI screenshot-reprocessing previews, jobs, and confirmed resume actions.
+    /// </summary>
     private async Task<int> AiReprocessAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         var action = arguments.ElementAtOrDefault(2)?.ToLowerInvariant();
@@ -255,15 +281,27 @@ public sealed partial class CliRouter
         };
     }
 
-    private async Task<int> LogsAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken) => arguments.Count == 2
-        ? arguments[1].ToLowerInvariant() switch
+    /// <summary>
+    /// Handles commands that open the durable application log or its containing folder.
+    /// </summary>
+    private async Task<int> LogsAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        if (arguments.Count != 2)
+        {
+            return InvalidArguments();
+        }
+
+        return arguments[1].ToLowerInvariant() switch
         {
             "open" => await WriteAsync(_application.OpenApplicationLogAsync(cancellationToken)),
             "open-folder" => await WriteAsync(_application.OpenApplicationLogFolderAsync(cancellationToken)),
-            _ => InvalidArguments()
-        }
-        : InvalidArguments();
+            _ => InvalidArguments(),
+        };
+    }
 
+    /// <summary>
+    /// Handles reset previews and explicit destructive reset requests.
+    /// </summary>
     private async Task<int> ResetAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         if (arguments.Count == 2 && arguments[1].Equals("preview", StringComparison.OrdinalIgnoreCase))
@@ -292,17 +330,32 @@ public sealed partial class CliRouter
                 new { accepted = true, completionVerified = false }));
     }
 
+    /// <summary>
+    /// Determines whether a command has the global or per-command confirmation flag.
+    /// </summary>
     private bool Confirmed(ParsedOptions parsed) => _options.Yes || parsed.Contains("--yes");
 
+    /// <summary>
+    /// Returns the standard result for a destructive command that lacks confirmation.
+    /// </summary>
     private int ConfirmationRequired() => WriteResult(OperationResult<object>.Failure(
         "command.confirmation.required", "ConfirmationRequired",
         new ValidationIssue("confirmation", "required", "ConfirmationRequired")));
 
+    /// <summary>
+    /// Returns a standard preview result without applying a pending mutation.
+    /// </summary>
     private int Preview<T>(string code, T value) => WriteResult(OperationResult<T>.Success(code, "PreviewReady", value));
 
+    /// <summary>
+    /// Parses a date-only command-line value in the invariant ISO format.
+    /// </summary>
     private static bool TryDate(string? value, out DateOnly date) =>
         DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
 
+    /// <summary>
+    /// Parses an optional date-only command-line value.
+    /// </summary>
     private static bool TryOptionalDate(string? value, out DateOnly? date)
     {
         date = null;
@@ -312,19 +365,30 @@ public sealed partial class CliRouter
         return true;
     }
 
+    /// <summary>
+    /// Parses an optional ISO timestamp that carries an explicit offset or UTC marker.
+    /// </summary>
     private static bool TryOptionalInstant(string? value, out DateTimeOffset? instant)
     {
         instant = null;
         if (value is null) return true;
         // An explicit offset avoids depending on the CLI machine's local time zone for search bounds.
-        string[] formats = ["yyyy-MM-dd'T'HH:mm:sszzz", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'"];
+        string[] formats =
+        [
+            "yyyy-MM-dd'T'HH:mm:sszzz",
+            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'",
+        ];
         if (!DateTimeOffset.TryParseExact(value, formats, CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal, out var parsed)) return false;
         instant = parsed;
         return true;
     }
 
+    /// <summary>
+    /// Parses an optional invariant integer that meets the supplied minimum.
+    /// </summary>
     private static bool TryOptionalNumber(string? value, int minimum, out int? number)
     {
         number = null;
@@ -334,7 +398,13 @@ public sealed partial class CliRouter
         return true;
     }
 
+    /// <summary>
+    /// Parses a non-empty GUID in the canonical dashed format.
+    /// </summary>
     private static bool TryId(string? value, out Guid id) => Guid.TryParseExact(value, "D", out id) && id != Guid.Empty;
 
+    /// <summary>
+    /// Determines whether a command-line value names a fully qualified filesystem path.
+    /// </summary>
     private static bool IsAbsolutePath(string? value) => !string.IsNullOrWhiteSpace(value) && Path.IsPathFullyQualified(value);
 }
