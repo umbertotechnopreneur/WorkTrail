@@ -42,8 +42,6 @@ internal sealed partial class QuickSetupWindow : Window
     private readonly LocalizationService _strings;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly bool _firstRun;
-    private readonly string _providerName;
-    private readonly bool _usesCodexCli;
     private string _selectedProfileId;
     private bool _applying;
     private bool _aiVerified;
@@ -64,13 +62,6 @@ internal sealed partial class QuickSetupWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(ownerAppWindow);
         _firstRun = firstRun;
-        _usesCodexCli = settings.AiProvider == "codex-cli";
-        _providerName = settings.AiProvider.ToLowerInvariant() switch
-        {
-            "openai" => "OpenAI",
-            "codex-cli" => "Codex CLI",
-            _ => throw new InvalidOperationException("The configured AI provider is unsupported.")
-        };
         _strings = new LocalizationService(settings.UiLanguage);
         _selectedProfileId = firstRun ? QuickSetupProfileIds.Complete : InferProfile(settings);
 
@@ -115,7 +106,8 @@ internal sealed partial class QuickSetupWindow : Window
         UiLocalization.Apply(RootGrid, _strings);
         Title = T("QuickSetup.Title");
         PrimaryButton.Content = T(_firstRun ? "ProviderSetup.Continue" : "QuickSetup.Apply");
-        ApiSetupButton.Content = _providerName + " API";
+        ApiSetupButton.Content = T("ProviderSetup.Connection.Open");
+        AutomationProperties.SetName(ApiSetupButton, T("ProviderSetup.Connection.Open"));
         if (_firstRun) WelcomeText.Text = T("ProviderSetup.Welcome");
         AutomationProperties.SetName(PrimaryButton, PrimaryButton.Content?.ToString() ?? T("QuickSetup.Apply"));
         AutomationProperties.SetName(CompleteProfileButton, T("QuickSetup.Profile.Complete.Accessible"));
@@ -177,29 +169,6 @@ internal sealed partial class QuickSetupWindow : Window
 
     private async Task ShowApiSetupAsync(bool applyAfterVerification)
     {
-        if (_usesCodexCli)
-        {
-            _applying = true;
-            _aiVerified = false;
-            SetActionsEnabled(false);
-            try
-            {
-                var result = await _application.TestAiConnectionAsync(_lifetimeCancellation.Token);
-                if (_lifetimeCancellation.IsCancellationRequested) return;
-                _aiVerified = result.Succeeded;
-                ApplyInfoBar.Title = T(result.Succeeded ? "ProviderSetup.Success" : "QuickSetup.Error.Title");
-                ApplyInfoBar.Message = T(result.MessageKey);
-                ApplyInfoBar.IsOpen = true;
-                if (result.Succeeded && applyAfterVerification) await ApplyProfileAsync();
-            }
-            catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested) { }
-            finally
-            {
-                _applying = false;
-                if (!_lifetimeCancellation.IsCancellationRequested) SetActionsEnabled(true);
-            }
-            return;
-        }
         _applyAfterVerification = applyAfterVerification;
         _aiVerified = false;
         var setup = new ProviderKeySetupControl();

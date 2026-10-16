@@ -16,8 +16,10 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 - Persist window DPI, monitor interface identity and work-area-relative position.
   Rebase saved geometry when display DPI/layout changes, use the primary display
   when the saved monitor is absent, and avoid recentering already-restored dialogs.
-- Add focused decoder/settings and geometry regression cases. Builds, tests,
-  formatting, live provider calls and native multi-monitor validation were not run.
+- Add the same CLI/API choice to guided setup and compact the history storage and
+  date-range rows. Keep API-key editing separate from the keyless CLI connection.
+- C# whitespace verification and 1,032 Core, 390 Presentation and 162 CLI tests
+  passed. Native guided-setup, provider and multi-monitor validation remain pending.
 
 ## 2026-10-15
 

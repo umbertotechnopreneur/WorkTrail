@@ -1,4 +1,8 @@
 {
+  "ProviderSetup.Connection.Choose": "Scegli come collegare le funzioni AI. Puoi cambiare questa scelta in seguito.",
+  "ProviderSetup.Connection.Cli": "Accesso con ChatGPT. Non serve una chiave API.",
+  "ProviderSetup.Connection.Api": "La tua chiave API OpenAI. Consumi fatturati separatamente.",
+  "ProviderSetup.Connection.Open": "Provider AI",
   "Options.Codex.Label": "CLI · Codex",
   "Options.OpenAi.Label": "API · OpenAI",
   "Options.Codex.Description": "Usa l'accesso ChatGPT della CLI e il modello predefinito di Codex. Gli screenshot vengono inviati a OpenAI, non elaborati localmente. Si applicano i limiti del tuo account.",
@@ -998,7 +1002,7 @@
   "Options.AiQuota.Saved": "Limite giornaliero salvato.",
   "Options.AiQuota.Invalid": "Inserisci un numero intero da 0 a 400.",
   "Options.AiQuota.SaveError": "Impossibile salvare il limite giornaliero.",
-  "Options.AiProvider.Header": "Servizio AI",
+  "Options.AiProvider.Header": "Provider AI",
   "Options.AiEndpoint.Header": "Indirizzo del servizio",
   "Options.AiKeyVariable.Header": "Nome della chiave Windows",
   "Options.ApiKey.Header": "Chiave API",

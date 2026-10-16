@@ -1,4 +1,8 @@
 {
+  "ProviderSetup.Connection.Choose": "Elige cómo conectar las funciones de IA. Puedes cambiarlo después.",
+  "ProviderSetup.Connection.Cli": "Inicio de sesión de ChatGPT. Sin clave API.",
+  "ProviderSetup.Connection.Api": "Tu clave API de OpenAI. El uso se factura por separado.",
+  "ProviderSetup.Connection.Open": "Proveedor de IA",
   "Options.Codex.Label": "CLI · Codex",
   "Options.OpenAi.Label": "API · OpenAI",
   "Options.Codex.Description": "Usa tu inicio de sesión de ChatGPT en Codex CLI y el modelo predeterminado de Codex. Las capturas se envían a OpenAI, no se procesan localmente. Se aplican los límites de tu cuenta.",

@@ -358,6 +358,24 @@ public sealed class WorldClockWindowSurfaceContractTests
         });
     }
 
+    [Fact]
+    public void AiSetup_OffersApiAndCliWithinTheSameVerifiedSetupSurface()
+    {
+        var setup = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "ProviderKeySetupControl.xaml"));
+        var source = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "ProviderKeySetupControl.xaml.cs"));
+        var quickSetup = XDocument.Load(RepositoryFile("WorkTrail", "QuickSetupWindow.xaml"));
+        var selector = setup.Descendants().Single(element => HasName(element, "AiConnectionSelector"));
+        Assert.Equal(2, selector.Descendants().Count(element => element.Name.LocalName == "RadioButton"));
+        Assert.Contains(setup.Descendants(), element => HasName(element, "CodexPanel"));
+        Assert.Contains(setup.Descendants(), element => HasName(element, "ColumnsGrid"));
+        Assert.Contains("PatchSettingsAsync", source, StringComparison.Ordinal);
+        Assert.Contains("TestAiConnectionAsync", source, StringComparison.Ordinal);
+        Assert.Contains("if (_provider == \"codex-cli\") return;", source, StringComparison.Ordinal);
+        Assert.Contains(quickSetup.Descendants(), element => HasName(element, "ApiSetupButton")
+            && element.Attribute("Tag")?.Value == "ProviderSetup.Connection.Open");
+        Assert.DoesNotContain("ProviderSetup.FutureSupport", source, StringComparison.Ordinal);
+    }
+
     /// <summary>Verifies safe key masking, gated continuation, and explicit provider-validation feedback.</summary>
     [Fact]
     public void WeatherKeyConfiguration_UsesSafeMaskAndLocalizedValidationFeedback()

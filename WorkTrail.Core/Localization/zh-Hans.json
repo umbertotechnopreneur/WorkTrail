@@ -1,4 +1,8 @@
 {
+  "ProviderSetup.Connection.Choose": "选择 AI 功能的连接方式，之后可以更改。",
+  "ProviderSetup.Connection.Cli": "使用 ChatGPT 登录，无需 API 密钥。",
+  "ProviderSetup.Connection.Api": "使用 OpenAI API 密钥，费用单独结算。",
+  "ProviderSetup.Connection.Open": "AI 提供商",
   "Options.Codex.Label": "CLI · Codex",
   "Options.OpenAi.Label": "API · OpenAI",
   "Options.Codex.Description": "使用 Codex CLI 的 ChatGPT 登录和 Codex 默认模型。截图会发送至 OpenAI，而非在本地处理。受账户使用限额约束。",

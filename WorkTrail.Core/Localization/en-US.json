@@ -1,4 +1,8 @@
 {
+  "ProviderSetup.Connection.Choose": "Choose how to connect your AI features. You can change this later.",
+  "ProviderSetup.Connection.Cli": "ChatGPT sign-in. No API key needed.",
+  "ProviderSetup.Connection.Api": "Your OpenAI API key. Usage is billed separately.",
+  "ProviderSetup.Connection.Open": "AI provider",
   "Options.Codex.Label": "CLI · Codex",
   "Options.OpenAi.Label": "API · OpenAI",
   "Options.Codex.Description": "Use your Codex CLI ChatGPT sign-in and the default Codex model. Screenshots are sent to OpenAI, not processed locally. Your account usage limits apply.",

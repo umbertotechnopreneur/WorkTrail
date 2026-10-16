@@ -11,6 +11,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
+- Codex CLI screenshot descriptions using ChatGPT sign-in, with installation detection, setup guidance and actionable connection errors.
 - Inline history settings with a configurable storage warning (1 GB by default) and confirmed deletion of an inclusive date range.
 - Process memory monitoring with a 1 GiB limit, a native Windows warning before restart, logged recovery events, and preservation of the tracking state.
 - VibeWare symbol in CLI output, with a tracked source asset.
@@ -29,6 +30,8 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- AI settings offer CLI or API connections through Codex CLI or an OpenAI API key; switching connections requires explicit AI activation.
+- Guided setup offers the same CLI/API choice, and history settings keep storage controls and deletion dates on compact rows.
 - Free history is retained for one calendar month; Premium can retain one to twelve months. Automatic cleanup checks the policy daily while the app is running.
 - The main player shows a VibeWare footer with an accessible link to the manifesto and accounts for the footer when fitting its contents.
 - The world-clock reference header, window title, tooltip, and accessible name show the reference date's ISO week number and week-year.
@@ -42,7 +45,6 @@ the first public preview defines what later versions need to stay compatible wit
 - AI summaries remain visible in an editable text area, and ordinary file-format or column changes preserve the draft.
 - Excel preview generation now shows progress and the completed file path below the card, with separate commands to open the workbook or copy its absolute path.
 - Debug builds preserve diagnostic data by disabling scheduled retention; manual cleanup remains available.
-- Data retention now uses calendar months: up to one month for Free and three months for Premium, with monthly cleanup scheduled from the installation date after the app is ready.
 - Screenshot storage, local OCR, and saved hardware settings are grouped with data retention.
 - Hardware summaries focus on CPU, GPU, physical memory, disks, and network. Complete readings remain available in expandable device groups.
 - The live sensor monitor updates controls on the visible page while continuing to collect samples for every device.
@@ -51,6 +53,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Fixed
 
+- Windows retain their monitor, position and dimensions across restarts, adapting saved geometry to current display DPI and keeping disconnected-monitor placements visible.
 - Each snapshot shows one Windows notification using the active-window or focused-monitor image, including multi-monitor captures.
 - Icon-only Windows controls declare accessible names matching their tooltips, the Excel theme selector shows its localized header, and the export window keeps a single Premium badge in its title bar.
 - Repeated screenshot capture failures show one notification until capture succeeds, while retries and local error logging continue.
@@ -62,7 +65,7 @@ the first public preview defines what later versions need to stay compatible wit
 - Interrupted screenshot publication and deletion recovery no longer prevent startup, and incomplete capture provenance is reported without blocking the rest of a gallery day.
 - Retention cleanup reuses a single screenshot inventory and supports cancellation during SQLite deletion.
 - Batch report jobs retain their recovery state independently of the export window, and uncertain submissions are reconciled before another paid submission is attempted.
-- Export windows keep their title bar and close button visible; the labels editor opens centered on its owner.
+- Export windows keep their title bar and close button visible; the labels editor restores its saved placement and centers on its owner on first opening.
 
 ### Removed
 

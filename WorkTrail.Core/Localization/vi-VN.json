@@ -1,4 +1,8 @@
 {
+  "ProviderSetup.Connection.Choose": "Chọn cách kết nối tính năng AI. Bạn có thể thay đổi sau.",
+  "ProviderSetup.Connection.Cli": "Đăng nhập ChatGPT. Không cần khóa API.",
+  "ProviderSetup.Connection.Api": "Khóa API OpenAI của bạn. Tính phí sử dụng riêng.",
+  "ProviderSetup.Connection.Open": "Nhà cung cấp AI",
   "Options.Codex.Label": "CLI · Codex",
   "Options.OpenAi.Label": "API · OpenAI",
   "Options.Codex.Description": "Dùng tài khoản ChatGPT đã đăng nhập trong Codex CLI và mô hình Codex mặc định. Ảnh chụp được gửi đến OpenAI, không xử lý cục bộ. Áp dụng giới hạn sử dụng của tài khoản.",

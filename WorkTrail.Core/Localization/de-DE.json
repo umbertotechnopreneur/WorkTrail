@@ -1,4 +1,8 @@
 {
+  "ProviderSetup.Connection.Choose": "Wählen Sie die Verbindung für Ihre KI-Funktionen. Sie können dies später ändern.",
+  "ProviderSetup.Connection.Cli": "ChatGPT-Anmeldung. Kein API-Schlüssel erforderlich.",
+  "ProviderSetup.Connection.Api": "Ihr OpenAI-API-Schlüssel. Nutzung wird separat berechnet.",
+  "ProviderSetup.Connection.Open": "KI-Anbieter",
   "Options.Codex.Label": "CLI · Codex",
   "Options.OpenAi.Label": "API · OpenAI",
   "Options.Codex.Description": "Nutzen Sie Ihre ChatGPT-Anmeldung in Codex CLI und das Codex-Standardmodell. Screenshots werden an OpenAI gesendet, nicht lokal verarbeitet. Es gelten die Nutzungslimits Ihres Kontos.",

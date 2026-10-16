@@ -515,13 +515,13 @@ VBWR E -->
                     <Button
                         x:Name="ApiSetupButton"
                         Grid.Column="1"
-                        Tag="ProviderSetup.ApiButton"
+                        Tag="ProviderSetup.Connection.Open"
                         Width="180"
                         Height="42"
                         Padding="12,6"
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
-                        Content="OpenAI API"
+                        Content="AI provider"
                         Click="ApiSetupButton_Click" />
                     <Button
                         x:Name="PrimaryButton"

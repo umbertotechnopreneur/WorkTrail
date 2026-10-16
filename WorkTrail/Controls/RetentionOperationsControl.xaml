@@ -45,20 +45,29 @@ VBWR E -->
                 <TextBlock Tag="History.DailyCleanup" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Spacing="8">
-                <TextBlock x:Name="StorageUsageText" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
-                <NumberBox x:Name="StorageWarningBox" AutomationProperties.AutomationId="Retention.StorageWarningBox"
-                           Header="Warn above (GB)" Minimum="0.1" Maximum="1024" SmallChange="1" LargeChange="10"
-                           SpinButtonPlacementMode="Compact" ValueChanged="StorageWarningBox_ValueChanged" IsEnabled="False" />
+                <Grid x:Name="StorageSummaryRow" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StorageUsageText" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <TextBlock x:Name="StorageWarningLabel" Grid.Column="1" Tag="History.WarningThreshold" VerticalAlignment="Center" />
+                    <NumberBox x:Name="StorageWarningBox" Grid.Column="2" AutomationProperties.AutomationId="Retention.StorageWarningBox"
+                               Width="100" MinWidth="0" Minimum="0.1" Maximum="1024" SmallChange="1" LargeChange="10"
+                               SpinButtonPlacementMode="Compact" ValueChanged="StorageWarningBox_ValueChanged" IsEnabled="False" />
+                </Grid>
                 <InfoBar x:Name="StorageWarning" Severity="Warning" IsOpen="False" IsClosable="False" />
             </StackPanel>
             <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
             <StackPanel Spacing="8">
                 <TextBlock Tag="History.DeleteTitle" AutomationProperties.HeadingLevel="Level3" Style="{StaticResource BodyStrongTextBlockStyle}" />
                 <TextBlock Tag="History.DeleteDescription" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                <CalendarDatePicker x:Name="DeleteFromPicker" AutomationProperties.AutomationId="Retention.DeleteFromPicker"
-                                    HorizontalAlignment="Stretch" DateChanged="DeleteRange_DateChanged" />
-                <CalendarDatePicker x:Name="DeleteToPicker" AutomationProperties.AutomationId="Retention.DeleteToPicker"
-                                    HorizontalAlignment="Stretch" DateChanged="DeleteRange_DateChanged" />
+                <Grid x:Name="DeleteDateRangeRow" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <TextBlock x:Name="DeleteFromLabel" Tag="History.From" VerticalAlignment="Center" />
+                    <CalendarDatePicker x:Name="DeleteFromPicker" Grid.Column="1" AutomationProperties.AutomationId="Retention.DeleteFromPicker"
+                                        MinWidth="0" HorizontalAlignment="Stretch" DateChanged="DeleteRange_DateChanged" />
+                    <TextBlock x:Name="DeleteToLabel" Grid.Column="2" Tag="History.To" VerticalAlignment="Center" />
+                    <CalendarDatePicker x:Name="DeleteToPicker" Grid.Column="3" AutomationProperties.AutomationId="Retention.DeleteToPicker"
+                                        MinWidth="0" HorizontalAlignment="Stretch" DateChanged="DeleteRange_DateChanged" />
+                </Grid>
                 <Button x:Name="RetentionCleanupButton" AutomationProperties.AutomationId="Retention.RetentionCleanupButton"
                         Tag="History.ReviewDelete" Content="Review and delete..." Click="RunRetentionButton_Click"
                         ContentTemplate="{StaticResource WrappingActionLabelTemplate}" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" />
