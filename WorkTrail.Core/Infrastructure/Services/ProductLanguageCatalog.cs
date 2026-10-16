@@ -46,19 +46,6 @@ public static class ProductLanguageCatalog
 
     private static readonly string[] UiChoiceValues = [SystemLanguage, .. UiLocaleValues];
     private static readonly string[] SearchChoiceValues = [SystemLanguage, .. UiLocaleValues];
-    private static readonly string[] OcrChoiceValues =
-    [
-        SystemLanguage,
-        EnglishLanguage,
-        "it-IT",
-        "fr-FR",
-        "de-DE",
-        "es-ES",
-        "zh-CN",
-        "ko-KR",
-        "pt-PT",
-        "pt-BR"
-    ];
 
     /// <summary>Gets every locale for which the product ships a complete UI catalog.</summary>
     public static IReadOnlyList<string> UiLocales { get; } = Array.AsReadOnly(UiLocaleValues);
@@ -68,9 +55,6 @@ public static class ProductLanguageCatalog
 
     /// <summary>Gets persisted choices accepted by local-search language analysis.</summary>
     public static IReadOnlyList<string> SearchChoices { get; } = Array.AsReadOnly(SearchChoiceValues);
-
-    /// <summary>Gets Windows OCR language tags that WorkTrail exposes to users.</summary>
-    public static IReadOnlyList<string> OcrChoices { get; } = Array.AsReadOnly(OcrChoiceValues);
 
     /// <summary>Resolves a canonical UI choice, consulting Windows only for <c>system</c>.</summary>
     public static string ResolveUiLanguage(string? requestedLanguage, CultureInfo systemCulture)
@@ -116,17 +100,6 @@ public static class ProductLanguageCatalog
         // Preserve an unsupported Windows language for StandardAnalyzer instead of applying
         // English stemming. zh-Hant likewise remains distinct from the shipped zh-Hans catalog.
         return string.IsNullOrWhiteSpace(systemCulture.Name) ? EnglishLanguage : systemCulture.Name;
-    }
-
-    /// <summary>Maps an OCR setting to the Windows recognizer tag; <c>system</c> uses the user profile.</summary>
-    public static string? ResolveOcrLanguage(string requestedLanguage)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(requestedLanguage);
-        var canonical = Canonical(OcrChoiceValues, requestedLanguage.Trim())
-            ?? throw new ArgumentException(
-                $"Unsupported WorkTrail OCR locale '{requestedLanguage}'.",
-                nameof(requestedLanguage));
-        return canonical.Equals(SystemLanguage, StringComparison.Ordinal) ? null : canonical;
     }
 
     /// <summary>Returns the canonical UI setting choice, or <see langword="null"/> when unsupported.</summary>

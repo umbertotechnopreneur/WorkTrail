@@ -110,24 +110,6 @@ VBWR E -->
                             <ComboBoxItem Content="Active window" Tag="active-window" />
                         </ComboBox>
                         <TextBox AutomationProperties.AutomationId="Retention.ScreenshotModeHintBox" x:Name="ScreenshotModeHintBox" Tag="Options.SnapshotResult" Header="Result" IsReadOnly="True" IsTabStop="False" TextWrapping="Wrap" />
-                        <ToggleSwitch AutomationProperties.AutomationId="Retention.HardwareSaveSnapshotsSwitch" x:Name="HardwareSaveSnapshotsSwitch" Tag="Options.Sensors.SaveSnapshots" Header="Save sensor readings with captures"
-                                      OffContent="" OnContent="" Toggled="HardwareSaveSnapshotsSwitch_Toggled" IsEnabled="False" />
-                        <TextBlock Tag="Options.Sensors.SaveSnapshots.Description" Style="{StaticResource CaptionTextBlockStyle}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                    </StackPanel>
-                </Expander>
-                <Expander AutomationProperties.AutomationId="Retention.OcrSettingsExpander" x:Name="OcrSettingsExpander" HorizontalAlignment="Stretch">
-                    <StackPanel Spacing="10">
-                        <Grid MinHeight="44" ColumnSpacing="12">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <TextBlock Tag="Options.Ocr.Enabled" Text="Extract screenshot text" VerticalAlignment="Center" TextWrapping="Wrap" />
-                            <ToggleSwitch AutomationProperties.AutomationId="Retention.OcrEnabledSwitch" x:Name="OcrEnabledSwitch" Grid.Column="1" HorizontalAlignment="Right" MinWidth="0"
-                                          OffContent="" OnContent="" Toggled="OcrEnabledSwitch_Toggled" IsEnabled="False" />
-                        </Grid>
-                        <ComboBox AutomationProperties.AutomationId="Retention.OcrLanguageBox" x:Name="OcrLanguageBox" Tag="Options.Ocr.Language" Header="OCR language" HorizontalAlignment="Stretch"
-                                  SelectionChanged="OcrLanguageBox_SelectionChanged" IsEnabled="False" />
-                        <TextBlock Tag="Options.Ocr.Restart" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Expander>
                 </StackPanel>

@@ -97,7 +97,6 @@ public sealed class OpenSourceLicenseContractTests
                 utilities,
                 new TrackingDomainService(store),
                 new ScreenCaptureService(utilities.GetAppVersion()),
-                new FakeHardwareTelemetryService(),
                 new OpenAiAnalysisService(
                     store,
                     new ScreenCaptureService(utilities.GetAppVersion())),

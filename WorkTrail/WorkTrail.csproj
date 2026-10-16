@@ -151,26 +151,7 @@ VBWR E -->
     <ProjectReference Include="..\WorkTrail.Cli\WorkTrail.Cli.csproj" />
     <ProjectReference Include="..\WorkTrail.Presentation\WorkTrail.Presentation.csproj" />
     <ProjectReference Include="..\WorkTrail.Taskbar\WorkTrail.Taskbar.csproj" />
-    <ProjectReference Include="..\WorkTrail.Hardware\WorkTrail.Hardware.csproj" ReferenceOutputAssembly="false" OutputItemType="_HardwareCollectorTarget" />
   </ItemGroup>
-
-  <Target Name="IncludeHardwareCollector" AfterTargets="ResolveProjectReferences" Condition="'@(_HardwareCollectorTarget)' != ''">
-    <!-- Keep the sensor-only executable and its dependency closure together in both deployment modes. -->
-    <PropertyGroup>
-      <_HardwareCollectorDirectory>@(_HardwareCollectorTarget->'%(RootDir)%(Directory)')</_HardwareCollectorDirectory>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(_HardwareCollectorDirectory)\WorkTrail.Hardware.exe')" Text="The hardware collector executable was not built." />
-    <Error Condition="'$(Platform)' == 'x64' and !Exists('$(_HardwareCollectorDirectory)\PawnIO\PawnIO_setup.exe')" Text="The bundled PawnIO installer is missing from the x64 hardware output." />
-    <ItemGroup>
-      <_HardwareCollectorFile Include="$(_HardwareCollectorDirectory)\**\*" Exclude="$(_HardwareCollectorDirectory)\**\*.pdb" />
-      <ContentWithTargetPath Include="@(_HardwareCollectorFile)">
-        <Link>Hardware\%(_HardwareCollectorFile.RecursiveDir)%(_HardwareCollectorFile.Filename)%(_HardwareCollectorFile.Extension)</Link>
-        <TargetPath>Hardware\%(_HardwareCollectorFile.RecursiveDir)%(_HardwareCollectorFile.Filename)%(_HardwareCollectorFile.Extension)</TargetPath>
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </ContentWithTargetPath>
-    </ItemGroup>
-  </Target>
 
   <ItemGroup>
     <Compile Remove="Models\**\*.cs" />

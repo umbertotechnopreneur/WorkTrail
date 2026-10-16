@@ -99,6 +99,14 @@ public sealed class OpenRouterDecoder : IAIDecoder
 
             using var document = JsonDocument.Parse(responseBody);
             var root = document.RootElement;
+            if (string.Equals(ReadFinishReason(root), "length", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new AiProviderRequestException(
+                    "OpenRouter returned an incomplete response because its output limit was reached.",
+                    new AiProviderFailure("incomplete.length", (int)response.StatusCode,
+                        timer.ElapsedMilliseconds, providerResponseId, providerRequestId,
+                        null, ReadUsage(root), "length"));
+            }
             return new AiProviderResult(
                 ReadOutputText(root) ?? "The model did not return text.",
                 ReadUsage(root),
@@ -188,9 +196,9 @@ public sealed class OpenRouterDecoder : IAIDecoder
             }
         };
 
-        if (requestOptions?.OmitOutputTokenLimitWhenSupported != true)
+        if (requestOptions?.MaxOutputTokens is int outputLimit)
         {
-            payload["max_tokens"] = requestOptions?.MaxOutputTokens ?? profile.MaxOutputTokens;
+            payload["max_tokens"] = outputLimit;
         }
 
         var reasoningEffort = AiAnalysisProfileCatalog.ResolveReasoningEffort(requestOptions?.ReasoningEffort);
@@ -221,18 +229,13 @@ public sealed class OpenRouterDecoder : IAIDecoder
         var completionDetails = usage.TryGetProperty("completion_tokens_details", out var outputDetails) && outputDetails.ValueKind == JsonValueKind.Object
             ? outputDetails
             : default;
-        var costDetails = usage.TryGetProperty("cost_details", out var details) && details.ValueKind == JsonValueKind.Object
-            ? details
-            : default;
         return new AiUsageMetrics(
             AiProviderTelemetry.ReadLong(usage, "prompt_tokens"),
             AiProviderTelemetry.ReadLong(usage, "completion_tokens"),
             AiProviderTelemetry.ReadLong(usage, "total_tokens"),
             promptDetails.ValueKind == JsonValueKind.Object ? AiProviderTelemetry.ReadLong(promptDetails, "cached_tokens") : null,
             promptDetails.ValueKind == JsonValueKind.Object ? AiProviderTelemetry.ReadLong(promptDetails, "cache_write_tokens") : null,
-            ReasoningTokens: completionDetails.ValueKind == JsonValueKind.Object ? AiProviderTelemetry.ReadLong(completionDetails, "reasoning_tokens") : null,
-            ReportedCostUsd: AiProviderTelemetry.ReadDecimal(usage, "cost"),
-            ReportedUpstreamCostUsd: costDetails.ValueKind == JsonValueKind.Object ? AiProviderTelemetry.ReadDecimal(costDetails, "upstream_inference_cost") : null);
+            ReasoningTokens: completionDetails.ValueKind == JsonValueKind.Object ? AiProviderTelemetry.ReadLong(completionDetails, "reasoning_tokens") : null);
     }
 
     private static string? ReadOutputText(JsonElement root)

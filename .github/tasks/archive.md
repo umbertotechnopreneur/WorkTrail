@@ -2,7 +2,57 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-17
+
+### Rule-driven capture and content-first descriptions
+
+- Add an internal embedded capture policy, active-window crops and optional monitor
+  panoramas, preserving native resolution and privacy checks before publication.
+- Make the policy an ordered rule list with subjects, priorities, exact process
+  filters and AI/gallery destinations. Capture secondary application windows with
+  conservative visible-region masks; keep shell windows as occluders, not subjects.
+- Keep AI-only images transient through journaled cleanup and restart recovery.
+  Exclude gallery-only images from reanalysis and AI-only images from archives.
+- Persist per-image monitor identities, roles and crop bounds; retain them through
+  historical analysis, gallery projection and archive roundtrips.
+- Replace Compact/Detailed with Balanced/Complete and remove application-imposed
+  screenshot response caps. Describe visible content with explicit monitor sections.
+- Add 23 high-attention and 23 low-attention application presets with independent
+  active/background attention. Keep unknown applications at normal attention.
+- Apply the analysis blacklist after destination merging, including panoramas with
+  visible excluded content, and omit excluded foreground identity from AI context.
+  Keep gallery retention separate from AI eligibility and privacy exclusions.
+- Manual captures request Complete analysis and high attention as an explicit
+  interest signal, without changing saved preferences or bypassing exclusions.
+- Add focused planning, persistence, payload and presentation coverage. Tests and
+  native validation remain pending. Debug x64 1.0.6.22 built and installed with
+  Windows package status Ok before the manual-capture override. C# formatting and
+  verification passed on 377 files before PR delivery; the final override has not
+  been built locally.
+
 ## 2026-10-16
+
+### Shared activation for open windows
+
+- Move automatic peer reveal from the main player to the shared window lifecycle.
+  Activating an existing map, sky, lunar, clock or other app window raises its open
+  peers without moving them or transferring focus away from the selected window.
+- Reuse the application's visibility facade and native foreground/process guards.
+  Cancel pending reveals on close and report failures through the existing player banner.
+- C# whitespace checks and the Debug x64 package build passed. Version 1.0.6.21
+  was installed with Windows package status Ok. Native window-order behavior
+  remains owner-validation pending; tests were not run.
+
+### Remove AI spending estimates
+
+- Remove the monthly player total, preference, pricing window, background price-list
+  download, monetary telemetry, estimates, export columns and CLI pricing command.
+- Preserve model selection, request/token telemetry and the daily request limit.
+- Remove one-time schema cleanup code; database opening remains best effort and
+  does not migrate retired storage. The owner authorized resetting local history.
+- Build, tests, installation and Git delivery were not run for this cleanup.
+- C# whitespace formatting and verification passed on 374 source files. Syntax
+  inspection and diff whitespace checks found no errors; runtime behavior is unverified.
 
 ### AI connection paths and display-aware window restore
 

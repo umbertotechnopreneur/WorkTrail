@@ -38,7 +38,6 @@ public sealed class ActivityScoreServiceTests
             service.RecordSample(Sample(windowStart.AddMinutes(index), keys: 1, clicks: 2));
         }
 
-        service.RecordSystemSnapshot(Snapshot(windowEnd, cpu: 100, gpu: 100));
         var state = service.GetState(15, windowEnd);
 
         Assert.Equal(ActivityScoreService.WindowMinutes, state.Minutes.Count);
@@ -51,20 +50,20 @@ public sealed class ActivityScoreServiceTests
     }
 
     [Fact]
-    public void GetState_CpuAndGpuContributeMuchLessThanInput()
+    public void GetState_InputContributesWithoutDeviceMeasurements()
     {
         var windowEnd = new DateTimeOffset(2026, 8, 9, 10, 30, 0, TimeSpan.Zero);
-        var telemetryOnly = new ActivityScoreService();
-        telemetryOnly.RecordSystemSnapshot(Snapshot(windowEnd, cpu: 100, gpu: 100));
+        var empty = new ActivityScoreService();
 
         var inputDriven = new ActivityScoreService();
         inputDriven.RecordSample(Sample(windowEnd, keys: 40, clicks: 8));
 
-        Assert.True(inputDriven.GetState(15, windowEnd).CurrentScore > telemetryOnly.GetState(15, windowEnd).CurrentScore);
+        Assert.Equal(0, empty.GetState(15, windowEnd).CurrentScore);
+        Assert.True(inputDriven.GetState(15, windowEnd).CurrentScore > 0);
     }
 
     [Fact]
-    public void CalculateIntervalActivityIndex_UsesPersistedTelemetryWithSharedWeights()
+    public void CalculateIntervalActivityIndex_UsesInputAndActiveTime()
     {
         var intervalEnd = new DateTimeOffset(2026, 8, 9, 10, 30, 0, TimeSpan.Zero);
         var samples = Enumerable.Range(0, 15)
@@ -73,12 +72,10 @@ public sealed class ActivityScoreServiceTests
 
         var index = ActivityScoreService.CalculateIntervalActivityIndex(
             samples,
-            intervalMinutes: 15,
-            cpuUsagePercent: 50,
-            gpuUsagePercent: 50);
+            intervalMinutes: 15);
 
-        // Average input contributes 12.5 points, active time 0.67, CPU 2, and GPU 1.
-        Assert.Equal(16, index);
+        // Input contributes 12.5 points and active time 0.67; normalize the 94-point budget.
+        Assert.Equal(14, index);
     }
 
     [Fact]
@@ -125,44 +122,18 @@ public sealed class ActivityScoreServiceTests
     }
 
     [Fact]
-    public void BuildScreenshotIntervalTelemetry_AveragesOnlyPointsAfterPreviousCapture()
+    public void BuildScreenshotIntervalTelemetry_PreservesCaptureBoundaries()
     {
         var service = new ActivityScoreService();
         var previousCapture = new DateTimeOffset(2026, 8, 9, 10, 0, 30, TimeSpan.Zero);
-        service.RecordSystemSnapshot(Snapshot(previousCapture, cpu: 90, gpu: 90));
-        service.RecordSystemSnapshot(Snapshot(previousCapture.AddMinutes(1), cpu: 20, gpu: 40));
-        service.RecordSystemSnapshot(Snapshot(previousCapture.AddMinutes(2), cpu: 40, gpu: 60));
 
         var telemetry = service.BuildScreenshotIntervalTelemetry(previousCapture, previousCapture.AddMinutes(3));
 
-        Assert.Equal(30, telemetry.CpuUsagePercent);
-        Assert.Equal(50, telemetry.GpuUsagePercent);
-    }
-
-    /// <summary>Repeated consumers of one cached sensor instant cannot give it extra averaging weight.</summary>
-    [Fact]
-    public void BuildScreenshotIntervalTelemetry_CountsCachedTimestampOnceAndKeepsLatestMinute()
-    {
-        var service = new ActivityScoreService();
-        var intervalStart = new DateTimeOffset(2026, 8, 9, 10, 0, 0, TimeSpan.Zero);
-        var cached = Snapshot(intervalStart.AddSeconds(10), cpu: 20, gpu: 40);
-        service.RecordSystemSnapshot(cached);
-        service.RecordSystemSnapshot(cached);
-        service.RecordSystemSnapshot(cached with { Timestamp = cached.Timestamp.ToOffset(TimeSpan.FromHours(7)) });
-        service.RecordSystemSnapshot(Snapshot(intervalStart.AddSeconds(12), cpu: 80, gpu: 60));
-
-        var telemetry = service.BuildScreenshotIntervalTelemetry(intervalStart, intervalStart.AddSeconds(15));
-        var minute = service.GetState(5, intervalStart).Minutes[^1];
-
-        Assert.Equal(50, telemetry.CpuUsagePercent);
-        Assert.Equal(50, telemetry.GpuUsagePercent);
-        Assert.Equal(80, minute.CpuUsagePercent);
-        Assert.Equal(60, minute.GpuUsagePercent);
+        Assert.Equal(previousCapture, telemetry.IntervalStartedAt);
+        Assert.Equal(previousCapture.AddMinutes(3), telemetry.CapturedAt);
+        Assert.Throws<ArgumentException>(() => service.BuildScreenshotIntervalTelemetry(previousCapture, previousCapture));
     }
 
     private static ActivitySample Sample(DateTimeOffset timestamp, long keys, long clicks) => new(
         timestamp, 5, "active", "test", "Test", "Test", "Test", "installation", keys, clicks);
-
-    private static SystemSnapshot Snapshot(DateTimeOffset timestamp, int cpu, int gpu) =>
-        HardwareTestData.Snapshot(timestamp, cpu, gpu);
 }

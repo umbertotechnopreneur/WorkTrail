@@ -35,7 +35,6 @@ public static class WorkspaceWindowState
         WindowStateKeys.CelestialMap,
         WindowStateKeys.Search,
         WindowStateKeys.Screenshots,
-        WindowStateKeys.OcrText,
         WindowStateKeys.Schedule,
         WindowStateKeys.About,
         WindowStateKeys.Licenses
@@ -75,11 +74,6 @@ public static class WorkspaceWindowState
         }
 
         var requested = openStates.Where(static pair => pair.Value).Select(static pair => pair.Key).ToHashSet(StringComparer.Ordinal);
-        if (requested.Contains(WindowStateKeys.OcrText))
-        {
-            requested.Add(WindowStateKeys.Screenshots);
-        }
-
         if (requested.Contains(WindowStateKeys.Licenses))
         {
             requested.Add(WindowStateKeys.About);

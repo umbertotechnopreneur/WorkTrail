@@ -27,12 +27,6 @@ public static class SearchAttributeKeys
     /// <summary>Stores the number of mouse clicks observed in the screenshot capture interval.</summary>
     public const string MouseClicks = "activity.mouse-clicks";
 
-    /// <summary>Stores average CPU usage observed since the previous screenshot.</summary>
-    public const string CpuUsagePercent = "telemetry.cpu-usage-percent";
-
-    /// <summary>Stores average GPU usage observed since the previous screenshot.</summary>
-    public const string GpuUsagePercent = "telemetry.gpu-usage-percent";
-
     /// <summary>Stores the durable installation identifier that produced the record.</summary>
     public const string InstallationId = "installation.id";
 
@@ -92,15 +86,6 @@ public sealed record SearchDocument
 
     /// <summary>Gets the screenshot path.</summary>
     public string? CapturePath { get; init; }
-
-    /// <summary>Gets the unmodified text returned by OCR.</summary>
-    public string? OcrRawText { get; init; }
-
-    /// <summary>Gets optional AI-corrected OCR text.</summary>
-    public string? OcrCorrectedText { get; init; }
-
-    /// <summary>Gets an optional structured summary derived from OCR text.</summary>
-    public string? OcrStructuredSummary { get; init; }
 
     /// <summary>Gets an optional AI description of the screenshot or activity.</summary>
     public string? AiDescription { get; init; }

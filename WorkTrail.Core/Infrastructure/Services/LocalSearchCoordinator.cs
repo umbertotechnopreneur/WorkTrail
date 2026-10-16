@@ -19,7 +19,6 @@
 
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using WorkTrail.Application;
@@ -349,18 +348,12 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
                     }
 
                     Set(SearchIndexMutation.Delete($"screenshot:{change.EntityId}"));
-                    Set(SearchIndexMutation.Delete($"screenshot-text:{change.EntityId}"));
-                    // A text or telemetry delete does not imply that the retained image disappeared.
+                    // A telemetry delete does not imply that the retained image disappeared.
                     // Re-read the authoritative artifact state for every mutation so analysis-only
                     // deletion replaces the searchable document instead of removing it.
                     if (galleryByIdentity.TryGetValue(change.EntityId, out var current))
                     {
                         Set(SearchIndexMutation.Upsert(BuildScreenshotDocument(current, defaultLanguage)));
-                    }
-                    else if (!string.Equals(change.Operation, "delete", StringComparison.Ordinal)
-                        && _store.LoadScreenshotTextSnapshotByIdentity(change.EntityId) is { } text)
-                    {
-                        Set(SearchIndexMutation.Upsert(BuildOrphanTextDocument(change.EntityId, null, text, defaultLanguage)));
                     }
                     break;
 
@@ -374,21 +367,9 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
 
                     foreach (var item in galleryByCapture[change.EntityId])
                     {
-                        Set(SearchIndexMutation.Delete($"screenshot-text:{ScreenshotIdentity(item.Path)}"));
                         Set(SearchIndexMutation.Upsert(BuildScreenshotDocument(item, defaultLanguage)));
                     }
 
-                    foreach (var pair in _store.LoadScreenshotTextSnapshotsForCapture(change.EntityId, cancellationToken))
-                    {
-                        if (!mutations.ContainsKey($"screenshot:{pair.Key}"))
-                        {
-                            Set(SearchIndexMutation.Upsert(BuildOrphanTextDocument(
-                                pair.Key,
-                                change.EntityId,
-                                pair.Value,
-                                defaultLanguage)));
-                        }
-                    }
                     break;
 
                 default:
@@ -417,22 +398,9 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
             defaultLanguage,
             RequireInstallation(sample.InstallationId))), cancellationToken);
 
-        var retainedScreenshotIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         _store.VisitAllScreenshotGalleryItems(item =>
         {
-            var artifactIdentity = ScreenshotIdentity(item.Path);
-            retainedScreenshotIdentities.Add(artifactIdentity);
             documents.Add(BuildScreenshotDocument(item, defaultLanguage));
-        }, cancellationToken);
-
-        _store.VisitScreenshotTextSnapshots((artifactIdentity, captureId, text) =>
-        {
-            if (retainedScreenshotIdentities.Contains(artifactIdentity))
-            {
-                return;
-            }
-
-            documents.Add(BuildOrphanTextDocument(artifactIdentity, captureId, text, defaultLanguage));
         }, cancellationToken);
 
         _store.VisitAllAiAnalyses(analysis => documents.Add(BuildAnalysisDocument(
@@ -474,22 +442,17 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
         ScreenshotGalleryItem item,
         string defaultLanguage)
     {
-        var text = item.TextSnapshot;
         return new SearchDocument
         {
             Id = $"screenshot:{ScreenshotIdentity(item.Path)}",
             Kind = "screenshot",
             Timestamp = item.CapturedAt,
-            Language = text?.Ocr.LanguageTag ?? defaultLanguage,
+            Language = defaultLanguage,
             Application = item.ForegroundApplication,
             WindowTitle = item.ForegroundWindowTitle,
-            AttributesRaw = BuildOcrAttributes(
-                null,
-                text,
+            AttributesRaw = BuildScreenshotAttributes(
                 item.ActivityIndex,
                 item.MouseClicks,
-                item.CpuUsagePercent,
-                item.GpuUsagePercent,
                 item.Installation ?? throw new InvalidDataException("Screenshot search source has no installation provenance.")),
             SpanLabels = (item.SpanLabels ?? Array.Empty<ActivityLabelSample>())
                 .Select(label => label.Label)
@@ -498,29 +461,9 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
             CaptureKind = item.CaptureKind,
             CaptureOrigin = item.CaptureOrigin,
             CapturePath = item.Path,
-            OcrRawText = text?.Ocr.RawText,
-            OcrCorrectedText = text?.AiRefinement?.CorrectedText,
-            OcrStructuredSummary = StructuredSummary(text),
             AiDescription = item.AiDescriptionMarkdown
         };
     }
-
-    private static SearchDocument BuildOrphanTextDocument(
-        string artifactIdentity,
-        string? captureId,
-        ScreenshotTextSnapshot text,
-        string defaultLanguage) => new()
-        {
-            Id = $"screenshot-text:{artifactIdentity}",
-            Kind = "screenshot-text",
-            Timestamp = text.Ocr.ExtractedAt,
-            Language = text.AiRefinement?.LanguageTag ?? text.Ocr.LanguageTag ?? defaultLanguage,
-            AttributesRaw = BuildOcrAttributes(captureId, text, null, null, null, null, null),
-            CapturePath = text.SourceScreenshotPath,
-            OcrRawText = text.Ocr.RawText,
-            OcrCorrectedText = text.AiRefinement?.CorrectedText,
-            OcrStructuredSummary = StructuredSummary(text)
-        };
 
     private static SearchDocument BuildAnalysisDocument(
         AiAnalysis analysis,
@@ -541,21 +484,12 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
     private static string ResolveDefaultLanguage(AppSettings settings) =>
         ProductLanguageCatalog.ResolveSearchLanguage(settings.SearchLanguage, CultureInfo.CurrentUICulture);
 
-    private static ImmutableDictionary<string, string?> BuildOcrAttributes(
-        string? captureId,
-        ScreenshotTextSnapshot? text,
+    private static ImmutableDictionary<string, string?> BuildScreenshotAttributes(
         int? activityIndex,
         long? mouseClicks,
-        int? cpuUsagePercent,
-        int? gpuUsagePercent,
         InstallationProfile? installation)
     {
         var attributes = ImmutableDictionary.CreateBuilder<string, string?>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(captureId))
-        {
-            attributes["capture.id"] = captureId;
-        }
-
         if (activityIndex is not null)
         {
             attributes["activity.index"] = activityIndex.Value.ToString(CultureInfo.InvariantCulture);
@@ -567,36 +501,11 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
         }
 
 
-        if (cpuUsagePercent is not null)
-        {
-            attributes[SearchAttributeKeys.CpuUsagePercent] = cpuUsagePercent.Value.ToString(CultureInfo.InvariantCulture);
-        }
-
-        if (gpuUsagePercent is not null)
-        {
-            attributes[SearchAttributeKeys.GpuUsagePercent] = gpuUsagePercent.Value.ToString(CultureInfo.InvariantCulture);
-        }
-
         if (installation is not null)
         {
             AddInstallationAttributes(attributes, installation);
         }
 
-        if (text is null)
-        {
-            return attributes.ToImmutable();
-        }
-
-        attributes["ocr.status"] = text.Ocr.Status.ToString();
-        attributes["ocr.engine"] = text.Ocr.Engine;
-        attributes["ocr.width"] = text.Ocr.PixelWidth is { } width
-            ? width.ToString(CultureInfo.InvariantCulture)
-            : null;
-        attributes["ocr.height"] = text.Ocr.PixelHeight is { } height
-            ? height.ToString(CultureInfo.InvariantCulture)
-            : null;
-        attributes["ocr.angle"] = text.Ocr.TextAngleDegrees?.ToString(CultureInfo.InvariantCulture);
-        attributes["ocr.failure"] = text.Ocr.FailureCode;
         return attributes.ToImmutable();
     }
 
@@ -620,11 +529,6 @@ internal sealed class LocalSearchCoordinator : IAsyncDisposable
         attributes[SearchAttributeKeys.InstallationColor] = validated.Color;
         attributes[SearchAttributeKeys.InstallationIcon] = validated.Icon;
     }
-
-    private static string? StructuredSummary(ScreenshotTextSnapshot? text) =>
-        text?.AiRefinement is null
-            ? null
-            : JsonSerializer.Serialize(text.AiRefinement.Summary);
 
     private static string ScreenshotIdentity(string path)
     {

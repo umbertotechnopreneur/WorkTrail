@@ -177,36 +177,6 @@ public sealed class CliOutput(CliOptions options)
             .BorderColor(dashboard.IsTracking ? Color.Teal : Color.Grey);
     }
 
-    /// <summary>Renders a system snapshot in a stable table.</summary>
-    public IRenderable RenderSystemSnapshot(SystemSnapshot snapshot)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-        var strings = new LocalizationService(_options.Language);
-        var table = new Table().Border(TableBorder.Rounded).AddColumn(Localize("metric")).AddColumn(Localize("value"));
-        table.AddRow(Localize("state"), Markup.Escape(snapshot.Status));
-        table.AddRow(Markup.Escape(strings.Format("Hardware.CollectedAt", snapshot.Timestamp.ToLocalTime().ToString("G", _culture))), string.Empty);
-        table.AddRow(Markup.Escape(strings.Translate("Hardware.Advanced.Label")), Markup.Escape(snapshot.DriverStatus));
-        if (snapshot.ErrorCode is { } errorCode)
-        {
-            table.AddRow(Localize("error"), Markup.Escape(errorCode));
-        }
-        foreach (var device in snapshot.Devices)
-        {
-            table.AddRow(Markup.Escape($"{device.Name} ({device.Kind})"),
-                Markup.Escape(strings.Format("Hardware.DeviceUpdated", device.SampledAt.ToLocalTime().ToString("G", _culture))));
-            foreach (var sensor in device.Sensors)
-            {
-                var value = sensor.Value is { } reading ? $"{reading.ToString("0.##", _culture)} {sensor.Unit}" : Localize("notAvailable");
-                table.AddRow(Markup.Escape($"  {sensor.Name} ({sensor.Kind})"), Markup.Escape(value));
-            }
-        }
-        if (!snapshot.Devices.Any(device => device.Kind == "Battery"))
-        {
-            table.AddRow(Markup.Escape(strings.Translate("Hardware.Category.Battery")), Localize("notAvailable"));
-        }
-        table.AddRow(Markup.Escape(strings.Translate("Hardware.PowerNote")), string.Empty);
-        return new Panel(table).Header($"[bold cyan]{Markup.Escape(Localize("systemSnapshot"))}[/]");
-    }
 
     /// <summary>Renders the public settings catalog and current typed values without exposing internal fields.</summary>
     internal IRenderable RenderSettings(IReadOnlyList<CliSettingValue> settings)

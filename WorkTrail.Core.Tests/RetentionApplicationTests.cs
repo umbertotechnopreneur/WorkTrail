@@ -261,7 +261,7 @@ public sealed class RetentionApplicationTests
             var snapshot = new SettingsSnapshot(settings);
             var capture = new NoCaptureService();
             Application = new WorkTrailApplication(Store, new UtilityService(), new TrackingDomainService(Store, snapshot),
-                capture, new FakeHardwareTelemetryService(), new OpenAiAnalysisService(Store, capture),
+                capture, new OpenAiAnalysisService(Store, capture),
                 new StartupService(), new BuildInformationService(), settingsSnapshot: snapshot,
                 startScheduledSnapshotTimer: false, featureLicenseSource: new TestLicense(tier));
         }

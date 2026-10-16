@@ -81,11 +81,9 @@ public sealed class ArchitectureBoundaryContractTests
     {
         var expectedReferences = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
-            ["WorkTrail"] = ["WorkTrail.Cli", "WorkTrail.Core", "WorkTrail.Hardware", "WorkTrail.Presentation", "WorkTrail.Taskbar"],
+            ["WorkTrail"] = ["WorkTrail.Cli", "WorkTrail.Core", "WorkTrail.Presentation", "WorkTrail.Taskbar"],
             ["WorkTrail.Cli"] = ["WorkTrail.Core"],
-            ["WorkTrail.Core"] = ["WorkTrail.Ocr", "WorkTrail.Search"],
-            ["WorkTrail.Hardware"] = ["LibreHardwareMonitor", "WorkTrail.Core"],
-            ["WorkTrail.Ocr"] = [],
+            ["WorkTrail.Core"] = ["WorkTrail.Search"],
             ["WorkTrail.Presentation"] = ["WorkTrail.Core"],
             ["WorkTrail.Search"] = [],
             ["WorkTrail.Taskbar"] = ["WorkTrail.Core"]
@@ -103,14 +101,6 @@ public sealed class ArchitectureBoundaryContractTests
             Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
         }
 
-        // The application ships the isolated collector but must never load its sensor implementation in-process.
-        var appProject = XDocument.Load(RepositoryFile("WorkTrail", "WorkTrail.csproj"));
-        var collectorReference = Assert.Single(appProject.Descendants("ProjectReference"), reference =>
-            ProjectNameFromReference((string?)reference.Attribute("Include")) == "WorkTrail.Hardware");
-        Assert.Equal("false", (string?)collectorReference.Attribute("ReferenceOutputAssembly"));
-        Assert.Equal("_HardwareCollectorTarget", (string?)collectorReference.Attribute("OutputItemType"));
-        var libraryProject = XDocument.Load(RepositoryFile("WorkTrail.Hardware", "LibreHardwareMonitor", "LibreHardwareMonitor.csproj"));
-        Assert.Empty(libraryProject.Descendants("ProjectReference"));
     }
 
     /// <summary>Ensures WinUI presentation sources delegate I/O and environment work to the application facade.</summary>

@@ -183,9 +183,9 @@ public sealed class OpenAiDecoder : IAIDecoder
             }
         };
 
-        if (requestOptions?.OmitOutputTokenLimitWhenSupported != true)
+        if (requestOptions?.MaxOutputTokens is int outputLimit)
         {
-            payload["max_output_tokens"] = requestOptions?.MaxOutputTokens ?? profile.MaxOutputTokens;
+            payload["max_output_tokens"] = outputLimit;
         }
 
         var reasoningEffort = AiAnalysisProfileCatalog.ResolveReasoningEffort(

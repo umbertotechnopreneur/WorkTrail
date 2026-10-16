@@ -242,11 +242,68 @@ public sealed class DataArchiveServiceTests
         }
     }
 
-    /// <summary>Exercises the current SQLite AI path contract and OCR paths across archive and destination roots.</summary>
+    /// <summary>Exports never retain AI-only images or their metadata while publication cleanup is pending.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Export_ExcludesAnalysisOnlyImages(bool includeScreenshots)
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var source = new LocalStore(Path.Combine(root, "source"));
+            var screenshotRoot = Path.Combine(root, "source", "screenshots");
+            source.SaveSettings(source.LoadSettings() with { ScreenshotDirectory = screenshotRoot });
+            var capturedAt = DateTimeOffset.Now;
+            var captureId = Guid.NewGuid().ToString("N");
+            var day = ScreenshotStorageLayout.GetDayDirectory(screenshotRoot, capturedAt);
+            Directory.CreateDirectory(day);
+            var galleryPath = Path.Combine(day, $"{captureId}_1.0.0_manual_monitor-1.webp");
+            var analysisPath = Path.Combine(day, $"{captureId}_1.0.0_manual_monitor-2.webp");
+            File.WriteAllBytes(galleryPath, [1, 2, 3]);
+            File.WriteAllBytes(analysisPath, [4, 5, 6]);
+            var galleryImage = new ScreenshotImageMetadata(galleryPath, "monitor-context", 1, "Monitor 1",
+                0, 0, 1920, 1080, 0, 0, 1920, 1080, true, "Editor", "Notes", [1]);
+            var analysisImage = galleryImage with
+            {
+                Path = analysisPath,
+                ScreenIndex = 2,
+                ScreenName = "Monitor 2",
+                RelatedScreenIndices = [2],
+                ForGallery = false
+            };
+            source.RegisterScreenshotCapture(captureId, source.LoadSettings().InstallationId, capturedAt,
+                ScreenshotCaptureOrigins.Manual, [galleryImage, analysisImage]);
+            var archivePath = Path.Combine(root, "destinations.tmuarchive");
+            var result = new DataArchiveService(source).Export(new(archivePath, IncludeScreenshots: includeScreenshots), CancellationToken.None);
+            Assert.Equal(includeScreenshots ? 1 : 0, result.ScreenshotFileCount);
+            using var archive = ZipFile.OpenRead(archivePath);
+            Assert.DoesNotContain(archive.Entries, entry => entry.FullName.EndsWith(Path.GetFileName(analysisPath), StringComparison.Ordinal));
+            var databasePath = Path.Combine(root, "export.sqlite3");
+            archive.GetEntry("data.sqlite3")!.ExtractToFile(databasePath);
+            using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = databasePath,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false
+            }.ToString());
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT artifact_identity FROM screenshot_images;";
+            using var reader = command.ExecuteReader();
+            Assert.True(reader.Read());
+            Assert.Equal(LocalStore.ScreenshotIdentity(Path.GetFileName(galleryPath)), reader.GetString(0));
+            Assert.False(reader.Read());
+            Assert.True(File.Exists(analysisPath));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    /// <summary>Exercises the current SQLite AI path contract across archive and destination roots.</summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void ExportAndImport_WithAiAndOcrRecords_RemapsEveryScreenshotPath(bool includeScreenshots)
+    public void ExportAndImport_WithAiRecords_RemapsEveryScreenshotPath(bool includeScreenshots)
     {
         var root = CreateTemporaryDirectory();
         try
@@ -269,22 +326,18 @@ public sealed class DataArchiveServiceTests
             {
                 File.WriteAllBytes(path, [1, 2, 3]);
                 File.SetLastWriteTimeUtc(path, capturedAt.UtcDateTime);
-                source.UpsertScreenshotTextSnapshot(captureId, new ScreenshotTextSnapshot(
-                    path,
-                    new OcrRawSnapshot(ScreenshotTextExtractionStatus.Succeeded, "Archive test text", "en-US",
-                        null, capturedAt, "test-ocr", 100, 100, [])));
             }
 
             var sourcePathList = string.Join(';', sourcePaths);
             source.UpsertScreenshotIntervalTelemetry(captureId, sourcePaths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, 12, 4));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
+            var imageIdentity = LocalStore.ScreenshotIdentity(Path.GetFileName(sourcePaths[0]));
+            var imageMetadata = new ScreenshotImageMetadata(sourcePaths[0], "active-window", 1, "Monitor 1",
+                0, 0, 1920, 1080, 100, 100, 1200, 800, true, "Editor", "Project notes", [1]);
+            source.RegisterScreenshotCapture(captureId, source.LoadSettings().InstallationId!, capturedAt,
+                ScreenshotCaptureOrigins.Manual, [imageMetadata]);
             source.RegisterVipScreenshot(captureId);
             Assert.True(source.SaveVipScreenshotNote(new(captureId, "A decision worth keeping across installations.")));
-            source.UpsertCaptureHardwareSnapshot(captureId, new SystemSnapshot(capturedAt, "partial",
-            [
-                new HardwareDeviceSnapshot("/gpu/0", "Archive GPU", "GpuNvidia", capturedAt,
-                [new HardwareSensorSnapshot("/gpu/0/power/0", "GPU Power", "Power", "W", 37.5)])
-            ]));
             AppendAnalysis(source, captureId, capturedAt, sourcePathList, sourcePaths.Length);
             var archivePath = Path.Combine(root, "ai-history.tmuarchive");
             var exporter = new DataArchiveService(source);
@@ -326,9 +379,29 @@ public sealed class DataArchiveServiceTests
             var imported = importer.Import(preview.PlanId, CancellationToken.None);
             Assert.Equal(1, imported.AddedAiAnalysisCount);
             Assert.Equal(1, imported.AddedAiRequestCount);
-            var importedHardware = Assert.IsType<SystemSnapshot>(target.LoadCaptureHardwareSnapshot(captureId));
-            Assert.Equal(capturedAt, importedHardware.Timestamp);
-            Assert.Equal(37.5d, Assert.Single(Assert.Single(importedHardware.Devices).Sensors).Value);
+
+            using (var metadataConnection = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = target.ActivityDatabasePath,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false
+            }.ToString()))
+            {
+                metadataConnection.Open();
+                using var metadataCommand = metadataConnection.CreateCommand();
+                metadataCommand.CommandText = "SELECT metadata_json FROM screenshot_images WHERE artifact_identity = $identity;";
+                metadataCommand.Parameters.AddWithValue("$identity", imageIdentity);
+                var json = Assert.IsType<string>(metadataCommand.ExecuteScalar());
+                Assert.Contains("\"screenIndex\"", json, StringComparison.Ordinal);
+                var importedMetadata = Assert.IsType<ScreenshotImageMetadata>(
+                    JsonSerializer.Deserialize<ScreenshotImageMetadata>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+                Assert.Equal(imageIdentity, importedMetadata.Path);
+                Assert.Equal(imageMetadata.Role, importedMetadata.Role);
+                Assert.Equal(imageMetadata.ScreenIndex, importedMetadata.ScreenIndex);
+                Assert.Equal(imageMetadata.ImageWidth, importedMetadata.ImageWidth);
+                Assert.Equal(imageMetadata.WindowTitle, importedMetadata.WindowTitle);
+                Assert.Equal(imageMetadata.RelatedScreenIndices, importedMetadata.RelatedScreenIndices);
+            }
 
             var targetPaths = sourcePaths.Select(path => Path.Combine(
                 ScreenshotStorageLayout.GetDayDirectory(targetScreenshots, capturedAt), Path.GetFileName(path))).ToArray();
@@ -336,9 +409,6 @@ public sealed class DataArchiveServiceTests
             Assert.Equal(string.Join(';', targetPaths), importedAnalysis.ScreenshotPaths);
             foreach (var path in targetPaths)
             {
-                var snapshot = Assert.IsType<ScreenshotTextSnapshot>(target.LoadScreenshotTextSnapshot(path));
-                Assert.Equal(path, snapshot.SourceScreenshotPath);
-                Assert.Equal("Archive test text", snapshot.Ocr.RawText);
                 Assert.Equal(includeScreenshots, File.Exists(path));
             }
 
@@ -352,7 +422,6 @@ public sealed class DataArchiveServiceTests
                 Assert.Equal(2, gallery.Items.Count);
                 Assert.All(gallery.Items, item => { Assert.True(item.IsVip); Assert.Equal(vip.UserNote, item.UserNote); });
             }
-            Assert.Equal(sourcePaths[0], source.LoadScreenshotTextSnapshot(sourcePaths[0])!.SourceScreenshotPath);
             var repeat = importer.PreviewImport(new DataArchiveImportPreviewRequest(archivePath), CancellationToken.None);
             Assert.True(repeat.AlreadyImported);
             Assert.Equal(1, importer.Import(repeat.PlanId, CancellationToken.None).SkippedAiAnalysisCount);
@@ -438,7 +507,7 @@ public sealed class DataArchiveServiceTests
             source.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 [screenshotPath],
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, 12, 4));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
 
             var archivePath = Path.Combine(root, "history.tmuarchive");
             var exporter = new DataArchiveService(source);
@@ -629,93 +698,6 @@ public sealed class DataArchiveServiceTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
-        }
-    }
-
-    /// <summary>Round-tripping existing OCR ignores JSON presentation but still rejects changed data at the same revision.</summary>
-    [Theory]
-    [InlineData("compact", false)]
-    [InlineData("reordered", false)]
-    [InlineData("ocr", true)]
-    [InlineData("extracted", true)]
-    public void PreviewImport_ExistingSnapshot_ComparesContentInsteadOfJsonFormatting(string mutation, bool conflict)
-    {
-        var root = CreateTemporaryDirectory();
-        try
-        {
-            var store = new LocalStore(Path.Combine(root, "source"));
-            var screenshotRoot = Path.Combine(root, "screenshots");
-            store.SaveSettings(store.LoadSettings() with { ScreenshotDirectory = screenshotRoot });
-            var capturedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
-            var captureId = Guid.NewGuid().ToString("N");
-            var dayDirectory = ScreenshotStorageLayout.GetDayDirectory(screenshotRoot, capturedAt);
-            Directory.CreateDirectory(dayDirectory);
-            var screenshot = Path.Combine(dayDirectory, $"{captureId}_1.0.0_manual_monitor-1.webp");
-            File.WriteAllBytes(screenshot, [1, 2, 3]);
-            File.SetLastWriteTimeUtc(screenshot, capturedAt.UtcDateTime);
-            store.UpsertScreenshotIntervalTelemetry(captureId, [screenshot],
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, 12, 4));
-            store.UpsertScreenshotTextSnapshot(captureId, new ScreenshotTextSnapshot(screenshot,
-                new OcrRawSnapshot(ScreenshotTextExtractionStatus.Succeeded, "Archive text\nCafé Ω", "en-US", null, capturedAt, "test-ocr", 100, 100, [])));
-            AppendAnalysis(store, captureId, capturedAt, screenshot, 1);
-            var archivePath = Path.Combine(root, "same-history.tmuarchive");
-            var service = new DataArchiveService(store);
-            service.Export(new DataArchiveExportRequest(archivePath, IncludeScreenshots: false), CancellationToken.None);
-            var archiveHash = SHA256.HashData(File.ReadAllBytes(archivePath));
-            var snapshotDirectory = Path.Combine(root, "archive-check");
-            Directory.CreateDirectory(snapshotDirectory);
-            using (var archive = ZipFile.OpenRead(archivePath))
-                archive.GetEntry("data.sqlite3")!.ExtractToFile(Path.Combine(snapshotDirectory, SqliteActivityStore.DatabaseFileName));
-            // A missing capture would be pruned on export, making both accepted and rejected cases meaningless.
-            Assert.Equal(1, ReadCount(snapshotDirectory, "screenshot_captures"));
-            Assert.Equal(1, ReadCount(snapshotDirectory, "screenshot_text_snapshots"));
-
-            using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-            {
-                DataSource = store.ActivityDatabasePath,
-                Mode = SqliteOpenMode.ReadWrite,
-                Pooling = false
-            }.ToString());
-            connection.Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT snapshot_json FROM screenshot_text_snapshots;";
-            var json = JsonNode.Parse((string)command.ExecuteScalar()!)!.AsObject();
-            if (mutation == "reordered")
-            {
-                var reordered = new JsonObject();
-                foreach (var property in json.Reverse()) reordered.Add(property.Key, property.Value?.DeepClone());
-                json = reordered;
-            }
-            if (mutation == "ocr") json["ocr"]!["rawText"] = "Actually different OCR";
-            command.CommandText = mutation == "extracted"
-                ? "UPDATE screenshot_text_snapshots SET extracted_utc_ticks = extracted_utc_ticks + 1;"
-                : "UPDATE screenshot_text_snapshots SET snapshot_json = $json;";
-            if (mutation != "extracted") command.Parameters.AddWithValue("$json", json.ToJsonString());
-            command.ExecuteNonQuery();
-            command.Parameters.Clear();
-            command.CommandText = "SELECT snapshot_json FROM screenshot_text_snapshots;";
-            var before = (string)command.ExecuteScalar()!;
-
-            if (conflict)
-            {
-                var error = Assert.Throws<InvalidDataException>(() => service.PreviewImport(new(archivePath), CancellationToken.None));
-                Assert.Contains("conflicting screenshot_text_snapshots revision", error.Message);
-            }
-            else
-            {
-                var preview = service.PreviewImport(new(archivePath), CancellationToken.None);
-                Assert.False(preview.AlreadyImported);
-                service.Import(preview.PlanId, CancellationToken.None);
-                Assert.True(service.PreviewImport(new(archivePath), CancellationToken.None).AlreadyImported);
-            }
-            Assert.Equal(before, command.ExecuteScalar());
-            Assert.Equal(1, ReadCount(Path.Combine(root, "source"), "screenshot_text_snapshots"));
-            Assert.Equal(archiveHash, SHA256.HashData(File.ReadAllBytes(archivePath)));
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
             Directory.Delete(root, recursive: true);
         }
     }

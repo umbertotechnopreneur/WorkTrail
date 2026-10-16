@@ -118,8 +118,6 @@ public sealed partial class WorkTrailApplication
             return;
         }
 
-        await _snapshot.SetTrackingAsync(_tracking.IsTracking, _runtimeTimerCancellation.Token).ConfigureAwait(false);
-        await CaptureActivityScoreTelemetryIfDueAsync();
         await ProcessScheduledSnapshotAsync();
     }
 

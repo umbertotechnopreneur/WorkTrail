@@ -160,9 +160,6 @@ internal static class SearchValidation
         ValidateLength(document.CaptureKind, nameof(document.CaptureKind), options);
         ValidateLength(document.CaptureOrigin, nameof(document.CaptureOrigin), options);
         ValidateLength(document.CapturePath, nameof(document.CapturePath), options);
-        ValidateLength(document.OcrRawText, nameof(document.OcrRawText), options);
-        ValidateLength(document.OcrCorrectedText, nameof(document.OcrCorrectedText), options);
-        ValidateLength(document.OcrStructuredSummary, nameof(document.OcrStructuredSummary), options);
         ValidateLength(document.AiDescription, nameof(document.AiDescription), options);
 
         foreach (var pair in document.AttributesRaw)

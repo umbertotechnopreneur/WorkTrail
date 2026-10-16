@@ -146,8 +146,25 @@ public sealed class LocalStore
         string captureId,
         string installationId,
         DateTimeOffset capturedAt,
-        string origin) =>
-        _activity.RegisterScreenshotCapture(captureId, installationId, capturedAt, origin);
+        string origin,
+        IReadOnlyList<ScreenshotImageMetadata>? images = null) =>
+        _activity.RegisterScreenshotCapture(captureId, installationId, capturedAt, origin, images);
+
+    /// <summary>Loads capture-time image facts in the caller's exact image order.</summary>
+    internal IReadOnlyList<ScreenshotImageMetadata> LoadScreenshotImages(IEnumerable<string> paths) =>
+        _activity.LoadScreenshotImages(paths);
+
+    /// <summary>Enforces capture-time AI destinations without reinterpreting today's capture rules.</summary>
+    internal IReadOnlyList<string> SelectAnalysisScreenshotPaths(IReadOnlyList<string> paths,
+        IReadOnlyList<ScreenshotImageMetadata>? images = null)
+    {
+        var metadata = (images ?? LoadScreenshotImages(paths))
+            .ToDictionary(image => image.Path, StringComparer.OrdinalIgnoreCase);
+        return paths.Where(path => !metadata.TryGetValue(path, out var image) || image.ForAnalysis).ToArray();
+    }
+
+    internal void DeleteScreenshotImage(string path) =>
+        _activity.DeleteScreenshotImage(ScreenshotIdentity(Path.GetFileName(path)));
 
     /// <summary>Marks one retained manual capture as important.</summary>
     /// <param name="captureId">The shared capture identity.</param>
@@ -181,57 +198,11 @@ public sealed class LocalStore
         _activity.EnsureCurrentInstallationProfile(profile);
     }
 
-    /// <summary>Persists raw local OCR and optional AI refinement for one owned screenshot source.</summary>
-    internal void UpsertScreenshotTextSnapshot(string captureId, ScreenshotTextSnapshot snapshot)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-        if (!ScreenCaptureService.IsOwnedArtifact(snapshot.SourceScreenshotPath))
-        {
-            throw new ArgumentException("Screenshot text can only reference a WorkTrail-owned artifact.", nameof(snapshot));
-        }
-
-        _activity.UpsertScreenshotTextSnapshot(
-            ScreenshotIdentity(Path.GetFileName(snapshot.SourceScreenshotPath)),
-            captureId,
-            snapshot);
-    }
-
-    /// <summary>Loads raw OCR and optional AI refinement for one owned screenshot artifact.</summary>
-    internal ScreenshotTextSnapshot? LoadScreenshotTextSnapshot(string screenshotPath)
-    {
-        if (!ScreenCaptureService.IsOwnedArtifact(screenshotPath))
-        {
-            return null;
-        }
-
-        return _activity.LoadScreenshotTextSnapshot(ScreenshotIdentity(Path.GetFileName(screenshotPath)));
-    }
-
-    /// <summary>Deletes OCR and AI text refinement data for one owned screenshot artifact.</summary>
-    internal int DeleteScreenshotTextSnapshot(string screenshotPath)
-    {
-        if (!ScreenCaptureService.IsOwnedArtifact(screenshotPath))
-        {
-            return 0;
-        }
-
-        return _activity.DeleteScreenshotTextSnapshot(ScreenshotIdentity(Path.GetFileName(screenshotPath)));
-    }
-
-    /// <summary>Persists immutable hardware evidence for one already-registered screenshot capture.</summary>
-    internal void UpsertCaptureHardwareSnapshot(string captureId, SystemSnapshot snapshot) =>
-        _activity.UpsertCaptureHardwareSnapshot(captureId, snapshot);
-
-    /// <summary>Loads retained hardware evidence without sampling the current machine.</summary>
-    internal SystemSnapshot? LoadCaptureHardwareSnapshot(string captureId) =>
-        _activity.LoadCaptureHardwareSnapshot(captureId);
-
     /// <summary>Persists the same capture-interval telemetry for every retained artifact in one screenshot pass.</summary>
     internal void UpsertScreenshotIntervalTelemetry(
         string captureId,
         IReadOnlyList<string> screenshotPaths,
-        ScreenshotIntervalTelemetry telemetry,
-        SystemSnapshot? hardwareSnapshot = null)
+        ScreenshotIntervalTelemetry telemetry)
     {
         if (string.IsNullOrWhiteSpace(captureId) || screenshotPaths.Count == 0)
         {
@@ -266,8 +237,7 @@ public sealed class LocalStore
             LoadSettings().InstallationId,
             origins.Single(),
             distinctPaths.Select(path => ScreenshotIdentity(Path.GetFileName(path))).ToArray(),
-            telemetry,
-            hardwareSnapshot);
+            telemetry);
     }
 
     /// <summary>Loads persisted interval telemetry for one retained screenshot.</summary>
@@ -431,12 +401,6 @@ public sealed class LocalStore
     internal void VisitAllActivitySamples(Action<long, ActivitySample> visitor, CancellationToken cancellationToken) =>
         _activity.VisitAllActivitySamples(visitor, cancellationToken);
 
-    /// <summary>Visits every durable screenshot text snapshot for search-index rebuilds.</summary>
-    internal void VisitScreenshotTextSnapshots(
-        Action<string, string, ScreenshotTextSnapshot> visitor,
-        CancellationToken cancellationToken) =>
-        _activity.VisitScreenshotTextSnapshots(visitor, cancellationToken);
-
     /// <summary>Visits every persisted successful AI analysis for search-index rebuilds.</summary>
     internal void VisitAllAiAnalyses(Action<AiAnalysis> visitor, CancellationToken cancellationToken) =>
         _activity.VisitAllAiAnalyses(visitor, cancellationToken);
@@ -461,12 +425,6 @@ public sealed class LocalStore
     /// <summary>Loads one retained successful analysis for incremental search projection.</summary>
     internal AiAnalysis? LoadAiAnalysis(string correlationId) => _activity.LoadAiAnalysis(correlationId);
 
-    /// <summary>Loads OCR snapshots for one capture without scanning unrelated captures.</summary>
-    internal IReadOnlyDictionary<string, ScreenshotTextSnapshot> LoadScreenshotTextSnapshotsForCapture(
-        string captureId,
-        CancellationToken cancellationToken) =>
-        _activity.LoadScreenshotTextSnapshotsForCapture(captureId, cancellationToken);
-
     /// <summary>Projects requested captures together, scanning each affected day once and loading only their metadata.</summary>
     internal IReadOnlyList<ScreenshotGalleryItem> GetScreenshotGalleryItemsForCaptures(
         IReadOnlyCollection<string> captureIds, CancellationToken cancellationToken)
@@ -480,7 +438,7 @@ public sealed class LocalStore
         _screenshotProjectionGate.Wait(cancellationToken);
         try
         {
-            // A missing capture is a deleted source. Filter before deserializing OCR or reading
+            // A missing capture is a deleted source. Filter before reading
             // activity intervals so unrelated screenshots cannot multiply each index update.
             foreach (var day in provenance.Values.GroupBy(capture => DateOnly.FromDateTime(capture.CapturedAt.LocalDateTime)))
             {
@@ -545,10 +503,6 @@ public sealed class LocalStore
         return timestamps;
     }
 
-    /// <summary>Loads one OCR snapshot by its already-normalized stable artifact identity.</summary>
-    internal ScreenshotTextSnapshot? LoadScreenshotTextSnapshotByIdentity(string artifactIdentity) =>
-        _activity.LoadScreenshotTextSnapshot(artifactIdentity);
-
     /// <summary>Persists one sanitized standalone AI request-usage record in SQLite.</summary>
     internal void AppendAiUsage(AiRequestUsageRecord usage) => _activity.AppendStandaloneAiRequest(usage);
 
@@ -562,18 +516,6 @@ public sealed class LocalStore
     // fromUtc and toUtc bound the retained samples; visitor receives each overlap and token cancels the scan.
     internal void VisitTimesheetSamples(DateTimeOffset fromUtc, DateTimeOffset toUtc,
         Action<ActivitySample> visitor, CancellationToken token) => _activity.VisitOverlapping(fromUtc, toUtc, visitor, token);
-
-    /// <summary>Replaces the cached AI pricing rows for one provider.</summary>
-    internal void ReplaceAiModelPricing(string provider, IReadOnlyList<AiModelPricing> prices) =>
-        _activity.ReplaceAiModelPricing(provider, prices);
-
-    /// <summary>Lists cached AI model prices for one provider.</summary>
-    internal IReadOnlyList<AiModelPricing> ListAiModelPricing(string provider) =>
-        _activity.ListAiModelPricing(provider);
-
-    /// <summary>Gets the newest cached AI pricing timestamp for one provider.</summary>
-    internal DateTimeOffset? GetLatestAiModelPricingRetrievedAt(string provider) =>
-        _activity.GetLatestAiModelPricingRetrievedAt(provider);
 
     /// <summary>Persists provider usage and the corresponding analysis in one SQLite transaction.</summary>
     internal void AppendAiAnalysisAndUsage(AiRequestUsageRecord usage, AiAnalysis analysis)
@@ -878,15 +820,13 @@ public sealed class LocalStore
         var telemetryByIdentity = _activity.LoadScreenshotIntervalTelemetry(
             artifactIdentities.Values,
             cancellationToken);
-        var textByIdentity = _activity.LoadScreenshotTextSnapshots(
-            artifactIdentities.Values,
-            cancellationToken);
         var captureIds = artifactIdentities.Values
             .Select(identity => TryGetCaptureId(identity)
                 ?? throw new InvalidDataException($"Screenshot artifact has no valid capture identity: {identity}"))
             .ToArray();
         var provenanceByCapture = _activity.LoadScreenshotCaptures(captureIds);
-        var hardwareByCapture = _activity.LoadCaptureHardwareSnapshots(captureIds, cancellationToken);
+        var imageMetadata = LoadScreenshotImages(retainedFiles.Select(file => file.FullName))
+            .ToDictionary(image => image.Path, StringComparer.OrdinalIgnoreCase);
         // One incomplete historical capture cannot hide the remaining day. Never infer its installation owner.
         var unavailableArtifacts = retainedFiles.Count(file => !provenanceByCapture.ContainsKey(
             TryGetCaptureId(artifactIdentities[file.FullName])!));
@@ -954,36 +894,33 @@ public sealed class LocalStore
                 samples,
                 source.Provenance.Installation);
             analyses.TryGetValue(source.File.FullName, out var analysis);
-            textByIdentity.TryGetValue(source.ArtifactIdentity, out var textSnapshot);
-            hardwareByCapture.TryGetValue(source.Provenance.CaptureId, out var hardwareSnapshot);
-            // Analysis-only deletion is per artifact; a sibling monitor may still retain the
-            // capture's shared hardware evidence without exposing it on this cleared artifact.
-            hardwareSnapshot = source.Telemetry is null ? null : hardwareSnapshot;
+            imageMetadata.TryGetValue(source.File.FullName, out var image);
+            if (image is { ForGallery: false }) continue;
             items.Add(new ScreenshotGalleryItem(
                 source.CapturedAt,
                 source.File.FullName,
-                activity.ForegroundApplication,
+                image is null ? activity.ForegroundApplication : image.ApplicationName,
                 GetCaptureKind(source.File.Name),
                 source.Provenance.Origin,
                 activity.SpanLabels,
                 analysis?.Summary,
                 analysis?.Timestamp,
                 activity.ActivityIndex,
-                textSnapshot,
-                activity.ForegroundWindowTitle,
-                GetScreenIndex(source.File.Name),
-                GetScreenName(source.File.Name),
+                image is null ? activity.ForegroundWindowTitle : image.WindowTitle,
+                image?.ScreenIndex ?? GetScreenIndex(source.File.Name),
+                image?.ScreenName ?? GetScreenName(source.File.Name),
                 activity.MouseClicks,
-                source.Telemetry?.CpuUsagePercent,
-                source.Telemetry?.GpuUsagePercent,
                 source.Provenance.Installation,
-                analysis is not null || textSnapshot is not null || source.Telemetry is not null || hardwareSnapshot is not null,
-                HardwareSnapshot: hardwareSnapshot,
+                analysis is not null || source.Telemetry is not null,
                 IsVip: source.Provenance.IsVip,
-                UserNote: source.Provenance.UserNote));
+                UserNote: source.Provenance.UserNote,
+                ImageMetadata: image));
         }
 
-        return new ScreenshotGallery(date, items, unavailableArtifacts);
+        return new ScreenshotGallery(date, items.OrderByDescending(item => item.CapturedAt)
+            .ThenBy(item => item.ImageMetadata?.Priority switch { "primary" => 0, "secondary" => 1, _ => 2 })
+            .ThenBy(item => item.CaptureKind == "active-window" ? 0 : 1)
+            .ThenBy(item => item.ScreenIndex).ToArray(), unavailableArtifacts);
     }
 
     /// <summary>Loads the most recent local day that still has retained screenshot artifacts.</summary>
@@ -1069,7 +1006,7 @@ public sealed class LocalStore
 
     /// <summary>Visits retained screenshot projections one gallery day at a time.</summary>
     /// <remarks>
-    /// A full materialization keeps every OCR and AI payload alive while the search index is
+    /// A full materialization keeps every AI payload alive while the search index is
     /// rebuilt. The visitor keeps the projection lifetime bounded to one day instead.
     /// </remarks>
     internal void VisitAllScreenshotGalleryItems(
@@ -1115,11 +1052,6 @@ public sealed class LocalStore
             return Array.Empty<AiScreenshotReprocessCandidate>();
         }
 
-        var requestedIdentities = records
-            .SelectMany(record => record.ArtifactIdentities)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var textByIdentity = _activity.LoadScreenshotTextSnapshots(requestedIdentities, cancellationToken);
-        var hardwareByCapture = _activity.LoadCaptureHardwareSnapshots(records.Select(record => record.CaptureId), cancellationToken);
         var activitySamples = new List<ActivitySample>();
         var recordsWithProvenance = records
             .Select(record => (Record: record, InstallationId: NormalizeInstallationId(record.InstallationId)))
@@ -1155,11 +1087,6 @@ public sealed class LocalStore
                 .Where(path => path is not null)
                 .Cast<string>()
                 .ToArray();
-            var texts = record.ArtifactIdentities
-                .Select(identity => textByIdentity.TryGetValue(identity, out var text) ? text : null)
-                .Where(text => text is not null)
-                .Cast<ScreenshotTextSnapshot>()
-                .ToArray();
             var installationId = NormalizeInstallationId(record.InstallationId);
             var coveringSamples = installationId is not null
                 && activityByCapture.TryGetValue(record.CaptureId, out var matchedSamples)
@@ -1175,8 +1102,7 @@ public sealed class LocalStore
                     historicalSample.Context,
                     historicalSample.WindowTitle,
                     historicalSample.State,
-                    TrackingDomainService.FilterAnalysisAttributes(historicalSample.Attributes),
-                    Snapshot: hardwareByCapture.GetValueOrDefault(record.CaptureId));
+                    TrackingDomainService.FilterAnalysisAttributes(historicalSample.Attributes));
             var captureOrigin = GetCaptureOrigin(record.ArtifactIdentities[0] + ".webp");
             candidates.Add(new AiScreenshotReprocessCandidate(
                 record.CaptureId,
@@ -1184,7 +1110,6 @@ public sealed class LocalStore
                 record.CapturedAt,
                 captureOrigin,
                 paths,
-                texts,
                 historicalContext,
                 record.HasAiDescription,
                 record.ArtifactIdentities.Count - paths.Length,
@@ -1221,6 +1146,8 @@ public sealed class LocalStore
             }
         }
 
+        foreach (var image in LoadScreenshotImages(retainedByIdentity.Values.Select(file => file.FullName)))
+            if (!image.ForGallery) retainedByIdentity.Remove(ScreenshotIdentity(Path.GetFileName(image.Path)));
         return retainedByIdentity;
     }
 
@@ -1326,9 +1253,7 @@ public sealed class LocalStore
             ? null
             : ActivityScoreService.CalculateIntervalActivityIndex(
                 samples,
-                (toUtc - fromUtc).TotalMinutes,
-                telemetry?.CpuUsagePercent,
-                telemetry?.GpuUsagePercent);
+                (toUtc - fromUtc).TotalMinutes);
         long? mouseClicks = samples.Count == 0
             ? null
             : samples.Aggregate(0L, (total, sample) => checked(total + sample.MouseClicks));
@@ -1467,6 +1392,10 @@ public sealed class LocalStore
     private static string GetCaptureKind(string fileName)
     {
         var withoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        if (withoutExtension.Contains("_secondary-window-", StringComparison.OrdinalIgnoreCase))
+        {
+            return "secondary-window";
+        }
         if (withoutExtension.Contains("_active-window", StringComparison.OrdinalIgnoreCase))
         {
             return "active-window";

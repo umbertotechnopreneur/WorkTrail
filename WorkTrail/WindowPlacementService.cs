@@ -71,12 +71,17 @@ internal sealed class WindowPlacementService : IDisposable
     private bool _closeSaveCompleted;
     private bool _shutdownPrepared;
     private bool _failureNotificationPending;
+    private bool _revealingOpenWindows;
+    private readonly CancellationTokenSource _revealLifetime = new();
 
     /// <summary>Lets the composition root report recoverable persistence failures on the owning window.</summary>
     internal static event Func<Window, string, Exception, Task>? PersistenceFailed;
 
     /// <summary>Lets the composition root report a failed native snap without interrupting free movement.</summary>
     internal static event Func<Window, Exception, Task>? SnappingFailed;
+
+    /// <summary>Lets the main player report a failed reveal without opening another activating dialog.</summary>
+    internal static event Action? RevealFailed;
 
     /// <summary>Snapshots the already-created peers on the UI dispatcher without reopening persisted workspace entries.</summary>
     internal static IReadOnlyList<long> GetOpenPeerWindowHandles(long mainWindowHandle) => s_preservingWorkspace
@@ -117,6 +122,7 @@ internal sealed class WindowPlacementService : IDisposable
         InstallMinimumSizeSubclass();
         _root.Loaded += Root_Loaded;
         _window.Closed += Window_Closed;
+        _window.Activated += Window_Activated;
         _appWindow.Changed += AppWindow_Changed;
         if (deferNativeClose)
         {
@@ -132,10 +138,10 @@ internal sealed class WindowPlacementService : IDisposable
         {
             // Only independent work surfaces participate, both as moving windows and alignment targets.
             // Dialogs, About, licenses and temporary operations retain native free movement.
-            if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks or WindowStateKeys.Sensors
+            if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks
                 or WindowStateKeys.WorldMap or WindowStateKeys.LunarPhase or WindowStateKeys.LocalSky
                 or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap or WindowStateKeys.Search
-                or WindowStateKeys.Screenshots or WindowStateKeys.OcrText or WindowStateKeys.Schedule
+                or WindowStateKeys.Screenshots or WindowStateKeys.Schedule
                 or WindowStateKeys.ReportExport)
             {
                 _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
@@ -187,6 +193,55 @@ internal sealed class WindowPlacementService : IDisposable
     }
 
     private void Window_Closed(object sender, WindowEventArgs args) => Dispose();
+
+    private async void Window_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState == WindowActivationState.Deactivated
+            || _disposed || _closeSaveStarted || _shutdownPrepared || s_preservingWorkspace
+            || _revealingOpenWindows)
+        {
+            return;
+        }
+
+        var cancellationToken = _revealLifetime.Token;
+        _revealingOpenWindows = true;
+        try
+        {
+            // The clicked window anchors the group. Core raises peers without transferring foreground focus.
+            var activeHandle = _windowHandle.ToInt64();
+            var peers = GetOpenPeerWindowHandles(activeHandle);
+            if (peers.Count == 0) return;
+            var result = await _application.RevealOpenWindowsAsync(
+                new WindowRevealRequest(activeHandle, peers), cancellationToken);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException($"Open windows could not be revealed ({result.Code}).");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Closing this window cancels its pending reveal without affecting the active surface.
+        }
+        catch (Exception exception)
+        {
+            Trace.TraceError("Open window reveal failed. WindowKey={0} Exception={1}", _windowKey, exception);
+            if (!_disposed && !s_preservingWorkspace)
+            {
+                try
+                {
+                    RevealFailed?.Invoke();
+                }
+                catch (Exception notificationException)
+                {
+                    Trace.TraceError("Window reveal notification failed. Exception={0}", notificationException);
+                }
+            }
+        }
+        finally
+        {
+            _revealingOpenWindows = false;
+        }
+    }
 
     private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
     {
@@ -769,8 +824,11 @@ internal sealed class WindowPlacementService : IDisposable
         }
 
         _disposed = true;
+        _revealLifetime.Cancel();
+        _revealLifetime.Dispose();
         _root.Loaded -= Root_Loaded;
         _window.Closed -= Window_Closed;
+        _window.Activated -= Window_Activated;
         _appWindow.Changed -= AppWindow_Changed;
         _appWindow.Closing -= AppWindow_Closing;
         _saveTimer.Stop();

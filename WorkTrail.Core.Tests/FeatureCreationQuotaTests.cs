@@ -251,7 +251,7 @@ public sealed class FeatureCreationQuotaTests : IDisposable
 
     private static WorkTrailApplication Application(LocalStore store, ProductTier tier) =>
         new(store, new UtilityService(), new TrackingDomainService(store), DispatchProxy.Create<IScreenCaptureService, NoExternalCalls>(),
-            new FakeHardwareTelemetryService(), DispatchProxy.Create<IAiAnalysisService, NoExternalCalls>(), new StartupService(), new BuildInformationService(),
+            DispatchProxy.Create<IAiAnalysisService, NoExternalCalls>(), new StartupService(), new BuildInformationService(),
             worldClockService: new WorldClockService(CityCatalogPath()), startScheduledSnapshotTimer: false, featureLicenseSource: new License(tier));
 
     private static string CityCatalogPath()

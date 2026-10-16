@@ -67,7 +67,7 @@ public sealed partial class WorkTrailApplication
                 var settings = _settingsSnapshot.Value;
                 if (!settings.OpenAiEnabled || !TryValidateOpenAiConfiguration(settings, false, out var validated, out _))
                     throw new ReportExportValidationException("Export.AiNotReady");
-                if (!BuildCostGate(validated).Allowed) throw new ReportExportValidationException("Export.AiDailyLimit");
+                if (!BuildRequestGate(validated).Allowed) throw new ReportExportValidationException("Export.AiDailyLimit");
                 return await new ReportSummaryService(_store).GenerateAsync(request, validated,
                     // Live analysis already holds the visual gate. Re-entering it here deadlocks the summary window.
                     usage => MutateAsync(() =>
@@ -94,7 +94,7 @@ public sealed partial class WorkTrailApplication
         }
         catch (Exception exception)
         {
-            // Paths, OCR, generated text and provider exception messages must not enter diagnostics or IPC errors.
+            // Paths, generated text and provider exception messages must not enter diagnostics or IPC errors.
             _logger.LogWarning("Export operation failed. ExceptionType={ExceptionType}", exception.GetType().Name);
             return OperationResult<T>.Failure("export.failed", "Export.Failed");
         }

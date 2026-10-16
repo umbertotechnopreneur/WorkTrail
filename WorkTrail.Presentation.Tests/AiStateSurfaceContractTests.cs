@@ -86,9 +86,9 @@ public sealed class AiStateSurfaceContractTests
         Assert.Contains("AiDailyLimitBox.ValueChanged +=", optionsSource, StringComparison.Ordinal);
         Assert.Contains("QueueAiDailyLimitSave();", optionsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsCatalog.MaximumAiDailyLimit", optionsSource, StringComparison.Ordinal);
-        Assert.Contains("costGate.DailyAnalysisCount", optionsSource, StringComparison.Ordinal);
+        Assert.Contains("requestGate.DailyAnalysisCount", optionsSource, StringComparison.Ordinal);
         Assert.Contains("AutomationProperties.SetName(AiQuotaProgressBar", optionsSource, StringComparison.Ordinal);
-        Assert.Contains("nameof(AiApplicationState.CostGate)", optionsSource, StringComparison.Ordinal);
+        Assert.Contains("nameof(AiApplicationState.RequestGate)", optionsSource, StringComparison.Ordinal);
         Assert.Contains("_application.GetAiStatusAsync(cancellationToken)", stateSource, StringComparison.Ordinal);
         Assert.DoesNotContain("SqliteActivityStore", optionsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("CountAiAnalysisResults", optionsSource, StringComparison.Ordinal);

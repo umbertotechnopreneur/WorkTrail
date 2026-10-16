@@ -29,6 +29,17 @@ namespace WorkTrail.Presentation.Tests;
 public sealed class ScreenshotCoverFlowSurfaceContractTests
 {
     [Fact]
+    public void ScreenshotDetails_PreservesMonitorAndAiDescriptionWithoutRemovedTools()
+    {
+        var details = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "ScreenshotDetailsControl.xaml"));
+
+        Assert.Contains(details.Descendants(), element => HasName(element, "ScreenValueText"));
+        Assert.Contains(details.Descendants(), element => HasName(element, "AiMarkdownHost"));
+        Assert.DoesNotContain(details.Descendants(), element => HasName(element, "OcrTextSection"));
+        Assert.DoesNotContain(details.Descendants(), element => HasName(element, "HardwareSection"));
+    }
+
+    [Fact]
     public void ScreenshotHeader_RendersSelectedInstallationProvenanceWithAccessibleAppearance()
     {
         var header = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "ScreenshotHeaderControl.xaml"));
@@ -78,7 +89,7 @@ public sealed class ScreenshotCoverFlowSurfaceContractTests
 
         Assert.Equal("Screenshots.AiDescription.Empty", emptyDescription.Attribute("Tag")?.Value);
         Assert.Contains("_application.GetAiStatusAsync(cancellationToken)", windowSource, StringComparison.Ordinal);
-        Assert.Contains("CostGate: { Allowed: false, Reason: \"daily_limit\" }", windowSource, StringComparison.Ordinal);
+        Assert.Contains("RequestGate: { Allowed: false, Reason: \"daily_limit\" }", windowSource, StringComparison.Ordinal);
         Assert.Contains("DefaultAiDescriptionEmptyMessageKey = \"Screenshots.AiDescription.Empty\"", windowSource, StringComparison.Ordinal);
         Assert.Contains("DailyAiLimitEmptyMessageKey = \"Notification.AiDailyLimitReached.Message\"", windowSource, StringComparison.Ordinal);
         Assert.Contains("UiLocalization.Apply(DetailsSection, _strings);", windowSource, StringComparison.Ordinal);
@@ -87,45 +98,6 @@ public sealed class ScreenshotCoverFlowSurfaceContractTests
         Assert.DoesNotContain("IAiAnalysisService", windowSource, StringComparison.Ordinal);
         Assert.DoesNotContain("AnalyzeCapturedScreenAsync", windowSource, StringComparison.Ordinal);
         Assert.DoesNotContain("LocalStore", windowSource, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ScreenshotDetails_OpensAvailableOcrTextInOneOwnedWindow()
-    {
-        var details = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "ScreenshotDetailsControl.xaml"));
-        var detailsSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "ScreenshotDetailsControl.xaml.cs"));
-        var windowSource = File.ReadAllText(RepositoryFile("WorkTrail", "ScreenshotWindow.xaml.cs"));
-        var ocrSection = details.Descendants().Single(element => HasName(element, "OcrTextSection"));
-        var openButton = details.Descendants().Single(element => HasName(element, "OpenOcrTextButton"));
-
-        Assert.Equal("Collapsed", ocrSection.Attribute("Visibility")?.Value);
-        Assert.Equal("Button", openButton.Name.LocalName);
-        Assert.Equal("Transparent", openButton.Attribute("Background")?.Value);
-        Assert.Equal("Transparent", openButton.Attribute("BorderBrush")?.Value);
-        Assert.Equal("0", openButton.Attribute("BorderThickness")?.Value);
-        Assert.Equal("Screenshots.OcrText.Details.Open", openButton.Attribute("Tag")?.Value);
-        Assert.Equal("OpenOcrTextButton_Click", openButton.Attribute("Click")?.Value);
-        Assert.Equal("Open OCR text in a new window", openButton.Attribute("AutomationProperties.Name")?.Value);
-        Assert.Equal("Open OCR text in a new window", openButton.Attribute("ToolTipService.ToolTip")?.Value);
-        Assert.Contains(openButton.Descendants(), element =>
-            element.Name.LocalName == "TextBlock"
-            && element.Attribute("Tag")?.Value == "Screenshots.OcrText.Details.Action"
-            && element.Attribute("Text")?.Value == "Open OCR text");
-        Assert.Contains(openButton.Descendants(), element =>
-            element.Name.LocalName == "FontIcon"
-            && element.Attribute("Glyph")?.Value == "\uE8A7");
-        Assert.Contains("public event Action<string>? OcrTextRequested;", detailsSource, StringComparison.Ordinal);
-        Assert.Contains("_ocrText = string.IsNullOrWhiteSpace(state?.OcrText) ? null : state.OcrText;", detailsSource, StringComparison.Ordinal);
-        Assert.Contains("OcrTextSection.Visibility = _ocrText is null ? Visibility.Collapsed : Visibility.Visible;", detailsSource, StringComparison.Ordinal);
-        Assert.Contains("OcrTextRequested?.Invoke(ocrText);", detailsSource, StringComparison.Ordinal);
-        Assert.Contains("DetailsSection.OcrTextRequested += DetailsSection_OcrTextRequested;", windowSource, StringComparison.Ordinal);
-        Assert.Contains("_ocrTextWindow = new OcrTextWindow(", windowSource, StringComparison.Ordinal);
-        Assert.Contains("var requestedTheme = RootGrid.RequestedTheme;", windowSource, StringComparison.Ordinal);
-        Assert.Contains("_ocrTextWindow.UpdateContent(ocrText, requestedTheme, _strings.Language);", windowSource, StringComparison.Ordinal);
-        Assert.Contains("_ocrTextWindow.Activate();", windowSource, StringComparison.Ordinal);
-        Assert.Contains("_ocrTextWindow.Closed += OcrTextWindow_Closed;", windowSource, StringComparison.Ordinal);
-        Assert.Contains("DetailsSection.OcrTextRequested -= DetailsSection_OcrTextRequested;", windowSource, StringComparison.Ordinal);
-        Assert.Contains("ocrTextWindow.Close();", windowSource, StringComparison.Ordinal);
     }
 
     [Fact]

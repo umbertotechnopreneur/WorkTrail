@@ -121,8 +121,6 @@ public sealed record AppSettings(
     string Theme = "system",
     bool OpenAiEnabled = false,
     bool ScreenshotsEnabled = false,
-    bool OcrEnabled = false,
-    string OcrLanguage = "system",
     string SearchLanguage = "system",
     bool SearchSynonymsEnabled = true,
     bool SearchTypoToleranceEnabled = true,
@@ -136,10 +134,6 @@ public sealed record AppSettings(
     int DataRetentionDays = 30,
     int ScreenshotRetentionDays = 30,
     int OpenAiDailyLimit = 20,
-    decimal OpenAiDailyCostUsd = 0m,
-    decimal EstimatedCostPerAnalysisUsd = 0.02m,
-    decimal EstimatedCostPerScreenshotUsd = 0.003m,
-    bool ShowCostGuardrailInStatus = true,
     bool StartTrackingOnLaunch = false,
     bool TaskbarWidgetVisible = false,
     string TaskbarWidgetPosition = TaskbarWidgetPositions.Left,
@@ -151,19 +145,13 @@ public sealed record AppSettings(
     IReadOnlyDictionary<string, WorkTrail.Application.WindowState>? WindowStates = null,
     bool ScreenshotDetailsPaneOpen = false,
     IReadOnlyList<string>? WorldClockCityIds = null,
-    bool ShowAiMonthlySpend = false,
     bool WorldClockWeatherEnabled = true,
     int MainWindowOpacityPercent = 100,
     bool MainWindowShowInTaskbar = true,
     int WorldClockWindowOpacityPercent = 100,
     bool WorldClockWindowShowInTaskbar = true,
     IReadOnlyDictionary<string, bool>? WindowOpenStates = null,
-    WorkTrail.Application.OcrTextWindowSource? OcrTextWindowSource = null,
     bool AutoHideTitleBar = true,
-    bool HardwareSensorsEnabled = true,
-    bool HardwareUseAdvancedSensors = false,
-    bool HardwareSaveSnapshots = true,
-    string HardwareSamplingProfile = "normal",
     bool WorldMapWindowShowInTaskbar = true,
     bool LunarPhaseWindowShowInTaskbar = true,
     bool WindowSnappingEnabled = true,
@@ -186,11 +174,10 @@ public sealed record AiAnalysis(
     string Summary,
     string InstallationId,
     string? ScreenshotPaths,
-    SystemSnapshot? Snapshot = null,
+    DeviceContextSnapshot? DeviceContext = null,
     string? CorrelationId = null,
     string? Origin = null,
-    string? InformationalSchedule = null,
-    IReadOnlyList<WorkTrail.Application.ScreenshotTextSnapshot>? TextSnapshots = null);
+    string? InformationalSchedule = null);
 
 /// <summary>
 /// Summarizes active time for one application.
@@ -203,12 +190,10 @@ public sealed record ApplicationSummary(string Application, long ActiveSeconds);
 public sealed record DailySummary(long ActiveSeconds, long IdleSeconds, long KeyPresses, long MouseClicks, IReadOnlyList<ApplicationSummary> Applications);
 
 /// <summary>Describes the local daily guardrail for visual requests sent to the configured AI provider.</summary>
-public sealed record AnalysisCostGate(
+public sealed record AnalysisRequestGate(
     bool Allowed,
     string? Reason,
-    decimal EstimatedCostUsd,
-    int DailyAnalysisCount,
-    decimal ProjectedDailyCostUsd);
+    int DailyAnalysisCount);
 
 /// <summary>Represents privacy-safe hourly activity levels for one complete trailing 24-hour window.</summary>
 public sealed record ActivityTrendState(
@@ -223,9 +208,7 @@ public sealed record ActivityScoreMinute(
     int Score,
     long KeyPresses,
     long MouseClicks,
-    int ActiveSeconds,
-    int? CpuUsagePercent,
-    int? GpuUsagePercent);
+    int ActiveSeconds);
 
 /// <summary>Summarizes input captured between one pair of scheduled screenshot boundaries.</summary>
 public sealed record ActivityScoreInterval(long KeyPresses, long MouseClicks);
@@ -295,5 +278,5 @@ public sealed record AnalysisContextSnapshot(
     string WindowTitle,
     string State,
     IReadOnlyDictionary<string, string>? Attributes,
-    SystemSnapshot? Snapshot = null,
+    DeviceContextSnapshot? DeviceContext = null,
     string? InformationalSchedule = null);

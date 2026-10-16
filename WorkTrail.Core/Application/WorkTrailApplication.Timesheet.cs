@@ -97,7 +97,7 @@ public sealed partial class WorkTrailApplication
             if (!FeatureCatalog.IsAllowed(ProductFeature.ReportExport, _featureAccess.Snapshot))
                 throw new ReportExportValidationException("Premium.Required");
             var count = job.Rows.Count(row => row.Row.State != "no_sources");
-            if (!BuildCostGate(settings).Allowed
+            if (!BuildRequestGate(settings).Allowed
                 || (settings.OpenAiDailyLimit > 0 && (long)_store.GetTodayAnalysisCount() + count > settings.OpenAiDailyLimit))
                 throw new ReportExportValidationException("Export.AiDailyLimit");
             _store.SaveTimesheetUsage(job.Rows.Where(row => row.Row.State != "no_sources")

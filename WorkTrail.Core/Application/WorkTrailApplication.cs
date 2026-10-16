@@ -22,7 +22,6 @@ using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using WorkTrail.Ocr;
 using WorkTrail.Runtime;
 using WorkTrail.Search;
 using WorkTrail.Services;
@@ -47,22 +46,10 @@ public static class WorkTrailApplicationFactory
         var settingsSnapshot = new SettingsSnapshot(settings);
         var tracking = new TrackingDomainService(store, settingsSnapshot);
         var capture = new ScreenCaptureService(utilities.GetAppVersion(), settingsSnapshot);
-        var snapshot = new HardwareTelemetryService();
         var deviceContext = new DeviceContextService();
         var buildInformation = new BuildInformationService();
         var aiModelCatalog = AiModelCatalog.LoadDefault();
         var fileShare = new WindowsFileShareService();
-        var screenshotOcr = new WindowsScreenshotOcrService(new OcrOptions
-        {
-            Enabled = settings.OcrEnabled,
-            PreferredLanguageTag = ProductLanguageCatalog.ResolveOcrLanguage(settings.OcrLanguage)
-        });
-        var ocrRefinement = new OpenAiOcrRefinementService(
-            store,
-            logger: loggerFactory?.CreateLogger<OpenAiOcrRefinementService>());
-        var pricingRefresh = new OpenAiPricingRefreshService(
-            store,
-            loggerFactory?.CreateLogger<OpenAiPricingRefreshService>());
         var localSearch = CreateLocalSearchService(store);
         var analysis = new OpenAiAnalysisService(
             store,
@@ -73,7 +60,6 @@ public static class WorkTrailApplicationFactory
             utilities,
             tracking,
             capture,
-            snapshot,
             analysis,
             new StartupService(),
             buildInformation,
@@ -84,11 +70,7 @@ public static class WorkTrailApplicationFactory
             new WindowStateService(store),
             aiModelCatalog,
             new ApplicationLogService(fileShare: fileShare),
-            screenshotOcr,
-            ocrRefinement,
-            loggerFactory?.CreateLogger<ScreenshotTextExtractionCoordinator>(),
             localSearch,
-            pricingRefresh,
             settingsSnapshot: settingsSnapshot,
             screenshotNotifications: new ScreenshotNotificationService(settingsSnapshot,
                 loggerFactory?.CreateLogger<ScreenshotNotificationService>() ?? NullLogger<ScreenshotNotificationService>.Instance),
@@ -139,11 +121,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private readonly TrackingDomainService _tracking;
     private readonly IScreenCaptureService _capture;
     private readonly IScreenshotNotificationService? _screenshotNotifications;
-    private readonly IHardwareTelemetryService _snapshot;
     private readonly DeviceContextService _deviceContext;
     private readonly IAiAnalysisService _analysis;
-    private readonly IAiOcrRefinementService _ocrRefinement;
-    private readonly ScreenshotTextExtractionCoordinator _textExtraction;
     private readonly LocalSearchCoordinator _search;
     private readonly ScreenshotDeletionJournal _screenshotDeletions;
     private readonly ScreenshotShareService _screenshotShare;
@@ -154,7 +133,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private readonly AiModelCatalogSnapshot _aiModelCatalog;
     private readonly ReportAggregationService _reports;
     private readonly AtomicResetService _atomicReset;
-    private readonly OpenAiPricingRefreshService? _pricingRefresh;
     private readonly AiScreenshotReprocessingService _screenshotReprocessing;
     private readonly DataArchiveService _archives;
     private readonly DataArchiveProgressRegistry _archiveProgress = new();
@@ -170,7 +148,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private TaskCompletionSource<bool>? _liveWorkDrained;
     private readonly SemaphoreSlim _captureWorker = new(1, 1);
     private readonly SemaphoreSlim _manualScreenshotCaptureGate = new(1, 1);
-    private readonly SemaphoreSlim _systemSnapshotGate = new(1, 1);
     private readonly ConcurrentQueue<ApplicationNotification> _notifications = new();
     private readonly CancellationTokenSource _runtimeTimerCancellation = new();
     private readonly Task _runtimeTimerTask;
@@ -180,8 +157,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private int _scheduledSnapshotIntervalMinutes;
     private bool _scheduledSnapshotsEnabled;
     private bool _atomicResetPrepared;
-    private readonly object _activityScoreTelemetryGate = new();
-    private DateTimeOffset? _nextActivityScoreTelemetryAt;
     private int _lastAiDailyLimitNotificationDateStamp;
     private DateTimeOffset _lastScreenshotStorageWarningAt = DateTimeOffset.MinValue;
     private const int ManualScreenshotDeletionWindowSeconds = 30;
@@ -203,7 +178,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         UtilityService utilities,
         TrackingDomainService tracking,
         IScreenCaptureService capture,
-        IHardwareTelemetryService snapshot,
         IAiAnalysisService analysis,
         StartupService startup,
         BuildInformationService buildInformation,
@@ -214,11 +188,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         WindowStateService? windowState = null,
         AiModelCatalog? aiModelCatalog = null,
         ApplicationLogService? applicationLogs = null,
-        IScreenshotOcrService? screenshotOcr = null,
-        IAiOcrRefinementService? ocrRefinement = null,
-        ILogger<ScreenshotTextExtractionCoordinator>? screenshotTextLogger = null,
         ILocalSearchService? localSearch = null,
-        OpenAiPricingRefreshService? pricingRefresh = null,
         AtomicResetService? atomicResetService = null,
         SettingsSnapshot? settingsSnapshot = null,
         WorldClockService? worldClockService = null,
@@ -235,20 +205,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _tracking = tracking;
         _capture = capture;
         _screenshotNotifications = screenshotNotifications;
-        _snapshot = snapshot;
-        // Restore saved advanced-sensor access once when the driver is already installed; Core owns Windows consent.
-        _snapshot.ConfigureAsync(HardwareConfiguration(_settingsSnapshot.Value), CancellationToken.None).GetAwaiter().GetResult();
         _deviceContext = deviceContext ?? new DeviceContextService();
         _screenshotShare = screenshotShare ?? new ScreenshotShareService();
         _applicationLogs = applicationLogs ?? new ApplicationLogService();
         _windowState = windowState ?? new WindowStateService(store);
         _analysis = analysis;
         _logger = logger ?? NullLogger<WorkTrailApplication>.Instance;
-        _ocrRefinement = ocrRefinement ?? new OpenAiOcrRefinementService(store);
-        _textExtraction = new ScreenshotTextExtractionCoordinator(
-            store,
-            screenshotOcr ?? new WindowsScreenshotOcrService(new OcrOptions { Enabled = false }),
-            screenshotTextLogger);
         _search = new LocalSearchCoordinator(
             store,
             localSearch ?? new LocalSearchService(new SearchOptions { IndexRootPath = store.SearchIndexRootDirectory }),
@@ -263,13 +225,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _aiModelCatalog = (aiModelCatalog ?? AiModelCatalog.LoadDefault()).Snapshot;
         _reports = new ReportAggregationService(store);
         _atomicReset = atomicResetService ?? new AtomicResetService();
-        _pricingRefresh = pricingRefresh;
-        _pricingRefresh?.Start();
         _screenshotReprocessing = new AiScreenshotReprocessingService(
             store,
             analysis,
             CanAnalyzeHistoricalImages,
-            BuildCostGate,
+            BuildRequestGate,
             TrackingDomainService.IsHistoricalContextPrivate,
             model => ResolveAiModel(model)?.Key ?? model.Trim(),
             _logger);
@@ -308,7 +268,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             RuntimeProtocol.ProtocolVersion,
             installationFingerprint,
             true,
-            ["tracking", "tracking.health.v1", "sessions", "system", "screenshots", "screenshots.image.v1", "screenshots.save", "screenshots.share", "screenshots.delete", "screenshots.analysis.delete.v1", "screenshots.analyze", "screenshots.reprocess.v1", "installations.v1", "archive.v1", "ocr", "search", "search.rebuild.v1", "notifications", "window.state", "ai", "ai.models", "ai.pricing", "ai.pricing.overview", "reports", "reports.query.v1", "privacy", "retention", "app.atomic-reset.v1", "plugins", "settings", "quick-setup", "startup", "links", "observability", "diagnostics.logs"],
+            ["tracking", "tracking.health.v1", "sessions", "screenshots", "screenshots.image.v1", "screenshots.save", "screenshots.share", "screenshots.delete", "screenshots.analysis.delete.v1", "screenshots.analyze", "screenshots.reprocess.v1", "installations.v1", "archive.v1", "search", "search.rebuild.v1", "notifications", "window.state", "ai", "ai.models", "reports", "reports.query.v1", "privacy", "retention", "app.atomic-reset.v1", "plugins", "settings", "quick-setup", "startup", "links", "observability", "diagnostics.logs"],
             _tracking.RuntimeHealth,
             _observability);
         return Task.FromResult(OperationResult<RuntimeHealth>.Success("runtime.healthy", "RuntimeHealthy", health));
@@ -328,7 +288,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             _tracking.Start();
             _logger.LogInformation("Tracking started. SafeMode={SafeMode}", request.SafeMode);
             var state = LoadDashboardState();
-            await _snapshot.SetTrackingAsync(true, cancellationToken).ConfigureAwait(false);
+            await Task.CompletedTask;
             return OperationResult<DashboardState>.Success("tracking.started", "TrackingStarted", state);
         }
         catch (Exception exception)
@@ -351,7 +311,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             CancelLiveWork();
             _logger.LogInformation("Tracking paused.");
             var state = LoadDashboardState();
-            await _snapshot.SetTrackingAsync(false, cancellationToken).ConfigureAwait(false);
+            await Task.CompletedTask;
             return OperationResult<DashboardState>.Success("tracking.paused", "TrackingPaused", state);
         }, cancellationToken);
     }
@@ -446,25 +406,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return OperationResult<ScreenshotCaptureResult>.Failure("privacy.blocked", "PrivacyBlocked");
         }
 
-        if (settings.OpenAiEnabled && !request.DeferAiAnalysis)
-        {
-            if (!TryValidateOpenAiConfiguration(settings, requireImageInput: true, out var validatedSettings, out var validationIssue))
-            {
-                return AiConfigurationFailure<ScreenshotCaptureResult>(validationIssue!);
-            }
-
-            settings = validatedSettings;
-            if (settings.AiProvider != "codex-cli" && string.IsNullOrWhiteSpace(_store.LoadApiKey(settings.AiApiKeyName)))
-            {
-                return OperationResult<ScreenshotCaptureResult>.Failure("ai.configuration.invalid", "AiConfigurationInvalid");
-            }
-
-            if (!BuildCostGate(settings).Allowed)
-            {
-                return OperationResult<ScreenshotCaptureResult>.Failure("ai.cost_guardrail", "AiCostGuardrail");
-            }
-        }
-
+        // Provider validation belongs to the AI boundary after planning: gallery-only rules need no provider.
         // Capture happens only after the privacy and enabled-state gates above have succeeded.
         var captureRoot = request.Keep ? settings.ScreenshotDirectory : _screenshotPublications.TransientRoot;
         if (TryGetScreenshotStorageWarning(captureRoot))
@@ -475,7 +417,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         long pipelineStartedTimestamp = Stopwatch.GetTimestamp();
         var telemetryIntervalStartedAt = ResolveScreenshotTelemetryIntervalStart(settings.ScreenshotIntervalMinutes);
         long telemetryStartedTimestamp = Stopwatch.GetTimestamp();
-        var hardwareSnapshot = await CaptureScreenshotHardwareAsync(cancellationToken).ConfigureAwait(false);
+        var deviceContext = await CaptureScreenshotContextAsync(cancellationToken).ConfigureAwait(false);
         long telemetryElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(telemetryStartedTimestamp).TotalMilliseconds;
 
         ScreenshotCaptureResult result;
@@ -502,7 +444,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return OperationResult<ScreenshotCaptureResult>.Failure("screenshot.capture.failed", "ScreenshotCaptureFailed");
         }
         long captureElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(captureStartedTimestamp).TotalMilliseconds;
-        result = result with { HardwareSnapshot = hardwareSnapshot };
+        result = result with { DeviceContext = deviceContext };
 
         long persistenceStartedTimestamp = Stopwatch.GetTimestamp();
         try
@@ -527,46 +469,25 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
         long persistenceElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(persistenceStartedTimestamp).TotalMilliseconds;
 
-        long ocrStartedTimestamp = Stopwatch.GetTimestamp();
-        try
-        {
-            result = await _textExtraction.AttachAsync(result, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            // A cancelled operation returns no owner for durable files, regardless of the requested keep policy.
-            CleanupAbandonedCapture(result);
-            return OperationResult<ScreenshotCaptureResult>.Failure("operation.cancelled", "OperationCancelled");
-        }
-        catch (Exception exception)
-        {
-            // A failed enrichment must not leak raw files or escape into the WinUI event loop.
-            CleanupAbandonedCapture(result);
-            _logger.LogWarning("Screenshot OCR enrichment failed. ExceptionType={ExceptionType}", exception.GetType().Name);
-            EnqueueScreenshotCaptureFailure(exception);
-            return OperationResult<ScreenshotCaptureResult>.Failure("screenshot.capture.failed", "ScreenshotCaptureFailed");
-        }
-        long ocrElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(ocrStartedTimestamp).TotalMilliseconds;
         await NotifyScreenshotCaptureAsync(result, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Local screenshot pipeline completed. Origin={Origin} Mode={Mode} Artifacts={ArtifactCount} TelemetryMs={TelemetryMilliseconds} CaptureMs={CaptureMilliseconds} PersistenceMs={PersistenceMilliseconds} OcrMs={OcrMilliseconds} TotalMs={TotalMilliseconds}",
+            "Local screenshot pipeline completed. Origin={Origin} Mode={Mode} Artifacts={ArtifactCount} ContextMs={ContextMilliseconds} CaptureMs={CaptureMilliseconds} PersistenceMs={PersistenceMilliseconds} TotalMs={TotalMilliseconds}",
             request.CaptureOrigin,
             mode,
             result.AnalysisScreenshotPaths.Count,
             telemetryElapsedMilliseconds,
             captureElapsedMilliseconds,
             persistenceElapsedMilliseconds,
-            ocrElapsedMilliseconds,
             (long)Stopwatch.GetElapsedTime(pipelineStartedTimestamp).TotalMilliseconds);
 
-        if (settings.OpenAiEnabled && !request.DeferAiAnalysis)
+        if (settings.OpenAiEnabled && !request.DeferAiAnalysis && result.AnalysisScreenshotPaths.Count > 0)
         {
             try
             {
                 var analysisOrigin = result.CaptureOrigin == ScreenshotCaptureOrigins.Scheduled
                     ? "snapshot.scheduled"
                     : "snapshot.manual";
-                var pipeline = await AnalyzeLiveCaptureWithOptionalRefinementAsync(
+                var pipeline = await AnalyzeLiveCaptureAsync(
                     result,
                     request.Keep,
                     analysisOrigin,
@@ -585,8 +506,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             }
             catch (AiDailyAnalysisQuotaReachedException)
             {
-                EnqueueAiAnalysisFailure("ai.cost_guardrail");
-                return OperationResult<ScreenshotCaptureResult>.Failure("ai.cost_guardrail", "AiCostGuardrail");
+                EnqueueAiAnalysisFailure("ai.daily_limit");
+                return OperationResult<ScreenshotCaptureResult>.Failure("ai.daily_limit", "AiDailyLimit");
             }
             catch (AiLiveAnalysisPreflightException exception)
             {
@@ -605,11 +526,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             }
             finally
             {
-                // Refinement runs before normal analysis, so Core must still clean raw files if refinement itself fails.
+                // Core must clean raw files when analysis fails before a retained result is available.
                 CleanupCaptureArtifacts(result, request.Keep);
             }
         }
-        else if (!request.Keep || !settings.OpenAiEnabled)
+        else if (!request.Keep || !settings.OpenAiEnabled || result.AnalysisScreenshotPaths.Count == 0)
         {
             // With no later AI pass, raw analysis artifacts have no owner even when stored copies are retained.
             CleanupCaptureArtifacts(result, request.Keep);
@@ -750,21 +671,16 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 }
 
                 settings = validatedSettings;
-                var gate = BuildCostGate(settings);
+                var gate = BuildRequestGate(settings);
                 if (!gate.Allowed)
                 {
-                    return OperationResult<AiAnalysis>.Failure("ai.cost_guardrail", "AiCostGuardrail");
+                    return OperationResult<AiAnalysis>.Failure("ai.daily_limit", "AiDailyLimit");
                 }
 
                 try
                 {
-                    if (request.KeepCapture)
-                    {
-                        // Keep this durable read inside cleanup ownership, including malformed stored JSON.
-                        capture = capture with { HardwareSnapshot = _store.LoadCaptureHardwareSnapshot(capture.CaptureId) };
-                    }
                     var origin = NormalizeAnalysisOrigin(request.Origin);
-                    var pipeline = await AnalyzeLiveCaptureWithOptionalRefinementAsync(
+                    var pipeline = await AnalyzeLiveCaptureAsync(
                         capture,
                         request.KeepCapture,
                         origin,
@@ -775,11 +691,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 {
                     return OperationResult<AiAnalysis>.Failure("operation.cancelled", "OperationCancelled");
                 }
-                catch (Exception exception) when (exception is InvalidDataException or System.Text.Json.JsonException or Microsoft.Data.Sqlite.SqliteException)
-                {
-                    _logger.LogWarning("Stored hardware snapshot could not be read. ExceptionType={ExceptionType}", exception.GetType().Name);
-                    return OperationResult<AiAnalysis>.Failure("screenshot.telemetry.read.failed", "SystemSnapshotFailed");
-                }
                 catch (AiProviderRequestException exception)
                 {
                     LogAiProviderFailure("screenshot.analyze", exception);
@@ -788,7 +699,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 }
                 catch (AiDailyAnalysisQuotaReachedException)
                 {
-                    return OperationResult<AiAnalysis>.Failure("ai.cost_guardrail", "AiCostGuardrail");
+                    return OperationResult<AiAnalysis>.Failure("ai.daily_limit", "AiDailyLimit");
                 }
                 catch (AiLiveAnalysisPreflightException exception)
                 {
@@ -807,7 +718,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             }
             finally
             {
-                // Every preflight outcome owns cleanup, including disabled AI, privacy, configuration and cost gates.
+                // Every preflight outcome owns cleanup, including disabled AI, privacy, configuration and request limits.
                 CleanupCaptureArtifacts(capture, request.KeepCapture);
             }
         }, cancellationToken);
@@ -853,14 +764,14 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         cancellationToken.ThrowIfCancellationRequested();
         var today = DateOnly.FromDateTime(DateTime.Now);
         // Opening search only needs counts. Enumerate retained artifacts once off the UI/pipe thread;
-        // loading every gallery projection would also deserialize OCR and query activity per screenshot.
+        // loading every gallery projection would also query activity per screenshot.
         var counts = await Task.Run(
             () => _store.GetScreenshotAvailabilityCounts(today, cancellationToken),
             cancellationToken).ConfigureAwait(false);
         return OperationResult<SearchAvailability>.Success(
             "search.availability.loaded",
             "SearchAvailabilityLoaded",
-            new SearchAvailability(counts.TotalSnapshotCount, counts.TodaySnapshotCount, _textExtraction.IsEnabled));
+            new SearchAvailability(counts.TotalSnapshotCount, counts.TodaySnapshotCount));
     }
 
     /// <inheritdoc />
@@ -960,8 +871,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         // Local search uses the final mutation per artifact, so the retained image remains searchable
         // with its non-analysis fields after this operation.
         var deletedCount = checked(
-            _store.DeleteScreenshotTextSnapshot(screenshotPath)
-            + _store.DeleteScreenshotIntervalTelemetry(screenshotPath)
+            _store.DeleteScreenshotIntervalTelemetry(screenshotPath)
             + _store.DeleteAiAnalysesReferencingScreenshot(screenshotPath));
         await _search.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         if (deletedCount == 0)
@@ -979,7 +889,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            // Gallery projection performs directory enumeration, OCR deserialization, and SQLite reads;
+            // Gallery projection performs directory enumeration and SQLite reads;
             // keep all of that work off the WinUI/pipe caller and cancel superseded date requests.
             var gallery = await Task.Run(
                 () => _store.GetScreenshotGallery(date, cancellationToken),
@@ -1562,67 +1472,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return await Task.Run(() =>
-        {
-            var settings = _settingsSnapshot.Value;
-            if (!settings.OpenAiEnabled)
-            {
-                return OperationResult<AiPricingOverview>.Failure(
-                    "ai.pricing.disabled",
-                    "AiPricingDisabled");
-            }
-
-            var usesOpenAiPricing = string.Equals(
-                settings.AiProvider,
-                AiPricingProviders.OpenAi,
-                StringComparison.OrdinalIgnoreCase);
-            var prices = usesOpenAiPricing
-                ? _store.ListAiModelPricing(AiPricingProviders.OpenAi)
-                : [];
-            var displayedRows = prices
-                .Where(price =>
-                    string.Equals(price.ServiceTier, AiPricingServiceTiers.Standard, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(price.ContextWindow, AiPricingContextWindows.Short, StringComparison.OrdinalIgnoreCase))
-                .GroupBy(price => price.Model, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
-                .OrderBy(price => price.Model, StringComparer.OrdinalIgnoreCase)
-                .Select(price => new AiPricingCostRow(
-                    price.Model,
-                    price.InputUsdPerMillionTokens,
-                    price.OutputUsdPerMillionTokens))
-                .ToArray();
-
-            var today = DateOnly.FromDateTime(DateTime.Now);
-            var monthStart = new DateOnly(today.Year, today.Month, 1);
-            var monthEnd = new DateOnly(today.Year, today.Month, DateTime.DaysInMonth(today.Year, today.Month));
-            var usage = _reports.BuildAiUsage(today, today, TimeZoneInfo.Local, cancellationToken);
-            var monthUsage = _reports.BuildAiUsage(monthStart, today, TimeZoneInfo.Local, cancellationToken);
-            var overview = new AiPricingOverview(
-                usesOpenAiPricing
-                    ? _store.GetLatestAiModelPricingRetrievedAt(AiPricingProviders.OpenAi)
-                    : null,
-                prices.Count,
-                displayedRows.Length,
-                usage.EstimatedCostUsd,
-                usage.EstimatedCostRequestCount,
-                usage.ActualCostUsd,
-                usage.ActualCostRequestCount,
-                usage.InputTokens,
-                usage.OutputTokens,
-                usage.TotalTokens,
-                monthStart,
-                monthEnd,
-                monthUsage.EstimatedCostUsd,
-                monthUsage.ActualCostUsd,
-                displayedRows);
-            return OperationResult<AiPricingOverview>.Success("ai.pricing.loaded", "AiPricingLoaded", overview);
-        }, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
     public async Task<OperationResult<AiConnectionTestResult>> TestAiConnectionAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -1825,10 +1674,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
 
         settings = validatedSettings;
 
-        var gate = BuildCostGate(settings);
+        var gate = BuildRequestGate(settings);
         if (!gate.Allowed)
         {
-            return OperationResult<AiAnalysis>.Failure("ai.cost_guardrail", "AiCostGuardrail");
+            return OperationResult<AiAnalysis>.Failure("ai.daily_limit", "AiDailyLimit");
         }
 
         try
@@ -1847,7 +1696,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     }
 
                     var telemetryIntervalStartedAt = ResolveScreenshotTelemetryIntervalStart(settings.ScreenshotIntervalMinutes);
-                    var hardwareSnapshot = await CaptureScreenshotHardwareAsync(cancellationToken).ConfigureAwait(false);
+                    var deviceContext = await CaptureScreenshotContextAsync(cancellationToken).ConfigureAwait(false);
 
                     try
                     {
@@ -1871,7 +1720,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                         EnqueueScreenshotCaptureFailure(exception);
                         return OperationResult<AiAnalysis>.Failure("screenshot.capture.failed", "ScreenshotCaptureFailed");
                     }
-                    capture = capture with { HardwareSnapshot = hardwareSnapshot };
+                    capture = capture with { DeviceContext = deviceContext };
                     try
                     {
                         _screenshotPublications.Publish(capture, captureRoot, settings.InstallationId, settings.KeepScreenshots);
@@ -1885,9 +1734,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                         throw;
                     }
 
-                    capture = await _textExtraction.AttachAsync(capture, cancellationToken);
                     await NotifyScreenshotCaptureAsync(capture, cancellationToken).ConfigureAwait(false);
-                    var pipeline = await AnalyzeLiveCaptureWithOptionalRefinementAsync(
+                    var pipeline = await AnalyzeLiveCaptureAsync(
                         capture,
                         settings.KeepScreenshots,
                         origin,
@@ -1897,14 +1745,14 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 }
                 else
                 {
-                    var hardwareSnapshot = await CaptureScreenshotHardwareAsync(cancellationToken).ConfigureAwait(false);
+                    var deviceContext = await CaptureScreenshotContextAsync(cancellationToken).ConfigureAwait(false);
                     result = await RunLiveAnalysisOutsideMutationAsync(async () =>
                     {
                         _ = await LoadValidatedAiSettingsAtVisualBoundaryAsync(requireImageInput: false, cancellationToken);
                         return await _analysis.AnalyzeCurrentScreenAsync(
                             (_tracking.LatestAnalysisContext ?? new AnalysisContextSnapshot(
                                 "not available", "not available", "not available", "active", null)) with
-                            { Snapshot = hardwareSnapshot },
+                            { DeviceContext = deviceContext },
                             allowCapture: false,
                             origin,
                             cancellationToken).ConfigureAwait(false);
@@ -1932,7 +1780,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
         catch (AiDailyAnalysisQuotaReachedException)
         {
-            return OperationResult<AiAnalysis>.Failure("ai.cost_guardrail", "AiCostGuardrail");
+            return OperationResult<AiAnalysis>.Failure("ai.daily_limit", "AiDailyLimit");
         }
         catch (AiLiveAnalysisPreflightException exception)
         {
@@ -2042,8 +1890,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             RetentionPolicy.EffectiveMonths(settings.ScreenshotRetentionDays, tier) * 30,
             settings.ScreenshotDirectory, RetentionPolicy.MaximumMonths(tier), first, last, next,
             DateOnly.FromDateTime(now.LocalDateTime) >= next, Volatile.Read(ref _retentionCleanupProgress), settings.KeepScreenshots,
-            settings.ScreenshotsEnabled, settings.ScreenshotCaptureMode, settings.OcrEnabled, settings.OcrLanguage,
-            settings.HardwareSaveSnapshots, settings.HardwareSensorsEnabled,
+            settings.ScreenshotsEnabled, settings.ScreenshotCaptureMode,
             MeasureHistoryStorage(settings.ScreenshotDirectory), settings.HistoryWarningMegabytes);
     }
 
@@ -2173,7 +2020,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _pausedScheduledSnapshotRemaining = null;
         _runtimeTimerCancellation.Cancel();
         _tracking.Stop();
-        await _snapshot.SetTrackingAsync(false, cancellationToken).ConfigureAwait(false);
         _logger.LogWarning("Atomic reset prepared after two explicit confirmations.");
         await Task.CompletedTask;
         return OperationResult<AtomicResetPlan>.Success("app.atomic_reset.prepared", "AtomicResetPrepared", plan);
@@ -2477,24 +2323,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 new ValidationIssue("startup.enabled", "os_update_failed", "StartupUpdateFailed"));
         }
 
-        var hardwareChanged = HardwareConfiguration(current) != HardwareConfiguration(settings);
         try
         {
-            if (hardwareChanged)
-            {
-                // Apply collection changes before acknowledging persistence; configuration never requests consent.
-                await _snapshot.ConfigureAsync(HardwareConfiguration(current), cancellationToken).ConfigureAwait(false);
-            }
             PersistSettings(current);
         }
         catch
         {
-            if (hardwareChanged)
-            {
-                // Persistence may already have committed before a dependent search refresh failed.
-                // Reconcile to the last published settings without reopening an elevated session.
-                await _snapshot.ConfigureAsync(HardwareConfiguration(_settingsSnapshot.Value), CancellationToken.None).ConfigureAwait(false);
-            }
             if (startupChanged && current.StartWithWindows != _settingsSnapshot.Value.StartWithWindows
                 && !await _startup.SetEnabledAsync(_settingsSnapshot.Value.StartWithWindows, CancellationToken.None).ConfigureAwait(false))
             {
@@ -2568,15 +2402,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _settingsSnapshot.Replace(settings);
         await Task.CompletedTask;
         return OperationResult<bool>.Success("window.open_state.saved", "WindowOpenStateSaved", isOpen);
-    }, cancellationToken);
-
-    /// <inheritdoc />
-    public Task<OperationResult<OcrTextWindowSource>> SetOcrTextWindowSourceAsync(string screenshotPath, DateTimeOffset capturedAt, CancellationToken cancellationToken) => MutateAsync(async () =>
-    {
-        var settings = _windowState.SetOcrTextSource(screenshotPath, capturedAt);
-        _settingsSnapshot.Replace(settings);
-        await Task.CompletedTask;
-        return OperationResult<OcrTextWindowSource>.Success("window.ocr_source.saved", "WindowOcrSourceSaved", settings.OcrTextWindowSource!);
     }, cancellationToken);
 
     /// <inheritdoc />
@@ -2681,11 +2506,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
     }
 
-    private static HardwareTelemetryConfiguration HardwareConfiguration(AppSettings settings) => new(
-        settings.HardwareSensorsEnabled,
-        settings.HardwareUseAdvancedSensors,
-        settings.HardwareSamplingProfile);
-
     private PendingManualScreenshotState? GetPendingManualScreenshotState()
     {
         var registration = Volatile.Read(ref _pendingManualScreenshot);
@@ -2722,6 +2542,15 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     // keepStoredArtifacts preserves retained images while removing analysis-only variants.
     private bool CleanupCaptureArtifacts(ScreenshotCaptureResult capture, bool keepStoredArtifacts)
     {
+        if (keepStoredArtifacts)
+        {
+            try { _screenshotPublications.CleanupTransientArtifacts(capture.CaptureId); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+            {
+                _logger.LogWarning("Screenshot destination cleanup remains journaled. ExceptionType={ExceptionType}", exception.GetType().Name);
+                return false;
+            }
+        }
         if (!keepStoredArtifacts)
         {
             try { _screenshotPublications.Discard(capture.CaptureId); }
@@ -2746,7 +2575,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // Image cleanup is best effort; OCR and provider failures remain the primary operation outcome.
+                // Image cleanup is best effort; provider failures remain the primary operation outcome.
                 _logger.LogWarning("Screenshot cleanup failed. ExceptionType={ExceptionType}", exception.GetType().Name);
                 removedAll = false;
             }
@@ -2761,13 +2590,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         if (!CleanupCaptureArtifacts(capture, keepStoredArtifacts: false)) return;
         try
         {
-            foreach (var sourcePath in (capture.TextSnapshots ?? Array.Empty<ScreenshotTextSnapshot>())
-                         .Select(snapshot => snapshot.SourceScreenshotPath)
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                _store.DeleteScreenshotTextSnapshot(sourcePath);
-            }
-
             foreach (var storedPath in capture.StoredScreenshotPaths)
             {
                 _store.DeleteScreenshotIntervalTelemetry(storedPath);
@@ -2811,92 +2633,19 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 : new DateTimeOffset(File.GetLastWriteTimeUtc(retainedPath), TimeSpan.Zero)))
             .ToUniversalTime();
         var telemetry = _tracking.BuildScreenshotIntervalTelemetry(intervalStartedAt, provenanceCapturedAt);
-        // Capture provenance, interval averages and the immutable hardware snapshot commit together.
-        var settings = _settingsSnapshot.Value;
-        // This preference affects new durable readings only. Existing captures and activity averages are untouched.
-        var storedHardware = settings.HardwareSensorsEnabled && settings.HardwareSaveSnapshots ? capture.HardwareSnapshot : null;
-        _store.UpsertScreenshotIntervalTelemetry(capture.CaptureId, capture.StoredScreenshotPaths, telemetry, storedHardware);
+        // Persist the activity interval with capture provenance, without collecting device sensors.
+        _store.UpsertScreenshotIntervalTelemetry(capture.CaptureId, capture.StoredScreenshotPaths, telemetry);
     }
 
-    /// <summary>Captures one telemetry point per minute while tracking so the live score includes CPU and GPU activity.</summary>
-    private async Task CaptureActivityScoreTelemetryIfDueAsync()
-    {
-        if (!_tracking.IsTracking)
-        {
-            return;
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        lock (_activityScoreTelemetryGate)
-        {
-            if (_nextActivityScoreTelemetryAt is { } nextTelemetryAt && now < nextTelemetryAt)
-            {
-                return;
-            }
-
-            _nextActivityScoreTelemetryAt = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, TimeSpan.Zero)
-                .AddMinutes(1);
-        }
-
-        try
-        {
-            // Read the same collector snapshot, then project only the usage fields for the minute score.
-            _ = await CaptureAndRecordSystemSnapshotAsync(_runtimeTimerCancellation.Token).ConfigureAwait(false);
-        }
-        catch (Exception exception)
-        {
-            // The score keeps its input-only data for this minute when optional telemetry is unavailable.
-            _logger.LogWarning("Activity score telemetry sample failed. ExceptionType={ExceptionType}", exception.GetType().Name);
-        }
-    }
-
-    private async Task<ScreenshotCaptureResult> RefineScreenshotTextOrContinueAsync(
-        ScreenshotCaptureResult capture,
-        AppSettings settings,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await _ocrRefinement.RefineAsync(capture, settings, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            // OCR enrichment is optional: raw local OCR remains stored and visual description must still run.
-            _logger.LogWarning(
-                "AI OCR refinement failed; visual screenshot analysis will continue. ExceptionType={ExceptionType}",
-                exception.GetType().Name);
-            return capture;
-        }
-    }
-
-    private Task<(ScreenshotCaptureResult Capture, AiAnalysis Analysis)> AnalyzeLiveCaptureWithOptionalRefinementAsync(
+    private Task<(ScreenshotCaptureResult Capture, AiAnalysis Analysis)> AnalyzeLiveCaptureAsync(
         ScreenshotCaptureResult capture,
         bool keepCapture,
         string origin,
         CancellationToken cancellationToken) =>
         RunLiveAnalysisOutsideMutationAsync(async () =>
         {
-            var refinedCapture = capture;
-            var authoritativeSettings = await LoadValidatedAiSettingsAtVisualBoundaryAsync(requireImageInput: true, cancellationToken);
-            var gate = BuildCostGate(authoritativeSettings);
-            var remainingAllowance = Math.Max(
-                0,
-                authoritativeSettings.OpenAiDailyLimit - gate.DailyAnalysisCount);
-            if (remainingAllowance > 1)
-            {
-                refinedCapture = await RefineScreenshotTextOrContinueAsync(
-                    capture,
-                    authoritativeSettings,
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            // Refinement may itself consume a billable visual request. Recheck while the shared gate is still
-            // held, immediately before the required description request. With one slot left, refinement is skipped.
-            if (!BuildCostGate(_settingsSnapshot.Value).Allowed)
+            // Enforce the daily allowance immediately before the visual description request.
+            if (!BuildRequestGate(_settingsSnapshot.Value).Allowed)
             {
                 throw new AiDailyAnalysisQuotaReachedException();
             }
@@ -2905,11 +2654,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             _ = await LoadValidatedAiSettingsAtVisualBoundaryAsync(requireImageInput: true, cancellationToken);
             var analysis = await _analysis.AnalyzeCapturedScreenAsync(
                 _tracking.LatestAnalysisContext,
-                refinedCapture,
+                capture,
                 keepCapture,
                 origin,
                 cancellationToken).ConfigureAwait(false);
-            return (refinedCapture, analysis);
+            return (capture, analysis);
         }, cancellationToken);
 
     private async Task<AppSettings> LoadValidatedAiSettingsAtVisualBoundaryAsync(bool requireImageInput, CancellationToken cancellationToken)
@@ -3015,12 +2764,14 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     return;
                 }
 
+                if (retainedCapture.AnalysisScreenshotPaths.Count == 0) return;
+
                 var analysis = await AnalyzeCapturedScreenshotAsync(
                     new AnalyzeCapturedScreenshotRequest(retainedCapture, KeepCapture: true, Origin: "snapshot.scheduled"),
                     CancellationToken.None);
                 if (!analysis.Succeeded && analysis.Code != "ai.disabled")
                 {
-                    // Missing keys, cost limits, and provider failures never remove the already retained snapshot.
+                    // Missing keys, request limits, and provider failures never remove the already retained snapshot.
                     _logger.LogWarning("Scheduled snapshot retained without AI analysis. Code={Code}", analysis.Code);
                 }
             }
@@ -3089,7 +2840,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         var canEnable = usesCli ? installed : AiApiKeyPolicy.LooksPlausible(settings.AiProvider, settings.AiApiKeyName, key);
         key = string.Empty;
         return new AiStatus(settings.OpenAiEnabled, settings.AiProvider, usesCli ? "codex-default" : settings.Model,
-            usesCli ? string.Empty : settings.AiEndpoint, settings.AiApiKeyName, hasKey, canEnable, BuildCostGate(settings))
+            usesCli ? string.Empty : settings.AiEndpoint, settings.AiApiKeyName, hasKey, canEnable, BuildRequestGate(settings))
         {
             CodexCliInstalled = installed
         };
@@ -3100,7 +2851,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
 
     private void EnqueueAiAnalysisFailure(string code, string? detail = null)
     {
-        if (string.Equals(code, "ai.cost_guardrail", StringComparison.Ordinal))
+        if (string.Equals(code, "ai.daily_limit", StringComparison.Ordinal))
         {
             EnqueueAiDailyLimitReached();
             return;
@@ -3126,14 +2877,14 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
 
         var settings = _settingsSnapshot.Value;
-        var gate = BuildCostGate(settings);
+        var gate = BuildRequestGate(settings);
         EnqueueNotification(new ApplicationNotification(
             Guid.NewGuid(),
             DateTimeOffset.UtcNow,
             ApplicationNotificationSeverity.Warning,
             "Notification.AiDailyLimitReached.Title",
             "Notification.AiDailyLimitReached.Message",
-            "ai.cost_guardrail",
+            "ai.daily_limit",
             $"{gate.DailyAnalysisCount} / {settings.OpenAiDailyLimit}"));
     }
 
@@ -3264,13 +3015,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
 
-    private AnalysisCostGate BuildCostGate(AppSettings settings)
+    private AnalysisRequestGate BuildRequestGate(AppSettings settings)
     {
         var count = _store.GetTodayAnalysisCount();
-        var estimatedApiCost = settings.AiProvider == "codex-cli" ? 0m : settings.EstimatedCostPerAnalysisUsd;
-        var projected = settings.OpenAiDailyCostUsd + estimatedApiCost;
         var allowed = count < settings.OpenAiDailyLimit;
-        return new AnalysisCostGate(allowed, allowed ? null : "daily_limit", estimatedApiCost, count, projected);
+        return new AnalysisRequestGate(allowed, allowed ? null : "daily_limit", count);
     }
 
     private bool CanAnalyzeHistoricalImages(AppSettings settings)

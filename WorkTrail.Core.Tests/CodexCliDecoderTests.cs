@@ -27,7 +27,6 @@ public sealed class CodexCliDecoderTests
         Assert.Equal(12L, result.Usage.OutputTokens);
         Assert.Equal(30L, result.Usage.CachedInputTokens);
         Assert.Null(result.HttpStatusCode);
-        Assert.Null(result.Usage.ReportedCostUsd);
         Assert.Null(result.ReturnedModel);
     }
 

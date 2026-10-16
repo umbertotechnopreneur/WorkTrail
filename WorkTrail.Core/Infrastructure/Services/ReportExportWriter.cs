@@ -131,7 +131,7 @@ internal static class ReportExportWriter
 
     internal static string CsvText(string text)
     {
-        // Treat exported titles/OCR/descriptions as inert text, even after whitespace before formula triggers.
+        // Treat exported titles/descriptions as inert text, even after whitespace before formula triggers.
         var leading = text.AsSpan().TrimStart();
         if ((!leading.IsEmpty && leading[0] is '=' or '+' or '-' or '@') || text.StartsWith('\t') || text.StartsWith('\r') || text.StartsWith('\n'))
             text = "'" + text;

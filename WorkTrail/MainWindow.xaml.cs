@@ -56,8 +56,6 @@ public sealed partial class MainWindow : Window
     private const int WindowResizeAnimationDurationMilliseconds = 180;
     private const int ScreenshotPreviewDecodePixelWidth = 384;
     private static readonly TimeSpan LastSessionRefreshInterval = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan AiSpendRefreshInterval = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan AiSpendFailureRetryInterval = TimeSpan.FromMinutes(5);
     private readonly IWorkTrailApplication _application;
     private readonly ScreenshotBitmapSourceLoader _screenshotBitmapLoader;
     private readonly MainViewModel _viewModel;
@@ -104,9 +102,6 @@ public sealed partial class MainWindow : Window
     private bool _workspaceUiReady;
     private readonly TaskCompletionSource _workspaceReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _notificationDrainInProgress;
-    private DateTimeOffset _nextAiSpendRefreshAt = DateTimeOffset.MinValue;
-    private int _aiSpendRefreshInProgress;
-    private bool _showAiMonthlySpend;
     private IDisposable? _dashboardSubscription;
     private bool _dashboardRefreshReady;
     private bool _dashboardSurfaceClosed;
@@ -136,9 +131,6 @@ public sealed partial class MainWindow : Window
 
     /// <summary>Occurs when the user requests the independent world-clock window.</summary>
     public event EventHandler? WorldClocksRequested;
-
-    /// <summary>Occurs when the user requests the independent hardware-sensors window.</summary>
-    public event EventHandler? SensorsRequested;
 
     /// <summary>Occurs when the user requests the floating local-search surface.</summary>
     public event EventHandler? SearchRequested;
@@ -209,7 +201,6 @@ public sealed partial class MainWindow : Window
             [
                 TitleBarBackButton,
                 WorldClockButton,
-                SensorsButton,
                 TitleBarMoreButton,
                 TitleBarSearchButton,
                 TitleBarMinimizeToTrayButton,
@@ -250,20 +241,7 @@ public sealed partial class MainWindow : Window
         _lifecycle.InitializationFailed += Lifecycle_InitializationFailed;
         _lifecycle.StartInitialization(cancellationToken => InitializeAsync(options, cancellationToken));
         Closed += MainWindow_Closed;
-        Activated += MainWindow_Activated;
-    }
-
-    // sender identifies the window whose activation changed.
-    // args indicates whether the main window gained or lost activation.
-    private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
-    {
-        if (args.WindowActivationState == WindowActivationState.Deactivated
-            || _dashboardSurfaceClosed || _revealingOpenWindows)
-        {
-            return;
-        }
-
-        await RevealOpenWindowsAsync(showMainWindow: false);
+        WindowPlacementService.RevealFailed += ShowWindowRevealFailure;
     }
 
     // showMainWindow restores the main window before revealing its already-open peers.
@@ -343,7 +321,6 @@ public sealed partial class MainWindow : Window
         }
 
         await ShowStartupAiWarningAsync(cancellationToken);
-        await RefreshAiMonthlySpendAsync();
         await DrainApplicationNotificationsAsync(cancellationToken);
         _workspaceReady.TrySetResult();
     }
@@ -402,7 +379,6 @@ public sealed partial class MainWindow : Window
         QuickSearchMenuItem.IsEnabled = isReady;
         QuickActivityCalendarMenuItem.IsEnabled = isReady;
         QuickScreenshotGalleryMenuItem.IsEnabled = isReady;
-        SensorsButton.IsEnabled = isReady;
         ScreenshotPreviewButton.IsEnabled = isReady;
         CaptureMenu.IsEnabled = isReady;
         OperationsMenuItem.IsEnabled = isReady;
@@ -443,7 +419,6 @@ public sealed partial class MainWindow : Window
 
         await RefreshLastSessionIfDueAsync();
 
-        await RefreshAiMonthlySpendAsync();
         await DrainApplicationNotificationsAsync(cancellationToken);
     }
 
@@ -463,7 +438,6 @@ public sealed partial class MainWindow : Window
 
             UpdatePlayer(state);
             _ = RefreshLastSessionIfDueAsync();
-            _ = RefreshAiMonthlySpendAsync();
             _ = DrainApplicationNotificationsAsync();
         });
     }
@@ -482,74 +456,6 @@ public sealed partial class MainWindow : Window
             _dashboardSubscription.Dispose();
             _dashboardSubscription = null;
         }
-    }
-
-    /// <summary>Refreshes visible month-to-date AI spend at a bounded cadence while the window is open.</summary>
-    private async Task RefreshAiMonthlySpendAsync()
-    {
-        if (_dashboardSurfaceClosed)
-        {
-            return;
-        }
-
-        if (!_showAiMonthlySpend || !AiState.Enabled)
-        {
-            AiMonthlySpendPanel.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        if (_lifecycle.IsCancellationRequested ||
-            DateTimeOffset.UtcNow < _nextAiSpendRefreshAt ||
-            Interlocked.Exchange(ref _aiSpendRefreshInProgress, 1) != 0)
-        {
-            return;
-        }
-
-        try
-        {
-            // Reserve a bounded failure retry before issuing the call so provider/runtime outages do
-            // not turn the one-second dashboard cadence into a request loop.
-            _nextAiSpendRefreshAt = DateTimeOffset.UtcNow.Add(AiSpendFailureRetryInterval);
-            var result = await _application.GetAiPricingOverviewAsync(_lifecycle.Token);
-            if (!_dashboardSurfaceClosed && result.Succeeded && result.Value is not null)
-            {
-                UpdateAiMonthlySpend(result.Value);
-                _nextAiSpendRefreshAt = DateTimeOffset.UtcNow.Add(AiSpendRefreshInterval);
-            }
-        }
-        catch (OperationCanceledException) when (_lifecycle.IsCancellationRequested)
-        {
-            // The window lifetime owns this refresh; closing it cancels pending IPC/aggregation.
-        }
-        finally
-        {
-            Interlocked.Exchange(ref _aiSpendRefreshInProgress, 0);
-        }
-    }
-
-    /// <summary>Renders the current local calendar-month AI spend using actual provider cost when available.</summary>
-    private void UpdateAiMonthlySpend(AiPricingOverview overview)
-    {
-        if (!_showAiMonthlySpend || !AiState.Enabled)
-        {
-            AiMonthlySpendPanel.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        var cost = overview.ActualCostCurrentMonthUsd ?? overview.EstimatedCostCurrentMonthUsd;
-        if (cost is null)
-        {
-            AiMonthlySpendPanel.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        AiMonthlySpendText.Text = _strings.Format("AiPricing.UsdShort", cost.Value);
-        AiMonthlySpendLabel.Text = T(overview.ActualCostCurrentMonthUsd is null ? "Labels.EstimatedCost" : "Main.AiMonthlySpend");
-        AiMonthlySpendRangeText.Text = _strings.Format(
-            "AiPricing.DateRange",
-            overview.CurrentMonthStart,
-            overview.CurrentMonthEnd);
-        AiMonthlySpendPanel.Visibility = Visibility.Visible;
     }
 
     private async Task ShowStartupAiWarningAsync(CancellationToken cancellationToken)
@@ -665,13 +571,6 @@ public sealed partial class MainWindow : Window
             MainNotificationBanner,
             T("WorldClock.ErrorTitle"),
             T("WorldClock.OpenFailed"));
-
-    /// <summary>Shows a localized warning when the hardware-sensors surface cannot open.</summary>
-    internal void ShowSensorsOpenFailure() =>
-        _dialogs.Notifications.ShowWarning(
-            MainNotificationBanner,
-            T("Sensors.Title"),
-            T("Sensors.OpenFailed"));
 
     /// <summary>Captures a screenshot manually when the user clicks the "Take snapshot" button.</summary>
     /// <param name="sender">The capture button.</param>
@@ -882,7 +781,6 @@ public sealed partial class MainWindow : Window
         var settingsTask = _application.GetSettingsAsync(CancellationToken.None);
         var aiStateTask = AiState.LoadAsync(CancellationToken.None);
         await Task.WhenAll(settingsTask, aiStateTask);
-        AiPricingMenuItem.IsEnabled = false;
         var result = await settingsTask;
         if (!result.Succeeded || result.Value is null)
         {
@@ -890,7 +788,6 @@ public sealed partial class MainWindow : Window
         }
 
         _menuSettings = result.Value;
-        AiPricingMenuItem.IsEnabled = IsOpenAiPricingAvailable(result.Value);
         _screenshotsEnabled = result.Value.ScreenshotsEnabled;
         UpdateScreenshotCaptureStatus();
         _updatingMenuState = true;
@@ -1024,9 +921,6 @@ public sealed partial class MainWindow : Window
     /// <summary>Forwards world-clock activation to the application composition root.</summary>
     private void WorldClockButton_Click(object sender, RoutedEventArgs e) =>
         WorldClocksRequested?.Invoke(this, EventArgs.Empty);
-
-    private void SensorsButton_Click(object sender, RoutedEventArgs e) =>
-        SensorsRequested?.Invoke(this, EventArgs.Empty);
 
     /// <summary>Shows the native aggregate activity calendar through the shared dialog coordinator.</summary>
     private async void ActivityCalendarMenuItem_Click(object sender, RoutedEventArgs e)
@@ -1190,63 +1084,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>Shows simplified OpenAI pricing and local estimated usage costs.</summary>
-    private async void AiPricingMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        MoreButton.Flyout.Hide();
-        AiPricingMenuItem.IsEnabled = false;
-        try
-        {
-            var result = await _dialogs.RunWithProgressAsync(
-                _application,
-                this,
-                RootGrid.RequestedTheme,
-                T("AiPricing.Title"),
-                T("AiPricing.Subtitle"),
-                static (application, token) => application.GetAiPricingOverviewAsync(token));
-            if (_lifecycle.IsCancellationRequested)
-            {
-                return;
-            }
-
-            if (result.Succeeded && result.Value is not null)
-            {
-                // Release the progress session before entering the same queue for the pricing results.
-                await _dialogs.ShowPricingAsync(_application, this, result.Value, RootGrid.RequestedTheme, _strings);
-                return;
-            }
-
-            await _dialogs.ShowInformativeAsync(
-                this,
-                DialogRequest.Informative(
-                    T("AiPricing.UnavailableTitle"),
-                    T("AiPricing.UnavailableMessage"),
-                    T("Dialog.Ok")));
-        }
-        catch (OperationCanceledException) when (_lifecycle.IsCancellationRequested)
-        {
-            // Owner shutdown cancels progress; do not open a result or error surface afterward.
-        }
-        catch (Exception)
-        {
-            if (!_lifecycle.IsCancellationRequested)
-            {
-                // Failed loading or presentation uses the existing localized error without exposing internals.
-                _dialogs.Notifications.ShowError(
-                    MainNotificationBanner,
-                    T("AiPricing.UnavailableTitle"),
-                    T("AiPricing.UnavailableMessage"));
-            }
-        }
-        finally
-        {
-            if (!_lifecycle.IsCancellationRequested)
-            {
-                AiPricingMenuItem.IsEnabled = _menuSettings is not null && IsOpenAiPricingAvailable(_menuSettings);
-            }
-        }
-    }
-
     /// <summary>Shows the passive About view.</summary>
     private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
     {
@@ -1318,7 +1155,6 @@ public sealed partial class MainWindow : Window
             _updatingMenuState = true;
             OpenAiMenuToggle.IsChecked = AiState.Enabled;
             _updatingMenuState = false;
-            AiPricingMenuItem.IsEnabled = _menuSettings is not null && IsOpenAiPricingAvailable(_menuSettings);
             return;
         }
 
@@ -1327,7 +1163,6 @@ public sealed partial class MainWindow : Window
             _menuSettings = _menuSettings with { OpenAiEnabled = AiState.Enabled };
         }
 
-        AiPricingMenuItem.IsEnabled = _menuSettings is not null && IsOpenAiPricingAvailable(_menuSettings);
     }
 
     /// <summary>Forwards the screenshot-capture toggle to the validated settings application service.</summary>
@@ -1377,7 +1212,6 @@ public sealed partial class MainWindow : Window
         OptionsMenuItem.Text = T("MenuTitleOptions");
         OperationsMenuItem.Text = T("Main.Menu.Operations");
         OpenAiMenuToggle.Text = T("MenuToggleOpenAi");
-        AiPricingMenuItem.Text = T("AiPricing.MenuTitle");
         MinimizeToTrayMenuItem.Text = T("Main.Menu.MinimizeToTray");
         AboutMenuItem.Text = T("MenuTitleAbout");
 
@@ -1396,7 +1230,6 @@ public sealed partial class MainWindow : Window
         ApplyMenuAccessibility(ImportDataMenuItem, "Main.Menu.DataTransfer.Import", "Main.Menu.DataTransfer.Import.Tooltip");
         ApplyMenuAccessibility(AiProviderMenu, "Main.Menu.AiProvider", "Main.Menu.AiProvider.Tooltip");
         ApplyMenuAccessibility(OpenAiMenuToggle, "MenuToggleOpenAi", "Main.Menu.AiToggle.Tooltip");
-        ApplyMenuAccessibility(AiPricingMenuItem, "AiPricing.MenuTitle", "Main.Menu.AiPricing.Tooltip");
         ApplyMenuAccessibility(MinimizeToTrayMenuItem, "Main.Menu.MinimizeToTray", "Main.Menu.MinimizeToTray");
         ApplyMenuAccessibility(AboutMenuItem, "MenuTitleAbout", "Main.Menu.About.Tooltip");
     }
@@ -1409,10 +1242,6 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetHelpText(item, tooltip);
         ToolTipService.SetToolTip(item, tooltip);
     }
-
-    private static bool IsOpenAiPricingAvailable(AppSettings settings) =>
-        settings.OpenAiEnabled &&
-        string.Equals(settings.AiProvider, "openai", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Shows or hides the presentation-only latest-session panel.</summary>
     private async void DetailsButton_Click(object sender, RoutedEventArgs e)
@@ -1559,7 +1388,6 @@ public sealed partial class MainWindow : Window
         PlayerPanel.Visibility = Visibility.Collapsed;
         PlayerBackgroundSurface.Visibility = Visibility.Collapsed;
         WorldClockButton.Visibility = Visibility.Collapsed;
-        SensorsButton.Visibility = Visibility.Collapsed;
         OptionsPanel.Visibility = Visibility.Collapsed;
         OperationsPanel.Visibility = Visibility.Collapsed;
         panel.Visibility = Visibility.Visible;
@@ -1588,8 +1416,6 @@ public sealed partial class MainWindow : Window
         _layoutState.ShowSurface(MainWindowSurface.Player);
         UpdateTitlePremiumBadge();
         WorldClockButton.Visibility = Visibility.Visible;
-        // Keep the sensors surface available for future use, but do not expose its player command yet.
-        SensorsButton.Visibility = Visibility.Collapsed;
         TitleBarBackButton.Visibility = Visibility.Collapsed;
         TitleBarLogo.Visibility = Visibility.Visible;
         TitleBarTitleText.Text = "WORKTRAIL";
@@ -1693,21 +1519,21 @@ public sealed partial class MainWindow : Window
         PlayerLayout.ColumnSpacing = columns ? 24d : 0d;
         // The header occupies half the player in the two-column layout.
         var headerWidth = columns ? (PlayerLayout.Width - PlayerLayout.ColumnSpacing) / 2d : PlayerLayout.Width;
-        PlayerLabelAndCostPanel.MaxWidth = headerWidth;
+        PlayerLabelPanel.MaxWidth = headerWidth;
         var unconstrained = new Size(double.PositiveInfinity, double.PositiveInfinity);
         CaptureActionsPanel.Measure(unconstrained);
         ElapsedText.Measure(unconstrained);
         TrackingStateText.Measure(unconstrained);
-        PlayerLabelAndCostPanel.Measure(unconstrained);
+        PlayerLabelPanel.Measure(unconstrained);
         // Keep the right-aligned label stack beside the timer unless localized text or scaling needs more room.
         var requiredWidth = CaptureActionsPanel.DesiredSize.Width
             + Math.Max(ElapsedText.DesiredSize.Width, TrackingStateText.DesiredSize.Width)
-            + PlayerLabelAndCostPanel.DesiredSize.Width + PlayerControlsGrid.ColumnSpacing * 2d;
+            + PlayerLabelPanel.DesiredSize.Width + PlayerControlsGrid.ColumnSpacing * 2d;
         var stackLabels = headerWidth < requiredWidth;
-        Grid.SetRow(PlayerLabelAndCostPanel, stackLabels ? 1 : 0);
-        Grid.SetColumn(PlayerLabelAndCostPanel, stackLabels ? 0 : 2);
-        Grid.SetColumnSpan(PlayerLabelAndCostPanel, stackLabels ? 3 : 1);
-        PlayerLabelAndCostPanel.Margin = new Thickness(0d, stackLabels ? 8d : 0d, 0d, 0d);
+        Grid.SetRow(PlayerLabelPanel, stackLabels ? 1 : 0);
+        Grid.SetColumn(PlayerLabelPanel, stackLabels ? 0 : 2);
+        Grid.SetColumnSpan(PlayerLabelPanel, stackLabels ? 3 : 1);
+        PlayerLabelPanel.Margin = new Thickness(0d, stackLabels ? 8d : 0d, 0d, 0d);
         Grid.SetRow(PlayerActivity, columns ? 0 : 2);
         Grid.SetColumn(PlayerActivity, columns ? 1 : 0);
         Grid.SetRowSpan(PlayerActivity, columns ? 2 : 1);
@@ -1724,11 +1550,6 @@ public sealed partial class MainWindow : Window
         TrackingButton.Width = TrackingButton.Height = full ? 74d : 52d;
         TrackingButton.CornerRadius = new CornerRadius(full ? 37d : 26d);
         ElapsedText.FontSize = full ? 34d : 28d;
-        AiMonthlySpendPanel.Orientation = full ? Orientation.Vertical : Orientation.Horizontal;
-        AiMonthlySpendPanel.Spacing = full ? 1d : 6d;
-        AiMonthlySpendLabel.VerticalAlignment = full ? VerticalAlignment.Top : VerticalAlignment.Center;
-        AiMonthlySpendText.FontSize = full ? 34d : 16d;
-        AiMonthlySpendRangeText.Visibility = full ? Visibility.Visible : Visibility.Collapsed;
         ActivityChartRow.Height = new GridLength(full ? 54d : 28d);
         ActivityChartHeading.Visibility = ActivityChartFooter.Visibility = full ? Visibility.Visible : Visibility.Collapsed;
         ActivityScorePanel.Visibility = _layoutState.IsActivityScoreVisible && level != MainPlayerDetailLevel.Summary
@@ -1892,7 +1713,6 @@ public sealed partial class MainWindow : Window
         if (state is not { Minutes.Count: > 0 })
         {
             ActivityScoreValueText.Text = "0";
-            ActivityScoreTelemetryText.Text = T("Activity.Telemetry.Empty");
             ActivityScorePreviousIntervalText.Text = _strings.Format("Activity.Interval.Empty", T("Activity.Previous"));
             ActivityScoreLatestIntervalText.Text = _strings.Format("Activity.Interval.Empty", T("Activity.Latest"));
             ActivityScoreBarHost.Children.Clear();
@@ -1900,15 +1720,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var latestMinute = state.Minutes[^1];
         ActivityScoreValueText.Text = state.CurrentScore.ToString(_strings.Culture);
-        var cpuUsage = latestMinute.CpuUsagePercent is { } cpu
-            ? _strings.Format("Activity.Percent", cpu)
-            : "--";
-        var gpuUsage = latestMinute.GpuUsagePercent is { } gpu
-            ? _strings.Format("Activity.Percent", gpu)
-            : "--";
-        ActivityScoreTelemetryText.Text = _strings.Format("Activity.Telemetry", cpuUsage, gpuUsage);
         ActivityScorePreviousIntervalText.Text = FormatInterval(T("Activity.Previous"), state.PreviousSnapshotInterval);
         ActivityScoreLatestIntervalText.Text = FormatInterval(T("Activity.Latest"), state.LatestSnapshotInterval);
 
@@ -2199,7 +2011,6 @@ public sealed partial class MainWindow : Window
         _notificationsEnabled = settings.NotificationsEnabled;
         _dialogs.Notifications.SetEnabled(settings.NotificationsEnabled);
         var isInitialSettings = !_hasAppliedSettings;
-        var showAiMonthlySpendChanged = _showAiMonthlySpend != settings.ShowAiMonthlySpend;
         var positionChangedByUser = _hasAppliedSettings
             && !string.Equals(_position, settings.FlyoutPosition, StringComparison.Ordinal);
         _strings = new LocalizationService(settings.UiLanguage);
@@ -2213,18 +2024,8 @@ public sealed partial class MainWindow : Window
         _position = settings.FlyoutPosition;
         _hasAppliedSettings = true;
         _screenshotsEnabled = settings.ScreenshotsEnabled;
-        _showAiMonthlySpend = settings.ShowAiMonthlySpend;
         WindowContent.Opacity = settings.MainWindowOpacityPercent / 100d;
         _appWindow.IsShownInSwitchers = settings.MainWindowShowInTaskbar;
-        if (!_showAiMonthlySpend)
-        {
-            AiMonthlySpendPanel.Visibility = Visibility.Collapsed;
-        }
-        else if (showAiMonthlySpendChanged)
-        {
-            _nextAiSpendRefreshAt = DateTimeOffset.MinValue;
-            _ = RefreshAiMonthlySpendAsync();
-        }
 
         RootGrid.RequestedTheme = _theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
         _titleBar.ApplyTheme(RootGrid.RequestedTheme == ElementTheme.Default ? RootGrid.ActualTheme : RootGrid.RequestedTheme);
@@ -2268,7 +2069,6 @@ public sealed partial class MainWindow : Window
         UiLocalization.SetAccessibleLabel(TitleBarMinimizeToTrayButton, T("Main.Menu.MinimizeToTray"));
         UiLocalization.SetAccessibleLabel(TitleBarCloseButton, T("Tray.CloseApplication"));
         UiLocalization.SetAccessibleLabel(WorldClockButton, T("WorldClock.OpenWindow"));
-        UiLocalization.SetAccessibleLabel(SensorsButton, T("Sensors.Open"));
         UiLocalization.SetAccessibleLabel(TrackingButton, T(_isTracking ? "TrackingActionPause" : "TrackingActionStart"));
         UiLocalization.SetAccessibleLabel(TakeScreenshotButton, T("Snapshot.Take"));
         UiLocalization.SetAccessibleLabel(VibeWareManifestoButton, $"VibeWare · {T("About.VibeWare.Manifesto")}");
@@ -2303,7 +2103,7 @@ public sealed partial class MainWindow : Window
     {
         var status = T(_screenshotsEnabled ? "Screenshot.Status.On" : "Screenshot.Status.Off");
         ScreenshotStatusText.Text = _dataDirectorySizeBytes is { } bytes
-            ? $"{status} · {T("Sensors.UsedSpace")}: {FormatDataDirectorySize(bytes)}"
+            ? $"{status} · {T("History.UsedSpace")}: {FormatDataDirectorySize(bytes)}"
             : status;
     }
 
@@ -2343,14 +2143,6 @@ public sealed partial class MainWindow : Window
             or nameof(AiApplicationState.IsStatusUnavailable))
         {
             UpdateOpenAiMenuAccessibility();
-            if (e.PropertyName == nameof(AiApplicationState.Enabled))
-            {
-                _nextAiSpendRefreshAt = DateTimeOffset.MinValue;
-                if (!AiState.Enabled)
-                {
-                    AiMonthlySpendPanel.Visibility = Visibility.Collapsed;
-                }
-            }
         }
     }
 
@@ -2358,8 +2150,6 @@ public sealed partial class MainWindow : Window
     private async void OptionsControl_AiConnectionTestRequested(object? sender, EventArgs e)
     {
         await _dialogs.ShowAiConnectionTestAsync(_application, this, RootGrid.RequestedTheme);
-        _nextAiSpendRefreshAt = DateTimeOffset.MinValue;
-        await RefreshAiMonthlySpendAsync();
     }
 
     /// <summary>Opens or reactivates the owned progress window for the two local search indexes.</summary>
@@ -2406,13 +2196,6 @@ public sealed partial class MainWindow : Window
                 : !AiState.CanEnable && !AiState.Enabled
                     ? $"{toggleTooltip} {T("Options.OpenAi.KeyRequired")}"
                     : toggleTooltip);
-        AutomationProperties.SetName(AiPricingMenuItem, T("AiPricing.MenuTitle"));
-        var pricingTooltip = T("Main.Menu.AiPricing.Tooltip");
-        AutomationProperties.SetHelpText(
-            AiPricingMenuItem,
-            AiState.Enabled
-                ? pricingTooltip
-                : $"{pricingTooltip} {T("AiPricing.DisabledHint")}");
     }
 
     private void UpdateActiveHoursAvailability(bool isWithinActiveHours)
@@ -2737,7 +2520,7 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
-        Activated -= MainWindow_Activated;
+        WindowPlacementService.RevealFailed -= ShowWindowRevealFailure;
         _workspaceReady.TrySetCanceled();
         _placement.DpiChanged -= Placement_DpiChanged;
         _dashboardSurfaceClosed = true;

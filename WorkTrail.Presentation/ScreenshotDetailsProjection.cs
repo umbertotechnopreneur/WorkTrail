@@ -58,35 +58,26 @@ public sealed record ScreenshotDetailsViewState(
     string ActivityIndex,
     string ActivityLabels,
     string MouseClicks,
-    string CpuUsage,
-    string GpuUsage,
     string? AnalysisTime,
     IReadOnlyList<SafeMarkdownBlock> AiDescription,
-    string? OcrText,
-    HardwareSnapshotViewState Hardware,
     bool IsVip = false,
     string UserNote = "");
 
 /// <summary>Builds safe screenshot-detail and Markdown projections without presentation-framework dependencies.</summary>
 public static partial class ScreenshotDetailsProjection
 {
-    private const int MaximumMarkdownCharacters = 12_000;
-    private const int MaximumMarkdownBlocks = 80;
-
     /// <summary>Formats one screenshot DTO for the current UI culture.</summary>
     /// <param name="item">Presentation-neutral screenshot data.</param>
     /// <param name="culture">Culture used to format dates and numbers.</param>
     /// <param name="localizedCaptureKind">Localized label for the stable capture-kind identifier.</param>
     /// <param name="localizedOrigin">Localized label for the stable capture-origin identifier.</param>
     /// <param name="missingValue">Placeholder rendered for unavailable optional values.</param>
-    /// <param name="translate">Resolves hardware labels in the current UI language.</param>
     public static ScreenshotDetailsViewState Create(
         ScreenshotGalleryItem item,
         CultureInfo culture,
         string localizedCaptureKind,
         string localizedOrigin,
-        string missingValue,
-        Func<string, string> translate)
+        string missingValue)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(culture);
@@ -98,11 +89,6 @@ public static partial class ScreenshotDetailsProjection
         var labels = item.SpanLabels is { Count: > 0 }
             ? string.Join("  ·  ", item.SpanLabels.Select(label => label.Label))
             : missingValue;
-        var correctedOcrText = item.TextSnapshot?.AiRefinement?.CorrectedText;
-        var rawOcrText = item.TextSnapshot?.Ocr.RawText;
-        var ocrText = !string.IsNullOrWhiteSpace(correctedOcrText)
-            ? correctedOcrText
-            : string.IsNullOrWhiteSpace(rawOcrText) ? null : rawOcrText;
         return new ScreenshotDetailsViewState(
             localTime.ToString(culture.DateTimeFormat.LongDatePattern, culture),
             localTime.ToString("T", culture),
@@ -118,18 +104,30 @@ public static partial class ScreenshotDetailsProjection
             item.ActivityIndex is { } index ? index.ToString(culture) : missingValue,
             labels,
             item.MouseClicks is { } clicks ? clicks.ToString("N0", culture) : missingValue,
-            item.CpuUsagePercent is { } cpu ? (cpu / 100d).ToString("P0", culture) : missingValue,
-            item.GpuUsagePercent is { } gpu ? (gpu / 100d).ToString("P0", culture) : missingValue,
             item.AiAnalyzedAt?.ToLocalTime().ToString("g", culture),
-            ParseMarkdown(item.AiDescriptionMarkdown),
-            ocrText,
-            HardwareSnapshotProjection.Create(item.HardwareSnapshot, culture, translate),
+            ParseMarkdown(SelectScreenDescription(item.AiDescriptionMarkdown, item.ScreenIndex)),
             item.IsVip,
             item.UserNote);
     }
 
+    /// <summary>Selects a marked monitor section while retaining the capture-wide introduction.</summary>
+    /// <remarks>Unmarked or ambiguous provider output remains visible in full; never guess by localized headings.</remarks>
+    public static string? SelectScreenDescription(string? markdown, int? screenIndex)
+    {
+        if (string.IsNullOrWhiteSpace(markdown) || screenIndex is null) return markdown;
+        var markers = ScreenMarkerPattern().Matches(markdown);
+        var selected = markers.Cast<Match>().Where(match =>
+            int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var index)
+            && index == screenIndex).ToArray();
+        if (selected.Length != 1) return markdown;
+        var marker = selected[0];
+        var next = markers.Cast<Match>().FirstOrDefault(match => match.Index > marker.Index);
+        var end = next?.Index ?? markdown.Length;
+        return markdown[..markers[0].Index] + markdown[(marker.Index + marker.Length)..end];
+    }
+
     /// <summary>
-    /// Parses a bounded Markdown subset into inert text blocks; URLs and HTML are never made interactive.
+    /// Parses Markdown into inert text blocks without truncating the provider's description.
     /// </summary>
     public static IReadOnlyList<SafeMarkdownBlock> ParseMarkdown(string? markdown)
     {
@@ -138,13 +136,10 @@ public static partial class ScreenshotDetailsProjection
             return Array.Empty<SafeMarkdownBlock>();
         }
 
-        var bounded = markdown.Length <= MaximumMarkdownCharacters
-            ? markdown
-            : string.Concat(markdown.AsSpan(0, MaximumMarkdownCharacters), "…");
         var result = new List<SafeMarkdownBlock>();
         var paragraph = new List<string>();
 
-        foreach (var rawLine in bounded.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        foreach (var rawLine in markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
         {
             var line = rawLine.Trim();
             if (line.Length == 0)
@@ -222,7 +217,7 @@ public static partial class ScreenshotDetailsProjection
 
     private static void AddBlock(List<SafeMarkdownBlock> result, SafeMarkdownBlock block)
     {
-        if (result.Count >= MaximumMarkdownBlocks || string.IsNullOrWhiteSpace(block.Text))
+        if (string.IsNullOrWhiteSpace(block.Text))
         {
             return;
         }
@@ -246,6 +241,9 @@ public static partial class ScreenshotDetailsProjection
 
     [GeneratedRegex(@"^#{1,3}\s+(.+)$", RegexOptions.CultureInvariant)]
     private static partial Regex HeadingPattern();
+
+    [GeneratedRegex(@"^[\t ]*<!--[\t ]*(?:screen:([1-9][0-9]*)|unmapped)[\t ]*-->[\t ]*\r?$", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
+    private static partial Regex ScreenMarkerPattern();
 
     [GeneratedRegex(@"^[-+*]\s+(.+)$", RegexOptions.CultureInvariant)]
     private static partial Regex BulletPattern();

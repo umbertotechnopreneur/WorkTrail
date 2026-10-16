@@ -422,7 +422,7 @@ public sealed class ReportAggregationTests
     }
 
     [Fact]
-    public void Build_AggregatesAiUsageByProviderAndOrigin_WithoutEstimatingMissingCosts()
+    public void Build_AggregatesAiUsageByProviderAndOrigin()
     {
         WithStore((store, reports) =>
         {
@@ -437,8 +437,7 @@ public sealed class ReportAggregationTests
                     OutputTokens: 20,
                     TotalTokens: 120,
                     CachedInputTokens: 30,
-                    ReasoningTokens: 2,
-                    ReportedCostUsd: 0.015m));
+                    ReasoningTokens: 2));
             store.AppendAiAnalysisAndUsage(firstRequest, AnalysisFor(firstRequest));
 
             var secondRequest = AiUsage(
@@ -465,7 +464,7 @@ public sealed class ReportAggregationTests
                 "openrouter",
                 "snapshot.scheduled",
                 success: true,
-                usage: new AiUsageMetrics(InputTokens: 999, ReportedCostUsd: 9.99m));
+                usage: new AiUsageMetrics(InputTokens: 999));
             store.AppendAiAnalysisAndUsage(outOfRangeRequest, AnalysisFor(outOfRangeRequest));
 
             var result = reports.Build(
@@ -485,11 +484,6 @@ public sealed class ReportAggregationTests
             Assert.Equal(40, usage.CachedInputTokens);
             Assert.Equal(2, usage.ReasoningTokens);
             Assert.Equal(4, usage.ThinkingTokens);
-            Assert.Equal(0.015m, usage.ActualCostUsd);
-            Assert.Equal(1, usage.ActualCostRequestCount);
-            Assert.Null(usage.EstimatedCostUsd);
-            Assert.Equal(0, usage.EstimatedCostRequestCount);
-            Assert.Null(usage.EstimatedCostPricingUpdatedAt);
 
             Assert.Collection(
                 usage.ByProvider,
@@ -498,16 +492,12 @@ public sealed class ReportAggregationTests
                     Assert.Equal("openrouter", openRouter.Label);
                     Assert.Equal(2, openRouter.RequestCount);
                     Assert.Equal(120, openRouter.TotalTokens);
-                    Assert.Equal(0.015m, openRouter.ActualCostUsd);
-                    Assert.Null(openRouter.EstimatedCostUsd);
                 },
                 anthropic =>
                 {
                     Assert.Equal("anthropic", anthropic.Label);
                     Assert.Equal(1, anthropic.RequestCount);
                     Assert.Equal(60, anthropic.TotalTokens);
-                    Assert.Null(anthropic.ActualCostUsd);
-                    Assert.Null(anthropic.EstimatedCostUsd);
                 });
             Assert.Collection(
                 usage.ByOrigin,
@@ -515,99 +505,12 @@ public sealed class ReportAggregationTests
                 {
                     Assert.Equal("snapshot.scheduled", automatic.Label);
                     Assert.Equal(2, automatic.RequestCount);
-                    Assert.Equal(0.015m, automatic.ActualCostUsd);
-                    Assert.Null(automatic.EstimatedCostUsd);
                 },
                 cli =>
                 {
                     Assert.Equal("cli.ai", cli.Label);
                     Assert.Equal(1, cli.RequestCount);
-                    Assert.Null(cli.ActualCostUsd);
-                    Assert.Null(cli.EstimatedCostUsd);
                 });
-        });
-    }
-
-    [Fact]
-    public void BuildAiUsage_DoesNotScanTheActivityHistory()
-    {
-        WithStore((store, reports) =>
-        {
-            var occurredAt = new DateTimeOffset(2026, 2, 1, 12, 0, 0, TimeSpan.Zero);
-            store.AppendAiUsage(AiUsage(
-                occurredAt,
-                "openrouter",
-                "snapshot.scheduled",
-                success: true,
-                usage: new AiUsageMetrics(InputTokens: 10, OutputTokens: 2, TotalTokens: 12, ReportedCostUsd: 0.01m)));
-            using (var connection = new SqliteConnection($"Data Source={store.ActivityDatabasePath};Pooling=False"))
-            {
-                connection.Open();
-                using var command = connection.CreateCommand();
-                command.CommandText = "DROP TABLE activity_samples;";
-                command.ExecuteNonQuery();
-            }
-
-            var usage = reports.BuildAiUsage(
-                new DateOnly(2026, 2, 1),
-                new DateOnly(2026, 2, 1),
-                TimeZoneInfo.Utc,
-                CancellationToken.None);
-
-            Assert.Equal(1, usage.RequestCount);
-            Assert.Equal(12, usage.TotalTokens);
-            Assert.Equal(0.01m, usage.ActualCostUsd);
-        });
-    }
-
-    [Fact]
-    public void Build_EstimatesOpenAiCostsFromStoredPricing()
-    {
-        WithStore((store, reports) =>
-        {
-            var pricingUpdatedAt = new DateTimeOffset(2026, 2, 1, 8, 0, 0, TimeSpan.Zero);
-            store.ReplaceAiModelPricing(AiPricingProviders.OpenAi,
-            [
-                new AiModelPricing(
-                    AiPricingProviders.OpenAi,
-                    "gpt-test",
-                    AiPricingServiceTiers.Standard,
-                    AiPricingContextWindows.Short,
-                    "usd",
-                    InputUsdPerMillionTokens: 1.25m,
-                    CachedInputUsdPerMillionTokens: 0.125m,
-                    CacheWriteUsdPerMillionTokens: null,
-                    OutputUsdPerMillionTokens: 10m,
-                    SourceUrl: "https://developers.openai.com/api/docs/pricing.md",
-                    SourceRetrievedAt: pricingUpdatedAt)
-            ]);
-            var occurredAt = new DateTimeOffset(2026, 2, 1, 12, 0, 0, TimeSpan.Zero);
-            var request = AiUsage(
-                occurredAt,
-                AiPricingProviders.OpenAi,
-                "snapshot.scheduled",
-                success: true,
-                usage: new AiUsageMetrics(
-                    InputTokens: 1_000,
-                    OutputTokens: 100,
-                    TotalTokens: 1_100,
-                    CachedInputTokens: 200),
-                requestedModel: "gpt-test-2026-01-01");
-            store.AppendAiAnalysisAndUsage(request, AnalysisFor(request));
-
-            var result = reports.Build(
-                new ReportQuery(new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 1), "UTC"),
-                CancellationToken.None);
-
-            Assert.True(result.Succeeded);
-            var usage = Assert.IsType<ReportSnapshot>(result.Value).AiUsage;
-            Assert.Null(usage.ActualCostUsd);
-            Assert.Equal(0.002025m, usage.EstimatedCostUsd);
-            Assert.Equal(1, usage.EstimatedCostRequestCount);
-            Assert.Equal(pricingUpdatedAt, usage.EstimatedCostPricingUpdatedAt);
-            var provider = Assert.Single(usage.ByProvider);
-            Assert.Equal("openai", provider.Label);
-            Assert.Equal(0.002025m, provider.EstimatedCostUsd);
         });
     }
 

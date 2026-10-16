@@ -160,7 +160,7 @@ internal sealed partial class ReportExportWindow : Window
         SeparatorCombo.SelectedIndex = options.CsvSeparator == ";" ? 0 : 1;
         DaysCheck.IsChecked = options.IncludeDays; ApplicationsCheck.IsChecked = options.IncludeApplications;
         CapturesCheck.IsChecked = options.IncludeCaptures; DescriptionsCheck.IsChecked = options.IncludeDescriptions;
-        OcrCheck.IsChecked = options.IncludeOcr; TitlesCheck.IsChecked = options.IncludeWindowTitles;
+        TitlesCheck.IsChecked = options.IncludeWindowTitles;
         DevicesCheck.IsChecked = options.IncludeDevices; PathsCheck.IsChecked = options.IncludePaths;
         TelemetryCheck.IsChecked = options.IncludeTelemetry; UsageCheck.IsChecked = options.IncludeAiUsage;
         _applying = false;
@@ -184,7 +184,6 @@ internal sealed partial class ReportExportWindow : Window
             IncludeCaptures = CapturesCheck.IsChecked == true,
             IncludeDescriptions = DescriptionsCheck.IsChecked == true,
             DescriptionMode = (ReportDescriptionMode)DescriptionCombo.SelectedIndex,
-            IncludeOcr = OcrCheck.IsChecked == true,
             IncludeWindowTitles = TitlesCheck.IsChecked == true,
             IncludeDevices = DevicesCheck.IsChecked == true,
             IncludePaths = PathsCheck.IsChecked == true,
@@ -318,7 +317,7 @@ internal sealed partial class ReportExportWindow : Window
             + ReportSummaryModelPolicy.Resolve(status.Value.Provider, status.Value.Model);
         var request = new ReportSummaryRequest(CollectOptions(), (ReportSummaryGrouping)GroupingCombo.SelectedIndex,
             DetailedCheck.IsChecked == true, SummaryExcerptCheck.IsChecked == true, SummaryFullDescriptionCheck.IsChecked == true,
-            SummaryOcrCheck.IsChecked == true, SummaryTitlesCheck.IsChecked == true);
+            SummaryTitlesCheck.IsChecked == true);
         var result = await _application.GenerateReportSummaryAsync(request, token);
         if (_closed) return;
         if (!result.Succeeded || result.Value is null)

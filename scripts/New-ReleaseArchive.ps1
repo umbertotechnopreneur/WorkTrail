@@ -178,9 +178,6 @@ Package version: $Version.0
 After the release has been signed and its metadata/checksums regenerated, install from PowerShell 7:
 pwsh -NoProfile -File ./Install.ps1
 Use -ForceApplicationShutdown only when ready to close an existing WorkTrail instance.
-On x64, Install.ps1 also installs the included PawnIO advanced-sensor component if needed.
-Accept the Windows administrator prompt. If setup requests a restart, restart Windows.
-Direct MSIX users can install the same component from Sensors options.
 
 SHA256SUMS.txt covers the payload files. The adjacent ZIP.sha256 covers this archive.
 "@

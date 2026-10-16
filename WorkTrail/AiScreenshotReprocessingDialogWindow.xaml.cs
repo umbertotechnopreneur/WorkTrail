@@ -217,19 +217,14 @@ internal sealed partial class AiScreenshotReprocessingDialogWindow : Window
             plan.MissingFileCount,
             plan.PrivacyBlockedCaptureCount,
             plan.MissingMetadataCaptureCount);
-        QuotaBreakdownText.Text = string.Join(
-            " · ",
-            string.Format(
+        QuotaBreakdownText.Text = string.Format(
                 _culture,
                 T("AiReprocess.QuotaValue"),
                 plan.DailyAnalysisCount,
                 plan.DailyAnalysisLimit,
                 plan.RemainingDailyAllowance,
                 plan.ProcessableTodayCaptureCount,
-                plan.ProcessableTodayScreenshotCount),
-            plan.EstimatedMaximumCostTodayUsd is { } estimate
-                ? string.Format(_culture, T("AiReprocess.EstimatedCost"), estimate)
-                : T("Options.Codex.Description"));
+                plan.ProcessableTodayScreenshotCount);
         PreflightCountsGrid.Visibility = Visibility.Visible;
         PreflightBreakdownGrid.Visibility = Visibility.Visible;
 
@@ -547,7 +542,6 @@ internal sealed partial class AiScreenshotReprocessingDialogWindow : Window
         plan.ProcessableTodayCaptureCount <= plan.RemainingDailyAllowance &&
         plan.ProcessableTodayScreenshotCount >= 0 &&
         plan.ProcessableTodayScreenshotCount <= plan.EligibleScreenshotCount &&
-        (plan.EstimatedMaximumCostTodayUsd is >= 0m || (plan.EstimatedMaximumCostTodayUsd is null && plan.Provider == "codex-cli")) &&
         !string.IsNullOrWhiteSpace(plan.Provider) &&
         !string.IsNullOrWhiteSpace(plan.Model);
 

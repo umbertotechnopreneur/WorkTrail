@@ -106,13 +106,15 @@ public sealed class CliRouterTests
         Assert.Equal(0, application.TotalCalls);
     }
 
-    [Fact]
-    public async Task SystemSnapshot_RejectsUnknownOptionsBeforeCallingApplication()
+    [Theory]
+    [InlineData("/system")]
+    [InlineData("/hardware")]
+    public async Task RemovedSensorCommands_RejectWithoutCallingApplication(string command)
     {
         var application = new RecordingApplication();
         var router = CreateRouter(application);
 
-        var exitCode = await router.RunAsync(["/system", "snapshot", "--watc"], CancellationToken.None);
+        var exitCode = await router.RunAsync([command, "snapshot"], CancellationToken.None);
 
         Assert.Equal(2, exitCode);
         Assert.Equal(0, application.TotalCalls);
@@ -191,11 +193,11 @@ public sealed class CliRouterTests
         var application = new RecordingApplication();
         var router = CreateRouter(application);
 
-        var exitCode = await router.RunAsync(["/ai", "configure", "--output-detail", "compact", "--reasoning-effort", "low"], CancellationToken.None);
+        var exitCode = await router.RunAsync(["/ai", "configure", "--output-detail", "complete", "--reasoning-effort", "low"], CancellationToken.None);
 
         Assert.Equal(0, exitCode);
         Assert.NotNull(application.LastPatch);
-        Assert.Equal("compact", application.LastPatch!.Values["ai.output_detail"]);
+        Assert.Equal("complete", application.LastPatch!.Values["ai.output_detail"]);
         Assert.Equal("low", application.LastPatch.Values["ai.reasoning_effort"]);
     }
 
@@ -403,7 +405,6 @@ public sealed class CliRouterTests
         public Task<OperationResult<int>> RevealOpenWindowsAsync(WindowRevealRequest request, CancellationToken cancellationToken) => Unsupported<int>();
         public Task<OperationResult<WindowState>> SaveWindowStateAsync(string windowKey, long windowHandle, CancellationToken cancellationToken) => Unsupported<WindowState>();
         public Task<OperationResult<bool>> SetWindowOpenStateAsync(string windowKey, bool isOpen, CancellationToken cancellationToken) => Unsupported<bool>();
-        public Task<OperationResult<OcrTextWindowSource>> SetOcrTextWindowSourceAsync(string screenshotPath, DateTimeOffset capturedAt, CancellationToken cancellationToken) => Unsupported<OcrTextWindowSource>();
         public Task<OperationResult<WorldClockSnapshot>> GetWorldClocksAsync(CancellationToken cancellationToken) => Unsupported<WorldClockSnapshot>();
 
         public Task<OperationResult<WorldClockSnapshot>> GetCelestialReferenceAsync(CancellationToken cancellationToken) => Unsupported<WorldClockSnapshot>();
@@ -455,11 +456,8 @@ public sealed class CliRouterTests
         public Task<OperationResult<TimesheetBatchView>> ManageTimesheetBatchAsync(TimesheetBatchCommand command, CancellationToken cancellationToken) => Unsupported<TimesheetBatchView>();
 
         public Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken) => Unsupported<ReportExportResult>();
-        public Task<OperationResult<SystemSnapshot>> CaptureHardwareSnapshotAsync(CancellationToken cancellationToken) => CaptureSystemSnapshotAsync(cancellationToken);
 
-        public Task<OperationResult<SystemSnapshot>> CaptureSystemSnapshotAsync(CancellationToken cancellationToken) => Unsupported<SystemSnapshot>();
 
-        public Task<OperationResult<SystemSnapshot>> EnableAdvancedHardwareTelemetryAsync(CancellationToken cancellationToken) => Unsupported<SystemSnapshot>();
         public Task<OperationResult<ScreenshotCaptureResult>> CaptureScreenshotAsync(CaptureScreenshotRequest request, CancellationToken cancellationToken)
         {
             TotalCalls++;
@@ -511,17 +509,16 @@ public sealed class CliRouterTests
         {
             TotalCalls++;
             AiStatusReads++;
-            return Success(new AiStatus(false, "openai", "gpt-5.6", "https://api.openai.com/v1/responses", "OPENAI_API_KEY", false, false, new AnalysisCostGate(true, null, 0m, 0, 0m)), "ai.status.loaded");
+            return Success(new AiStatus(false, "openai", "gpt-5.6", "https://api.openai.com/v1/responses", "OPENAI_API_KEY", false, false, new AnalysisRequestGate(true, null, 0)), "ai.status.loaded");
         }
         public Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken) => Unsupported<string>();
-        public Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken) => Unsupported<AiPricingOverview>();
         public Task<OperationResult<AiConnectionTestResult>> TestAiConnectionAsync(CancellationToken cancellationToken) => Unsupported<AiConnectionTestResult>();
         public Task<OperationResult<AiModelCatalogSnapshot>> GetAiModelCatalogAsync(CancellationToken cancellationToken) => Unsupported<AiModelCatalogSnapshot>();
         public Task<OperationResult<AiStatus>> SetAiEnabledAsync(bool enabled, CancellationToken cancellationToken)
         {
             TotalCalls++;
             LastAiEnabled = enabled;
-            return Success(new AiStatus(enabled, "test-provider", "test-model", "https://example.invalid", "TEST_AI_KEY", enabled, true, new AnalysisCostGate(true, null, 0m, 0, 0m)), enabled ? "ai.enabled" : "ai.disabled");
+            return Success(new AiStatus(enabled, "test-provider", "test-model", "https://example.invalid", "TEST_AI_KEY", enabled, true, new AnalysisRequestGate(true, null, 0)), enabled ? "ai.enabled" : "ai.disabled");
         }
         public Task<OperationResult<AppSettings>> ConfigureAiAsync(SettingsPatch patch, CancellationToken cancellationToken)
         {

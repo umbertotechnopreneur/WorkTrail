@@ -70,7 +70,7 @@ internal sealed partial class ReportExportService(LocalStore store)
         _ = new LocalizationService(options.Language);
         if (options.InstallationId is not null && !store.GetInstallationProfiles().Any(profile => profile.InstallationId == options.InstallationId))
             throw new ArgumentException("Unknown installation.");
-        // AI usage lacks an installation dimension in the report contract. Never label global costs as device-local.
+        // AI usage lacks an installation dimension in the report contract. Never label global usage as device-local.
         if (options.InstallationId is not null && options.IncludeAiUsage)
             throw new ReportExportValidationException("Export.AiUsageAllDevices");
     }
@@ -92,14 +92,13 @@ internal sealed partial class ReportExportService(LocalStore store)
         var selected = new List<ScreenshotGalleryItem>();
         long characters = 0;
         // Include adjacent storage dates for the largest possible difference between source and selected time zones.
-        // Only those galleries load OCR/descriptions; timestamps below provide the exact requested boundaries.
+        // Only those galleries load descriptions; timestamps below provide the exact requested boundaries.
         store.VisitAllScreenshotGalleryItems(item =>
         {
             var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(item.CapturedAt, zone).DateTime);
             if (date < options.From || date > options.ToInclusive
                 || (options.InstallationId is not null && item.Installation?.InstallationId != options.InstallationId)) return;
-            characters += (item.AiDescriptionMarkdown?.Length ?? 0) + (item.TextSnapshot?.Ocr.RawText.Length ?? 0)
-                + (item.TextSnapshot?.AiRefinement?.CorrectedText.Length ?? 0);
+            characters += item.AiDescriptionMarkdown?.Length ?? 0;
             if (selected.Count >= MaximumCaptures || characters > MaximumTextCharacters)
                 throw new ReportExportValidationException("Export.RangeTooLarge");
             selected.Add(item);
@@ -146,16 +145,15 @@ internal sealed partial class ReportExportService(LocalStore store)
             var columns = new List<string> { "record", "captured_at", "application", "capture_kind", "labels" };
             if (options.IncludeDescriptions && options.DescriptionMode != ReportDescriptionMode.Complete) columns.Add("description_excerpt");
             if (options.IncludeDescriptions && options.DescriptionMode != ReportDescriptionMode.Brief) columns.Add("description_markdown");
-            if (options.IncludeOcr) columns.AddRange(["ocr_raw", "ocr_corrected", "ocr_overview", "ocr_key_points", "ocr_entities", "ocr_actions"]);
             if (options.IncludeWindowTitles) columns.Add("window_title");
             if (options.IncludeDevices) columns.AddRange(["installation_id", "device_name"]);
             if (options.IncludePaths) columns.Add("screenshot_path");
-            if (options.IncludeTelemetry) columns.AddRange(["activity_index", "mouse_clicks", "cpu_percent", "gpu_percent"]);
+            if (options.IncludeTelemetry) columns.AddRange(["activity_index", "mouse_clicks"]);
             tables.Add(new("Captures", columns, () => CaptureRows(document), document.Captures.Count));
         }
         if (options.IncludeAiUsage)
-            tables.Add(new("AI usage", ["provider", "requests", "input_tokens", "output_tokens", "actual_cost_usd", "estimated_cost_usd"],
-                () => report.AiUsage.ByProvider.Select(usage => new object?[] { usage.Label, usage.RequestCount, usage.InputTokens, usage.OutputTokens, usage.ActualCostUsd, usage.EstimatedCostUsd }), report.AiUsage.ByProvider.Count));
+            tables.Add(new("AI usage", ["provider", "requests", "input_tokens", "output_tokens"],
+                () => report.AiUsage.ByProvider.Select(usage => new object?[] { usage.Label, usage.RequestCount, usage.InputTokens, usage.OutputTokens }), report.AiUsage.ByProvider.Count));
         if (!string.IsNullOrWhiteSpace(document.Summary))
             tables.Add(new("AI summary", ["text"], () => [new object?[] { document.Summary }], 1));
         return document.RowLimit is { } limit
@@ -174,18 +172,10 @@ internal sealed partial class ReportExportService(LocalStore store)
                 item.CaptureKind, string.Join("; ", (item.SpanLabels ?? []).Select(label => label.Label)) };
             if (options.IncludeDescriptions && options.DescriptionMode != ReportDescriptionMode.Complete) row.Add(Excerpt(PlainText(item.AiDescriptionMarkdown), 240));
             if (options.IncludeDescriptions && options.DescriptionMode != ReportDescriptionMode.Brief) row.Add(item.AiDescriptionMarkdown);
-            if (options.IncludeOcr)
-            {
-                var refinement = item.TextSnapshot?.AiRefinement;
-                row.AddRange([item.TextSnapshot?.Ocr.RawText, refinement?.CorrectedText, refinement?.Summary.Overview,
-                    refinement is null ? null : string.Join("\n", refinement.Summary.KeyPoints),
-                    refinement is null ? null : string.Join("\n", refinement.Summary.Entities),
-                    refinement is null ? null : string.Join("\n", refinement.Summary.Actions)]);
-            }
             if (options.IncludeWindowTitles) row.Add(item.ForegroundWindowTitle);
             if (options.IncludeDevices) row.AddRange([item.Installation?.InstallationId, item.Installation?.FriendlyName]);
             if (options.IncludePaths) row.Add(item.Path);
-            if (options.IncludeTelemetry) row.AddRange([item.ActivityIndex, item.MouseClicks, item.CpuUsagePercent, item.GpuUsagePercent]);
+            if (options.IncludeTelemetry) row.AddRange([item.ActivityIndex, item.MouseClicks]);
             yield return row.ToArray();
         }
     }

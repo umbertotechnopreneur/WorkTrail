@@ -67,17 +67,6 @@ has been prepared, it verifies package hashes, signatures, architecture, version
 and dependency coverage before registering the app with `Add-AppxPackage`. It never
 imports a certificate or changes certificate trust. The helper needs PowerShell 7.
 
-On x64, the application package also contains the pinned, official PawnIO sensor
-installer under `Hardware/PawnIO`. Its SHA-256 and Authenticode signature are
-verified during the build; the build never executes it. After app registration,
-`Install.ps1` installs PawnIO with Windows administrator consent if it is missing
-or older than the bundled version. Errors are reported explicitly even though
-the app has already been installed, and a required Windows restart is reported.
-Direct MSIX installation can complete the same prerequisite from Sensors options
-using **Install and activate advanced sensors**. MSIX itself cannot install drivers.
-PawnIO is shared with other applications and is not removed with WorkTrail.
-ARM64 does not bundle or install PawnIO because advanced collection is unsupported.
-
 ## Portable archives
 
 Each `artifacts/releases/<version>/<platform>/portable/WorkTrail-<version>-<platform>-portable-unsigned.zip`
@@ -89,10 +78,7 @@ runtimes, mismatched version/architecture metadata, and an existing output direc
 Extract the entire ZIP and run `WorkTrail.exe`. Keep the executable with all DLLs,
 resources, and subfolders; copying only the EXE is not a supported deployment.
 Basic portable startup requires no MSIX registration, certificate import, runtime
-installer, or administrator access. On x64, the optional advanced-sensor action
-installs the bundled PawnIO driver with administrator consent when needed, then
-starts the elevated sensor collector. This system driver remains installed after
-the portable folder is removed; subsequent sessions reuse it.
+installer, or administrator access.
 Use `./WorkTrail.exe --version` for the CLI; portable ZIPs do not register an execution alias.
 Unsigned executables may show a Windows security prompt.
 
@@ -104,12 +90,6 @@ remain under `%LOCALAPPDATA%\WorkTrail`.
 | Component or feature | Portable distribution | Effect on startup and use |
 | --- | --- | --- |
 | .NET, WinUI, and Windows App SDK | Included in the ZIP for the selected architecture. | These supply the application startup libraries. An incomplete extraction or the wrong architecture can prevent launch. |
-| On-device screenshot OCR | The Windows OCR API requires MSIX package identity, which this portable build does not have. | The OCR engine is created only when text extraction is requested. OCR failures are recorded on the capture without discarding the screenshot or terminating the application. Enabling OCR in saved settings does not provide package identity. |
-
-Use the MSIX edition for supported on-device OCR. The lack of package identity
-limits OCR, while the main player can open without it. The application does not
-substitute another OCR engine. For implementation details, see
-`ScreenshotTextExtractionCoordinator.AttachAsync`.
 
 For `v1.0.900`, the extracted x64 portable passed `WorkTrail.exe --version` with exit
 code zero and reported `1.0.900` on the development workstation. This exercises the

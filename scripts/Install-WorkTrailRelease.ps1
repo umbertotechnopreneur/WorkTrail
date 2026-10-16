@@ -23,7 +23,6 @@ Validates and installs a signed WorkTrail release from its extracted offline ZIP
 .DESCRIPTION
 Requires release.json and every declared package beside this script. Unsigned
 releases cannot be installed. Certificates are never imported or trusted here.
-On x64, also installs the bundled official PawnIO sensor driver with Windows consent.
 .PARAMETER ForceApplicationShutdown
 Allows Windows to close WorkTrail during installation, without closing other
 applications that use its shared framework dependencies.
@@ -73,22 +72,6 @@ function Resolve-ReleaseFile {
         throw "Release file is missing: '$RelativePath'."
     }
     return $path
-}
-
-function Get-PawnIoInstalledVersion {
-    # Check the shared native installation; malformed metadata must not silently trigger a reinstall.
-    $registry = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry64)
-    try {
-        $key = $registry.OpenSubKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO')
-        try {
-            if ($null -eq $key) { return $null }
-            $value = $key.GetValue('DisplayVersion')
-            if ($value -isnot [string] -or [string]::IsNullOrWhiteSpace($value)) { throw 'PawnIO installation version is missing or invalid.' }
-            return [version]$value
-        }
-        finally { if ($null -ne $key) { $key.Dispose() } }
-    }
-    finally { $registry.Dispose() }
 }
 
 function Read-PackageManifest {
@@ -239,42 +222,3 @@ $installed = @(Get-AppxPackage -Name $application.Name | Where-Object {
     })
 if ($installed.Count -ne 1) { throw 'Deployment completed, but the expected package identity, version, architecture, and healthy status could not be verified.' }
 Write-Host "Installed WorkTrail $($release.version) ($($release.platform))." -ForegroundColor Green
-
-if ($release.platform -ceq 'x64') {
-    # MSIX cannot install drivers itself. Use only the pinned setup from the verified, installed package.
-    $pawnIoDirectory = Join-Path $installed[0].InstallLocation 'Hardware/PawnIO'
-    $distribution = Get-Content -LiteralPath (Join-Path $pawnIoDirectory 'distribution.json') -Raw | ConvertFrom-Json -AsHashtable
-    Assert-ObjectFields $distribution @('version', 'url', 'sha256') 'PawnIO distribution'
-    if ($distribution.version -cnotmatch '^\d+\.\d+\.\d+$' -or $distribution.sha256 -cnotmatch '^[0-9A-F]{64}$') {
-        throw 'WorkTrail is installed, but its PawnIO distribution metadata is invalid.'
-    }
-    $installedVersion = Get-PawnIoInstalledVersion
-    if ($null -eq $installedVersion -or $installedVersion -lt [version]$distribution.version) {
-        $setupPath = Join-Path $pawnIoDirectory 'PawnIO_setup.exe'
-        # Keep the validated file immutable until setup finishes; cancellation never terminates driver setup.
-        $setupLock = [IO.File]::Open($setupPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-        try {
-            if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($setupLock)) -cne $distribution.sha256 -or
-                (Get-AuthenticodeSignature -LiteralPath $setupPath).Status -ne 'Valid') {
-                throw 'WorkTrail is installed, but its bundled PawnIO installer failed integrity or signature validation.'
-            }
-            Write-Host 'Installing the included PawnIO component for advanced sensors. Accept the Windows administrator prompt.'
-            $setup = Start-Process -FilePath $setupPath -ArgumentList @('-install', '-silent') -Verb RunAs -WindowStyle Hidden -Wait -PassThru
-            try { $setupExitCode = $setup.ExitCode } finally { $setup.Dispose() }
-            if ($setupExitCode -eq 3010) {
-                Write-Host 'PawnIO was installed. Restart Windows before activating advanced sensors.' -ForegroundColor Yellow
-            }
-            elseif ($setupExitCode -ne 0) {
-                throw "WorkTrail is installed, but PawnIO setup failed (exit code $setupExitCode). Retry from Sensors options."
-            }
-            else {
-                $verifiedVersion = Get-PawnIoInstalledVersion
-                if ($null -eq $verifiedVersion -or $verifiedVersion -lt [version]$distribution.version) {
-                    throw 'WorkTrail is installed, but the required PawnIO installation could not be verified. Retry from Sensors options.'
-                }
-                Write-Host 'PawnIO installed. Activate advanced sensors from Sensors options.' -ForegroundColor Green
-            }
-        }
-        finally { $setupLock.Dispose() }
-    }
-}

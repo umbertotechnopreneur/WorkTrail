@@ -44,8 +44,7 @@ pwsh -NoProfile -File ./scripts/WorkTrail.ps1 -Action Preflight
 Expect PowerShell 7 and the selected stable `10.0.4xx` SDK. Stop at a failed command and resolve it before continuing.
 
 `Preflight` checks the basic tools and repository files. Check the version output
-above too: it does not verify SDK selection, WinUI components, OCR
-languages, or signing certificates.
+above too: it does not verify SDK selection, WinUI components, or signing certificates.
 
 Enable the repository hook once per clone:
 
@@ -112,8 +111,7 @@ pwsh -NoProfile -Command 'dotnet run --project ./WorkTrail/WorkTrail.csproj --co
 For ARM64, use `-p:Platform=ARM64 --runtime win-arm64`. This is a local development
 run, not a distribution package. The custom `Debug-Unpackaged` configuration currently
 defines `DEBUG_UNPACKAGED` instead of `DEBUG` in the app; use the explicit command
-above when you need Debug-only features such as Premium simulation. Unpackaged runs
-do not provide the MSIX identity required by Windows screenshot OCR. Property
+above when you need Debug-only features such as Premium simulation. Property
 evaluation confirms the command selects `DEBUG` and `WindowsPackageType=None`;
 this is not evidence of a successful UI launch on your machine.
 
@@ -144,11 +142,7 @@ needs a diff and link review, not builds, tests, formatter runs, or cleanup.
 | NuGet restore fails | Check the first feed/network/proxy/certificate error and the configured package sources. Keep the pinned package versions while diagnosing a clean-restore failure. |
 | Formatting verification or the pre-commit hook fails | Run `Format-Code.ps1`, review the changes, then run `-Verify`. Check LF and staged `.editorconfig` rules. Resolve the failure without bypassing the hook; preserve unrelated unstaged edits. |
 | Tests cannot find assemblies after cleaning | Run the matching configuration/platform build before using `--no-build`. Solution `Release-Unpackaged` maps supporting/test projects to their `Release` builds; avoid guessing a test DLL path from the app's output directory. |
-| Windows OCR reports an unavailable language | Install the selected Windows OCR language capability, then reopen the app and select an available recognizer. Display language and OCR language are independent; Vietnamese UI support does not imply a Vietnamese Windows OCR recognizer. Explicit unsupported OCR languages fail instead of silently selecting another. |
-| OCR engine initialization fails in an unpackaged run | Validate OCR using an installed MSIX with package identity and the selected recognizer installed. See [WorkTrail.Ocr](../WorkTrail.Ocr/README.md). An unpackaged UI smoke test cannot establish packaged OCR support. |
 | Package signing fails or an MSIX cannot be installed | Check the signing tools, certificate private key, validity, publisher match, and required trust on the target machine. See the separate packaging section below. Compilation success does not verify those prerequisites. |
-
-Windows exposes installed recognizers through `OcrEngine.AvailableRecognizerLanguages`; OCR capability installation is documented under Microsoft's [language Features on Demand](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-language-fod?view=windows-11). OCR is optional and is not a prerequisite for compiling the solution.
 
 ## Keep validation evidence separate
 
@@ -156,11 +150,10 @@ Windows exposes installed recognizers through `OcrEngine.AvailableRecognizerLang
 | --- | --- |
 | Build and automated tests | Commit, Windows/tool versions, exact configuration/platform and commands, exit results, and test summaries. No app launch or installation is implied. |
 | Unpackaged runtime | The published artifact used, its architecture, and the UI/CLI scenario actually exercised. A successful publish alone is not a successful launch. |
-| Installed package | The exact signed package, successful deployment, and the scenario exercised through that installed app. Include OCR language/package-identity evidence when testing OCR. A signed archive alone is not an installation test. |
+| Installed package | The exact signed package, successful deployment, and the scenario exercised through that installed app. A signed archive alone is not an installation test. |
 
 Portable release artifacts are prepared through GitHub Actions. See
-[RELEASING.md](RELEASING.md) for that workflow and the
-MSIX requirement for on-device screenshot OCR.
+[RELEASING.md](RELEASING.md) for that workflow.
 
 For an explicitly requested local MSIX installation task:
 

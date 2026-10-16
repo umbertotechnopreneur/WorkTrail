@@ -25,7 +25,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using WorkTrail.Application;
-using WorkTrail.Ocr;
 using WorkTrail.Services;
 using Xunit;
 
@@ -307,9 +306,9 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
-    /// <summary>Verifies that cancellation removes captured files and releases pending ownership.</summary>
+    /// <summary>Cancellation before capture starts reads no pixels and creates no pending owner.</summary>
     [Fact]
-    public async Task CancelledManualCapture_RemovesFilesAndLeavesNoPendingOwner()
+    public async Task CancelledManualCapture_BeforePixelsLeavesNoFilesOrPendingOwner()
     {
         var dataDirectory = CreateTemporaryDirectory();
         try
@@ -319,31 +318,62 @@ public sealed class RuntimeCaptureSafetyTests
             {
                 ScreenshotsEnabled = true,
                 ScreenshotDirectory = dataDirectory,
-                OcrEnabled = true,
                 OpenAiEnabled = false
             };
             store.SaveSettings(settings);
             var snapshot = new SettingsSnapshot(settings);
             var capture = new BoundaryCaptureService(dataDirectory);
-            var ocr = new CancellationAwareOcrService();
             await using var application = CreateApplication(
                 store,
                 snapshot,
                 capture,
-                startTimer: false,
-                screenshotOcr: ocr);
+                startTimer: false);
             using var cancellation = new CancellationTokenSource();
 
-            var operation = application.CaptureManualScreenshotAsync(cancellation.Token);
-            await capture.Captured.Task.WaitAsync(TimeSpan.FromSeconds(5));
             cancellation.Cancel();
-            var result = await operation.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                application.CaptureManualScreenshotAsync(cancellation.Token));
             var dashboard = await application.GetDashboardAsync(CancellationToken.None);
 
-            Assert.False(result.Succeeded);
-            Assert.Equal("operation.cancelled", result.Code);
+            Assert.Equal(0, capture.PixelReadCount);
             Assert.False(File.Exists(capture.OutputPath));
             Assert.Null(dashboard.Value?.PendingManualScreenshot);
+        }
+        finally
+        {
+            await DeleteTemporaryDirectoryAsync(dataDirectory);
+        }
+    }
+
+    /// <summary>A completed capture receives an owner even if its caller cancels after the pixel read.</summary>
+    [Fact]
+    public async Task CancelledManualCapture_AfterPixelsRegistersPendingOwner()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            using var cancellation = new CancellationTokenSource();
+            var capture = new BoundaryCaptureService(dataDirectory, afterCapture: cancellation.Cancel);
+            await using var application = CreateApplication(
+                store, new SettingsSnapshot(settings), capture, startTimer: false);
+
+            var result = await application.CaptureManualScreenshotAsync(cancellation.Token)
+                .WaitAsync(TimeSpan.FromSeconds(5));
+            var dashboard = await application.GetDashboardAsync(CancellationToken.None);
+
+            Assert.True(cancellation.IsCancellationRequested);
+            Assert.True(result.Succeeded);
+            Assert.Equal(1, capture.PixelReadCount);
+            Assert.True(File.Exists(capture.OutputPath));
+            Assert.Equal(capture.OutputPath, dashboard.Value?.PendingManualScreenshot?.ScreenshotPath);
         }
         finally
         {
@@ -450,7 +480,6 @@ public sealed class RuntimeCaptureSafetyTests
         IScreenCaptureService capture,
         bool startTimer,
         TrackingDomainService? tracking = null,
-        IScreenshotOcrService? screenshotOcr = null,
         IScreenshotNotificationService? screenshotNotifications = null)
     {
         var utilities = new UtilityService();
@@ -459,11 +488,9 @@ public sealed class RuntimeCaptureSafetyTests
             utilities,
             tracking ?? new TrackingDomainService(store, settings),
             capture,
-            new FakeHardwareTelemetryService(),
             new OpenAiAnalysisService(store, capture),
             new StartupService(),
             new BuildInformationService(),
-            screenshotOcr: screenshotOcr,
             settingsSnapshot: settings,
             startScheduledSnapshotTimer: startTimer,
             screenshotNotifications: screenshotNotifications);
@@ -549,6 +576,7 @@ public sealed class RuntimeCaptureSafetyTests
     private sealed class BoundaryCaptureService : IScreenCaptureService
     {
         private readonly Action _beforeAuthorization;
+        private readonly Action _afterCapture;
         private readonly ScreenshotCaptureContext _context;
         private readonly string _captureId = Guid.NewGuid().ToString("N");
         private readonly DateTimeOffset _capturedAt = DateTimeOffset.UtcNow;
@@ -556,9 +584,11 @@ public sealed class RuntimeCaptureSafetyTests
         internal BoundaryCaptureService(
             string directory,
             Action? beforeAuthorization = null,
-            ScreenshotCaptureContext? context = null)
+            ScreenshotCaptureContext? context = null,
+            Action? afterCapture = null)
         {
             _beforeAuthorization = beforeAuthorization ?? (() => { });
+            _afterCapture = afterCapture ?? (() => { });
             _context = context ?? new ScreenshotCaptureContext("allowed-app", "Allowed", "Work", "Allowed window");
             OutputPath = Path.Combine(ScreenshotStorageLayout.GetDayDirectory(directory, _capturedAt),
                 $"{_captureId}_1.0.0_manual_monitor-1.webp");
@@ -587,6 +617,7 @@ public sealed class RuntimeCaptureSafetyTests
             PixelReadCount++;
             Directory.CreateDirectory(Path.GetDirectoryName(OutputPath)!);
             File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(OutputPath), [1, 2, 3]);
+            _afterCapture();
             Captured.TrySetResult(true);
             return new ScreenshotCaptureResult(
                 _captureId,
@@ -630,20 +661,4 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
-    private sealed class CancellationAwareOcrService : IScreenshotOcrService
-    {
-        internal TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public bool IsEnabled => true;
-
-        /// <inheritdoc />
-        public async Task<ScreenshotOcrResult> ExtractAsync(
-            string imagePath,
-            CancellationToken cancellationToken = default)
-        {
-            Started.TrySetResult(true);
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            throw new InvalidOperationException("Cancellation should stop OCR before a result is created.");
-        }
-    }
 }

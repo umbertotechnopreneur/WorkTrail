@@ -117,24 +117,6 @@ public sealed class AuditRemediationTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false, "openai", 0)]
-    [InlineData(true, "openrouter", 0)]
-    [InlineData(true, "openai", 1)]
-    public async Task PricingUsesOnlyEnabledSelectedProvider(bool enabled, string provider, int expectedRequests)
-    {
-        var store = CreateStore();
-        store.SaveSettings(store.LoadSettings() with { OpenAiEnabled = enabled, AiProvider = provider });
-        using var handler = new PricingHandler();
-        using var http = new HttpClient(handler);
-        await using var service = new OpenAiPricingRefreshService(store, httpClient: http);
-        await service.RefreshIfStaleAsync(CancellationToken.None);
-        Assert.Equal(expectedRequests, handler.Requests);
-        store.SaveSettings(store.LoadSettings() with { OpenAiEnabled = false });
-        await service.RefreshAsync(CancellationToken.None);
-        Assert.Equal(expectedRequests, handler.Requests);
-    }
-
-    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task InterruptedDeletionCompletesOnRetryOrRestart(bool restart)
@@ -144,21 +126,21 @@ public sealed class AuditRemediationTests : IDisposable
         var path = capture.StoredScreenshotPaths[0];
         await using (var application = CreateApplication(store))
         {
-            ExecuteSql(store, "CREATE TRIGGER test_fail_delete BEFORE DELETE ON screenshot_text_snapshots BEGIN SELECT RAISE(ABORT, 'test fault'); END;");
+            ExecuteSql(store, "CREATE TRIGGER test_fail_delete BEFORE DELETE ON screenshot_interval_telemetry BEGIN SELECT RAISE(ABORT, 'test fault'); END;");
             await Assert.ThrowsAsync<SqliteException>(() => application.DeleteScreenshotAsync(path, CancellationToken.None));
             Assert.False(File.Exists(path));
-            Assert.NotNull(store.LoadScreenshotTextSnapshot(path));
+            Assert.NotNull(store.LoadScreenshotIntervalTelemetry(path));
             ExecuteSql(store, "DROP TRIGGER test_fail_delete;");
             if (!restart)
                 Assert.True((await application.DeleteScreenshotAsync(path, CancellationToken.None)).Succeeded);
         }
         await using var reopened = CreateApplication(store);
-        Assert.Null(store.LoadScreenshotTextSnapshot(path));
+        Assert.Null(store.LoadScreenshotIntervalTelemetry(path));
         Assert.Empty(new ScreenshotDeletionJournal(store).Pending());
     }
 
     [Fact]
-    public async Task RetentionExpiresOrphanOcrAndCommitsSearchDeletion()
+    public async Task RetentionExpiresActivityAndCommitsSearchDeletion()
     {
         var store = CreateStore();
         var capture = CreateCapture(store, DateTimeOffset.UtcNow.AddDays(-60));
@@ -170,7 +152,7 @@ public sealed class AuditRemediationTests : IDisposable
         {
             Assert.True((await application.SearchAsync(new SearchRequest { Text = "syntheticconfidential" }, CancellationToken.None)).Value!.TotalCount > 0);
             Assert.True((await application.RunRetentionAsync(new RetentionRequest(true, true), CancellationToken.None)).Succeeded);
-            Assert.Null(store.LoadScreenshotTextSnapshot(path));
+            Assert.Null(store.LoadScreenshotIntervalTelemetry(path));
         }
         await using var search = new LocalSearchService(new SearchOptions { IndexRootPath = store.SearchIndexRootDirectory });
         Assert.Empty((await search.SearchAsync(new SearchRequest { Text = "syntheticconfidential" })).Hits);
@@ -185,7 +167,7 @@ public sealed class AuditRemediationTests : IDisposable
         {
             Environment.SetEnvironmentVariable("OPENAI_API_KEY", "sk-test-only-key-1234567890", EnvironmentVariableTarget.Process);
             var store = CreateStore();
-            store.SaveSettings(store.LoadSettings() with { OpenAiEnabled = true, OcrEnabled = false });
+            store.SaveSettings(store.LoadSettings() with { OpenAiEnabled = true });
             var capture = CreateCapture(store, DateTimeOffset.UtcNow);
             await using var application = CreateApplication(store, provider);
             var analysis = application.AnalyzeCapturedScreenshotAsync(new AnalyzeCapturedScreenshotRequest(capture, true), CancellationToken.None);
@@ -273,8 +255,7 @@ public sealed class AuditRemediationTests : IDisposable
         var path = Path.Combine(day, $"{id}_1.0.0_manual_monitor-1.webp");
         File.WriteAllBytes(path, [1, 2, 3]); // Synthetic bytes: never decoded or sent over the network.
         store.RegisterScreenshotCapture(id, store.LoadSettings().InstallationId, timestamp, ScreenshotCaptureOrigins.Manual);
-        store.UpsertScreenshotTextSnapshot(id, new ScreenshotTextSnapshot(path, new OcrRawSnapshot(
-            ScreenshotTextExtractionStatus.Succeeded, "syntheticconfidential OCR", "en-US", null, timestamp, "test", 1, 1, [])));
+        store.UpsertScreenshotIntervalTelemetry(id, [path], new ScreenshotIntervalTelemetry(timestamp.AddMinutes(-1), timestamp));
         return new ScreenshotCaptureResult(id, [path], [path], ScreenshotCaptureOrigins.Manual, CapturedAt: timestamp);
     }
 
@@ -288,7 +269,7 @@ public sealed class AuditRemediationTests : IDisposable
     }
 
     private static WorkTrailApplication CreateApplication(LocalStore store, IAiAnalysisService? analysis = null) =>
-        new(store, new UtilityService(), new TrackingDomainService(store), new NoCapture(), new FakeHardwareTelemetryService(),
+        new(store, new UtilityService(), new TrackingDomainService(store), new NoCapture(),
             analysis ?? new NoAnalysis(), new StartupService(), new BuildInformationService(), startScheduledSnapshotTimer: false);
 
     /// <inheritdoc />
@@ -332,23 +313,6 @@ public sealed class AuditRemediationTests : IDisposable
             await Release.Task;
             cancellationToken.ThrowIfCancellationRequested();
             throw new InvalidOperationException("The test must cancel the request.");
-        }
-    }
-
-    private sealed class PricingHandler : HttpMessageHandler
-    {
-        internal int Requests { get; private set; }
-        /// <inheritdoc />
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            Requests++;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""
-                ### Standard pricing data
-                | Model | Input | Cached input | Cache write | Output | Long context input | Long context cached input | Long context cache write | Long context output |
-                | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-                | gpt-test | $1.00 | $0.10 | - | $2.00 | - | - | - | - |
-                ### End
-                """) });
         }
     }
 }

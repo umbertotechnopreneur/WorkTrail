@@ -19,7 +19,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
@@ -34,7 +33,7 @@ using Xunit;
 namespace WorkTrail.Core.Tests;
 
 [Collection(ProcessEnvironmentCollection.Name)]
-public sealed class LocalSearchAndOcrIntegrationTests
+public sealed class LocalSearchIntegrationTests
 {
     /// <summary>New source data is indexed by the worker without making reads wait for its batch.</summary>
     [Fact]
@@ -126,7 +125,7 @@ public sealed class LocalSearchAndOcrIntegrationTests
         finally { DeleteDataDirectory(dataDirectory); }
     }
 
-    /// <summary>Refreshing requested captures does not deserialize unrelated OCR from the same day.</summary>
+    /// <summary>Refreshing requested captures does not read unrelated analysis metadata from the same day.</summary>
     [Fact]
     public void ScreenshotBatch_ReadsOnlyRequestedCaptureMetadata()
     {
@@ -141,21 +140,21 @@ public sealed class LocalSearchAndOcrIntegrationTests
             foreach (var (path, id) in new[] { (requested, new string('a', 32)), (unrelated, new string('b', 32)) })
             {
                 store.RegisterScreenshotCapture(id, settings.InstallationId, now, ScreenshotCaptureOrigins.Manual);
-                store.UpsertScreenshotTextSnapshot(id, CreateTextSnapshot(path, "synthetic OCR"));
+                AppendAnalysis(store, id, now, path, "Saved project description");
             }
             using (var connection = new SqliteConnection($"Data Source={Path.Combine(dataDirectory, "activity.sqlite3")};Pooling=False"))
             {
                 connection.Open();
                 using var command = connection.CreateCommand();
-                command.CommandText = "UPDATE screenshot_text_snapshots SET snapshot_json = 'invalid-json' WHERE artifact_identity = $identity;";
-                command.Parameters.AddWithValue("$identity", Path.GetFileNameWithoutExtension(unrelated));
+                command.CommandText = "UPDATE ai_analysis_results SET timestamp_utc_ticks = 9223372036854775807 WHERE correlation_id = $id;";
+                command.Parameters.AddWithValue("$id", new string('b', 32));
                 Assert.Equal(1, command.ExecuteNonQuery());
             }
 
             var items = store.GetScreenshotGalleryItemsForCaptures([new string('a', 32)], CancellationToken.None);
 
             Assert.Equal(requested, Assert.Single(items).Path);
-            Assert.Equal("synthetic OCR", items[0].TextSnapshot!.Ocr.RawText);
+            Assert.Equal("Saved project description", items[0].AiDescriptionMarkdown);
         }
         finally { DeleteDataDirectory(dataDirectory); }
     }
@@ -244,7 +243,7 @@ public sealed class LocalSearchAndOcrIntegrationTests
             var todayCapture = new DateTimeOffset(DateTime.Today.AddHours(12));
             var firstCaptureId = new string('e', 32);
             var storedPath = CreateOwnedScreenshot(screenshotDirectory, 'e', todayCapture);
-            var firstArtifactIdentity = Path.GetFileNameWithoutExtension(storedPath);
+            AppendAnalysis(store, firstCaptureId, todayCapture, storedPath, "Retained screenshot description");
             var rawPath = Path.Combine(
                 Path.GetDirectoryName(storedPath)!,
                 $"{firstCaptureId}_1.0.0_manual_monitor-1-raw.webp");
@@ -258,21 +257,8 @@ public sealed class LocalSearchAndOcrIntegrationTests
             {
                 connection.Open();
                 using var command = connection.CreateCommand();
-                command.CommandText = """
-                    INSERT INTO screenshot_text_snapshots (
-                        artifact_identity,
-                        capture_id,
-                        source_path,
-                        extracted_utc_ticks,
-                        snapshot_json,
-                        updated_utc_ticks)
-                    VALUES ($identity, $captureId, $sourcePath, $ticks, $json, $ticks);
-                    """;
-                command.Parameters.AddWithValue("$identity", firstArtifactIdentity);
-                command.Parameters.AddWithValue("$captureId", firstCaptureId);
-                command.Parameters.AddWithValue("$sourcePath", storedPath);
-                command.Parameters.AddWithValue("$ticks", todayCapture.UtcTicks);
-                command.Parameters.AddWithValue("$json", "not-json");
+                command.CommandText = "UPDATE ai_analysis_results SET timestamp_utc_ticks = 9223372036854775807 WHERE correlation_id = $id;";
+                command.Parameters.AddWithValue("$id", firstCaptureId);
                 command.ExecuteNonQuery();
             }
 
@@ -280,57 +266,6 @@ public sealed class LocalSearchAndOcrIntegrationTests
 
             Assert.Equal(2, counts.TotalSnapshotCount);
             Assert.Equal(1, counts.TodaySnapshotCount);
-        }
-        finally
-        {
-            DeleteDataDirectory(dataDirectory);
-        }
-    }
-
-    [Fact]
-    public void ScreenshotTextSnapshot_RoundTripsThroughSqliteAndGallery()
-    {
-        var dataDirectory = CreateDataDirectory();
-        try
-        {
-            var store = CreateStore(dataDirectory);
-            var screenshotDirectory = Path.Combine(dataDirectory, "screenshots");
-            Directory.CreateDirectory(screenshotDirectory);
-            store.SaveSettings(store.LoadSettings() with { ScreenshotDirectory = screenshotDirectory });
-            var capturedAt = DateTimeOffset.Now.AddSeconds(-1);
-            var screenshotPath = CreateOwnedScreenshot(screenshotDirectory, 'a', capturedAt);
-            var snapshot = CreateTextSnapshot(screenshotPath, "Riunone proggeto WorkTrail") with
-            {
-                AiRefinement = new OcrAiRefinement(
-                    "Riunione progetto WorkTrail",
-                    "it-IT",
-                    new OcrStructuredSummary(
-                        "Riunione di progetto.",
-                        Array.Empty<string>(),
-                        Array.Empty<string>(),
-                        Array.Empty<string>()),
-                    capturedAt.AddSeconds(1))
-            };
-
-            store.UpsertScreenshotTextSnapshot(new string('a', 32), snapshot);
-            store.UpsertScreenshotIntervalTelemetry(
-                new string('a', 32),
-                [screenshotPath],
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-15), capturedAt, 50, 50));
-
-            var loaded = store.LoadScreenshotTextSnapshot(screenshotPath);
-            var gallery = store.GetScreenshotGallery(DateOnly.FromDateTime(capturedAt.LocalDateTime.Date));
-            var item = Assert.Single(gallery.Items);
-            Assert.Equal(snapshot.SourceScreenshotPath, loaded?.SourceScreenshotPath);
-            Assert.Equal(snapshot.Ocr.RawText, loaded?.Ocr.RawText);
-            Assert.Equal(snapshot.Ocr.Lines[0].Words[0], loaded?.Ocr.Lines[0].Words[0]);
-            Assert.Equal("Riunone proggeto WorkTrail", item.TextSnapshot?.Ocr.RawText);
-            Assert.Equal("Riunione progetto WorkTrail", loaded?.AiRefinement?.CorrectedText);
-            Assert.Equal("Riunione progetto WorkTrail", item.TextSnapshot?.AiRefinement?.CorrectedText);
-            Assert.Equal(42, item.TextSnapshot?.Ocr.Lines[0].Words[0].X);
-            Assert.Equal(50, item.CpuUsagePercent);
-            Assert.Equal(50, item.GpuUsagePercent);
-            Assert.Equal(3, item.ActivityIndex);
         }
         finally
         {
@@ -400,23 +335,11 @@ public sealed class LocalSearchAndOcrIntegrationTests
                     [ActivityAttributeKeys.SpanLabel] = "Roadmap"
                 }));
             var screenshotPath = CreateOwnedScreenshot(screenshotDirectory, 'b', timestamp);
-            var textSnapshot = CreateTextSnapshot(screenshotPath, "Fattura marzo 2026") with
-            {
-                AiRefinement = new OcrAiRefinement(
-                    "Fattura marzo 2026",
-                    "it",
-                    new OcrStructuredSummary(
-                        "Riepilogo della fattura di marzo.",
-                        ["Importo da verificare"],
-                        ["Fornitore"],
-                        ["Controllare la scadenza"]),
-                    DateTimeOffset.UtcNow)
-            };
-            store.UpsertScreenshotTextSnapshot(new string('b', 32), textSnapshot);
+            AppendAnalysis(store, new string('b', 32), timestamp, screenshotPath, "Fattura marzo 2026: controllare la scadenza.");
             store.UpsertScreenshotIntervalTelemetry(
                 new string('b', 32),
                 [screenshotPath],
-                new ScreenshotIntervalTelemetry(timestamp.AddMinutes(-15), timestamp, 37, 61));
+                new ScreenshotIntervalTelemetry(timestamp.AddMinutes(-15), timestamp));
 
             await using var coordinator = new LocalSearchCoordinator(
                 store,
@@ -440,14 +363,9 @@ public sealed class LocalSearchAndOcrIntegrationTests
             Assert.Contains(activity.Hits, hit => hit.Document.Kind == "activity" && hit.Document.AiDescription is null);
             Assert.Contains(screenshot.Hits, hit =>
                 hit.Document.Kind == "screenshot"
-                && hit.Document.OcrRawText == "Fattura marzo 2026"
-                && hit.Document.OcrStructuredSummary?.Contains("scadenza", StringComparison.OrdinalIgnoreCase) == true
+                && hit.Document.AiDescription == "Fattura marzo 2026: controllare la scadenza."
                 && hit.Document.AttributesRaw.TryGetValue(SearchAttributeKeys.MouseClicks, out var clicks)
-                && clicks == "1"
-                && hit.Document.AttributesRaw.TryGetValue(SearchAttributeKeys.CpuUsagePercent, out var cpu)
-                && cpu == "37"
-                && hit.Document.AttributesRaw.TryGetValue(SearchAttributeKeys.GpuUsagePercent, out var gpu)
-                && gpu == "61");
+                && clicks == "1");
         }
         finally
         {
@@ -456,7 +374,7 @@ public sealed class LocalSearchAndOcrIntegrationTests
     }
 
     [Fact]
-    public async Task SearchCoordinator_IndexesDurableOcrAfterScreenshotArtifactIsRemoved()
+    public async Task SearchCoordinator_IndexesSavedAiDescriptionAfterScreenshotArtifactIsRemoved()
     {
         var dataDirectory = CreateDataDirectory();
         try
@@ -469,9 +387,9 @@ public sealed class LocalSearchAndOcrIntegrationTests
                 ScreenshotDirectory = screenshotDirectory,
                 SearchLanguage = "it-IT"
             });
-            var screenshotPath = CreateOwnedScreenshot(screenshotDirectory, 'd', DateTimeOffset.Now.AddSeconds(-1));
-            var textSnapshot = CreateTextSnapshot(screenshotPath, "Preventivo cliente senza allegato");
-            store.UpsertScreenshotTextSnapshot(new string('d', 32), textSnapshot);
+            var capturedAt = DateTimeOffset.Now.AddSeconds(-1);
+            var screenshotPath = CreateOwnedScreenshot(screenshotDirectory, 'd', capturedAt);
+            AppendAnalysis(store, new string('d', 32), capturedAt, screenshotPath, "Preventivo cliente senza allegato");
             File.Delete(screenshotPath);
 
             await using var coordinator = new LocalSearchCoordinator(
@@ -487,9 +405,9 @@ public sealed class LocalSearchAndOcrIntegrationTests
             }, CancellationToken.None);
 
             var hit = Assert.Single(response.Hits);
-            Assert.Equal("screenshot-text", hit.Document.Kind);
-            Assert.Equal(screenshotPath, hit.Document.CapturePath);
-            Assert.Equal("Preventivo cliente senza allegato", hit.Document.OcrRawText);
+            Assert.Equal("analysis", hit.Document.Kind);
+            Assert.Equal(screenshotPath, store.LoadAiAnalysis(new string('d', 32))!.ScreenshotPaths);
+            Assert.Equal("Preventivo cliente senza allegato", hit.Document.AiDescription);
             Assert.False(File.Exists(screenshotPath));
         }
         finally
@@ -580,74 +498,6 @@ public sealed class LocalSearchAndOcrIntegrationTests
     }
 
     [Fact]
-    public async Task AiOcrRefinement_UsesDedicatedPromptAndPersistsStructuredResult()
-    {
-        var dataDirectory = CreateDataDirectory();
-        const string apiKeyVariable = "WORKTRAIL_OCR_INTEGRATION_TEST_KEY";
-        var previousApiKey = Environment.GetEnvironmentVariable(apiKeyVariable, EnvironmentVariableTarget.Process);
-        try
-        {
-            Environment.SetEnvironmentVariable(apiKeyVariable, "test-ocr-refinement-key", EnvironmentVariableTarget.Process);
-            var store = CreateStore(dataDirectory);
-            var screenshotDirectory = Path.Combine(dataDirectory, "screenshots");
-            Directory.CreateDirectory(screenshotDirectory);
-            var screenshotPath = CreateOwnedScreenshot(screenshotDirectory, 'c', DateTimeOffset.Now);
-            var rawSnapshot = CreateTextSnapshot(screenshotPath, "Riunlone proggetto");
-            store.UpsertScreenshotTextSnapshot(new string('c', 32), rawSnapshot);
-            var capture = new ScreenshotCaptureResult(
-                new string('c', 32),
-                [screenshotPath],
-                [screenshotPath],
-                ScreenshotCaptureOrigins.Manual,
-                [rawSnapshot]);
-            var decoder = new RecordingOcrDecoder();
-            var service = new OpenAiOcrRefinementService(store, decoder);
-            var settings = store.LoadSettings() with
-            {
-                OpenAiEnabled = true,
-                AiApiKeyName = apiKeyVariable,
-                AiProvider = "openai",
-                Model = "gpt-test"
-            };
-
-            var refined = await service.RefineAsync(capture, settings, CancellationToken.None);
-
-            var result = Assert.Single(refined.TextSnapshots!);
-            Assert.Contains("Riunlone proggetto", decoder.Prompt, StringComparison.Ordinal);
-            Assert.Equal([screenshotPath], decoder.ScreenshotPaths);
-            Assert.True(decoder.RequestOptions?.OmitOutputTokenLimitWhenSupported);
-            Assert.Equal("none", decoder.RequestOptions?.ReasoningEffort);
-            Assert.Equal("Riunione progetto", result.AiRefinement?.CorrectedText);
-            Assert.Equal("Preparazione della riunione.", result.AiRefinement?.Summary.Overview);
-            Assert.Equal("Riunione progetto", store.LoadScreenshotTextSnapshot(screenshotPath)?.AiRefinement?.CorrectedText);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(apiKeyVariable, previousApiKey, EnvironmentVariableTarget.Process);
-            DeleteDataDirectory(dataDirectory);
-        }
-    }
-
-    [Fact]
-    public void OcrSettings_AreExplicitlyPatchableAndRestartBound()
-    {
-        var result = SettingsCatalog.Apply(
-            new AppSettings(),
-            new SettingsPatch(new Dictionary<string, string?>
-            {
-                ["ocr.enabled"] = "false",
-                ["ocr.language"] = "it-IT"
-            }));
-
-        Assert.True(result.Succeeded);
-        Assert.False(result.Value!.OcrEnabled);
-        Assert.Equal("it-IT", result.Value.OcrLanguage);
-        Assert.All(
-            SettingsCatalog.Definitions.Where(definition => definition.Key.StartsWith("ocr.", StringComparison.Ordinal)),
-            definition => Assert.True(definition.RequiresRestart));
-    }
-
-    [Fact]
     public void SearchSettings_ControlQueryBehaviorWithoutDisablingSearch()
     {
         var result = SettingsCatalog.Apply(
@@ -678,19 +528,6 @@ public sealed class LocalSearchAndOcrIntegrationTests
         return await coordinator.SearchAsync(request, cancellationToken);
     }
 
-    private static ScreenshotTextSnapshot CreateTextSnapshot(string screenshotPath, string rawText) => new(
-        screenshotPath,
-        new OcrRawSnapshot(
-            ScreenshotTextExtractionStatus.Succeeded,
-            rawText,
-            "it",
-            null,
-            DateTimeOffset.UtcNow,
-            "test-ocr",
-            1920,
-            1080,
-            [new OcrLineSnapshot(rawText, [new OcrWordSnapshot(rawText, 42, 24, 120, 20)])]));
-
     private static string CreateOwnedScreenshot(string directory, char captureCharacter, DateTimeOffset capturedAt)
     {
         var dayDirectory = ScreenshotStorageLayout.GetDayDirectory(directory, capturedAt);
@@ -703,43 +540,16 @@ public sealed class LocalSearchAndOcrIntegrationTests
         return path;
     }
 
-    /// <summary>Ensures deleting OCR refreshes, rather than removes, the retained screenshot search document.</summary>
-    [Fact]
-    public async Task SearchCoordinator_KeepsRetainedImageDocumentWhenOcrIsDeleted()
+    private static void AppendAnalysis(
+        LocalStore store, string captureId, DateTimeOffset capturedAt, string screenshotPath, string summary)
     {
-        var dataDirectory = CreateDataDirectory();
-        try
-        {
-            var store = CreateStore(dataDirectory);
-            var screenshotDirectory = Path.Combine(dataDirectory, "screenshots");
-            Directory.CreateDirectory(screenshotDirectory);
-            var timestamp = DateTimeOffset.Now.AddSeconds(-1);
-            var captureId = new string('c', 32);
-            var screenshotPath = CreateOwnedScreenshot(screenshotDirectory, 'c', timestamp);
-            var artifactIdentity = Path.GetFileNameWithoutExtension(screenshotPath);
-            store.RegisterScreenshotCapture(
-                captureId,
-                store.LoadSettings().InstallationId,
-                timestamp,
-                ScreenshotCaptureOrigins.Manual);
-            store.UpsertScreenshotTextSnapshot(captureId, CreateTextSnapshot(screenshotPath, "temporary OCR text"));
-            var service = new ThreadRecordingSearchService();
-            await using var coordinator = new LocalSearchCoordinator(store, service);
-            _ = await SearchCurrentAsync(coordinator, new SearchRequest { Text = "temporary" }, CancellationToken.None);
-
-            Assert.Equal(1, store.DeleteScreenshotTextSnapshot(screenshotPath));
-            _ = await SearchCurrentAsync(coordinator, new SearchRequest { Text = "desktop" }, CancellationToken.None);
-
-            var imageMutation = Assert.Single(
-                service.LastBatch,
-                mutation => mutation.Id == $"screenshot:{artifactIdentity}");
-            Assert.NotNull(imageMutation.Document);
-            Assert.Equal(screenshotPath, imageMutation.Document.CapturePath);
-        }
-        finally
-        {
-            DeleteDataDirectory(dataDirectory);
-        }
+        var usage = new AiRequestUsageRecord(
+            Guid.NewGuid().ToString("N"), captureId, capturedAt, capturedAt.AddMilliseconds(10),
+            "snapshot.manual", "screen_analysis", "test-provider", "provider.invalid", "test-model", "test-model",
+            null, null, 200, 10, null, 1, 10, 100, new AiUsageMetrics(10, 5, 15), "stop", true, null);
+        store.AppendAiAnalysisAndUsage(usage, new AiAnalysis(
+            capturedAt, "Test", "Search", summary, store.LoadSettings().InstallationId,
+            screenshotPath, CorrelationId: captureId, Origin: "snapshot.manual"));
     }
 
     private static LocalStore CreateStore(string dataDirectory)
@@ -754,7 +564,7 @@ public sealed class LocalSearchAndOcrIntegrationTests
 
     private static string CreateDataDirectory()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"WorkTrail-search-ocr-tests-{Guid.NewGuid():N}");
+        var path = Path.Combine(Path.GetTempPath(), $"WorkTrail-search-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
     }
@@ -883,57 +693,5 @@ public sealed class LocalSearchAndOcrIntegrationTests
         {
             Directory.Delete(path, recursive: true);
         }
-    }
-
-    private sealed class RecordingOcrDecoder : IAIDecoder
-    {
-        public string Provider => "test";
-
-        internal string Prompt { get; private set; } = string.Empty;
-
-        internal IReadOnlyList<string> ScreenshotPaths { get; private set; } = [];
-
-        public Task<AiProviderResult> DecodeAsync(
-            string prompt,
-            IReadOnlyList<string> screenshotPaths,
-            AppSettings settings,
-            string apiKey,
-            string correlationId,
-            AiProviderRequestOptions? requestOptions = null,
-            CancellationToken cancellationToken = default)
-        {
-            Prompt = prompt;
-            ScreenshotPaths = screenshotPaths;
-            RequestOptions = requestOptions;
-            const string response = """
-                {
-                  "items": [
-                    {
-                      "sourceIndex": 0,
-                      "languageTag": "it",
-                      "correctedText": "Riunione progetto",
-                      "summary": {
-                        "overview": "Preparazione della riunione.",
-                        "keyPoints": ["Agenda"],
-                        "entities": ["WorkTrail"],
-                        "actions": ["Confermare orario"]
-                      }
-                    }
-                  ]
-                }
-                """;
-            return Task.FromResult(new AiProviderResult(
-                response,
-                new AiUsageMetrics(10, 20, 30),
-                "response-test",
-                "request-test",
-                settings.Model,
-                "stop",
-                200,
-                5,
-                4));
-        }
-
-        public AiProviderRequestOptions? RequestOptions { get; private set; }
     }
 }

@@ -150,8 +150,8 @@ public sealed class WinUiSurfaceContractTests
         Assert.DoesNotContain("active_hours.", optionsSource, StringComparison.Ordinal);
         Assert.Contains(options.Descendants(), element => HasName(element, "ModelInfoCard") && element.Attribute("CornerRadius")?.Value == "6");
         Assert.Contains(options.Descendants(), element => HasName(element, "ModelAccentBar") && element.Attribute("CornerRadius")?.Value == "2");
-        var ocrAiView = options.Descendants().Single(element => HasName(element, "OcrAiOptionsView"));
-        Assert.Single(ocrAiView.Descendants(), element => element.Name.LocalName == "ScrollViewer");
+        var aiView = options.Descendants().Single(element => HasName(element, "AiConfigurationView"));
+        Assert.Single(aiView.Descendants(), element => element.Name.LocalName == "ScrollViewer");
         Assert.Equal(1, options.Descendants().Count(element => element.Name.LocalName == "StackPanel" && element.Attribute("Padding")?.Value == "0,0,18,12"));
         Assert.Contains(options.Descendants(), element => HasName(element, "OptionsColumnsGrid"));
         Assert.Contains(options.Descendants(), element => HasName(element, "OptionsSecondaryColumn") && element.Attribute("Width")?.Value == "0");
@@ -175,52 +175,6 @@ public sealed class WinUiSurfaceContractTests
             Assert.Equal("0", compactSwitch.Attribute("MinWidth")?.Value);
             Assert.Null(compactSwitch.Attribute("Header"));
         }
-    }
-
-    [Fact]
-    public void SensorSettings_KeepPreferencesSeparateFromExplicitActivationAndRenderFlatControls()
-    {
-        var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "SensorOptionsControl.xaml"));
-        var source = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "SensorOptionsControl.xaml.cs"));
-        var general = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
-        var window = XDocument.Load(RepositoryFile("WorkTrail", "SensorsWindow.xaml"));
-        Assert.DoesNotContain(general.Descendants(), element => HasName(element, "HardwareSensorsSection"));
-        Assert.Contains(window.Descendants(), element => element.Name.LocalName == "SensorOptionsControl");
-        var sensors = options.Descendants().Single(element => HasName(element, "HardwareSensorsSection"));
-        var slider = sensors.Descendants().Single(element => HasName(element, "HardwareSamplingSlider"));
-        Assert.Equal(2, sensors.Descendants().Count(element => element.Name.LocalName == "ToggleSwitch"));
-        Assert.DoesNotContain(sensors.Descendants(), element => element.Name.LocalName is "Expander" or "Border");
-        Assert.Equal("0", slider.Attribute("Minimum")?.Value);
-        Assert.Equal("3", slider.Attribute("Maximum")?.Value);
-        Assert.Equal("1", slider.Attribute("StepFrequency")?.Value);
-        Assert.Equal("False", slider.Attribute("IsThumbToolTipEnabled")?.Value);
-        Assert.DoesNotContain(sensors.Descendants(), element => HasName(element, "HardwareSaveSnapshotsSwitch"));
-        Assert.Contains(sensors.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Sensors.Enabled.Description");
-        foreach (var key in new[] { "sensors.enabled", "sensors.advanced", "sensors.sampling_profile" })
-        {
-            Assert.Contains(key, source, StringComparison.Ordinal);
-        }
-        var registrationStart = source.IndexOf("private async Task SaveAsync", StringComparison.Ordinal);
-        var registrationEnd = source.IndexOf("private async void ActivateAdvancedSensorsButton_Click", registrationStart, StringComparison.Ordinal);
-        Assert.DoesNotContain("EnableAdvancedHardwareTelemetryAsync", source[registrationStart..registrationEnd], StringComparison.Ordinal);
-        var activationStart = source.IndexOf("private async void ActivateAdvancedSensorsButton_Click", StringComparison.Ordinal);
-        var activation = source[activationStart..];
-        Assert.True(activation.IndexOf("if (_busy", StringComparison.Ordinal) < activation.IndexOf("_application.EnableAdvancedHardwareTelemetryAsync", StringComparison.Ordinal));
-        Assert.Contains("HardwareSensorsEnabled: true, HardwareUseAdvancedSensors: true", activation, StringComparison.Ordinal);
-        Assert.Contains("var enabled = HardwareSensorsEnabledSwitch.IsOn && !_busy;", source, StringComparison.Ordinal);
-        foreach (var control in new[] { "HardwareAdvancedSwitch", "HardwareSamplingSlider" })
-        {
-            Assert.Contains($"{control}.IsEnabled = enabled;", source, StringComparison.Ordinal);
-        }
-        Assert.Contains("HardwareSensorsEnabledSwitch.IsEnabled = !_busy;", source, StringComparison.Ordinal);
-        Assert.Contains("HardwareActivationStatusText.Text = string.Empty;", source, StringComparison.Ordinal);
-        var prerequisite = sensors.Descendants().Single(element => element.Attribute("Tag")?.Value == "Hardware.Advanced.Description");
-        Assert.Contains("PawnIO", prerequisite.Attribute("Text")?.Value, StringComparison.Ordinal);
-        var activationButton = sensors.Descendants().Single(element => HasName(element, "ActivateAdvancedSensorsButton"));
-        var activationLabel = activationButton.Elements().Single();
-        Assert.Equal("Hardware.Advanced.Action", activationLabel.Attribute("Tag")?.Value);
-        Assert.Equal("Wrap", activationLabel.Attribute("TextWrapping")?.Value);
-        Assert.Contains("_strings.Translate(result.MessageKey)", activation, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -358,10 +312,9 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains(MenuGlyph(player, "ImportDataMenuItem"), element => element.Attribute("Glyph")?.Value == "\uE896");
         Assert.Contains(MenuGlyph(player, "AiProviderMenu"), element => element.Attribute("Glyph")?.Value == "\uE99A");
         Assert.Contains(MenuGlyph(player, "OpenAiMenuToggle"), element => element.Attribute("Glyph")?.Value == "\uE9A3");
-        Assert.Contains(MenuGlyph(player, "AiPricingMenuItem"), element => element.Attribute("Glyph")?.Value == "\uE8C7");
         Assert.Contains(MenuGlyph(player, "MinimizeToTrayMenuItem"), element => element.Attribute("Glyph")?.Value == "\uE921");
         Assert.Equal(
-            ["Search.Title", "ActivityCalendar.MenuTitle", "Screenshots.Caption", "Export.Title", "Main.Menu.Capture", "Schedule.Snapshots", "MenuToggleScreenshot", "Main.Menu.Settings", "QuickSetup.MenuTitle", "MenuTitleOptions", "Main.Menu.Operations", "Main.Menu.DataTransfer.Export", "Main.Menu.DataTransfer.Import", "Main.Menu.AiProvider", "MenuToggleOpenAi", "AiPricing.MenuTitle", "Main.Menu.MinimizeToTray", "MenuTitleAbout"],
+            ["Search.Title", "ActivityCalendar.MenuTitle", "Screenshots.Caption", "Export.Title", "Main.Menu.Capture", "Schedule.Snapshots", "MenuToggleScreenshot", "Main.Menu.Settings", "QuickSetup.MenuTitle", "MenuTitleOptions", "Main.Menu.Operations", "Main.Menu.DataTransfer.Export", "Main.Menu.DataTransfer.Import", "Main.Menu.AiProvider", "MenuToggleOpenAi", "Main.Menu.MinimizeToTray", "MenuTitleAbout"],
             menuTags);
         Assert.Contains(player.Descendants().Single(element => HasName(element, "ExportDataMenuItem")).Ancestors(), element => HasName(element, "SettingsMenu"));
         Assert.Contains(player.Descendants().Single(element => HasName(element, "ImportDataMenuItem")).Ancestors(), element => HasName(element, "SettingsMenu"));
@@ -387,7 +340,6 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains("OperationsControl.NavigateTo(section, returnToOverview: false);", mainSource, StringComparison.Ordinal);
         Assert.Contains("ApplyMainMenuLabels();", mainSource, StringComparison.Ordinal);
         Assert.Contains("ApplyMenuAccessibility", mainSource, StringComparison.Ordinal);
-        Assert.Contains("AiPricingMenuItem.IsEnabled = IsOpenAiPricingAvailable(result.Value);", mainSource, StringComparison.Ordinal);
         Assert.Contains("[\"screenshots.enabled\"]", mainSource, StringComparison.Ordinal);
         Assert.Contains("CaptureManualScreenshotAsync", mainSource, StringComparison.Ordinal);
         Assert.Contains("DeletePendingManualScreenshotAsync", mainSource, StringComparison.Ordinal);
@@ -701,10 +653,8 @@ public sealed class WinUiSurfaceContractTests
             "ScheduleWindow.xaml.cs",
             "SearchIndexingWindow.xaml.cs",
             "QuickSetupWindow.xaml.cs",
-            "OcrTextWindow.xaml.cs",
             "ThirdPartyLicensesWindow.xaml.cs",
             "ActivityCalendarDialogWindow.xaml.cs",
-            "AiPricingDialogWindow.xaml.cs",
             "AiConnectionTestDialogWindow.xaml.cs",
             "AiScreenshotReprocessingDialogWindow.xaml.cs",
         }.Select(file => File.ReadAllText(RepositoryFile("WorkTrail", file)));
@@ -774,7 +724,7 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains("session?.ScreenshotCapturedAt is { } capturedAt", source, StringComparison.Ordinal);
         Assert.Contains("var status = T(_screenshotsEnabled ? \"Screenshot.Status.On\" : \"Screenshot.Status.Off\");", source, StringComparison.Ordinal);
         Assert.Contains("ScreenshotStatusText.Text = _dataDirectorySizeBytes is { } bytes", source, StringComparison.Ordinal);
-        Assert.Contains("? $\"{status} · {T(\"Sensors.UsedSpace\")}: {FormatDataDirectorySize(bytes)}\"", source, StringComparison.Ordinal);
+        Assert.Contains("? $\"{status} · {T(\"History.UsedSpace\")}: {FormatDataDirectorySize(bytes)}\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ScreenshotStatusText.Visibility = Visibility.Collapsed;", source, StringComparison.Ordinal);
         Assert.Contains("MainWindowLayoutState", source, StringComparison.Ordinal);
         Assert.Contains("RootGrid.Measure(new Size(CurrentLogicalWindowWidth, double.PositiveInfinity));", source, StringComparison.Ordinal);
@@ -1003,7 +953,6 @@ public sealed class WinUiSurfaceContractTests
         var style = app.Descendants().Single(element =>
             element.Name.LocalName == "Style" && HasKey(element, "DashboardMetricLabelTextBlockStyle"));
         var trackingLabel = player.Descendants().Single(element => HasName(element, "TrackingStateText"));
-        var monthlySpendLabel = player.Descendants().Single(element => element.Attribute("Tag")?.Value == "Main.AiMonthlySpend");
         var accentBrushes = app.Descendants()
             .Where(element => HasKey(element, "PlayerAccentTextBrush"))
             .ToArray();
@@ -1015,34 +964,6 @@ public sealed class WinUiSurfaceContractTests
         Assert.Contains(style.Descendants(), element => element.Name.LocalName == "Setter" && element.Attribute("Property")?.Value == "FontSize" && element.Attribute("Value")?.Value == "12");
         Assert.Contains(style.Descendants(), element => element.Name.LocalName == "Setter" && element.Attribute("Property")?.Value == "FontWeight" && element.Attribute("Value")?.Value == "SemiBold");
         Assert.Equal("{StaticResource DashboardMetricLabelTextBlockStyle}", trackingLabel.Attribute("Style")?.Value);
-        Assert.Equal("{StaticResource DashboardMetricLabelTextBlockStyle}", monthlySpendLabel.Attribute("Style")?.Value);
-    }
-
-    [Fact]
-    public void AiMonthlySpend_IsAnOptInPlayerPreference()
-    {
-        var player = XDocument.Load(RepositoryFile("WorkTrail", "MainWindow.xaml"));
-        var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
-        var playerSource = File.ReadAllText(RepositoryFile("WorkTrail", "MainWindow.xaml.cs"));
-        var optionsSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml.cs"));
-        var panel = player.Descendants().Single(element => HasName(element, "AiMonthlySpendPanel"));
-        var visibilitySwitch = options.Descendants().Single(element => HasName(element, "ShowAiMonthlySpendSwitch"));
-
-        Assert.Equal("Collapsed", panel.Attribute("Visibility")?.Value);
-        Assert.Equal("Options.AiMonthlySpendVisibility", visibilitySwitch.Attribute("Tag")?.Value);
-        Assert.Contains("QueueAutoSave(", optionsSource, StringComparison.Ordinal);
-        Assert.Contains("\"ai.show_monthly_spend\"", optionsSource, StringComparison.Ordinal);
-        Assert.Contains("ShowAiMonthlySpendSwitch.IsOn = settings.ShowAiMonthlySpend;", optionsSource, StringComparison.Ordinal);
-        Assert.Equal(
-            2,
-            playerSource.Split("if (!_showAiMonthlySpend || !AiState.Enabled)", StringSplitOptions.None).Length - 1);
-        Assert.Contains("_showAiMonthlySpend = settings.ShowAiMonthlySpend;", playerSource, StringComparison.Ordinal);
-        Assert.Contains("AiSpendFailureRetryInterval", playerSource, StringComparison.Ordinal);
-        Assert.Contains("GetAiPricingOverviewAsync(_lifecycle.Token)", playerSource, StringComparison.Ordinal);
-        Assert.Contains(
-            "_nextAiSpendRefreshAt = DateTimeOffset.UtcNow.Add(AiSpendFailureRetryInterval);",
-            playerSource,
-            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1051,11 +972,8 @@ public sealed class WinUiSurfaceContractTests
         var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
         var languagePicker = options.Descendants().Single(element => element.Attributes().Any(attribute => attribute.Name.LocalName == "Name" && attribute.Value == "LanguageBox"));
         var searchLanguagePicker = options.Descendants().Single(element => HasName(element, "SearchLanguageBox"));
-        var retention = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
-        var ocrLanguagePicker = retention.Descendants().Single(element => HasName(element, "OcrLanguageBox"));
         string?[] uiChoices = ["system", "zh-Hans", "en-US", "fr-FR", "de-DE", "it-IT", "ko-KR", "pt-BR", "pt-PT", "es-ES", "vi-VN"];
         string?[] searchChoices = ["system", "en-US", "it-IT", "fr-FR", "de-DE", "es-ES", "zh-Hans", "vi-VN", "ko-KR", "pt-PT", "pt-BR"];
-        string[] ocrChoices = ["system", "en-US", "it-IT", "fr-FR", "de-DE", "es-ES", "zh-CN", "ko-KR", "pt-PT", "pt-BR"];
 
         Assert.Equal("Options.Language", languagePicker.Attribute("Tag")?.Value);
         Assert.Equal(
@@ -1068,8 +986,6 @@ public sealed class WinUiSurfaceContractTests
             searchLanguagePicker.Descendants()
                 .Where(element => element.Name.LocalName == "ComboBoxItem")
                 .Select(element => element.Attribute("Tag")?.Value));
-        Assert.Equal("Options.Ocr.Language", ocrLanguagePicker.Attribute("Tag")?.Value);
-        Assert.Equal(ocrChoices, WorkTrail.Application.SettingsCatalog.Definitions.Single(setting => setting.Key == "ocr.language").AllowedValues);
         Assert.Equal("🌐 System", languagePicker.Descendants().Single(element => element.Name.LocalName == "ComboBoxItem" && element.Attribute("Tag")?.Value == "system").Attribute("Content")?.Value);
         Assert.Equal("🇮🇹 Italian · Italiano", languagePicker.Descendants().Single(element => element.Name.LocalName == "ComboBoxItem" && element.Attribute("Tag")?.Value == "it-IT").Attribute("Content")?.Value);
     }
@@ -1336,7 +1252,6 @@ public sealed class WinUiSurfaceContractTests
     {
         var screenshots = File.ReadAllText(RepositoryFile("WorkTrail", "ScreenshotWindow.xaml.cs"));
         var main = File.ReadAllText(RepositoryFile("WorkTrail", "MainWindow.xaml.cs"));
-        var pricing = File.ReadAllText(RepositoryFile("WorkTrail", "AiPricingDialogWindow.xaml.cs"));
         var options = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml.cs"));
         var indexing = File.ReadAllText(RepositoryFile("WorkTrail", "SearchIndexingWindow.xaml.cs"));
         var imageViewer = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "ScreenshotImageViewerControl.xaml.cs"));
@@ -1344,12 +1259,11 @@ public sealed class WinUiSurfaceContractTests
 
         Assert.Contains("_strings.Format(\"Screenshots.Count.Many\"", screenshots, StringComparison.Ordinal);
         Assert.Contains("_strings.Format(\"Main.Time.Local\"", main, StringComparison.Ordinal);
-        Assert.Contains("var culture = _strings.Culture;", pricing, StringComparison.Ordinal);
         Assert.Contains("_strings.Format(\"Options.AiQuota.Usage\"", options, StringComparison.Ordinal);
         Assert.Contains("_strings.Format(\"SearchIndex.Completed.Description\"", indexing, StringComparison.Ordinal);
         Assert.Contains("_strings.Format(\"Screenshots.Image.Accessible\"", imageViewer, StringComparison.Ordinal);
         Assert.Contains("_strings.Format(\"Screenshots.Timeline.ItemAccessible\"", timeline, StringComparison.Ordinal);
-        Assert.DoesNotContain("CultureInfo.CurrentCulture", screenshots + main + pricing + options + indexing + imageViewer + timeline, StringComparison.Ordinal);
+        Assert.DoesNotContain("CultureInfo.CurrentCulture", screenshots + main + options + indexing + imageViewer + timeline, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -66,8 +66,8 @@ public sealed class AiApplicationStateTests
         Assert.False(state.HasKey);
         Assert.False(state.CanEnable);
         Assert.False(state.CanToggle);
-        Assert.NotNull(state.CostGate);
-        Assert.Equal(0, state.CostGate!.DailyAnalysisCount);
+        Assert.NotNull(state.RequestGate);
+        Assert.Equal(0, state.RequestGate!.DailyAnalysisCount);
 
         var stored = await state.SetSecretAsync("OPENAI_API_KEY", "not-retained-by-state", CancellationToken.None);
 
@@ -130,7 +130,7 @@ public sealed class AiApplicationStateTests
         Assert.True(state.IsStatusUnavailable);
         Assert.False(state.IsKeyMissing);
         Assert.False(state.CanToggle);
-        Assert.Null(state.CostGate);
+        Assert.Null(state.RequestGate);
     }
 
     public class RecordingAiApplicationProxy : DispatchProxy
@@ -201,6 +201,6 @@ public sealed class AiApplicationStateTests
             "OPENAI_API_KEY",
             hasKey,
             canEnable,
-            new AnalysisCostGate(true, null, 0m, 0, 0m));
+            new AnalysisRequestGate(true, null, 0));
     }
 }

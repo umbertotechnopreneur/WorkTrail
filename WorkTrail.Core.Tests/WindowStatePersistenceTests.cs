@@ -134,18 +134,6 @@ public sealed class WindowStatePersistenceTests
         Assert.Throws<ArgumentException>(() => SettingsCatalog.NormalizePersisted(settings, Path.GetTempPath()));
     }
 
-    /// <summary>Verifies that an OCR context cannot silently resolve to an unrelated or ambiguous screenshot.</summary>
-    [Fact]
-    public void OcrTextSource_RejectsRelativePathsAndMissingCaptureTimes()
-    {
-        var capturedAt = new DateTimeOffset(2026, 9, 15, 12, 30, 0, TimeSpan.Zero);
-        var relative = new AppSettings(OcrTextWindowSource: new OcrTextWindowSource("capture.webp", capturedAt));
-        var missingTime = new AppSettings(OcrTextWindowSource: new OcrTextWindowSource(Path.Combine(Path.GetTempPath(), "capture.webp"), default));
-
-        Assert.Throws<ArgumentException>(() => SettingsCatalog.NormalizePersisted(relative, Path.GetTempPath()));
-        Assert.Throws<ArgumentException>(() => SettingsCatalog.NormalizePersisted(missingTime, Path.GetTempPath()));
-    }
-
     /// <summary>Guards against later settings changes overwriting geometry and session flags from a stale runtime snapshot.</summary>
     [Fact]
     public async Task WindowPersistence_SurvivesAnUnrelatedSettingsPatch()
@@ -161,7 +149,6 @@ public sealed class WindowStatePersistenceTests
                 utilities,
                 new TrackingDomainService(store),
                 capture,
-                new FakeHardwareTelemetryService(),
                 new OpenAiAnalysisService(store, capture),
                 new StartupService(),
                 new BuildInformationService(),
@@ -178,13 +165,9 @@ public sealed class WindowStatePersistenceTests
             Assert.NotNull(savedVisibility.Value?.WindowOpenStates);
             Assert.True(savedVisibility.Value.WindowOpenStates[WindowStateKeys.WorldMap]);
             Assert.False(savedVisibility.Value.WindowOpenStates[WindowStateKeys.WorldClocks]);
-            var source = new OcrTextWindowSource(Path.Combine(directory, "capture.webp"), new DateTimeOffset(2026, 9, 15, 12, 30, 0, TimeSpan.Zero));
-            var sourceSaved = await application.SetOcrTextWindowSourceAsync(source.ScreenshotPath, source.CapturedAt, CancellationToken.None);
-            Assert.True(sourceSaved.Succeeded);
             var current = await application.GetSettingsAsync(CancellationToken.None);
             Assert.Equal(saved.Value, current.Value!.WindowStates![WindowStateKeys.WorldMap]);
             Assert.True(current.Value.WindowOpenStates![WindowStateKeys.WorldMap]);
-            Assert.Equal(source, current.Value.OcrTextWindowSource);
 
             var patched = await application.PatchSettingsAsync(
                 new SettingsPatch(new Dictionary<string, string?> { ["theme"] = "dark" }),
@@ -196,7 +179,6 @@ public sealed class WindowStatePersistenceTests
             Assert.Equal(saved.Value, persisted.WindowStates![WindowStateKeys.WorldMap]);
             Assert.True(persisted.WindowOpenStates![WindowStateKeys.WorldMap]);
             Assert.False(persisted.WindowOpenStates[WindowStateKeys.WorldClocks]);
-            Assert.Equal(source, persisted.OcrTextWindowSource);
         }
         finally
         {

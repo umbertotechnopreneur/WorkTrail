@@ -166,6 +166,10 @@ internal static class NativeMethods
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     internal static extern int GetWindowText(IntPtr window, StringBuilder text, int maxCount);
 
+    /// <summary>Reads the native window class used to distinguish application windows from desktop chrome.</summary>
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int GetClassName(IntPtr window, StringBuilder className, int maxCount);
+
     /// <summary>
     /// Reads a window rectangle in screen coordinates.
     /// </summary>

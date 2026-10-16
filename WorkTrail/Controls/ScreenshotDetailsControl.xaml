@@ -261,54 +261,6 @@ VBWR E -->
                 </Grid>
             </StackPanel>
 
-            <StackPanel x:Name="HardwareSection" Spacing="8">
-                <TextBlock Style="{StaticResource ScreenshotDetailSectionTitleStyle}" Tag="Hardware.CaptureTitle" Text="Hardware at capture" />
-                <TextBlock x:Name="HardwareStatusText" Style="{StaticResource ScreenshotDetailValueStyle}" Text="--" />
-                <TextBlock x:Name="HardwareCollectedAtText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                <ItemsControl x:Name="HardwareSummaryList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,4" Spacing="2">
-                                <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Text="{Binding Label}" />
-                                <TextBlock Style="{StaticResource ScreenshotDetailValueStyle}" Text="{Binding Value}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Expander AutomationProperties.AutomationId="Gallery.Details.AllSensors" Background="Transparent" HorizontalAlignment="Stretch" IsExpanded="False">
-                    <Expander.Header>
-                        <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Hardware.AllSensors" Text="All sensors" />
-                    </Expander.Header>
-                    <StackPanel Spacing="6">
-                        <TextBlock x:Name="HardwareDriverStatusText" FontSize="12" TextWrapping="Wrap" />
-                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Tag="Hardware.PowerNote" Text="W measures component power. Battery capacity in mWh is not whole-PC energy use." TextWrapping="Wrap" />
-                        <ItemsControl x:Name="HardwareSensorList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Expander HorizontalAlignment="Stretch" Background="Transparent" IsExpanded="False">
-                                        <Expander.Header>
-                                            <StackPanel Spacing="2">
-                                                <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
-                                                <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Category}" />
-                                            </StackPanel>
-                                        </Expander.Header>
-                                        <StackPanel Spacing="4">
-                                            <TextBlock FontSize="12" Text="{Binding UpdatedAt}" TextWrapping="Wrap" />
-                                            <ItemsControl ItemsSource="{Binding Readings}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Margin="0,3" FontSize="12" IsTextSelectionEnabled="True" Text="{Binding}" TextWrapping="Wrap" />
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Expander>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Expander>
-            </StackPanel>
 
             <Expander AutomationProperties.AutomationId="Gallery.Details.AnalysisSourcesExpander"
                 x:Name="AnalysisSourcesExpander"
@@ -328,20 +280,10 @@ VBWR E -->
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Screenshots.MouseClicks" Text="Mouse" />
                                 <TextBlock x:Name="MouseClicksValueText" Style="{StaticResource ScreenshotDetailValueStyle}" Text="--" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Hardware.CpuInterval" Text="CPU interval avg." />
-                                <TextBlock x:Name="CpuUsageValueText" Style="{StaticResource ScreenshotDetailValueStyle}" Text="--" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Hardware.GpuInterval" Text="GPU interval avg." />
-                                <TextBlock x:Name="GpuUsageValueText" Style="{StaticResource ScreenshotDetailValueStyle}" Text="--" />
                             </StackPanel>
                         </Grid>
                     </StackPanel>
@@ -364,25 +306,6 @@ VBWR E -->
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel x:Name="OcrTextSection" Spacing="6" Visibility="Collapsed">
-                        <TextBlock Style="{StaticResource ScreenshotDetailLabelStyle}" Tag="Screenshots.OcrText.Details.Title" Text="OCR text" />
-                        <Button AutomationProperties.AutomationId="Gallery.Details.OpenOcrTextButton"
-                            x:Name="OpenOcrTextButton"
-                            MinHeight="36"
-                            Padding="0,6"
-                            HorizontalAlignment="Left"
-                            Background="Transparent"
-                            BorderBrush="Transparent"
-                            BorderThickness="0"
-                            Click="OpenOcrTextButton_Click"
-                            Tag="Screenshots.OcrText.Details.Open"
-                            AutomationProperties.Name="Open OCR text in a new window" ToolTipService.ToolTip="Open OCR text in a new window">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <TextBlock Tag="Screenshots.OcrText.Details.Action" Text="Open OCR text" />
-                                <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="13" Glyph="&#xE8A7;" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
                 </StackPanel>
             </Expander>
         </StackPanel>

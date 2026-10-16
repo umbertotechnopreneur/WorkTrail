@@ -68,9 +68,6 @@ internal static class SearchFields
         new("capture_kind", "capture_kind", "capture_kind_exact", 1.2f, document => document.CaptureKind),
         new("capture_origin", "capture_origin", "capture_origin_exact", 1.2f, document => document.CaptureOrigin),
         new("capture_path", "capture_path", "capture_path_exact", 0.6f, document => document.CapturePath),
-        new("ocr_raw_text", "ocr_raw_text", null, 1.0f, document => document.OcrRawText),
-        new("ocr_corrected_text", "ocr_corrected_text", null, 1.5f, document => document.OcrCorrectedText),
-        new("ocr_structured_summary", "ocr_structured_summary", null, 1.8f, document => document.OcrStructuredSummary),
         new("ai_description", "ai_description", null, 1.6f, document => document.AiDescription),
     ];
 

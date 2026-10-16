@@ -101,9 +101,9 @@ public sealed class ScreenshotCapturePreconditionException : InvalidOperationExc
 /// </summary>
 public sealed class ScreenCaptureService : IScreenCaptureService
 {
-    private const int WebpQuality = 70;
+    private const int WebpQuality = 90;
     private static readonly Regex OwnedArtifactName = new(
-        "^[0-9a-f]{32}_[0-9]+\\.[0-9]+\\.[0-9]+_(?:manual|scheduled)_(?:monitor-[1-9][0-9]*|active-window)(?:-raw)?\\.(?:webp|png)$",
+        "^[0-9a-f]{32}_[0-9]+\\.[0-9]+\\.[0-9]+_(?:manual|scheduled)_(?:monitor-[1-9][0-9]*|secondary-window-[1-9][0-9]*|active-window)(?:-raw)?\\.(?:webp|png)$",
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.NonBacktracking);
     private readonly string _appVersion;
     private readonly SettingsSnapshot? _settingsSnapshot;
@@ -136,11 +136,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService
 
         var foreground = CaptureForegroundTarget();
         EnsureCaptureAllowed(authorizeCapture(foreground.ToCaptureContext()));
-        return captureMode switch
-        {
-            "active-window" => CaptureActiveWindow(directory, captureId, validatedOrigin, capturedAt, foreground, authorizeCapture),
-            _ => CaptureAllScreens(directory, captureId, validatedOrigin, capturedAt, foreground, authorizeCapture)
-        };
+        return CaptureTargets(directory, captureId, validatedOrigin, capturedAt, foreground, captureMode == "active-window", authorizeCapture);
     }
 
     /// <summary>Returns whether a path matches the versioned naming contract of a WorkTrail screenshot artifact.</summary>
@@ -156,12 +152,13 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         return OwnedArtifactName.IsMatch(Path.GetFileName(path));
     }
 
-    private ScreenshotCaptureResult CaptureAllScreens(
+    private ScreenshotCaptureResult CaptureTargets(
         string directory,
         string captureId,
         string captureOrigin,
         DateTimeOffset capturedAt,
         ForegroundCaptureTarget foreground,
+        bool activeWindowOnly,
         Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
     {
         var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
@@ -170,36 +167,50 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         // All artifacts from this capture pass share one resolved day directory; directory creation failures abort capture.
         Directory.CreateDirectory(captureDirectory);
         var displays = EnumerateDisplays();
-        var focusedDisplay = ResolveFocusedDisplay(displays, foreground.WindowBounds);
-        var focusMetadata = CreateFocusMetadata(focusedDisplay, foreground, focusedDisplay.Stem);
-        var captureOrder = displays
-            .Where(display => display.Index != focusedDisplay.Index)
-            .Append(focusedDisplay);
+        var visibleWindows = ReadVisibleWindows();
+        var windows = visibleWindows.Select(window => new CaptureWindow(window.WindowHandle, window.Bounds,
+            window.Context.ProcessName, window.Context.ApplicationName, window.Context.WindowTitle,
+            window.IsApplicationWindow)).ToArray();
+        var policy = ScreenshotCaptureRules.Load();
+        var targets = policy.Plan(displays, foreground, windows, activeWindowOnly);
+        var foregroundExcluded = policy.AnalysisBlacklist?.Contains(foreground.ProcessName, StringComparer.OrdinalIgnoreCase) == true;
+        var activeTarget = targets.FirstOrDefault(target => target.Role == "active-window");
+        var focusedDisplay = activeTarget?.Display ?? ResolveFocusedDisplay(displays, foreground.WindowBounds);
+        var focusMetadata = CreateFocusMetadata(focusedDisplay, foreground, activeTarget?.Stem ?? focusedDisplay.Stem);
 
         var storage = new List<string>(displays.Count);
         var analysis = new List<string>(displays.Count);
+        var images = new List<ScreenshotImageMetadata>(targets.Count);
         try
         {
-            foreach (var display in captureOrder)
+            foreach (var target in targets)
             {
                 var paths = CaptureRect(
                     captureDirectory,
-                    display.Bounds,
-                    display.Stem,
+                    target.Bounds,
+                    target.Stem,
                     captureId,
                     validatedOrigin,
                     capturedAt,
-                    authorizeCapture);
+                    authorizeCapture,
+                    foreground,
+                    target.VisibleRegions,
+                    visibleWindows);
 
-                if (display.Index == focusedDisplay.Index)
-                {
-                    analysis.InsertRange(0, paths.Analysis);
-                    storage.InsertRange(0, paths.Stored);
-                    continue;
-                }
-
-                analysis.AddRange(paths.Analysis);
-                storage.AddRange(paths.Stored);
+                if (target.ForAnalysis) analysis.AddRange(paths.Analysis);
+                if (target.ForGallery) storage.AddRange(paths.Stored);
+                var screen = target.Display;
+                var isWindow = target.WindowHandle != IntPtr.Zero;
+                var processName = windows.FirstOrDefault(window => window.WindowHandle == target.WindowHandle)?.ProcessName;
+                var retainTitle = _settingsSnapshot is null || string.IsNullOrWhiteSpace(processName)
+                    || ActivityContextProviderRegistry.IsDetailEnabled(processName, _settingsSnapshot.Value);
+                images.Add(new ScreenshotImageMetadata(paths.Stored[0], target.Role, screen.Index, screen.Name,
+                    screen.Bounds.Left, screen.Bounds.Top, screen.Bounds.Right - screen.Bounds.Left, screen.Bounds.Bottom - screen.Bounds.Top,
+                    target.Bounds.Left, target.Bounds.Top, target.Bounds.Right - target.Bounds.Left, target.Bounds.Bottom - target.Bounds.Top,
+                    screen.Index == focusedDisplay.Index,
+                    isWindow ? target.ApplicationName : screen.Index == focusedDisplay.Index && !foregroundExcluded ? focusMetadata.ApplicationName : string.Empty,
+                    isWindow ? retainTitle ? target.WindowTitle : string.Empty : screen.Index == focusedDisplay.Index && !foregroundExcluded ? focusMetadata.WindowTitle : string.Empty,
+                    target.RelatedScreenIndices, target.Priority, target.ForAnalysis, target.ForGallery, target.Attention));
             }
         }
         catch
@@ -214,39 +225,8 @@ public sealed class ScreenCaptureService : IScreenCaptureService
             storage.AsReadOnly(),
             validatedOrigin,
             FocusMetadata: focusMetadata,
-            CapturedAt: capturedAt);
-    }
-
-    private ScreenshotCaptureResult CaptureActiveWindow(
-        string directory,
-        string captureId,
-        string captureOrigin,
-        DateTimeOffset capturedAt,
-        ForegroundCaptureTarget foreground,
-        Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
-    {
-        var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
-        var captureDirectory = ScreenshotStorageLayout.GetDayDirectory(directory, capturedAt);
-        // The foreground capture uses the same durable calendar layout as multi-monitor capture.
-        ScreenshotStorageLayout.RejectLinks(captureDirectory);
-        Directory.CreateDirectory(captureDirectory);
-        var focusedDisplay = ResolveFocusedDisplay(EnumerateDisplays(), foreground.WindowBounds);
-        var focusMetadata = CreateFocusMetadata(focusedDisplay, foreground, "active-window");
-        var paths = CaptureRect(
-            captureDirectory,
-            foreground.WindowBounds,
-            "active-window",
-            captureId,
-            validatedOrigin,
-            capturedAt,
-            authorizeCapture);
-        return new ScreenshotCaptureResult(
-            captureId,
-            paths.Analysis,
-            paths.Stored,
-            validatedOrigin,
-            FocusMetadata: focusMetadata,
-            CapturedAt: capturedAt);
+            CapturedAt: capturedAt,
+            Images: images.AsReadOnly());
     }
 
     /// <summary>Returns the zero-based display index that contains the largest foreground-window area.</summary>
@@ -393,7 +373,10 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         string captureId,
         string captureOrigin,
         DateTimeOffset capturedAt,
-        Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
+        Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture,
+        ForegroundCaptureTarget expectedForeground,
+        IReadOnlyList<NativeMethods.Rect> visibleRegions,
+        IReadOnlyList<VisibleCaptureWindow> expectedWindows)
     {
         var width = rect.Right - rect.Left;
         var height = rect.Bottom - rect.Top;
@@ -410,10 +393,21 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                 // Check every visible intersecting window, including other monitors. Unknown metadata
                 // fails closed under configured rules. Recheck after acquisition before any file is written.
                 AuthorizeCurrentForeground(authorizeCapture);
-                AuthorizeVisibleWindows(rect, ReadVisibleWindows(), authorizeCapture);
-                graphics.CopyFromScreen(rect.Left, rect.Top, 0, 0, new Size(width, height));
-                AuthorizeVisibleWindows(rect, ReadVisibleWindows(), authorizeCapture);
+                EnsureForegroundUnchanged(expectedForeground);
+                var before = ReadVisibleWindows();
+                EnsureWindowSceneUnchanged(expectedWindows, before);
+                AuthorizeVisibleWindows(rect, before, authorizeCapture);
+                graphics.Clear(Color.Black);
+                // Copy only physical desktop regions. Gaps between monitors remain black;
+                // hidden window surfaces are never requested with PrintWindow.
+                foreach (var region in visibleRegions)
+                    graphics.CopyFromScreen(region.Left, region.Top, region.Left - rect.Left, region.Top - rect.Top,
+                        new Size(region.Right - region.Left, region.Bottom - region.Top));
+                var after = ReadVisibleWindows();
+                EnsureWindowSceneUnchanged(expectedWindows, after);
+                AuthorizeVisibleWindows(rect, after, authorizeCapture);
                 AuthorizeCurrentForeground(authorizeCapture);
+                EnsureForegroundUnchanged(expectedForeground);
             }
 
             // Staging names are excluded from the gallery until Core commits installation provenance.
@@ -428,6 +422,15 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         }
 
         return (new[] { screenshotPath }, new[] { screenshotPath });
+    }
+
+    private static void EnsureForegroundUnchanged(ForegroundCaptureTarget expected)
+    {
+        var current = CaptureForegroundTarget();
+        if (current.WindowHandle != expected.WindowHandle || current.WindowTitle != expected.WindowTitle ||
+            current.WindowBounds.Left != expected.WindowBounds.Left || current.WindowBounds.Top != expected.WindowBounds.Top ||
+            current.WindowBounds.Right != expected.WindowBounds.Right || current.WindowBounds.Bottom != expected.WindowBounds.Bottom)
+            throw new InvalidOperationException("The active window changed during screenshot capture; retry the capture.");
     }
 
     private static void AuthorizeCurrentForeground(
@@ -455,7 +458,20 @@ public sealed class ScreenCaptureService : IScreenCaptureService
         }
     }
 
-    internal sealed record VisibleCaptureWindow(NativeMethods.Rect Bounds, ScreenshotCaptureContext Context);
+    internal sealed record VisibleCaptureWindow(NativeMethods.Rect Bounds, ScreenshotCaptureContext Context,
+        IntPtr WindowHandle = default, bool IsApplicationWindow = true);
+
+    private static void EnsureWindowSceneUnchanged(IReadOnlyList<VisibleCaptureWindow> expected,
+        IReadOnlyList<VisibleCaptureWindow> actual)
+    {
+        // Occlusion masks are valid only for the same window geometry and top-to-bottom ordering.
+        if (expected.Count != actual.Count || expected.Where((window, index) =>
+            window.WindowHandle != actual[index].WindowHandle
+            || window.Bounds.Left != actual[index].Bounds.Left || window.Bounds.Top != actual[index].Bounds.Top
+            || window.Bounds.Right != actual[index].Bounds.Right || window.Bounds.Bottom != actual[index].Bounds.Bottom
+            || window.Context != actual[index].Context).Any())
+            throw new InvalidOperationException("Visible windows changed during screenshot capture; retry the capture.");
+    }
 
     /// <summary>Rejects the entire capture when any potentially visible intersecting window is private.</summary>
     internal static void AuthorizeVisibleWindows(NativeMethods.Rect area,
@@ -487,9 +503,14 @@ public sealed class ScreenCaptureService : IScreenCaptureService
                     throw new InvalidOperationException("Unable to resolve visible window bounds for screenshot privacy.");
                 var process = ReadProcessName(window);
                 var title = ReadWindowTitle(window);
+                var className = new StringBuilder(256);
+                if (NativeMethods.GetClassName(window, className, className.Capacity) == 0)
+                    throw new InvalidOperationException("Unable to identify a visible window for screenshot capture.");
+                var isApplication = !string.IsNullOrWhiteSpace(title)
+                    && className.ToString() is not ("Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd");
                 // Raw metadata is transient policy input, not retained focus metadata.
                 var context = new ActivityContextProviderRegistry().Resolve(new ForegroundWindowInfo(process, title));
-                windows.Add(new VisibleCaptureWindow(bounds, new ScreenshotCaptureContext(process, context.Application, context.Context, title)));
+                windows.Add(new VisibleCaptureWindow(bounds, new ScreenshotCaptureContext(process, context.Application, context.Context, title), window, isApplication));
                 return true;
             }
             catch (Exception exception)
@@ -566,10 +587,10 @@ public sealed record ScreenshotCaptureResult(
     IReadOnlyList<string> AnalysisScreenshotPaths,
     IReadOnlyList<string> StoredScreenshotPaths,
     string CaptureOrigin,
-    IReadOnlyList<WorkTrail.Application.ScreenshotTextSnapshot>? TextSnapshots = null,
     ScreenshotFocusMetadata? FocusMetadata = null,
     DateTimeOffset? CapturedAt = null,
-    SystemSnapshot? HardwareSnapshot = null)
+    DeviceContextSnapshot? DeviceContext = null,
+    IReadOnlyList<ScreenshotImageMetadata>? Images = null)
 {
     /// <summary>
     /// Returns all generated files, used for retention and cleanup.

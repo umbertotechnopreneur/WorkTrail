@@ -2,8 +2,8 @@
 
 WorkTrail is a Windows app that stores your history on your PC by default.
 Each installation runs one tracker, so the desktop app and CLI share the same
-activity, settings, and privacy choices. Search, text recognition (OCR), and
-the activity calendar work with local data; AI analysis is optional.
+activity, settings, and privacy choices. Search and the activity calendar work
+with local data; AI analysis is optional.
 
 The contributor details below explain how shared services keep that experience
 consistent through `IWorkTrailApplication`.
@@ -20,7 +20,6 @@ flowchart LR
     Services --> SQLite[(Local SQLite history)]
     Services --> Captures[(Saved screenshots)]
     Services --> Search[Local search index]
-    Services --> OCR[On-device OCR]
     Services --> Provider[Optional AI provider]
     Services --> Calendar[Activity calendar]
 ```
@@ -40,8 +39,7 @@ the installation ID, so their Windows object names don't expose the ID itself.
 | `WorkTrail.Cli/` | Spectre.Console commands and output, using the shared app interface. |
 | `WorkTrail.Taskbar/` | Taskbar features that call Core services. |
 | `WorkTrail.Search/` | The local search index, query checks, text analysis, and results. |
-| `WorkTrail.Ocr/` | Reading text from screenshots with Windows OCR on the PC. |
-| `WorkTrail.*.Tests/` | Tests for Core, the UI models, CLI, search, and OCR, including checks for previously fixed bugs. |
+| `WorkTrail.*.Tests/` | Tests for Core, the UI models, CLI, and search, including checks for previously fixed bugs. |
 
 ## Where app behavior belongs
 
@@ -82,13 +80,13 @@ in tests and Release builds for every supported architecture.
 
 ## How data moves through the app
 
-1. Activity and system services collect the measurements you've enabled, such
+1. Activity services collect the measurements you've enabled, such
    as input counts, without recording the content of keys or clicks.
 2. `LocalStore` and `SqliteActivityStore` save settings, activity, analysis,
    and related details on the PC.
 3. `ScreenshotStorageLayout` organizes screenshots in folders using
    `yyyy-MM/week-YYYY-WW/yyyy-MM-dd`.
-4. OCR and local search work without an AI provider.
+4. Local search works without an AI provider.
 5. AI requests are built only for enabled features, with keys read from
    environment variables.
 6. The activity calendar aggregates saved local data through Core services.

@@ -206,13 +206,9 @@ VBWR E -->
                                 <Grid ColumnSpacing="18" RowSpacing="14">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Grid.ColumnSpan="2" Spacing="4">
                                         <CheckBox AutomationProperties.AutomationId="Report.DescriptionsCheck" x:Name="DescriptionsCheck" Tag="Export.SavedDescriptions" Click="OptionsChanged" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                                         <TextBlock Tag="Export.SavedDescriptions.Description" Margin="32,0,0,0" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Spacing="4">
-                                        <CheckBox AutomationProperties.AutomationId="Report.OcrCheck" x:Name="OcrCheck" Tag="Export.Ocr" Click="OptionsChanged" Style="{StaticResource ReportOptionCheckBoxStyle}" />
-                                        <TextBlock Tag="Export.Ocr.Description" Margin="32,0,0,0" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     </StackPanel>
                                     <ComboBox AutomationProperties.AutomationId="Report.DescriptionCombo" x:Name="DescriptionCombo" Grid.Row="1" Grid.ColumnSpan="2" Tag="Export.DescriptionMode" HorizontalAlignment="Stretch" SelectionChanged="OptionsChanged" />
                                     <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Tag="Export.ExcerptHelp" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -233,8 +229,7 @@ VBWR E -->
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <CheckBox AutomationProperties.AutomationId="Report.SummaryExcerptCheck" x:Name="SummaryExcerptCheck" Tag="Export.Brief" IsChecked="True" Click="SummaryOptionsChanged" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                                 <CheckBox AutomationProperties.AutomationId="Report.SummaryFullDescriptionCheck" x:Name="SummaryFullDescriptionCheck" Grid.Column="1" Tag="Export.CompleteText" Click="SummaryOptionsChanged" Style="{StaticResource ReportOptionCheckBoxStyle}" />
-                                <CheckBox AutomationProperties.AutomationId="Report.SummaryOcrCheck" x:Name="SummaryOcrCheck" Grid.Row="1" Tag="Export.Ocr" Click="SummaryOptionsChanged" Style="{StaticResource ReportOptionCheckBoxStyle}" />
-                                <CheckBox AutomationProperties.AutomationId="Report.SummaryTitlesCheck" x:Name="SummaryTitlesCheck" Grid.Row="1" Grid.Column="1" Tag="Export.Titles" Click="SummaryOptionsChanged" Style="{StaticResource ReportOptionCheckBoxStyle}" />
+                                <CheckBox AutomationProperties.AutomationId="Report.SummaryTitlesCheck" x:Name="SummaryTitlesCheck" Grid.Row="1" Tag="Export.Titles" Click="SummaryOptionsChanged" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                             </Grid>
                             <TextBlock x:Name="ProviderText" TextWrapping="Wrap" />
                             <TextBlock Tag="Export.AiNotice" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -287,8 +282,7 @@ VBWR E -->
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <CheckBox AutomationProperties.AutomationId="Report.TimesheetDescriptions" x:Name="TimesheetDescriptions" Click="TimesheetOptionsChanged" Tag="Export.SavedDescriptions" IsChecked="True" Style="{StaticResource ReportOptionCheckBoxStyle}" />
-                                <CheckBox AutomationProperties.AutomationId="Report.TimesheetOcr" x:Name="TimesheetOcr" Grid.Column="1" Click="TimesheetOptionsChanged" Tag="Export.Ocr" Style="{StaticResource ReportOptionCheckBoxStyle}" />
-                                <CheckBox AutomationProperties.AutomationId="Report.TimesheetTitles" x:Name="TimesheetTitles" Grid.Row="1" Click="TimesheetOptionsChanged" Tag="Export.Titles" Style="{StaticResource ReportOptionCheckBoxStyle}" />
+                                <CheckBox AutomationProperties.AutomationId="Report.TimesheetTitles" x:Name="TimesheetTitles" Grid.Column="1" Click="TimesheetOptionsChanged" Tag="Export.Titles" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                             </Grid>
                             <Button AutomationProperties.AutomationId="Report.Timesheet_Submit" Tag="Timesheet.Submit" Click="TimesheetStart_Click">
                                 <StackPanel Orientation="Horizontal" Spacing="8">

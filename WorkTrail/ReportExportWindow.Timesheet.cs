@@ -168,7 +168,6 @@ internal sealed partial class ReportExportWindow
                 reportOptions,
                 IncludeDescriptionExcerpt: false,
                 IncludeCompleteDescription: TimesheetDescriptions.IsChecked == true,
-                IncludeOcr: TimesheetOcr.IsChecked == true,
                 IncludeWindowTitles: TimesheetTitles.IsChecked == true),
             mergeMorningAndAfternoon,
             consultant,

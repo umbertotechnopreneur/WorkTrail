@@ -130,11 +130,6 @@ public sealed record AiUsageSummary(
     long CachedInputTokens,
     long ReasoningTokens,
     long ThinkingTokens,
-    decimal? ActualCostUsd,
-    int ActualCostRequestCount,
-    decimal? EstimatedCostUsd,
-    int EstimatedCostRequestCount,
-    DateTimeOffset? EstimatedCostPricingUpdatedAt,
     IReadOnlyList<AiUsageSlice> ByProvider,
     IReadOnlyList<AiUsageSlice> ByOrigin)
 {
@@ -149,11 +144,6 @@ public sealed record AiUsageSummary(
         0,
         0,
         0,
-        null,
-        0,
-        null,
-        0,
-        null,
         Array.Empty<AiUsageSlice>(),
         Array.Empty<AiUsageSlice>());
 }
@@ -164,9 +154,7 @@ public sealed record AiUsageSlice(
     int RequestCount,
     long InputTokens,
     long OutputTokens,
-    long TotalTokens,
-    decimal? ActualCostUsd,
-    decimal? EstimatedCostUsd);
+    long TotalTokens);
 
 /// <summary>Contains the complete privacy-safe aggregate report payload.</summary>
 public sealed record ReportSnapshot(

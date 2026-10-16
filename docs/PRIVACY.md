@@ -1,6 +1,6 @@
 # WorkTrail Privacy Policy
 
-**Last updated: September 14, 2026**
+**Last updated: October 16, 2026**
 
 WorkTrail helps you look back at your workday by saving activity on your Windows
 PC. This page explains what it saves, what can leave your PC, and how to delete
@@ -37,7 +37,7 @@ release. For privacy questions, email **hello@umbertogiacobbi.biz**.
 | Screenshots | Off | Nowhere unless explicitly captured | `screenshots.enabled`, one-off capture controls |
 | AI analysis result | Only after AI is enabled and requested | Local SQLite history | Turn AI off; delete results through retention controls |
 | AI request usage | Saved to track costs and troubleshoot | Local SQLite history | Choose how long to keep it; usage records don't include prompts, images, headers, or keys |
-| Device measurements | Used for local activity history and optional AI context | Local records and, only when AI is enabled, the selected provider request | Turn AI off; sharing your location needs a separate opt-in |
+| Language and time-zone context | Used for optional AI context | Saved AI results and, only when AI is enabled, the selected provider request | Turn AI off; sharing your location needs a separate opt-in |
 | Windows location | Off | Only the selected AI request when enabled | Windows permission plus WorkTrail setting |
 | Selected world-clock city IDs | Four initial cities | Local settings JSON only | Add or remove cities in World clocks options; maximum four |
 | Current world-clock weather | On; no request until `WORKTRAIL_OPENWEATHER_API_KEY` is available | The on/off setting stays local; the key stays in the Windows environment. Weather stays in memory, is checked again after 12 minutes, and expires after at most 45 minutes | Turn weather off or view a past or future time. To clear the key, remove the Windows user variable and restart |
@@ -80,13 +80,12 @@ WorkTrail doesn't send activity history to its own server.
 Here are the ways data can leave the app, and possibly your PC. Each needs an
 action from you or an enabled integration:
 
-1. **Exporting an archive.** From Operations, you can save a `.tmuarchive` with selected history and, if you choose, saved screenshots. It includes the machine name, friendly name, color, and icon so you can tell where imported records came from. It leaves out settings, API keys, cached provider prices, reprocessing jobs, diagnostics, and search indexes. WorkTrail saves the archive where you choose and doesn't upload it. You can then keep, copy, or send the file yourself. Import checks the archive and shows a preview before asking you to confirm the merge. Importing the same records again doesn't create duplicates.
-2. **Asking an AI provider for analysis.** With AI enabled, an analysis request sends the activity details, system information, and screenshots allowed by your settings directly to your chosen AI provider. OpenAI is the default, using `https://api.openai.com/v1/responses`. You can choose OpenRouter or Anthropic instead.
+1. **Exporting an archive.** From Operations, you can save a `.tmuarchive` with selected history and, if you choose, saved screenshots. It includes the machine name, friendly name, color, and icon so you can tell where imported records came from. It leaves out settings, API keys, reprocessing jobs, diagnostics, and search indexes. WorkTrail saves the archive where you choose and doesn't upload it. You can then keep, copy, or send the file yourself. Import checks the archive and shows a preview before asking you to confirm the merge. Importing the same records again doesn't create duplicates.
+2. **Asking an AI provider for analysis.** With AI enabled, an analysis request sends the activity details, language and time-zone context, and screenshots allowed by your settings directly to your chosen AI provider. OpenAI is the default, using `https://api.openai.com/v1/responses`. You can choose OpenRouter or Anthropic instead.
 3. **Sharing a screenshot.** When you share a saved screenshot, WorkTrail opens Windows Share with that file. You choose the receiving app or destination. WorkTrail doesn't choose a recipient or upload it automatically.
 4. **Sharing logs.** **Report a problem** makes a size-limited copy of the current app log, removes known private paths and secrets, and opens Windows Share. This cleanup can't guarantee that every piece of sensitive information is removed, especially from future log messages. Review the file before sharing it.
 5. **Checking current weather.** Weather is on by default in new settings. Without `WORKTRAIL_OPENWEATHER_API_KEY`, the app shows that setup is needed and sends nothing. With a key, World clocks sends the latitude and longitude of your one to four selected cities directly to OpenWeather's Current Weather endpoint. It uses the temperature, conditions, and observation time. Observations are checked again after 12 minutes and expire after at most 45 minutes. They stay in memory and aren't saved to settings, SQLite, reports, diagnostics, or IPC history. A link crediting OpenWeather appears whenever its weather is shown. If a request fails or returns old data, the clocks keep working; the last valid observation may remain visible until it expires. Looking at a past or future time never requests current weather.
 6. **Sending optional diagnostics to Sentry.** If `WORKTRAIL_SENTRY_DSN` is set, Sentry receives the configured error events and breadcrumbs (short records of events leading up to an error). This is off by default.
-7. **Downloading provider prices.** With AI enabled and OpenAI selected, WorkTrail may download the public price list from `https://developers.openai.com/api/docs/pricing.md` when its daily cached copy is out of date. The request includes no API key, activity, OCR text, or screenshot. The server still sees normal connection details such as your IP address. This download doesn't run with AI off or another AI provider selected.
 
 Once data reaches an AI provider, OpenWeather, Sentry, or an app you choose in
 Windows Share, that service's privacy and data-retention terms apply. WorkTrail
@@ -240,9 +239,8 @@ change either period in settings, including setting it to zero. When screenshot
 retention is off, temporary images are deleted after analysis. A manual capture
 is also removed if you delete it during the player's deletion window.
 
-Text read from screenshots (OCR) expires based on when it was extracted, even
-if the image has already been deleted. Measurements associated with a screenshot
-expire based on capture time. Both appear in the cleanup preview.
+Activity intervals associated with a screenshot expire based on capture time
+and appear in the cleanup preview.
 
 Before deleting a screenshot file, WorkTrail records that the deletion is
 pending. If it fails, the app can retry and finishes pending work the next time

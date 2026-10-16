@@ -34,9 +34,6 @@ public static class WindowStateKeys
     /// <summary>Identifies the independent world-clock comparison window.</summary>
     public const string WorldClocks = "world-clocks";
 
-    /// <summary>Identifies the independent live sensor window.</summary>
-    public const string Sensors = "sensors";
-
     /// <summary>Identifies the independent geographical day-and-night map window.</summary>
     public const string WorldMap = "world-map";
 
@@ -61,8 +58,6 @@ public static class WindowStateKeys
     /// <summary>Identifies the screenshot gallery window.</summary>
     public const string Screenshots = "screenshots";
 
-    /// <summary>Identifies the selectable OCR text window.</summary>
-    public const string OcrText = "ocr-text";
 
     /// <summary>Identifies the about window.</summary>
     public const string About = "about";
@@ -85,8 +80,6 @@ public static class WindowStateKeys
     /// <summary>Identifies the reusable message dialog window.</summary>
     public const string Dialog = "dialog";
 
-    /// <summary>Identifies the simplified AI pricing dialog window.</summary>
-    public const string AiPricing = "ai-pricing";
 
     /// <summary>Identifies the responsive label-management dialog.</summary>
     public const string ActivityLabels = "activity-labels";
@@ -135,7 +128,6 @@ public sealed class WindowStateService
             WindowStateKeys.ReportExport => new(660, 520),
             WindowStateKeys.AiScreenshotReprocessing => new(640, 560),
             WindowStateKeys.Screenshots => new(760, 540),
-            WindowStateKeys.OcrText => new(560, 360),
             WindowStateKeys.About => new(640, 480),
             WindowStateKeys.Licenses => new(720, 520),
             WindowStateKeys.Search => new(560, 156),
@@ -144,14 +136,12 @@ public sealed class WindowStateService
             WindowStateKeys.QuickSetup => new(760, 560),
             WindowStateKeys.Dialog => new(320, 196),
             WindowStateKeys.WorldClocks => new(480, 240),
-            WindowStateKeys.Sensors => new(400, 360),
             WindowStateKeys.WorldMap => new(192, 160),
             WindowStateKeys.LunarPhase => new(192, 192),
             WindowStateKeys.LocalSky => new(320, 320),
             WindowStateKeys.AstronomyAgenda => new(280, 320),
             WindowStateKeys.CelestialMap => new(320, 280),
             WindowStateKeys.WorldClockCityPicker => new(500, 560),
-            WindowStateKeys.AiPricing => new(620, 430),
             WindowStateKeys.ActivityLabels => new(340, 280),
             WindowStateKeys.VipSnapshotNote => new(500, 480),
             WindowStateKeys.VipSnapshotCountdown => new(480, 440),
@@ -182,28 +172,6 @@ public sealed class WindowStateService
         {
             // Unsupported persisted keys are a contract error; never silently drop a saved window.
             _ = GetMinimumSize(key);
-        }
-    }
-
-    /// <summary>Stores the screenshot identity for restoring the OCR text view from retained metadata.</summary>
-    public AppSettings SetOcrTextSource(string screenshotPath, DateTimeOffset capturedAt)
-    {
-        var source = new OcrTextWindowSource(screenshotPath, capturedAt);
-        ValidateOcrTextSource(source);
-        var settings = _store.LoadSettings() with { OcrTextWindowSource = source };
-        // Store only the source identity. Missing or deleted screenshots are resolved explicitly when the view reopens.
-        _store.SaveSettings(settings);
-        return settings;
-    }
-
-    internal static void ValidateOcrTextSource(OcrTextWindowSource? source)
-    {
-        if (source is null) return;
-        if (string.IsNullOrWhiteSpace(source.ScreenshotPath) || !Path.IsPathFullyQualified(source.ScreenshotPath)
-            || source.CapturedAt == default)
-        {
-            // Invalid context cannot be replaced with a different screenshot without changing what the user sees.
-            throw new ArgumentException("The OCR text window requires an absolute screenshot path and its capture timestamp.");
         }
     }
 

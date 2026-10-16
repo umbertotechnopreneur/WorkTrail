@@ -277,13 +277,7 @@ VBWR E -->
             ColumnSpacing="16"
             BorderBrush="#14000000"
             BorderThickness="0,1,0,0">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
             <TextBlock x:Name="SearchAvailabilityText" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="WrapWholeWords" />
-            <Grid Grid.Column="1" HorizontalAlignment="Right" ColumnSpacing="8">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <Ellipse x:Name="TextReadingStatusDot" Width="6" Height="6" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
-                <TextBlock x:Name="TextReadingStatusText" Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="WrapWholeWords" />
-            </Grid>
         </Grid>
     </Grid>
 </Window>

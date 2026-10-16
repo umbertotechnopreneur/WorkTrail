@@ -127,9 +127,6 @@ internal static class SearchDocumentMapper
             CaptureKind = source.Get("capture_kind"),
             CaptureOrigin = source.Get("capture_origin"),
             CapturePath = source.Get("capture_path"),
-            OcrRawText = source.Get("ocr_raw_text"),
-            OcrCorrectedText = source.Get("ocr_corrected_text"),
-            OcrStructuredSummary = source.Get("ocr_structured_summary"),
             AiDescription = source.Get("ai_description"),
         };
     }

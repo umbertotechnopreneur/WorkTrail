@@ -36,11 +36,9 @@ public sealed class UiAutomationContractTests
         "WorkTrail/ReportExportWindow.xaml",
         "WorkTrail/Controls/OptionsControl.xaml",
         "WorkTrail/Controls/RetentionOperationsControl.xaml",
-        "WorkTrail/SensorsWindow.xaml",
         "WorkTrail/Controls/ScreenshotHeaderControl.xaml",
         "WorkTrail/Controls/ScreenshotDetailsControl.xaml",
         "WorkTrail/Controls/ScreenshotTimelineControl.xaml",
-        "WorkTrail/Controls/SensorOptionsControl.xaml",
         "WorkTrail/Controls/ProviderKeySetupControl.xaml",
         "WorkTrail/Controls/WeeklyHoursEditor.xaml",
         "WorkTrail/Controls/OperationsControl.xaml"

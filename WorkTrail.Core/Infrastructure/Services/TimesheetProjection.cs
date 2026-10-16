@@ -39,7 +39,7 @@ internal static class TimesheetProjection
             || options.Currency.Length != 3 || !options.Currency.All(c => c is >= 'A' and <= 'Z'))
             throw new ArgumentException("Invalid timesheet metadata.");
         var sources = options.Sources;
-        if (!sources.IncludeDescriptionExcerpt && !sources.IncludeCompleteDescription && !sources.IncludeOcr && !sources.IncludeWindowTitles)
+        if (!sources.IncludeDescriptionExcerpt && !sources.IncludeCompleteDescription && !sources.IncludeWindowTitles)
             throw new ReportExportValidationException("Export.NoSources");
         var zone = TimeZoneInfo.FindSystemTimeZoneById(sources.Options.TimeZoneId);
         var from = ReportAggregationService.ConvertLocalBoundaryToUtc(sources.Options.From, zone);
@@ -207,7 +207,7 @@ internal static class TimesheetProjection
 internal sealed class TimesheetWorkRow
 {
     public required TimesheetRow Row { get; set; }
-    // Only measured day/project detail is retained, never the original OCR or source prompt.
+    // Only measured day/project detail is retained, never the original source prompt.
     public List<TimesheetRow> Observations { get; set; } = [];
     // Source text is needed only for the initial upload, never for persisted job recovery.
     [System.Text.Json.Serialization.JsonIgnore]

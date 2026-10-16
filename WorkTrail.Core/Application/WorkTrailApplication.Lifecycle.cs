@@ -52,16 +52,10 @@ public sealed partial class WorkTrailApplication
         _tracking.DashboardStateChanged -= OnDashboardStateChanged;
         _tracking.TrackingStateChanged -= OnTrackingStateChanged;
         _tracking.RuntimeHealthChanged -= OnTrackingRuntimeHealthChanged;
-        if (_pricingRefresh is not null)
-        {
-            await _pricingRefresh.DisposeAsync().ConfigureAwait(false);
-        }
         _tracking.Dispose();
         await _search.DisposeAsync().ConfigureAwait(false);
         _captureWorker.Dispose();
         _manualScreenshotCaptureGate.Dispose();
-        _systemSnapshotGate.Dispose();
-        await _snapshot.DisposeAsync().ConfigureAwait(false);
         _worldClockOperations.Dispose();
         _timesheetGate.Dispose();
         _mutations.Dispose();

@@ -16,10 +16,9 @@ tracked `.csproj` files and distributed world-clock data/media assets.
 
 ## Summary
 
-- Runtime dependencies: 26 unique packages, plus the pinned LibreHardwareMonitor source build below.
-- Build-only hardware source generator: Microsoft.Windows.CsWin32 0.3.269 (MIT).
+- Runtime dependencies: 20 unique packages.
 - Test-only dependencies: 4 unique packages.
-- Open-source licenses observed: `MIT`, `Apache-2.0`, `MPL-2.0`, `LGPL-2.1` (upstream embedded PawnIO modules), plus the separately recorded Creative Commons/public-domain asset terms.
+- Open-source licenses observed: `MIT` and `Apache-2.0`, plus the separately recorded Creative Commons/public-domain asset terms.
 - Additional Microsoft package terms observed: `Microsoft.WindowsAppSDK`, `Microsoft.Windows.SDK.BuildTools`.
 
 ## Runtime Dependencies
@@ -46,12 +45,6 @@ tracked `.csproj` files and distributed world-clock data/media assets.
 | [Spectre.Console](https://www.nuget.org/packages/Spectre.Console/0.57.2) | [![NuGet](https://img.shields.io/nuget/v/Spectre.Console?label=NuGet)](https://www.nuget.org/packages/Spectre.Console/0.57.2) [![License](https://img.shields.io/badge/license-MIT-green)](https://licenses.nuget.org/MIT) | [MIT](https://licenses.nuget.org/MIT) | TrackMeUp.Cli |
 | [SQLitePCLRaw.lib.e_sqlite3](https://www.nuget.org/packages/SQLitePCLRaw.lib.e_sqlite3/2.1.12) | [![NuGet](https://img.shields.io/nuget/v/SQLitePCLRaw.lib.e_sqlite3?label=NuGet)](https://www.nuget.org/packages/SQLitePCLRaw.lib.e_sqlite3/2.1.12) [![License](https://img.shields.io/badge/license-Apache-2.0-orange)](https://licenses.nuget.org/Apache-2.0) | [Apache-2.0](https://licenses.nuget.org/Apache-2.0) | TrackMeUp.Core |
 | [System.Drawing.Common](https://www.nuget.org/packages/System.Drawing.Common/10.0.10) | [![NuGet](https://img.shields.io/nuget/v/System.Drawing.Common?label=NuGet)](https://www.nuget.org/packages/System.Drawing.Common/10.0.10) [![License](https://img.shields.io/badge/license-MIT-green)](https://licenses.nuget.org/MIT) | [MIT](https://licenses.nuget.org/MIT) | TrackMeUp.Core |
-| [System.Management](https://www.nuget.org/packages/System.Management/10.0.10) | [![NuGet](https://img.shields.io/nuget/v/System.Management?label=NuGet)](https://www.nuget.org/packages/System.Management/10.0.10) [![License](https://img.shields.io/badge/license-MIT-green)](https://licenses.nuget.org/MIT) | [MIT](https://licenses.nuget.org/MIT) | LibreHardwareMonitor source build |
-| [DiskInfoToolkit 1.1.2](https://www.nuget.org/packages/DiskInfoToolkit/1.1.2) | NuGet | [MPL-2.0](https://licenses.nuget.org/MPL-2.0) | LibreHardwareMonitor source build |
-| [HidSharp 2.6.4](https://www.nuget.org/packages/HidSharp/2.6.4) | NuGet | Apache-2.0 (package LICENSE.txt) | LibreHardwareMonitor source build |
-| [Mono.Posix.NETStandard 1.0.0](https://www.nuget.org/packages/Mono.Posix.NETStandard/1.0.0) | NuGet | [Package license terms](https://go.microsoft.com/fwlink/?linkid=869050) (legacy licenseUrl, no SPDX expression) | LibreHardwareMonitor source build |
-| [System.IO.FileSystem.AccessControl 5.0.0](https://www.nuget.org/packages/System.IO.FileSystem.AccessControl/5.0.0) | NuGet | [MIT](https://licenses.nuget.org/MIT) | LibreHardwareMonitor source build |
-| [System.IO.Ports 10.0.3](https://www.nuget.org/packages/System.IO.Ports/10.0.3) | NuGet | [MIT](https://licenses.nuget.org/MIT) | LibreHardwareMonitor source build |
 
 ## Offline national holidays and Latin sanctoral selection
 
@@ -133,47 +126,14 @@ do not establish local observability. Tropical zodiac signs are twelve equal
 [IAU's astronomical constellation boundaries](https://iauarchive.eso.org/public/themes/constellations/).
 They are informational coordinate labels, not astrological predictions.
 
-## Hardware telemetry source and optional driver
-
-The isolated `TrackMeUp.Hardware` helper compiles LibreHardwareMonitor 0.9.6 from
-upstream commit `3d331e3370efb858411f19511373eff65a218701`, under MPL-2.0. The build
-downloads only the pinned SHA-256-verified source archive into the project's
-ignored `obj` directory. It replaces memory discovery with OS usage counters,
-omits RAM SPD sources and RAMSPDToolkit, gates low-level driver access behind
-explicit advanced-mode consent, and tracks fresh sensor assignments. Without
-the driver, AMD CPU load uses LibreHardwareMonitor's own GenericCpu service.
-The exact source changes are in
-`scripts/Restore-LibreHardwareMonitorSource.ps1` and
-`TrackMeUp.Hardware/LibreHardwareMonitor/MemoryGroup.cs`.
-
-The helper distribution includes the upstream MPL license, upstream third-party
-notices (including the LGPL-2.1 notice for embedded PawnIO modules), the changed
-upstream source files and the modification script under `HardwareLicenses`.
-Original source: [pinned LibreHardwareMonitor source](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/tree/3d331e3370efb858411f19511373eff65a218701).
-The [integration notice](TrackMeUp.Hardware/LibreHardwareMonitor/NOTICE.md) records
-the complete source pin and modifications. First-party collector, IPC and
-application integration code remains MIT-licensed.
-
-TrackMeUp x64 includes the unmodified [official signed PawnIO 2.2.0 installer](https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0).
-The official binary edition is proprietary; the author explicitly permits
-[redistribution of the installer](https://github.com/namazso/PawnIO.Modules/wiki/Using-PawnIO-Modules#licensing-considerations).
-Its version, source URL, and SHA-256 are pinned in `TrackMeUp.Hardware/PawnIO/distribution.json`;
-the adjacent `NOTICE.md` accompanies the bundled installer. Builds verify its hash
-and signature without executing it. The signed-release installation helper and
-the explicit advanced-sensor action install it with Windows administrator consent
-when needed. Existing equal/newer installations are preserved; app removal does
-not uninstall this shared system component. ARM64 sensor collection remains unsupported.
-The separately published PawnIO source retains its
-[GPL license and IOCTL exception](https://github.com/namazso/PawnIO#license).
-
 ## Test-Only Dependencies
 
 | Package | Badges | License / terms | Used by |
 | --- | --- | --- | --- |
-| [Microsoft.NET.Test.Sdk](https://www.nuget.org/packages/Microsoft.NET.Test.Sdk/18.8.1) | [![NuGet](https://img.shields.io/nuget/v/Microsoft.NET.Test.Sdk?label=NuGet)](https://www.nuget.org/packages/Microsoft.NET.Test.Sdk/18.8.1) [![License](https://img.shields.io/badge/license-MIT-green)](https://licenses.nuget.org/MIT) | [MIT](https://licenses.nuget.org/MIT) | TrackMeUp.Cli.Tests, TrackMeUp.Core.Tests, TrackMeUp.Ocr.Tests, TrackMeUp.Presentation.Tests, TrackMeUp.Search.Tests |
+| [Microsoft.NET.Test.Sdk](https://www.nuget.org/packages/Microsoft.NET.Test.Sdk/18.8.1) | [![NuGet](https://img.shields.io/nuget/v/Microsoft.NET.Test.Sdk?label=NuGet)](https://www.nuget.org/packages/Microsoft.NET.Test.Sdk/18.8.1) [![License](https://img.shields.io/badge/license-MIT-green)](https://licenses.nuget.org/MIT) | [MIT](https://licenses.nuget.org/MIT) | TrackMeUp.Cli.Tests, TrackMeUp.Core.Tests, TrackMeUp.Presentation.Tests, TrackMeUp.Search.Tests |
 | [Spectre.Console.Testing](https://www.nuget.org/packages/Spectre.Console.Testing/0.57.2) | [![NuGet](https://img.shields.io/nuget/v/Spectre.Console.Testing?label=NuGet)](https://www.nuget.org/packages/Spectre.Console.Testing/0.57.2) [![License](https://img.shields.io/badge/license-MIT-green)](https://licenses.nuget.org/MIT) | [MIT](https://licenses.nuget.org/MIT) | TrackMeUp.Cli.Tests |
-| [xunit](https://www.nuget.org/packages/xunit/2.9.3) | [![NuGet](https://img.shields.io/nuget/v/xunit?label=NuGet)](https://www.nuget.org/packages/xunit/2.9.3) [![License](https://img.shields.io/badge/license-Apache-2.0-orange)](https://licenses.nuget.org/Apache-2.0) | [Apache-2.0](https://licenses.nuget.org/Apache-2.0) | TrackMeUp.Cli.Tests, TrackMeUp.Core.Tests, TrackMeUp.Ocr.Tests, TrackMeUp.Presentation.Tests, TrackMeUp.Search.Tests |
-| [xunit.runner.visualstudio](https://www.nuget.org/packages/xunit.runner.visualstudio/3.1.5) | [![NuGet](https://img.shields.io/nuget/v/xunit.runner.visualstudio?label=NuGet)](https://www.nuget.org/packages/xunit.runner.visualstudio/3.1.5) [![License](https://img.shields.io/badge/license-Apache-2.0-orange)](https://licenses.nuget.org/Apache-2.0) | [Apache-2.0](https://licenses.nuget.org/Apache-2.0) | TrackMeUp.Cli.Tests, TrackMeUp.Core.Tests, TrackMeUp.Ocr.Tests, TrackMeUp.Presentation.Tests, TrackMeUp.Search.Tests |
+| [xunit](https://www.nuget.org/packages/xunit/2.9.3) | [![NuGet](https://img.shields.io/nuget/v/xunit?label=NuGet)](https://www.nuget.org/packages/xunit/2.9.3) [![License](https://img.shields.io/badge/license-Apache-2.0-orange)](https://licenses.nuget.org/Apache-2.0) | [Apache-2.0](https://licenses.nuget.org/Apache-2.0) | TrackMeUp.Cli.Tests, TrackMeUp.Core.Tests, TrackMeUp.Presentation.Tests, TrackMeUp.Search.Tests |
+| [xunit.runner.visualstudio](https://www.nuget.org/packages/xunit.runner.visualstudio/3.1.5) | [![NuGet](https://img.shields.io/nuget/v/xunit.runner.visualstudio?label=NuGet)](https://www.nuget.org/packages/xunit.runner.visualstudio/3.1.5) [![License](https://img.shields.io/badge/license-Apache-2.0-orange)](https://licenses.nuget.org/Apache-2.0) | [Apache-2.0](https://licenses.nuget.org/Apache-2.0) | TrackMeUp.Cli.Tests, TrackMeUp.Core.Tests, TrackMeUp.Presentation.Tests, TrackMeUp.Search.Tests |
 
 ## Distributed world-clock data, weather, and media
 

@@ -209,7 +209,6 @@ public sealed class ScreenshotImageLoadingTests
             new UtilityService(),
             new TrackingDomainService(store),
             new UnexpectedCaptureService(),
-            new FakeHardwareTelemetryService(),
             new UnexpectedAnalysisService(),
             new StartupService(),
             new BuildInformationService(),

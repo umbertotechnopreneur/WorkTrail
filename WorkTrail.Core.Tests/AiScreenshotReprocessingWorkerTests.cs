@@ -147,7 +147,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
             var service = CreateService(
                 fixture.Store,
                 analysis,
-                _ => CostGate(allowed: true),
+                _ => RequestGate(allowed: true),
                 handoff.BeforeHandoffAsync);
             try
             {
@@ -196,7 +196,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
             var service = CreateService(
                 fixture.Store,
                 analysis,
-                _ => CostGate(allowed: true),
+                _ => RequestGate(allowed: true),
                 handoff.BeforeHandoffAsync);
             try
             {
@@ -341,7 +341,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
             fixture.Store.UpsertScreenshotIntervalTelemetry(
                 second.CaptureId,
                 [replacement],
-                new ScreenshotIntervalTelemetry(second.CapturedAt.AddMinutes(-1), second.CapturedAt, 10, 5));
+                new ScreenshotIntervalTelemetry(second.CapturedAt.AddMinutes(-1), second.CapturedAt));
 
             analysis.Release();
             var completed = await WaitForStatusAsync(
@@ -376,14 +376,13 @@ public sealed class AiScreenshotReprocessingWorkerTests
     }
 
     [Fact]
-    public async Task LiveOcrRefinementWaitsForTheHistoricalSingleFlightBoundary()
+    public async Task LiveDescriptionWaitsForTheHistoricalSingleFlightBoundary()
     {
         await WithApiKeyAsync(async directory =>
         {
             var fixture = CreateStoreWithCaptures(directory, captureCount: 2, screensPerCapture: 1);
             var analysis = new ControlledHistoricalAnalysisService(fixture.Store.LoadSettings().InstallationId, initiallyReleased: false);
-            var refinement = new ControlledOcrRefinementService();
-            await using var application = CreateApplication(fixture.Store, analysis, refinement);
+            await using var application = CreateApplication(fixture.Store, analysis);
             var preview = await PreviewTodayAsync(application);
             var start = await application.StartAiScreenshotReprocessingAsync(preview.Value!.PlanId, CancellationToken.None);
             // Allow the shared CI timeout for scheduling and SQLite checkpoints around each gate handoff.
@@ -393,13 +392,11 @@ public sealed class AiScreenshotReprocessingWorkerTests
             var liveAnalysis = application.AnalyzeCapturedScreenshotAsync(
                 new AnalyzeCapturedScreenshotRequest(liveCapture, KeepCapture: true, Origin: "snapshot.manual"),
                 CancellationToken.None);
-            Assert.False(refinement.Entered.IsCompleted);
+            Assert.Equal(0, analysis.LiveCallCount);
 
             analysis.Release();
-            await refinement.Entered.WaitAsync(AsyncAssertionTimeout);
             var liveResult = await liveAnalysis.WaitAsync(AsyncAssertionTimeout);
             Assert.True(liveResult.Succeeded);
-            Assert.Equal(1, refinement.CallCount);
             Assert.Equal(1, analysis.LiveCallCount);
 
             var completed = await WaitForStatusAsync(
@@ -422,15 +419,13 @@ public sealed class AiScreenshotReprocessingWorkerTests
                 screensPerCapture: 1,
                 dailyLimit: 1);
             var analysis = new ControlledHistoricalAnalysisService(fixture.Store.LoadSettings().InstallationId, initiallyReleased: true);
-            var refinement = new ControlledOcrRefinementService();
-            await using var application = CreateApplication(fixture.Store, analysis, refinement);
+            await using var application = CreateApplication(fixture.Store, analysis);
 
             var result = await application.AnalyzeCapturedScreenshotAsync(
                 new AnalyzeCapturedScreenshotRequest(CreateUntrackedCapture(directory), KeepCapture: true, Origin: "snapshot.manual"),
                 CancellationToken.None);
 
             Assert.True(result.Succeeded);
-            Assert.Equal(0, refinement.CallCount);
             Assert.Equal(1, analysis.LiveCallCount);
         });
     }
@@ -442,8 +437,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
         {
             var fixture = CreateStoreWithCaptures(directory, captureCount: 1, screensPerCapture: 1);
             var analysis = new ControlledHistoricalAnalysisService(fixture.Store.LoadSettings().InstallationId, initiallyReleased: false);
-            var refinement = new ControlledOcrRefinementService();
-            await using var application = CreateApplication(fixture.Store, analysis, refinement);
+            await using var application = CreateApplication(fixture.Store, analysis);
             var preview = await PreviewTodayAsync(application);
             _ = await application.StartAiScreenshotReprocessingAsync(preview.Value!.PlanId, CancellationToken.None);
             await analysis.Entered.WaitAsync(TimeSpan.FromSeconds(5));
@@ -457,7 +451,6 @@ public sealed class AiScreenshotReprocessingWorkerTests
             var result = await liveAnalysis.WaitAsync(AsyncAssertionTimeout);
             Assert.True(result.Succeeded);
             Assert.True(fixture.Store.LoadSettings().OpenAiEnabled);
-            Assert.Equal(1, refinement.CallCount);
             Assert.Equal(1, analysis.LiveCallCount);
         });
     }
@@ -474,7 +467,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
             await using var service = CreateService(
                 fixture.Store,
                 analysis,
-                _ => CostGate(Volatile.Read(ref allowance) == 1));
+                _ => RequestGate(Volatile.Read(ref allowance) == 1));
             var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -507,7 +500,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
         {
             var fixture = CreateStoreWithCaptures(directory, captureCount: 1, screensPerCapture: 1);
             var analysis = new ControlledHistoricalAnalysisService(fixture.Store.LoadSettings().InstallationId, initiallyReleased: true);
-            var service = CreateService(fixture.Store, analysis, _ => CostGate(allowed: true));
+            var service = CreateService(fixture.Store, analysis, _ => RequestGate(allowed: true));
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var operation = service.RunLiveAnalysisAsync(async () =>
@@ -535,7 +528,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
         {
             var fixture = CreateStoreWithCaptures(directory, captureCount: 1, screensPerCapture: 1);
             var analysis = new ControlledHistoricalAnalysisService(fixture.Store.LoadSettings().InstallationId, initiallyReleased: false);
-            var service = CreateService(fixture.Store, analysis, _ => CostGate(allowed: true));
+            var service = CreateService(fixture.Store, analysis, _ => RequestGate(allowed: true));
             var stateGate = GetPrivateGate(service, "_stateGate");
             var lifecycleGate = GetPrivateGate(service, "_lifecycleGate");
             Task<OperationResult<AiScreenshotReprocessJobSnapshot>>? pauseTask = null;
@@ -646,7 +639,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
         store.UpsertScreenshotIntervalTelemetry(
             captureId,
             paths,
-            new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-1), capturedAt, 10, 5));
+            new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-1), capturedAt));
         store.AppendSample(new ActivitySample(
             capturedAt.AddSeconds(1),
             60,
@@ -663,8 +656,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
 
     private static WorkTrailApplication CreateApplication(
         LocalStore store,
-        IAiAnalysisService analysis,
-        IAiOcrRefinementService? refinement = null)
+        IAiAnalysisService analysis)
     {
         var utilities = new UtilityService();
         return new WorkTrailApplication(
@@ -672,11 +664,9 @@ public sealed class AiScreenshotReprocessingWorkerTests
             utilities,
             new TrackingDomainService(store),
             new UnexpectedCaptureService(),
-            new FakeHardwareTelemetryService(),
             analysis,
             new StartupService(),
-            new BuildInformationService(),
-            ocrRefinement: refinement);
+            new BuildInformationService());
     }
 
     private static ScreenshotCaptureResult CreateUntrackedCapture(string directory)
@@ -711,13 +701,13 @@ public sealed class AiScreenshotReprocessingWorkerTests
     private static AiScreenshotReprocessingService CreateService(
         LocalStore store,
         IAiAnalysisService analysis,
-        Func<AppSettings, AnalysisCostGate> buildCostGate,
+        Func<AppSettings, AnalysisRequestGate> buildRequestGate,
         Func<Task>? beforeWorkerHandoff = null) =>
         new(
             store,
             analysis,
             _ => true,
-            buildCostGate,
+            buildRequestGate,
             (_, _, _) => false,
             beforeWorkerHandoff: beforeWorkerHandoff);
 
@@ -726,8 +716,8 @@ public sealed class AiScreenshotReprocessingWorkerTests
             new AiScreenshotReprocessRequest(DateOnly.FromDateTime(DateTime.Today)),
             CancellationToken.None);
 
-    private static AnalysisCostGate CostGate(bool allowed) =>
-        new(allowed, allowed ? null : "daily_limit", 0.02m, allowed ? 0 : 1, 0.02m);
+    private static AnalysisRequestGate RequestGate(bool allowed) =>
+        new(allowed, allowed ? null : "daily_limit", allowed ? 0 : 1);
 
     private static void AppendSuccessfulVisualUsage(LocalStore store)
     {
@@ -913,8 +903,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
                 _installationId,
                 string.Join(';', captureResult.StoredScreenshotPaths),
                 CorrelationId: captureResult.CaptureId,
-                Origin: origin,
-                TextSnapshots: captureResult.TextSnapshots));
+                Origin: origin));
         }
 
         public async Task<AiAnalysis> AnalyzeHistoricalCapturedScreenAsync(
@@ -941,28 +930,7 @@ public sealed class AiScreenshotReprocessingWorkerTests
                 _installationId,
                 string.Join(';', captureResult.StoredScreenshotPaths),
                 CorrelationId: captureResult.CaptureId,
-                Origin: origin,
-                TextSnapshots: captureResult.TextSnapshots);
-        }
-    }
-
-    private sealed class ControlledOcrRefinementService : IAiOcrRefinementService
-    {
-        private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private int _callCount;
-
-        internal Task Entered => _entered.Task;
-
-        internal int CallCount => Volatile.Read(ref _callCount);
-
-        public Task<ScreenshotCaptureResult> RefineAsync(
-            ScreenshotCaptureResult capture,
-            AppSettings settings,
-            CancellationToken cancellationToken)
-        {
-            Interlocked.Increment(ref _callCount);
-            _entered.TrySetResult(true);
-            return Task.FromResult(capture);
+                Origin: origin);
         }
     }
 }

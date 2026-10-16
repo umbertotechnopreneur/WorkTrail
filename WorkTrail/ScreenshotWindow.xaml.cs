@@ -61,10 +61,6 @@ public sealed partial class ScreenshotWindow : Window
     private string _aiDescriptionEmptyMessageKey = DefaultAiDescriptionEmptyMessageKey;
     private int? _privacyRuleCount;
     private ScreenshotDetailsViewState? _selectedDetailsState;
-    private OcrTextWindow? _ocrTextWindow;
-    private string? _ocrTextScreenshotPath;
-    private readonly OcrTextWindowSource? _restoreOcrSource;
-    private bool _openingOcrTextWindow;
     private bool _initialized;
     private bool _settingSelectedDate;
     private bool _detailsPaneOpenPreference;
@@ -105,8 +101,7 @@ public sealed partial class ScreenshotWindow : Window
         string? launchTheme = null,
         string? requestedScreenshotPath = null,
         DateTimeOffset? requestedCapturedAt = null,
-        DateOnly? requestedDate = null,
-        bool restoreOcrWindow = false)
+        DateOnly? requestedDate = null)
     {
         if ((requestedScreenshotPath is null) != (requestedCapturedAt is null))
         {
@@ -123,19 +118,11 @@ public sealed partial class ScreenshotWindow : Window
             throw new ArgumentException("A gallery request cannot target both a day and a screenshot.");
         }
 
-        if (restoreOcrWindow && requestedScreenshotPath is null)
-        {
-            throw new ArgumentException("Restoring the OCR text window requires its screenshot source.", nameof(restoreOcrWindow));
-        }
-
         _application = application;
         _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
         _launchTheme = launchTheme;
         _requestedScreenshotPath = requestedScreenshotPath;
         _requestedDate = requestedDate;
-        _restoreOcrSource = restoreOcrWindow
-            ? new OcrTextWindowSource(requestedScreenshotPath!, requestedCapturedAt!.Value)
-            : null;
         if (requestedCapturedAt is { } capturedAt)
         {
             _selectedDate = DateOnly.FromDateTime(capturedAt.ToLocalTime().DateTime);
@@ -181,7 +168,6 @@ public sealed partial class ScreenshotWindow : Window
         HeaderSection.DetailsVisibilityRequested += HeaderSection_DetailsVisibilityRequested;
         ScreenshotViewer.ZoomStateChanged += ScreenshotViewer_ZoomStateChanged;
         ScreenshotViewer.ImageLoadFailed += ScreenshotViewer_ImageLoadFailed;
-        DetailsSection.OcrTextRequested += DetailsSection_OcrTextRequested;
         TimelineSection.SelectedIndexChanged += TimelineSection_SelectedIndexChanged;
         GallerySection.FeaturedTimeline.SelectedIndexChanged += FeaturedTimeline_SelectedIndexChanged;
         DayOverviewSection.SelectedIndexChanged += DayOverviewSection_SelectedIndexChanged;
@@ -272,11 +258,7 @@ public sealed partial class ScreenshotWindow : Window
         }
 
         await RefreshPrivacyStatusAsync(_lifetimeCancellation.Token);
-        var loaded = await LoadGalleryAsync(_requestedScreenshotPath is null && _requestedDate is null ? null : _selectedDate);
-        if (loaded && _restoreOcrSource is { } source && !_lifetimeCancellation.IsCancellationRequested)
-        {
-            await RestoreOcrTextWindowAsync(source);
-        }
+        await LoadGalleryAsync(_requestedScreenshotPath is null && _requestedDate is null ? null : _selectedDate);
     }
 
     private async Task RefreshPrivacyStatusAsync(CancellationToken cancellationToken)
@@ -378,7 +360,7 @@ public sealed partial class ScreenshotWindow : Window
         {
             var result = await _application.GetAiStatusAsync(cancellationToken);
             if (result.Succeeded &&
-                result.Value is { Enabled: true, CostGate: { Allowed: false, Reason: "daily_limit" } })
+                result.Value is { Enabled: true, RequestGate: { Allowed: false, Reason: "daily_limit" } })
             {
                 // Historical rows do not retain an empty-description reason; report only the truthful current gate state.
                 _aiDescriptionEmptyMessageKey = DailyAiLimitEmptyMessageKey;
@@ -583,8 +565,7 @@ public sealed partial class ScreenshotWindow : Window
             culture,
             FormatCaptureKind(item.CaptureKind),
             captureOrigin,
-            "--",
-            _strings.Translate);
+            "--");
         RenderDetails();
     }
 
@@ -608,98 +589,6 @@ public sealed partial class ScreenshotWindow : Window
         1 => T("Screenshots.Privacy.One"),
         var count => _strings.Format("Screenshots.Privacy.Many", count)
     };
-
-    private async void DetailsSection_OcrTextRequested(string ocrText)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(ocrText);
-        if (_openingOcrTextWindow || _lifetimeCancellation.IsCancellationRequested) return;
-        _openingOcrTextWindow = true;
-        var cancellationToken = _lifetimeCancellation.Token;
-        try
-        {
-            var selected = GetSelectedItem();
-            var saved = await _application.SetOcrTextWindowSourceAsync(selected.Path, selected.CapturedAt, cancellationToken);
-            if (!saved.Succeeded)
-            {
-                ShowActionResult(saved, "Screenshots.OcrText.WindowTitle");
-                return;
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            ShowOcrTextWindow(ocrText, selected.Path);
-        }
-        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
-        {
-            // Closing owns cancellation; never reopen a child window after its gallery has closed.
-        }
-        catch (Exception)
-        {
-            // Surface an opening or persistence failure without retrying with different screenshot content.
-            _dialogs.Notifications.ShowError(ScreenshotActionBanner, T("Screenshots.OcrText.WindowTitle"), T("Screenshots.Action.Failed"));
-        }
-        finally
-        {
-            _openingOcrTextWindow = false;
-        }
-    }
-
-    private async Task RestoreOcrTextWindowAsync(OcrTextWindowSource source)
-    {
-        var selected = _items.Count > 0 ? GetSelectedItem() : null;
-        var ocrText = _selectedDetailsState?.OcrText;
-        if (selected is not null
-            && StringComparer.OrdinalIgnoreCase.Equals(selected.Path, source.ScreenshotPath)
-            && selected.CapturedAt == source.CapturedAt
-            && !string.IsNullOrWhiteSpace(ocrText))
-        {
-            ShowOcrTextWindow(ocrText, selected.Path);
-            return;
-        }
-
-        // Retention or deletion can remove this exact screenshot or its OCR. Close the saved surface explicitly
-        // and show the existing unavailable notice instead of opening text from the gallery's replacement selection.
-        var cleared = await _application.SetWindowOpenStateAsync(WindowStateKeys.OcrText, false, _lifetimeCancellation.Token);
-        if (!cleared.Succeeded)
-        {
-            throw new InvalidOperationException($"The unavailable OCR window state could not be saved ({cleared.Code}).");
-        }
-
-        _dialogs.Notifications.ShowError(ScreenshotActionBanner, T("Screenshots.OcrText.WindowTitle"), T("Screenshots.Error.Unavailable"));
-    }
-
-    private void ShowOcrTextWindow(string ocrText, string screenshotPath)
-    {
-        var requestedTheme = RootGrid.RequestedTheme;
-        if (_ocrTextWindow is null)
-        {
-            _ocrTextWindow = new OcrTextWindow(
-                _application,
-                _appWindow,
-                ocrText,
-                requestedTheme,
-                _strings.Language);
-            _ocrTextWindow.Closed += OcrTextWindow_Closed;
-        }
-        else
-        {
-            _ocrTextWindow.UpdateContent(ocrText, requestedTheme, _strings.Language);
-        }
-
-        _ocrTextScreenshotPath = screenshotPath;
-        _ocrTextWindow.Activate();
-    }
-
-    private void OcrTextWindow_Closed(object sender, WindowEventArgs args)
-    {
-        if (!ReferenceEquals(sender, _ocrTextWindow))
-        {
-            return;
-        }
-
-        _ocrTextWindow.Closed -= OcrTextWindow_Closed;
-        _ocrTextWindow = null;
-        _ocrTextScreenshotPath = null;
-    }
 
     private void HeaderSection_ZoomOutRequested(object? sender, EventArgs e) => ScreenshotViewer.ZoomOut();
 
@@ -919,6 +808,7 @@ public sealed partial class ScreenshotWindow : Window
         return normalizedKind switch
         {
             "active-window" => _strings.Translate("Screenshots.CaptureKind.ActiveWindow"),
+            "secondary-window" => _strings.Translate("Screenshots.CaptureKind.SecondaryWindow"),
             "monitor" => _strings.Translate("Screenshots.CaptureKind.Monitor"),
             _ => throw new InvalidDataException($"Unsupported screenshot capture kind: {captureKind}")
         };
@@ -964,7 +854,6 @@ public sealed partial class ScreenshotWindow : Window
             var result = await deleteAsync(selected.Path, _lifetimeCancellation.Token);
             if (result.Succeeded)
             {
-                CloseOcrTextWindowForScreenshot(selected.Path);
                 await LoadGalleryAsync(_selectedDate);
             }
 
@@ -979,17 +868,6 @@ public sealed partial class ScreenshotWindow : Window
             _deleteOperationInProgress = false;
             HeaderSection.SetDeletionActionsEnabled(true);
         }
-    }
-
-    private void CloseOcrTextWindowForScreenshot(string screenshotPath)
-    {
-        if (_ocrTextWindow is null
-            || !StringComparer.OrdinalIgnoreCase.Equals(_ocrTextScreenshotPath, screenshotPath))
-        {
-            return;
-        }
-
-        _ocrTextWindow.Close();
     }
 
     private async void HeaderSection_SaveRequested(object? sender, EventArgs e) =>
@@ -1133,18 +1011,9 @@ public sealed partial class ScreenshotWindow : Window
     private void ScreenshotWindow_Closed(object sender, WindowEventArgs args)
     {
         GallerySection.FeaturedTimeline.SelectedIndexChanged -= FeaturedTimeline_SelectedIndexChanged;
-        DetailsSection.OcrTextRequested -= DetailsSection_OcrTextRequested;
         ScreenshotViewer.ZoomStateChanged -= ScreenshotViewer_ZoomStateChanged;
         ScreenshotViewer.ImageLoadFailed -= ScreenshotViewer_ImageLoadFailed;
         DayOverviewSection.SelectedIndexChanged -= DayOverviewSection_SelectedIndexChanged;
-        if (_ocrTextWindow is { } ocrTextWindow)
-        {
-            ocrTextWindow.Closed -= OcrTextWindow_Closed;
-            _ocrTextWindow = null;
-            _ocrTextScreenshotPath = null;
-            ocrTextWindow.Close();
-        }
-
         _placement.Dispose();
 
         _lifetimeCancellation.Cancel();

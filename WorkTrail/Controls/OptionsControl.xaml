@@ -126,10 +126,6 @@ VBWR E -->
                         </Button>
                     </StackPanel>
                     <StackPanel Spacing="6" Margin="0,0,0,20">
-                        <ToggleSwitch AutomationProperties.AutomationId="Settings.ShowAiMonthlySpendSwitch" x:Name="ShowAiMonthlySpendSwitch" Tag="Options.AiMonthlySpendVisibility" Header="Show monthly AI spend in the player" OffContent="Hidden" OnContent="Visible" />
-                        <TextBlock Tag="Labels.CostHint" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                    <StackPanel Spacing="6" Margin="0,0,0,20">
                         <ComboBox AutomationProperties.AutomationId="Settings.LanguageBox"
                             x:Name="LanguageBox"
                             Tag="Options.Language"
@@ -295,13 +291,13 @@ VBWR E -->
                         Visibility="Collapsed" />
 
                     <StackPanel x:Name="OptionsSecondaryPanel" Grid.Row="2" Grid.Column="0" Spacing="0">
-                    <HyperlinkButton AutomationProperties.AutomationId="Settings.OcrAiSettingsButton"
-                        x:Name="OcrAiSettingsButton"
+                    <HyperlinkButton AutomationProperties.AutomationId="Settings.AiSettingsButton"
+                        x:Name="AiSettingsButton"
                         MinHeight="36"
                         Margin="0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch"
-                        Click="OcrAiSettingsButton_Click"
+                        Click="AiSettingsButton_Click"
                         Padding="0,8"
                         Tag="Options.AiConfiguration.Title">
                         <Grid ColumnSpacing="10">
@@ -317,7 +313,7 @@ VBWR E -->
                                 FontSize="17"
                                 Glyph="&#xE945;" />
                             <StackPanel Grid.Column="1" Spacing="1">
-                                <TextBlock Tag="Options.AiConfiguration.Title" Style="{StaticResource BodyStrongTextBlockStyle}" Text="OCR / AI settings" />
+                                <TextBlock Tag="Options.AiConfiguration.Title" Style="{StaticResource BodyStrongTextBlockStyle}" Text="AI settings" />
                                 <TextBlock
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Tag="Options.AiConfiguration.Subtitle"
@@ -551,7 +547,7 @@ VBWR E -->
             </ScrollViewer>
         </Grid>
 
-        <Grid x:Name="OcrAiOptionsView" Visibility="Collapsed">
+        <Grid x:Name="AiConfigurationView" Visibility="Collapsed">
             <ScrollViewer
                 HorizontalScrollBarVisibility="Disabled"
                 HorizontalScrollMode="Disabled"
@@ -991,10 +987,10 @@ VBWR E -->
                     <StackPanel x:Name="AiAdvancedPanel" Margin="0,8,0,0" Spacing="10" Visibility="Collapsed">
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
                         <ComboBox AutomationProperties.AutomationId="Settings.AiOutputDetailBox" x:Name="AiOutputDetailBox" Tag="Options.OutputDetail" HorizontalAlignment="Stretch" Header="Analysis detail">
-                            <ComboBoxItem Content="Compact · lowest usage" Tag="compact" />
                             <ComboBoxItem Content="Balanced" Tag="balanced" />
-                            <ComboBoxItem Content="Detailed · larger budget" Tag="detailed" />
+                            <ComboBoxItem Content="Complete" Tag="complete" />
                         </ComboBox>
+                        <TextBlock Tag="Options.OutputDetail.Help" Text="Balanced focuses on the active window and relevant content on each screen. Complete explores readable content in greater depth." Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                         <TextBox AutomationProperties.AutomationId="Settings.AiCustomPromptBox" x:Name="AiCustomPromptBox" Tag="Options.CustomPrompt" AcceptsReturn="True" Header="Additional AI instruction (optional)" MinHeight="76" PlaceholderText="Example: Prioritize concise, factual descriptions." TextWrapping="Wrap" />
                         <ToggleSwitch AutomationProperties.AutomationId="Settings.IncludeDeviceLocationSwitch" x:Name="IncludeDeviceLocationSwitch" Tag="Options.DeviceLocation" Header="Include Windows location in AI requests" OffContent="Off" OnContent="Windows Location" />
 

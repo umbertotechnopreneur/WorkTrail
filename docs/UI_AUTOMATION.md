@@ -10,12 +10,11 @@ live inspection of the installed app's automation tree.
 
 | UI module | Converted source | Coverage | Runtime verification |
 | --- | --- | --- | --- |
-| Main window | `MainWindow.xaml` | 34 commands, including unopened menus and the VibeWare manifesto link; tracking and visibility names retain their state updates | Pending |
-| Report export | `ReportExportWindow.xaml` | 60 selectors for navigation, dates, content, editable AI summaries, batch reports, a collapsible Excel preview, generation, opening and copying the file path | Pending |
+| Main window | `MainWindow.xaml` | Commands include unopened menus and the VibeWare manifesto link; tracking and visibility names retain their state updates | Pending |
+| Report export | `ReportExportWindow.xaml` | Selectors for navigation, dates, content, editable AI summaries, batch reports, a collapsible Excel preview, generation, opening and copying the file path | Pending |
 | Main settings | `Controls/OptionsControl.xaml` | 40 controls, including screenshot notifications; labels follow the selected language | Pending |
-| Data retention | `Controls/RetentionOperationsControl.xaml` | 18 controls; premium labels retain the existing premium suffix | Pending |
-| Screenshot gallery | Header, details and timeline controls | 17 static commands, expanders and date/list selectors; existing per-image names remain dynamic | Pending |
-| Sensors | `SensorsWindow.xaml`, `Controls/SensorOptionsControl.xaml` | 8 controls for navigation and sensor options | Pending |
+| Data retention | `Controls/RetentionOperationsControl.xaml` | Retention and screenshot controls; premium labels retain the existing premium suffix | Pending |
+| Screenshot gallery | Header, details and timeline controls | Static commands, expanders and date/list selectors; existing per-image names remain dynamic | Pending |
 | Maintenance and diagnostics | `Controls/OperationsControl.xaml` | 6 navigation and reset commands | Pending |
 | Provider key setup | `Controls/ProviderKeySetupControl.xaml` | 10 controls; the password field keeps its provider-specific accessible name | Pending |
 | Weekly hours editor | `Controls/WeeklyHoursEditor.xaml` and code-behind | 2 view commands; generated slots use `Schedule.Weekly.Slot.<day>.<index>` with localized day/time names | Pending |
@@ -23,7 +22,7 @@ live inspection of the installed app's automation tree.
 
 Other windows and operation sections have not yet been converted to this selector
 catalog. Existing accessible names on those surfaces remain managed by their current
-localization code. Device expanders and virtualized gallery items need live inspection
+localization code. Virtualized gallery items need live inspection
 before their automation behavior can be marked verified.
 
 ## Selector and name rules

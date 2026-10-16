@@ -42,13 +42,12 @@ public static class SettingsCatalog
     private static readonly string[] BooleanValues = ["true", "false"];
     private static readonly string[] Providers = ["openai", "codex-cli"];
     private static readonly string[] ApiKeyVariables = ["OPENAI_API_KEY", "WORKTRAIL_OPENAI_APIKEY"];
-    private static readonly string[] OutputDetails = ["compact", "balanced", "detailed"];
+    private static readonly string[] OutputDetails = ["balanced", "complete"];
     private static readonly string[] ReasoningEfforts = ["auto", "none", "low", "medium", "high", "xhigh", "max"];
     private static readonly string[] Themes = ["system", "light", "dark"];
     private static readonly string[] ScreenshotModes = ["all-screens", "active-window"];
     private static readonly string[] FlyoutAnchors = [FlyoutPositions.BottomCenter, FlyoutPositions.BottomLeft, FlyoutPositions.BottomRight, FlyoutPositions.TopLeft, FlyoutPositions.TopRight];
     private static readonly string[] TaskbarAnchors = [TaskbarWidgetPositions.Left, TaskbarWidgetPositions.Right];
-    private static readonly IReadOnlyList<string> HardwareProfiles = HardwareSamplingProfiles.All.Select(profile => profile.Key).ToArray();
 
     /// <summary>Gets all settings that are safe to expose and writable through WinUI or CLI.</summary>
     public static IReadOnlyList<SettingDescriptor> Definitions { get; } =
@@ -61,29 +60,19 @@ public static class SettingsCatalog
         Text("screenshots.directory", "Directory used for WorkTrail screenshot artifacts.", "path"),
         Integer("screenshots.interval_minutes", "Minutes between scheduled eligible screenshots."),
         Boolean("screenshots.details_pane_open", "Keep the snapshot-details sidebar open when the gallery reopens."),
-        Boolean("sensors.enabled", "Read hardware sensors for live telemetry and capture context."),
-        Boolean("sensors.advanced", "Allow the optional advanced-sensor helper after explicit Windows administrator consent; inactive while sensors are disabled."),
-        Boolean("sensors.save_snapshots", "Save raw hardware readings with future captures; existing snapshots and interval usage are unchanged."),
-        Choice("sensors.sampling_profile", "Hardware polling profile; inactive while sensors are disabled.", HardwareProfiles),
-        Boolean("ocr.enabled", "Extract searchable text locally from captured screenshots.", requiresRestart: true),
-        Choice("ocr.language", "Preferred installed Windows OCR recognizer language.", ProductLanguageCatalog.OcrChoices, requiresRestart: true),
         Choice("search.language", "Language used for local query analysis and stemming.", ProductLanguageCatalog.SearchChoices),
         Boolean("search.synonyms", "Expand local queries with configured multilingual synonyms."),
         Boolean("search.typo_tolerance", "Use controlled fuzzy matching for eligible query terms."),
-        Boolean("ai.enabled", "Analyze every captured snapshot after privacy and cost checks."),
+        Boolean("ai.enabled", "Analyze every captured snapshot after privacy and daily request-limit checks."),
         Choice("ai.provider", "AI provider used for screenshot analysis.", Providers),
         Text("ai.model", "Provider model identifier."),
         Text("ai.endpoint", "HTTPS provider endpoint; loopback HTTP is allowed for local testing.", "uri"),
         Choice("ai.key_variable", "User environment variable that contains the API key.", ApiKeyVariables),
-        Choice("ai.output_detail", "Screenshot analysis output and token-budget profile.", OutputDetails),
+        Choice("ai.output_detail", "Screenshot analysis depth: relevant content or complete visible context.", OutputDetails),
         Choice("ai.reasoning_effort", "OpenAI Responses reasoning effort; auto omits the field.", ReasoningEfforts),
         Text("ai.custom_prompt", "Optional user instruction appended after the built-in screenshot prompt; empty keeps only the built-in prompt.", "multiline"),
         Boolean("ai.include_device_location", "Include Windows-provided latitude and longitude in AI snapshots only when location access is available."),
-        Boolean("ai.show_monthly_spend", "Show the current monthly AI provider spend in the player."),
-        Integer("ai.daily_limit", "Maximum visual AI provider requests per local day, including failed attempts and AI OCR refinement."),
-        Decimal("ai.estimated_cost_per_analysis_usd", "Estimated cost used by the local guardrail."),
-        Decimal("ai.estimated_cost_per_screenshot_usd", "Estimated screenshot cost used by the local guardrail."),
-        Boolean("ai.show_cost_guardrail", "Include local cost guardrail state in status output."),
+        Integer("ai.daily_limit", "Maximum visual AI provider requests per local day, including failed attempts."),
         Choice("language", "Application language.", ProductLanguageCatalog.UiChoices, requiresRestart: true),
         Choice("theme", "Application color theme.", Themes),
         Choice("position", "Main window anchor.", FlyoutAnchors),
@@ -148,12 +137,6 @@ public static class SettingsCatalog
             "screenshots.directory" => settings.ScreenshotDirectory,
             "screenshots.interval_minutes" => settings.ScreenshotIntervalMinutes,
             "screenshots.details_pane_open" => settings.ScreenshotDetailsPaneOpen,
-            "sensors.enabled" => settings.HardwareSensorsEnabled,
-            "sensors.advanced" => settings.HardwareUseAdvancedSensors,
-            "sensors.save_snapshots" => settings.HardwareSaveSnapshots,
-            "sensors.sampling_profile" => settings.HardwareSamplingProfile,
-            "ocr.enabled" => settings.OcrEnabled,
-            "ocr.language" => settings.OcrLanguage,
             "search.language" => settings.SearchLanguage,
             "search.synonyms" => settings.SearchSynonymsEnabled,
             "search.typo_tolerance" => settings.SearchTypoToleranceEnabled,
@@ -166,11 +149,7 @@ public static class SettingsCatalog
             "ai.reasoning_effort" => settings.AiReasoningEffort,
             "ai.custom_prompt" => settings.AiCustomPrompt,
             "ai.include_device_location" => settings.IncludeDeviceLocation,
-            "ai.show_monthly_spend" => settings.ShowAiMonthlySpend,
             "ai.daily_limit" => settings.OpenAiDailyLimit,
-            "ai.estimated_cost_per_analysis_usd" => settings.EstimatedCostPerAnalysisUsd,
-            "ai.estimated_cost_per_screenshot_usd" => settings.EstimatedCostPerScreenshotUsd,
-            "ai.show_cost_guardrail" => settings.ShowCostGuardrailInStatus,
             "language" => settings.UiLanguage,
             "theme" => settings.Theme,
             "position" => settings.FlyoutPosition,
@@ -281,12 +260,6 @@ public static class SettingsCatalog
                 case "screenshots.directory" when TryDirectory(value, allowEmpty: false, out var screenshotDirectory): current = current with { ScreenshotDirectory = screenshotDirectory }; break;
                 case "screenshots.interval_minutes" when TryInteger(value, 1, 1440, out var screenshotIntervalMinutes): current = current with { ScreenshotIntervalMinutes = screenshotIntervalMinutes }; break;
                 case "screenshots.details_pane_open" when TryBoolean(value, out var detailsPaneOpen): current = current with { ScreenshotDetailsPaneOpen = detailsPaneOpen }; break;
-                case "sensors.enabled" when TryBoolean(value, out var hardwareSensorsEnabled): current = current with { HardwareSensorsEnabled = hardwareSensorsEnabled }; break;
-                case "sensors.advanced" when TryBoolean(value, out var hardwareUseAdvancedSensors): current = current with { HardwareUseAdvancedSensors = hardwareUseAdvancedSensors }; break;
-                case "sensors.save_snapshots" when TryBoolean(value, out var hardwareSaveSnapshots): current = current with { HardwareSaveSnapshots = hardwareSaveSnapshots }; break;
-                case "sensors.sampling_profile" when Canonical(HardwareProfiles, value) is { } hardwareSamplingProfile: current = current with { HardwareSamplingProfile = hardwareSamplingProfile }; break;
-                case "ocr.enabled" when TryBoolean(value, out var ocrEnabled): current = current with { OcrEnabled = ocrEnabled }; break;
-                case "ocr.language" when Canonical(ProductLanguageCatalog.OcrChoices, value) is { } ocrLanguage: current = current with { OcrLanguage = ocrLanguage }; break;
                 case "search.language" when Canonical(ProductLanguageCatalog.SearchChoices, value) is { } searchLanguage: current = current with { SearchLanguage = searchLanguage }; break;
                 case "search.synonyms" when TryBoolean(value, out var searchSynonyms): current = current with { SearchSynonymsEnabled = searchSynonyms }; break;
                 case "search.typo_tolerance" when TryBoolean(value, out var typoTolerance): current = current with { SearchTypoToleranceEnabled = typoTolerance }; break;
@@ -298,11 +271,7 @@ public static class SettingsCatalog
                 case "ai.reasoning_effort" when Contains(ReasoningEfforts, value): current = current with { AiReasoningEffort = value!.ToLowerInvariant() }; break;
                 case "ai.custom_prompt" when TryNormalizeCustomPrompt(rawValue, out var customPrompt): current = current with { AiCustomPrompt = customPrompt }; break;
                 case "ai.include_device_location" when TryBoolean(value, out var includeDeviceLocation): current = current with { IncludeDeviceLocation = includeDeviceLocation }; break;
-                case "ai.show_monthly_spend" when TryBoolean(value, out var showAiMonthlySpend): current = current with { ShowAiMonthlySpend = showAiMonthlySpend }; break;
                 case "ai.daily_limit" when TryInteger(value, MinimumAiDailyLimit, MaximumAiDailyLimit, out var dailyLimit): current = current with { OpenAiDailyLimit = dailyLimit }; break;
-                case "ai.estimated_cost_per_analysis_usd" when TryDecimal(value, 0m, 1_000m, out var analysisCost): current = current with { EstimatedCostPerAnalysisUsd = analysisCost }; break;
-                case "ai.estimated_cost_per_screenshot_usd" when TryDecimal(value, 0m, 1_000m, out var screenshotCost): current = current with { EstimatedCostPerScreenshotUsd = screenshotCost }; break;
-                case "ai.show_cost_guardrail" when TryBoolean(value, out var showGuardrail): current = current with { ShowCostGuardrailInStatus = showGuardrail }; break;
                 case "language" when Canonical(ProductLanguageCatalog.UiChoices, value) is { } language: current = current with { UiLanguage = language }; break;
                 case "theme" when Canonical(Themes, value) is { } theme: current = current with { Theme = theme }; break;
                 case "window.titlebar.auto_hide" when TryBoolean(value, out var autoHideTitleBar): current = current with { AutoHideTitleBar = autoHideTitleBar }; break;
@@ -358,7 +327,6 @@ public static class SettingsCatalog
         var labels = settings.ActivityLabels ?? ActivityLabelCatalog.CreateDefaultDefinitions();
         ActivityLabelCatalog.Validate(labels);
         WindowStateService.ValidateOpenStates(settings.WindowOpenStates);
-        WindowStateService.ValidateOcrTextSource(settings.OcrTextWindowSource);
         var provider = Canonical(Providers, settings.AiProvider) ?? "openai";
         var providerSupported = Canonical(Providers, settings.AiProvider) is not null;
         var endpoint = providerSupported && IsAllowedEndpoint(settings.AiEndpoint) ? settings.AiEndpoint.Trim() : GetDefaultEndpoint(provider);
@@ -375,10 +343,7 @@ public static class SettingsCatalog
             ScreenshotIntervalMinutes = settings.ScreenshotIntervalMinutes <= 0
                 ? 15
                 : Math.Min(settings.ScreenshotIntervalMinutes, 1440),
-            // Unknown polling profiles fail fast, even while sensors are disabled; stored preferences remain independent.
-            HardwareSamplingProfile = RequiredPersistedChoice(HardwareProfiles, settings.HardwareSamplingProfile, "sensors.sampling_profile"),
             // Persisted locale identifiers are contracts and unsupported values fail fast.
-            OcrLanguage = RequiredPersistedChoice(ProductLanguageCatalog.OcrChoices, settings.OcrLanguage, "ocr.language"),
             SearchLanguage = RequiredPersistedChoice(ProductLanguageCatalog.SearchChoices, settings.SearchLanguage, "search.language"),
             AiProvider = provider,
             OpenAiEnabled = providerSupported && settings.OpenAiEnabled,
@@ -401,9 +366,6 @@ public static class SettingsCatalog
             ScreenshotRetentionDays = RetentionPolicy.NormalizeDays(settings.ScreenshotRetentionDays),
             HistoryWarningMegabytes = Math.Clamp(settings.HistoryWarningMegabytes, 100, 1048576),
             OpenAiDailyLimit = Math.Clamp(settings.OpenAiDailyLimit, MinimumAiDailyLimit, MaximumAiDailyLimit),
-            OpenAiDailyCostUsd = Math.Max(0m, settings.OpenAiDailyCostUsd),
-            EstimatedCostPerAnalysisUsd = Math.Clamp(settings.EstimatedCostPerAnalysisUsd, 0m, 1_000m),
-            EstimatedCostPerScreenshotUsd = Math.Clamp(settings.EstimatedCostPerScreenshotUsd, 0m, 1_000m),
             ActiveHours = ActiveHoursSchedule.Normalize(settings.ActiveHours),
             WorldClockCityIds = WorldClockSelection.NormalizePersisted(settings.WorldClockCityIds),
             AstronomyAgendaCityId = IsAgendaCityId(settings.AstronomyAgendaCityId)
@@ -428,8 +390,6 @@ public static class SettingsCatalog
     private static SettingDescriptor Choice(string key, string description, IReadOnlyList<string> values, bool requiresRestart = false) => new(key, "choice", description, requiresRestart, values);
 
     private static SettingDescriptor Integer(string key, string description) => new(key, "integer", description, false, Array.Empty<string>());
-
-    private static SettingDescriptor Decimal(string key, string description) => new(key, "decimal", description, false, Array.Empty<string>());
 
     private static SettingDescriptor Text(string key, string description, string valueType = "string") => new(key, valueType, description, false, Array.Empty<string>());
 
@@ -488,9 +448,6 @@ public static class SettingsCatalog
 
     private static bool TryInteger(string? value, int minimum, int maximum, out int parsed) =>
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed) && parsed >= minimum && parsed <= maximum;
-
-    private static bool TryDecimal(string? value, decimal minimum, decimal maximum, out decimal parsed) =>
-        decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed) && parsed >= minimum && parsed <= maximum;
 
     private static bool TryDirectory(string? value, bool allowEmpty, out string path)
     {

@@ -24,7 +24,6 @@ VBWR E -->
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\WorkTrail.Hardware\WindowsVolumeSnapshotProjection.cs" Link="Hardware\WindowsVolumeSnapshotProjection.cs" />
     <ProjectReference Include="..\WorkTrail.Core\WorkTrail.Core.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

@@ -26,8 +26,6 @@ updates:
       - /WorkTrail.Cli.Tests
       - /WorkTrail.Core
       - /WorkTrail.Core.Tests
-      - /WorkTrail.Ocr
-      - /WorkTrail.Ocr.Tests
       - /WorkTrail.Presentation
       - /WorkTrail.Presentation.Tests
       - /WorkTrail.Search

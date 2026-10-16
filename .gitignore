@@ -33,6 +33,7 @@ data/
 !/WorkTrail.Core/Data/sky-palette.json
 !/WorkTrail.Core/Data/important-dates.json
 !/WorkTrail.Core/Data/celestial-calendar.json
+!/WorkTrail.Core/Data/screenshot-capture-rules.json
 /screenshots/
 .env
 .env.*
