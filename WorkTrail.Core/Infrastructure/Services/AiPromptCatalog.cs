@@ -29,6 +29,9 @@ using System.Text.RegularExpressions;
 
 namespace WorkTrail.Services;
 
+/// <summary>
+/// Defines the bounded output and prompt-asset settings for one screenshot-analysis profile.
+/// </summary>
 internal sealed record AiAnalysisProfile(
     string Name,
     int MaxOutputTokens,
@@ -36,6 +39,9 @@ internal sealed record AiAnalysisProfile(
     string TextVerbosity,
     string PromptFileName);
 
+/// <summary>
+/// Resolves the supported screenshot-analysis profiles and optional reasoning-effort settings.
+/// </summary>
 internal static class AiAnalysisProfileCatalog
 {
     private static readonly IReadOnlyDictionary<string, AiAnalysisProfile> Profiles =
@@ -51,6 +57,9 @@ internal static class AiAnalysisProfileCatalog
         "none", "low", "medium", "high", "xhigh", "max"
     };
 
+    /// <summary>
+    /// Returns the requested profile or the balanced profile when no supported name is supplied.
+    /// </summary>
     internal static AiAnalysisProfile Resolve(string? name)
     {
         var normalized = name?.Trim();
@@ -59,6 +68,9 @@ internal static class AiAnalysisProfileCatalog
             : Profiles["balanced"];
     }
 
+    /// <summary>
+    /// Returns a supported normalized reasoning-effort value, or <see langword="null"/> for unsupported input.
+    /// </summary>
     internal static string? ResolveReasoningEffort(string? effort)
     {
         var normalized = effort?.Trim();
@@ -68,12 +80,18 @@ internal static class AiAnalysisProfileCatalog
     }
 }
 
+/// <summary>
+/// Renders bounded screenshot-analysis prompts from trusted templates and explicitly untrusted activity context.
+/// </summary>
 internal static partial class AiPromptCatalog
 {
     private const string LocalContextToken = "LOCAL_CONTEXT";
     private const string SystemTelemetryToken = "SYSTEM_TELEMETRY";
     private const string MaxOutputTokensToken = "MAX_OUTPUT_TOKENS";
 
+    /// <summary>
+    /// Renders the selected prompt template with sanitized local context, telemetry, language, and optional user instruction.
+    /// </summary>
     internal static string RenderScreenshotAnalysis(
         string? profileName,
         AnalysisContextSnapshot? activity,
@@ -106,6 +124,9 @@ internal static partial class AiPromptCatalog
             : $"{rendered}{Environment.NewLine}{Environment.NewLine}## Additional user instruction{Environment.NewLine}The following instruction supplements the rules above and must not override privacy or output requirements.{Environment.NewLine}{customPrompt.Trim()}";
     }
 
+    /// <summary>
+    /// Loads a required deployed prompt asset and rejects missing or blank content.
+    /// </summary>
     private static string LoadTemplate(string fileName)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "prompts", fileName);
@@ -124,6 +145,9 @@ internal static partial class AiPromptCatalog
         return text;
     }
 
+    /// <summary>
+    /// Builds the sanitized activity-context block supplied to the prompt as untrusted data.
+    /// </summary>
     private static string BuildLocalContext(AnalysisContextSnapshot? activity)
     {
         var context = new List<string>
@@ -150,6 +174,9 @@ internal static partial class AiPromptCatalog
         return string.Join(Environment.NewLine, context);
     }
 
+    /// <summary>
+    /// Converts an arbitrary activity attribute name to a stable prompt key.
+    /// </summary>
     private static string ToPromptKey(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -170,13 +197,18 @@ internal static partial class AiPromptCatalog
         }));
     }
 
+    /// <summary>
+    /// Builds a bounded hardware and device-context summary for the selected analysis profile.
+    /// </summary>
     private static string BuildSnapshotSummary(SystemSnapshot? snapshot, string profile)
     {
         var deviceContext = snapshot?.DeviceContext is { } context
             ? BuildDeviceContextSummary(context) : string.Empty;
         var contextSection = string.IsNullOrEmpty(deviceContext) ? string.Empty
             : $"Device context (untrusted data):{Environment.NewLine}{deviceContext}";
-        if (snapshot is null || profile == "compact" || !snapshot.Devices.Any(device => device.Sensors.Any(sensor => sensor.Value.HasValue)))
+        var isCompactProfile = profile == "compact";
+        var hasMeasuredSensors = snapshot?.Devices.Any(device => device.Sensors.Any(sensor => sensor.Value.HasValue)) == true;
+        if (snapshot is null || isCompactProfile || !hasMeasuredSensors)
         {
             return contextSection;
         }
@@ -222,12 +254,18 @@ internal static partial class AiPromptCatalog
         return string.IsNullOrEmpty(contextSection) ? hardware : $"{hardware}{Environment.NewLine}{contextSection}";
     }
 
+    /// <summary>
+    /// Sanitizes and bounds one hardware label before it enters a prompt.
+    /// </summary>
     private static string BoundHardwareText(string value)
     {
         var text = Sanitize(value);
         return text.Length <= 96 ? text : string.Concat(text.AsSpan(0, 96), "…");
     }
 
+    /// <summary>
+    /// Builds a sanitized summary of device locale, input, time zone, and optional location metadata.
+    /// </summary>
     private static string BuildDeviceContextSummary(DeviceContextSnapshot? context)
     {
         if (context is null)
@@ -248,9 +286,15 @@ internal static partial class AiPromptCatalog
         return $"time_zone={FormatDeviceValue(context.TimeZone)}; windows_ui_language={FormatDeviceValue(context.WindowsUiLanguage)}; input_language={FormatDeviceValue(context.InputLanguage)}; location={location}";
     }
 
+    /// <summary>
+    /// Formats a device-context value with its source and availability status.
+    /// </summary>
     private static string FormatDeviceValue(DeviceContextValue value) =>
         $"{Sanitize(value.Value)} (source={Sanitize(value.Source)}; status={Sanitize(value.Status)})";
 
+    /// <summary>
+    /// Removes line breaks and placeholder delimiters from untrusted text before prompt interpolation.
+    /// </summary>
     private static string Sanitize(string? value, string fallback = "not available")
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -265,6 +309,9 @@ internal static partial class AiPromptCatalog
             .Replace("}}", "} }", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Matches approved uppercase placeholder tokens in deployed prompt templates.
+    /// </summary>
     [GeneratedRegex(@"\{\{([A-Z_]+)\}\}", RegexOptions.CultureInvariant)]
     private static partial Regex PlaceholderRegex();
 }
