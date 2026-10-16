@@ -260,8 +260,8 @@ public sealed partial class ProviderKeySetupControl : UserControl
     private void SetBusy(bool busy)
     {
         _busy = busy;
-        AiConnectionSelector.IsEnabled = !busy && _settings is not null;
-        CodexPanel.IsEnabled = !busy;
+        CliConnectionChoice.IsEnabled = ApiConnectionChoice.IsEnabled = !busy && _settings is not null;
+        CodexRefreshButton.IsEnabled = !busy;
         KeyBox.IsEnabled = !busy;
         ShowKeyButton.IsEnabled = !busy;
         PasteKeyButton.IsEnabled = !busy;

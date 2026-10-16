@@ -72,7 +72,7 @@ VBWR E -->
                                TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                     <HyperlinkButton AutomationProperties.AutomationId="ProviderKey.CodexGuide" Tag="Options.Codex.Guide"
                                      Padding="0,4" Click="CodexGuide_Click" />
-                    <Button AutomationProperties.AutomationId="ProviderKey.CodexRefresh" Tag="Options.Codex.Refresh"
+                    <Button x:Name="CodexRefreshButton" AutomationProperties.AutomationId="ProviderKey.CodexRefresh" Tag="Options.Codex.Refresh"
                             HorizontalAlignment="Left" Click="CodexRefresh_Click" />
                 </StackPanel>
                 <Grid x:Name="ColumnsGrid" ColumnSpacing="24" RowSpacing="16">
