@@ -39,6 +39,9 @@ public static class WorkTrailSensorAccess
         return staticMetadata || !versions.TryGetValue(sensor, out var before) || value.WorkTrailUpdateSequence != before ? sensor.Value : null;
     }
 
+    /// <summary>
+    /// Captures assignment counters recursively before the library refreshes hardware values.
+    /// </summary>
     private static void Capture(IHardware hardware, Dictionary<ISensor, long> versions)
     {
         foreach (var sensor in hardware.Sensors)

@@ -92,6 +92,9 @@ internal sealed class WindowsStorageTelemetryCollector
         return _cached;
     }
 
+    /// <summary>
+    /// Reads aggregate logical-volume counters from WMI without inspecting user data or filenames.
+    /// </summary>
     private static Dictionary<string, VolumePerformance> ReadPerformance()
     {
         // Query only volume names and aggregate performance counters; no filenames, labels or user data are read.
@@ -115,10 +118,19 @@ internal sealed class WindowsStorageTelemetryCollector
         return counters;
     }
 
+    /// <summary>
+    /// Converts a WMI counter value to an invariant floating-point number when one is available.
+    /// </summary>
     private static double? Number(object? value) => value is null or DBNull ? null : Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// Determines whether an exception represents an unavailable logical volume rather than a programming error.
+    /// </summary>
     private static bool IsVolumeFailure(Exception exception) => exception is IOException or UnauthorizedAccessException;
 
+    /// <summary>
+    /// Holds optional activity and throughput readings for one logical volume.
+    /// </summary>
     private sealed record VolumePerformance(double? Idle, double? Read, double? Write);
 }
 
