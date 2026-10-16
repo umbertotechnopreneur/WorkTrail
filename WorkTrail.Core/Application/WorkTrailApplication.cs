@@ -152,6 +152,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private readonly CancellationTokenSource _runtimeTimerCancellation = new();
     private readonly Task _runtimeTimerTask;
     private DateTimeOffset? _nextScheduledSnapshotAt;
+    private int _scheduledSnapshotStabilityRetries;
     private TimeSpan? _pausedScheduledSnapshotRemaining;
     private PendingManualScreenshotRegistration? _pendingManualScreenshot;
     private int _scheduledSnapshotIntervalMinutes;
@@ -2640,6 +2641,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         ScreenshotCaptureDecision.PrivacyBlocked => OperationResult<T>.Failure("privacy.blocked", "PrivacyBlocked"),
         ScreenshotCaptureDecision.UserIdle => OperationResult<T>.Failure("screenshot.idle", "SnapshotScheduleNotDue"),
         ScreenshotCaptureDecision.Unchanged => OperationResult<T>.Failure("screenshot.unchanged", "SnapshotScheduleNotDue"),
+        ScreenshotCaptureDecision.Unstable => OperationResult<T>.Failure("screenshot.unstable", "SnapshotScheduleNotDue"),
         _ => throw new ArgumentOutOfRangeException(nameof(decision), decision, "Allowed capture cannot be mapped to a failure.")
     };
 
@@ -2756,6 +2758,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     CancellationToken.None);
             }
 
+            DateTimeOffset? reservedNextSnapshotAt = null;
+            var stabilityRetryAttempt = 0;
             var due = await MutateAsync(async () =>
             {
                 if (!_tracking.IsTracking || _nextScheduledSnapshotAt is not { } nextSnapshotAt || DateTimeOffset.Now < nextSnapshotAt)
@@ -2764,6 +2768,9 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 }
 
                 _nextScheduledSnapshotAt = DateTimeOffset.Now.AddMinutes(_scheduledSnapshotIntervalMinutes);
+                reservedNextSnapshotAt = _nextScheduledSnapshotAt;
+                stabilityRetryAttempt = _scheduledSnapshotStabilityRetries;
+                _scheduledSnapshotStabilityRetries = 0;
                 await Task.CompletedTask;
                 return OperationResult<bool>.Success("snapshot.schedule.due", "SnapshotScheduleDue", true);
             }, CancellationToken.None);
@@ -2791,6 +2798,28 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     CancellationToken.None);
                 if (!scheduledCapture.Succeeded || scheduledCapture.Value is not { } retainedCapture)
                 {
+                    if (scheduledCapture.Code == "screenshot.unstable")
+                    {
+                        await MutateAsync(async () =>
+                        {
+                            var current = _settingsSnapshot.Value;
+                            // Do not replace a newer schedule, pause, reset or settings decision with an old retry.
+                            if (_tracking.IsTracking && _scheduledSnapshotsEnabled && current.ScreenshotsEnabled
+                                && current == settings && _nextScheduledSnapshotAt == reservedNextSnapshotAt
+                                && ActiveHoursSchedule.IsWithinActiveHours(current.ActiveHours, DateTimeOffset.Now))
+                            {
+                                var stability = ScreenshotCaptureRules.Load().Stability ?? new ScreenshotStabilityOptions();
+                                if (stabilityRetryAttempt < stability.MaxRetries)
+                                {
+                                    _nextScheduledSnapshotAt = DateTimeOffset.Now.AddSeconds(stability.RetrySeconds);
+                                    _scheduledSnapshotStabilityRetries = stabilityRetryAttempt + 1;
+                                }
+                            }
+                            await Task.CompletedTask;
+                            return OperationResult<bool>.Success("snapshot.schedule.retry", "SnapshotScheduleNotDue", false);
+                        }, CancellationToken.None);
+                        return;
+                    }
                     if (scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged") return;
                     _logger.LogWarning("Scheduled screen capture failed. Code={Code}", scheduledCapture.Code);
                     return;

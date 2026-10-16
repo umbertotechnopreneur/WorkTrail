@@ -26,6 +26,30 @@ Window crops contain only visible desktop regions. Higher windows occlude lower 
 
 Rules do not override capture privacy checks. Capture validates the desktop scene around pixel acquisition; a changed scene is rejected rather than retaining misleading visibility masks. Panoramas contain the visible monitor, so a process filter on a window rule is not a privacy exclusion for a separate monitor rule. Privacy exclusions remain the authority for both destinations.
 
+## Automatic foreground stability
+
+Before scheduled acquisition, `stability` waits for the foreground handle, process,
+title and bounds to stay unchanged. Defaults are `enabled: true`,
+`settleMilliseconds: 1000`, `maximumWaitMilliseconds: 3000`, `pollMilliseconds: 100`,
+`retrySeconds: 3` and `maxRetries: 2`. This bounded metadata-only wait runs on the
+capture worker, not the UI. Manual requests bypass the wait; privacy checks still apply.
+
+Returning from A to B to A restarts the quiet period. The capture timestamp is taken
+after settling. A scene change detected during acquisition discards partial files
+and becomes a quiet automatic retry; manual acquisition still reports the failure.
+No continuous polling, new tracking runtime or window-event capture trigger is added.
+
+The scheduler allows at most two short retries per regular due capture, then returns
+to the configured interval. It never replaces a newer schedule or disabled/paused
+tracking state with a stale retry. An unchanged image or input-idle skip uses the
+regular interval, not the short retry. Native idle-probe errors remain quiet skips;
+only a detected foreground transition is classified as transient instability.
+
+Timing validation accepts 100–5000 ms to settle, a maximum wait at least as large and
+at most 10000 ms, polling from 25–1000 ms no slower than the settle interval,
+1–60 seconds between retries, and 0–5 retries. Zero retries disables fast retry;
+`enabled: false` disables the initial wait, not the post-acquisition scene safety check.
+
 ## Automatic near-duplicate filtering
 
 The `similarity` object controls a local, in-memory RGB thumbnail comparison. It runs

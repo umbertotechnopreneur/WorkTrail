@@ -4,13 +4,23 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-17
 
+### Automatic capture stabilization
+
+- Wait for a configurable foreground quiet period before scheduled pixels, with a
+  bounded metadata-only worker delay. Manual captures bypass the wait.
+- Treat detected scene transitions as quiet retries, capped per scheduled capture;
+  preserve newer settings/deadlines and reset retry state on pause or reconfiguration.
+- Add timing, window-transition and scheduler regression cases. C# formatting and
+  verification passed; tests, build and native validation remain pending.
+
 ### Automatic near-duplicate filtering
 
 - Compare in-memory RGB thumbnails after privacy checks and before encoding or AI.
   Keep manual captures, changed identities and periodic refreshes; configure global,
   application and context thresholds, including a more tolerant Spotify preset.
 - Advance the bounded cache only after retained publication, and quietly skip a
-  fully unchanged pass. Add regression cases; execution and native validation pending.
+  fully unchanged pass. C# formatting and verification passed; regression execution
+  and native validation remain pending.
 
 ### Context-aware capture policy
 

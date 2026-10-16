@@ -190,9 +190,13 @@ public sealed class RuntimeCaptureSafetyTests
         finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
     }
 
-    /// <summary>An unchanged automatic capture is a quiet skip, never a preview or provider request.</summary>
-    [Fact]
-    public async Task Capture_UnchangedSkipsPublicationPreviewAndAi()
+    /// <summary>A skipped automatic capture is never published, previewed or sent to the provider.</summary>
+    /// <param name="decision">The reason the native capture boundary skipped acquisition.</param>
+    /// <param name="code">The application result expected for that decision.</param>
+    [Theory]
+    [InlineData(ScreenshotCaptureDecision.Unchanged, "screenshot.unchanged")]
+    [InlineData(ScreenshotCaptureDecision.Unstable, "screenshot.unstable")]
+    public async Task Capture_QuietSkipAvoidsPublicationPreviewAndAi(ScreenshotCaptureDecision decision, string code)
     {
         var dataDirectory = CreateTemporaryDirectory();
         try
@@ -210,7 +214,7 @@ public sealed class RuntimeCaptureSafetyTests
             var notifications = new RecordingScreenshotNotifications();
             var analysis = new RecordingAiAnalysisService();
             var capture = new BoundaryCaptureService(dataDirectory,
-                beforeAuthorization: () => throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unchanged));
+                beforeAuthorization: () => throw new ScreenshotCapturePreconditionException(decision));
             await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture,
                 startTimer: false, screenshotNotifications: notifications, analysis: analysis);
 
@@ -218,12 +222,114 @@ public sealed class RuntimeCaptureSafetyTests
                 new("all-screens", Keep: true, ScreenshotCaptureOrigins.Scheduled, DeferAiAnalysis: false), CancellationToken.None);
 
             Assert.False(result.Succeeded);
-            Assert.Equal("screenshot.unchanged", result.Code);
+            Assert.Equal(code, result.Code);
             Assert.Equal(0, capture.PixelReadCount);
             Assert.Empty(capture.PublicationCalls);
             Assert.Empty(notifications.Paths);
             Assert.Equal(0, analysis.CallCount);
             Assert.False(File.Exists(capture.OutputPath));
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>Continuous window changes receive two short retries, then return to the normal capture interval.</summary>
+    [Fact]
+    public async Task ScheduledCapture_UnstableRetriesAreBounded()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                ScreenshotIntervalMinutes = 1,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            var attempts = 0;
+            var capture = new BoundaryCaptureService(dataDirectory, beforeAuthorization: () =>
+            {
+                attempts++;
+                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unstable);
+            });
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture, startTimer: false);
+            Assert.True((await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None)).Succeeded);
+            var deadline = RuntimeField("_nextScheduledSnapshotAt");
+            var retries = RuntimeField("_scheduledSnapshotStabilityRetries");
+
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                deadline.SetValue(application, DateTimeOffset.Now.AddSeconds(-1));
+                var startedAt = DateTimeOffset.Now;
+                await RunScheduledSnapshotAsync(application);
+                var next = Assert.IsType<DateTimeOffset>(deadline.GetValue(application));
+
+                Assert.Equal(attempt, attempts);
+                Assert.Equal(attempt <= 2 ? attempt : 0, Assert.IsType<int>(retries.GetValue(application)));
+                Assert.InRange(next,
+                    startedAt.AddSeconds(attempt <= 2 ? 2 : 55),
+                    DateTimeOffset.Now.AddSeconds(attempt <= 2 ? 5 : 65));
+            }
+            Assert.Equal(0, capture.PixelReadCount);
+            Assert.Empty(capture.PublicationCalls);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>A retry cannot undo a newer deadline or an explicit screenshot-disable decision.</summary>
+    /// <param name="disableScreenshots">Whether the concurrent change disables capture instead of replacing its deadline.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ScheduledCapture_UnstableRetryPreservesNewerSchedulingDecision(bool disableScreenshots)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                ScreenshotIntervalMinutes = 1,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            var snapshot = new SettingsSnapshot(settings);
+            var deadline = RuntimeField("_nextScheduledSnapshotAt");
+            WorkTrailApplication? running = null;
+            DateTimeOffset? expectedDeadline = null;
+            var attempts = 0;
+            var capture = new BoundaryCaptureService(dataDirectory, beforeAuthorization: () =>
+            {
+                attempts++;
+                if (disableScreenshots)
+                {
+                    expectedDeadline = (DateTimeOffset?)deadline.GetValue(running);
+                    snapshot.Replace(snapshot.Value with { ScreenshotsEnabled = false });
+                }
+                else
+                {
+                    expectedDeadline = DateTimeOffset.Now.AddMinutes(30);
+                    deadline.SetValue(running, expectedDeadline);
+                }
+                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unstable);
+            });
+            await using var application = CreateApplication(store, snapshot, capture, startTimer: false);
+            running = application;
+            Assert.True((await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None)).Succeeded);
+            deadline.SetValue(application, DateTimeOffset.Now.AddSeconds(-1));
+
+            await RunScheduledSnapshotAsync(application);
+
+            Assert.Equal(1, attempts);
+            Assert.NotNull(expectedDeadline);
+            Assert.Equal(expectedDeadline.Value, Assert.IsType<DateTimeOffset>(deadline.GetValue(application)));
+            Assert.Equal(0, Assert.IsType<int>(RuntimeField("_scheduledSnapshotStabilityRetries").GetValue(application)));
+            Assert.Equal(0, capture.PixelReadCount);
+            Assert.Empty(capture.PublicationCalls);
         }
         finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
     }
@@ -587,6 +693,19 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
+    private static FieldInfo RuntimeField(string name) =>
+        typeof(WorkTrailApplication).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException($"Runtime field '{name}' was not found.");
+
+    private static Task RunScheduledSnapshotAsync(WorkTrailApplication application)
+    {
+        var method = typeof(WorkTrailApplication).GetMethod("ProcessScheduledSnapshotAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Scheduled snapshot method was not found.");
+        return (Task)(method.Invoke(application, null)
+            ?? throw new InvalidOperationException("Scheduled snapshot processing returned no task."));
+    }
+
     private static WorkTrailApplication CreateApplication(
         LocalStore store,
         SettingsSnapshot settings,
@@ -680,7 +799,7 @@ public sealed class RuntimeCaptureSafetyTests
         private Task<AiAnalysis> RejectUnexpectedAnalysis()
         {
             CallCount++;
-            throw new InvalidOperationException("An unchanged capture must never reach AI analysis.");
+            throw new InvalidOperationException("A skipped capture must never reach AI analysis.");
         }
     }
 

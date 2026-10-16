@@ -32,6 +32,7 @@ public sealed partial class WorkTrailApplication
         _scheduledSnapshotsEnabled = settings.ScreenshotsEnabled
             && _scheduledSnapshotIntervalMinutes > 0
             && ActiveHoursSchedule.HasAnyActivePeriod(settings.ActiveHours);
+        if (restartCountdown || !_scheduledSnapshotsEnabled) _scheduledSnapshotStabilityRetries = 0;
         if (!_scheduledSnapshotsEnabled)
         {
             // With capture disabled or no eligible hours there is no countdown and no silent schedule reset.
@@ -61,12 +62,14 @@ public sealed partial class WorkTrailApplication
 
     private void PauseScheduledSnapshots()
     {
+        _scheduledSnapshotStabilityRetries = 0;
         _pausedScheduledSnapshotRemaining = GetScheduledSnapshotRemaining();
         _nextScheduledSnapshotAt = null;
     }
 
     private void ResumeScheduledSnapshots()
     {
+        _scheduledSnapshotStabilityRetries = 0;
         if (!_scheduledSnapshotsEnabled)
         {
             return;

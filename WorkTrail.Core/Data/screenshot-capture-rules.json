@@ -1,5 +1,6 @@
 {
   "defaultIdleTimeoutSeconds": 60,
+  "stability": { "enabled": true, "settleMilliseconds": 1000, "maximumWaitMilliseconds": 3000, "pollMilliseconds": 100, "retrySeconds": 3, "maxRetries": 2 },
   "similarity": { "enabled": true, "sampleWidth": 128, "sampleHeight": 96, "maxMeanDifference": 0.25, "maxChangedPixelFraction": 0.0001, "pixelDifferenceThreshold": 6, "maxPixelDifference": 24, "forceRefreshMinutes": 15, "maxEntries": 128 },
   "rules": [
     { "id": "active-content", "enabled": true, "subject": "active-window", "capture": "window", "priority": "primary", "destination": "both" },

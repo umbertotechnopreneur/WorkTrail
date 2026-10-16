@@ -37,12 +37,13 @@ internal static class ScreenshotIdlePolicy
                 || NativeMethods.GetWindowThreadProcessId(window, out var currentProcessId) == 0
                 || currentProcessId != processId
                 || (includeTitle && !string.Equals(title, ReadWindowTitle(window), StringComparison.Ordinal)))
-                throw new InvalidOperationException("The foreground context changed while evaluating the scheduled capture policy.");
+                throw new ScreenshotSceneChangedException("The foreground context changed while evaluating the scheduled capture policy.");
 
             return IsWithinIdleTimeout(currentTickCount, info.Time, policy.GetIdleTimeoutSeconds(processName, title));
         }
-        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException
-            or Win32Exception or OverflowException or DllNotFoundException or EntryPointNotFoundException)
+        catch (Exception exception) when (exception is not ScreenshotSceneChangedException
+            && exception is (InvalidOperationException or ArgumentException
+                or Win32Exception or OverflowException or DllNotFoundException or EntryPointNotFoundException))
         {
             // The application logs this skipped attempt; it must not become a repeated capture-failure notification.
             throw new ScreenshotIdlePolicyException(exception);

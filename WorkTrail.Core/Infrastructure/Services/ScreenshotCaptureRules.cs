@@ -11,7 +11,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
     IReadOnlyList<ScreenshotContextRule>? ContextRules = null,
     int DefaultIdleTimeoutSeconds = 60,
     IReadOnlyDictionary<string, string>? MicroPrompts = null,
-    ScreenshotSimilarityOptions? Similarity = null)
+    ScreenshotSimilarityOptions? Similarity = null,
+    ScreenshotStabilityOptions? Stability = null)
 {
     internal static ScreenshotCaptureRules Load()
     {
@@ -30,6 +31,7 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
     internal void Validate()
     {
         Similarity?.Validate();
+        Stability?.Validate();
         if (DefaultIdleTimeoutSeconds is < 1 or > 7200)
             throw new InvalidDataException("Default capture inactivity timeout must be between 1 and 7200 seconds.");
         if (MicroPrompts?.Any(entry => string.IsNullOrWhiteSpace(entry.Key) || string.IsNullOrWhiteSpace(entry.Value)) == true)

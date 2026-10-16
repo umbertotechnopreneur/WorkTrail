@@ -72,7 +72,10 @@ public enum ScreenshotCaptureDecision
     UserIdle,
 
     /// <summary>Every selected automatic image is visually unchanged since its last retained capture.</summary>
-    Unchanged
+    Unchanged,
+
+    /// <summary>The desktop did not settle before an automatic capture could safely complete.</summary>
+    Unstable
 }
 
 /// <summary>Describes the foreground target observed at the capture boundary.</summary>
@@ -108,6 +111,11 @@ public sealed class ScreenshotCapturePreconditionException : InvalidOperationExc
 
     /// <summary>Gets the policy decision that rejected the capture.</summary>
     public ScreenshotCaptureDecision Decision { get; }
+}
+
+/// <summary>Signals a transient desktop transition, without treating manual retries as silent skips.</summary>
+internal sealed class ScreenshotSceneChangedException(string message) : InvalidOperationException(message)
+{
 }
 
 /// <summary>
@@ -162,31 +170,64 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         ArgumentNullException.ThrowIfNull(authorizeCapture);
         var captureId = Guid.NewGuid().ToString("N");
         var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
-        var capturedAt = DateTimeOffset.Now;
         if (captureMode is not "active-window" and not "all-screens")
         {
             throw new ArgumentException("Screenshot capture mode must be 'all-screens' or 'active-window'.", nameof(captureMode));
         }
 
-        if (validatedOrigin == ScreenshotCaptureOrigins.Scheduled)
+        var scheduled = validatedOrigin == ScreenshotCaptureOrigins.Scheduled;
+        try
         {
-            var privacyPolicy = authorizeCapture;
-            var capturePolicy = ScreenshotCaptureRules.Load();
-            // Probe inside the native implementation so fake capture services remain desktop-independent.
-            // An unavailable/idle desktop is a skipped scheduled attempt, not a screenshot failure notice.
-            if (!ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value))
-                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.UserIdle);
-            authorizeCapture = context =>
+            ScreenshotStabilityOptions? stability = null;
+            if (scheduled)
             {
-                var decision = privacyPolicy(context);
-                return decision != ScreenshotCaptureDecision.Allowed ? decision
-                    : ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value)
-                        ? ScreenshotCaptureDecision.Allowed : ScreenshotCaptureDecision.UserIdle;
-            };
+                var privacyPolicy = authorizeCapture;
+                var capturePolicy = ScreenshotCaptureRules.Load();
+                stability = capturePolicy.Stability ?? new ScreenshotStabilityOptions();
+                // Probe inside the native implementation so fake capture services remain desktop-independent.
+                // An unavailable/idle desktop is a skipped scheduled attempt, not a screenshot failure notice.
+                if (!ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value))
+                    throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.UserIdle);
+                authorizeCapture = context =>
+                {
+                    var decision = privacyPolicy(context);
+                    return decision != ScreenshotCaptureDecision.Allowed ? decision
+                        : ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value)
+                            ? ScreenshotCaptureDecision.Allowed : ScreenshotCaptureDecision.UserIdle;
+                };
+            }
+            var foreground = stability is { Enabled: true }
+                ? WaitForStableForeground(stability, authorizeCapture) : CaptureForegroundTarget();
+            EnsureCaptureAllowed(authorizeCapture(foreground.ToCaptureContext()));
+            // Timestamp the settled scene, not the start of its waiting period (including midnight boundaries).
+            var capturedAt = DateTimeOffset.Now;
+            return CaptureTargets(directory, captureId, validatedOrigin, capturedAt, foreground, captureMode == "active-window", authorizeCapture);
         }
-        var foreground = CaptureForegroundTarget();
-        EnsureCaptureAllowed(authorizeCapture(foreground.ToCaptureContext()));
-        return CaptureTargets(directory, captureId, validatedOrigin, capturedAt, foreground, captureMode == "active-window", authorizeCapture);
+        catch (ScreenshotSceneChangedException) when (scheduled)
+        {
+            throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unstable);
+        }
+    }
+
+    private static ForegroundCaptureTarget WaitForStableForeground(ScreenshotStabilityOptions options,
+        Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
+    {
+        var policy = new ScreenshotStabilityPolicy(options);
+        var started = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            // This bounded wait runs on the serialized capture worker, never on WinUI. Read no pixels yet.
+            var foreground = CaptureForegroundTarget();
+            EnsureCaptureAllowed(authorizeCapture(foreground.ToCaptureContext()));
+            var elapsed = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            var bounds = foreground.WindowBounds;
+            if (policy.Observe(new ScreenshotForegroundIdentity(foreground.WindowHandle, foreground.ProcessName,
+                    foreground.WindowTitle, bounds.Left, bounds.Top, bounds.Right, bounds.Bottom), elapsed))
+                return foreground;
+            if (policy.IsExpired(elapsed))
+                throw new ScreenshotSceneChangedException("The foreground window did not settle before automatic capture.");
+            Thread.Sleep(options.PollMilliseconds);
+        }
     }
 
     /// <summary>Returns whether a path matches the versioned naming contract of a WorkTrail screenshot artifact.</summary>
@@ -390,19 +431,19 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         var window = NativeMethods.GetForegroundWindow();
         if (window == IntPtr.Zero)
         {
-            throw new InvalidOperationException("No active foreground window found.");
+            throw new ScreenshotSceneChangedException("No active foreground window found.");
         }
 
         if (!NativeMethods.GetWindowRect(window, out var bounds))
         {
-            throw new InvalidOperationException("Unable to read active window bounds.");
+            throw new ScreenshotSceneChangedException("Unable to read active window bounds.");
         }
 
         var width = bounds.Right - bounds.Left;
         var height = bounds.Bottom - bounds.Top;
         if (width <= 0 || height <= 0)
         {
-            throw new InvalidOperationException("Invalid active window size.");
+            throw new ScreenshotSceneChangedException("Invalid active window size.");
         }
 
         var processName = ReadProcessName(window);
@@ -551,7 +592,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         if (current.WindowHandle != expected.WindowHandle || current.WindowTitle != expected.WindowTitle ||
             current.WindowBounds.Left != expected.WindowBounds.Left || current.WindowBounds.Top != expected.WindowBounds.Top ||
             current.WindowBounds.Right != expected.WindowBounds.Right || current.WindowBounds.Bottom != expected.WindowBounds.Bottom)
-            throw new InvalidOperationException("The active window changed during screenshot capture; retry the capture.");
+            throw new ScreenshotSceneChangedException("The active window changed during screenshot capture; retry the capture.");
     }
 
     private static void AuthorizeCurrentForeground(
@@ -591,7 +632,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
             || window.Bounds.Left != actual[index].Bounds.Left || window.Bounds.Top != actual[index].Bounds.Top
             || window.Bounds.Right != actual[index].Bounds.Right || window.Bounds.Bottom != actual[index].Bounds.Bottom
             || window.Context != actual[index].Context).Any())
-            throw new InvalidOperationException("Visible windows changed during screenshot capture; retry the capture.");
+            throw new ScreenshotSceneChangedException("Visible windows changed during screenshot capture; retry the capture.");
     }
 
     /// <summary>Rejects the entire capture when any potentially visible intersecting window is private.</summary>

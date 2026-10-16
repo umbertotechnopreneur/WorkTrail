@@ -20,6 +20,8 @@ the action needs authorization. Remove the item when it is complete.
   pause/resume, renamed/translated titles and disabled detail collectors on Windows.
   Check near-duplicate thresholds on real 4K text, Spotify progress/title changes,
   partial multi-monitor skips, manual bypass, publication failures and forced refresh.
+  Check rapid foreground changes, maximum wait, bounded retries, pause/setting races
+  and scene changes during acquisition without recurrent error notifications.
   The current context/idle/micro-prompt changes have not been built or tested; the
   earlier 1.0.6.22 Debug package predates these changes and the manual override.
 
