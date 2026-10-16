@@ -22,9 +22,19 @@ using System.Collections.Generic;
 
 namespace WorkTrail.Providers;
 
+/// <summary>
+/// Identifies the foreground process and its current window title.
+/// </summary>
 public sealed record ForegroundWindowInfo(string ProcessName, string WindowTitle);
+
+/// <summary>
+/// Represents privacy-filtered activity context resolved from a foreground window.
+/// </summary>
 public sealed record ActivityContext(string Application, string Context, IReadOnlyDictionary<string, string>? Attributes = null);
 
+/// <summary>
+/// Resolves user-visible activity context for a foreground process and window.
+/// </summary>
 public interface IActivityContextProvider
 {
     /// <summary>
@@ -84,6 +94,9 @@ public sealed class ActivityContextProviderRegistry
     };
 }
 
+/// <summary>
+/// Resolves document and workbook context for Microsoft Word and Excel windows.
+/// </summary>
 public sealed class MicrosoftOfficeContextProvider : IActivityContextProvider
 {
     /// <summary>
@@ -117,6 +130,9 @@ public sealed class MicrosoftOfficeContextProvider : IActivityContextProvider
     }
 }
 
+/// <summary>
+/// Resolves project context for supported Adobe Creative applications.
+/// </summary>
 public sealed class AdobeCreativeContextProvider : IActivityContextProvider
 {
     private static readonly Dictionary<string, string> AdobeApplications = new(StringComparer.OrdinalIgnoreCase)
@@ -187,6 +203,9 @@ public sealed class AdobeCreativeContextProvider : IActivityContextProvider
     }
 }
 
+/// <summary>
+/// Resolves readable names for a maintained set of well-known application processes.
+/// </summary>
 public sealed class KnownApplicationContextProvider : IActivityContextProvider
 {
     /// <summary>
@@ -236,6 +255,9 @@ public sealed class KnownApplicationContextProvider : IActivityContextProvider
         ["go"] = "Go"
     };
 
+    /// <summary>
+    /// Determines whether the process is present in the maintained application map.
+    /// </summary>
     public bool CanHandle(ForegroundWindowInfo window) => Applications.ContainsKey(window.ProcessName);
 
     /// <summary>
@@ -246,6 +268,9 @@ public sealed class KnownApplicationContextProvider : IActivityContextProvider
             new Dictionary<string, string> { ["Process"] = window.ProcessName, ["Title"] = window.WindowTitle });
 }
 
+/// <summary>
+/// Provides the final safe fallback when no specialized context provider matches a process.
+/// </summary>
 public sealed class GenericContextProvider : IActivityContextProvider
 {
     /// <summary>

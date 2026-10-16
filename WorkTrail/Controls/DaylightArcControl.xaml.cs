@@ -39,6 +39,9 @@ public sealed partial class DaylightArcControl : UserControl
     public static readonly DependencyProperty IsDaylightProperty = DependencyProperty.Register(
         nameof(IsDaylight), typeof(bool), typeof(DaylightArcControl), new PropertyMetadata(false, OnVisualPropertyChanged));
 
+    /// <summary>
+    /// Initializes the passive daylight-arc control and its XAML visual tree.
+    /// </summary>
     public DaylightArcControl()
     {
         InitializeComponent();

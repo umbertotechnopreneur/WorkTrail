@@ -23,10 +23,19 @@ using Lucene.Net.Index;
 
 namespace WorkTrail.Search.Internal;
 
+/// <summary>
+/// Validates local-search configuration, documents, mutations, and query requests before Lucene receives them.
+/// </summary>
 internal static class SearchValidation
 {
+    /// <summary>
+    /// Gets Lucene's maximum encoded byte length for one indexed term.
+    /// </summary>
     internal static int MaxIndexedTermUtf8Bytes => IndexWriter.MAX_TERM_LENGTH;
 
+    /// <summary>
+    /// Validates search configuration and returns its canonical absolute index root.
+    /// </summary>
     internal static string ValidateOptions(SearchOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -113,6 +122,9 @@ internal static class SearchValidation
         return Path.GetFullPath(options.IndexRootPath);
     }
 
+    /// <summary>
+    /// Validates a document before it is written to the local index.
+    /// </summary>
     internal static void ValidateDocument(SearchDocument document, SearchOptions options)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -190,6 +202,9 @@ internal static class SearchValidation
         ValidateCombinedLength(document.SpanLabels, nameof(document.SpanLabels), options);
     }
 
+    /// <summary>
+    /// Validates a stable document identifier used by an index mutation.
+    /// </summary>
     internal static void ValidateMutationId(string id, SearchOptions options)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -197,6 +212,9 @@ internal static class SearchValidation
         ValidateExactTerm(id, nameof(id), normalize: false);
     }
 
+    /// <summary>
+    /// Validates a query request and returns its effective result limit.
+    /// </summary>
     internal static int ValidateRequest(SearchRequest request, SearchOptions options)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -249,9 +267,15 @@ internal static class SearchValidation
         return limit;
     }
 
+    /// <summary>
+    /// Determines whether an exact-term value fits within Lucene's encoded byte limit.
+    /// </summary>
     internal static bool FitsIndexedTerm(string value) =>
         Encoding.UTF8.GetByteCount(value) <= MaxIndexedTermUtf8Bytes;
 
+    /// <summary>
+    /// Validates an exact-match filter collection, normalizing language values when requested.
+    /// </summary>
     private static void ValidateFilterValues(
         IEnumerable<string> values,
         string name,
@@ -273,6 +297,9 @@ internal static class SearchValidation
         }
     }
 
+    /// <summary>
+    /// Ensures that a multi-value field stays within its aggregate text limit.
+    /// </summary>
     private static void ValidateCombinedLength(
         IEnumerable<string?> values,
         string name,
@@ -299,6 +326,9 @@ internal static class SearchValidation
         }
     }
 
+    /// <summary>
+    /// Ensures that an optional value remains valid for an exact Lucene term.
+    /// </summary>
     private static void ValidateExactTerm(string? value, string name, bool normalize = true)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -315,6 +345,9 @@ internal static class SearchValidation
         }
     }
 
+    /// <summary>
+    /// Ensures that an optional value does not exceed the configured UTF-16 length limit.
+    /// </summary>
     private static void ValidateLength(string? value, string name, SearchOptions options)
     {
         if (value is not null && value.Length > options.MaxTextFieldLength)

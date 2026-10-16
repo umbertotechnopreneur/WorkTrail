@@ -38,8 +38,14 @@ public static class ScrollBarRevealBehavior
         typeof(ScrollBarRevealBehavior),
         new PropertyMetadata(false, IsEnabledChanged));
 
+    /// <summary>
+    /// Gets whether scrollbar reveal is enabled for a <see cref="ScrollViewer"/>.
+    /// </summary>
     public static bool GetIsEnabled(DependencyObject element) => (bool)element.GetValue(IsEnabledProperty);
 
+    /// <summary>
+    /// Enables or disables scrollbar reveal for a <see cref="ScrollViewer"/>.
+    /// </summary>
     public static void SetIsEnabled(DependencyObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
     private static void IsEnabledChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)

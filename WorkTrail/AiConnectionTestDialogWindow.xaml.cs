@@ -165,7 +165,9 @@ internal sealed partial class AiConnectionTestDialogWindow : Window
 
             CompleteTest(success: false);
             TitleText.Text = T("AiConnectionTest.Failed.Title");
-            StatusText.Text = result.Code == "ai.connection.key.missing"
+            StatusText.Text = result.Code.StartsWith("codex.", StringComparison.Ordinal)
+                ? T(result.MessageKey)
+                : result.Code == "ai.connection.key.missing"
                 ? T("AiConnectionTest.Failed.MissingKey")
                 : result.Code == "ai.connection.configuration.invalid"
                     ? T("AiConnectionTest.Failed.InvalidConfiguration")
@@ -229,8 +231,7 @@ internal sealed partial class AiConnectionTestDialogWindow : Window
     private static string ProviderDisplayName(string provider) => provider.Trim().ToLowerInvariant() switch
     {
         "openai" or "open-ai" => "OpenAI",
-        "openrouter" => "OpenRouter",
-        "anthropic" => "Anthropic",
+        "codex-cli" => "Codex CLI",
         _ => provider
     };
 

@@ -46,7 +46,7 @@ public sealed record AiProviderResult(
     string? ProviderRequestId,
     string? ReturnedModel,
     string? FinishReason,
-    int HttpStatusCode,
+    int? HttpStatusCode,
     long ElapsedMilliseconds,
     long? ProviderProcessingMilliseconds);
 

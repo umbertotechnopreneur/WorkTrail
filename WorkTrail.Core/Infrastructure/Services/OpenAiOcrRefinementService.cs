@@ -65,6 +65,8 @@ internal sealed class OpenAiOcrRefinementService : IAiOcrRefinementService
     {
         ArgumentNullException.ThrowIfNull(capture);
         ArgumentNullException.ThrowIfNull(settings);
+        // Codex describes the original images in one request; retain local OCR without a second cloud call.
+        if (settings.AiProvider == "codex-cli") return capture;
         if (!settings.OpenAiEnabled)
         {
             throw new InvalidOperationException("AI OCR refinement requires enabled AI integration.");

@@ -19,6 +19,9 @@
 
 namespace WorkTrail.Application;
 
+/// <summary>
+/// Provides archive-progress reads without blocking the serialized archive mutation that updates them.
+/// </summary>
 public sealed partial class WorkTrailApplication
 {
     /// <inheritdoc />

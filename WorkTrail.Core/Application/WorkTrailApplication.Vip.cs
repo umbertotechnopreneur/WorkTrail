@@ -21,6 +21,9 @@ using Microsoft.Extensions.Logging;
 
 namespace WorkTrail.Application;
 
+/// <summary>
+/// Handles VIP screenshot note persistence and date projections through the application boundary.
+/// </summary>
 public sealed partial class WorkTrailApplication
 {
     /// <inheritdoc />

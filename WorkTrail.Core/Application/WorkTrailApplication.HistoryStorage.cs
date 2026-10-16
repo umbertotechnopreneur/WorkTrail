@@ -4,6 +4,9 @@ using WorkTrail.Services;
 
 namespace WorkTrail.Application;
 
+/// <summary>
+/// Caches the measured size of WorkTrail-owned local history so responsive UI reads avoid repeated directory traversal.
+/// </summary>
 public sealed partial class WorkTrailApplication
 {
     private readonly object _historyStorageGate = new();
@@ -11,16 +14,24 @@ public sealed partial class WorkTrailApplication
     private string? _historyStorageScreenshotDirectory;
     private long _historyStorageBytes;
 
+    /// <summary>
+    /// Creates the standard result for an invalid history-retention date range.
+    /// </summary>
     private static OperationResult<RetentionPreview> InvalidHistoryRange() =>
         OperationResult<RetentionPreview>.Failure("retention.range.invalid", "HistoryRangeInvalid",
             new ValidationIssue("range", "invalid", "HistoryRangeInvalid"));
 
+    /// <summary>
+    /// Marks the cached history-size measurement stale after an operation changes owned storage.
+    /// </summary>
     private void InvalidateHistoryStorageMeasurement()
     {
         lock (_historyStorageGate) _historyStorageMeasuredAt = default;
     }
 
-    // Cache directory traversal so progress polling does not repeatedly scan a large history.
+    /// <summary>
+    /// Measures WorkTrail-owned database, search-index, and screenshot artifacts with a short-lived cache.
+    /// </summary>
     private long MeasureHistoryStorage(string screenshotDirectory)
     {
         lock (_historyStorageGate)

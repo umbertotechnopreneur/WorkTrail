@@ -25,6 +25,9 @@ using WorkTrail.Services;
 
 namespace WorkTrail.Hardware;
 
+/// <summary>
+/// Reads hardware telemetry through LibreHardwareMonitor while isolating per-device failures and stale readings.
+/// </summary>
 internal sealed class LibreHardwareTelemetryCollector : IDisposable
 {
     private readonly bool _advanced;
@@ -32,6 +35,9 @@ internal sealed class LibreHardwareTelemetryCollector : IDisposable
     private readonly WindowsStorageTelemetryCollector _windowsStorage = new();
     private Computer? _computer;
 
+    /// <summary>
+    /// Creates a collector and enables privileged driver access only when the caller requested and obtained it.
+    /// </summary>
     internal LibreHardwareTelemetryCollector(bool advanced)
     {
         _advanced = advanced;
@@ -39,8 +45,14 @@ internal sealed class LibreHardwareTelemetryCollector : IDisposable
         PawnIo.IsDriverAccessEnabled = advanced && DriverStatus == "active";
     }
 
+    /// <summary>
+    /// Gets the current availability state of the optional PawnIO driver.
+    /// </summary>
     internal string DriverStatus { get; }
 
+    /// <summary>
+    /// Samples eligible hardware using the requested cadence and returns explicit partial-failure information.
+    /// </summary>
     internal async Task<SystemSnapshot> SampleAsync(HardwareSamplingProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -122,17 +134,28 @@ internal sealed class LibreHardwareTelemetryCollector : IDisposable
         return snapshot;
     }
 
+    /// <summary>
+    /// Projects a hardware node and its children into snapshots while preserving the distinction between static and fresh values.
+    /// </summary>
     private void AppendDevice(IHardware hardware, List<HardwareDeviceSnapshot> devices, IReadOnlyDictionary<ISensor, long> versions, DateTimeOffset sampledAt)
     {
         var readings = new List<HardwareSensorSnapshot>();
         foreach (var sensor in hardware.Sensors)
         {
-            var staticMetadata = hardware.HardwareType == HardwareType.Battery
-                && (sensor.SensorType == SensorType.Energy && sensor.Index is 0 or 1 || sensor.SensorType == SensorType.Level && sensor.Index == 1)
-                || hardware.HardwareType == HardwareType.GpuAmd && sensor.SensorType == SensorType.SmallData && sensor.Name == "GPU Memory Total"
-                // The library assigns disk capacity only at discovery. Free/used space, activity and temperature
-                // remain poll-dependent, so failed updates cannot replay those cached measurements as fresh.
-                || hardware.HardwareType == HardwareType.Storage && sensor.SensorType == SensorType.Data && sensor.Name == "Total Space";
+            var isStaticBatteryCapacity = hardware.HardwareType == HardwareType.Battery &&
+                                          ((sensor.SensorType == SensorType.Energy && sensor.Index is 0 or 1) ||
+                                           (sensor.SensorType == SensorType.Level && sensor.Index == 1));
+            var isStaticGpuMemoryCapacity = hardware.HardwareType == HardwareType.GpuAmd &&
+                                            sensor.SensorType == SensorType.SmallData &&
+                                            sensor.Name == "GPU Memory Total";
+            // The library assigns disk capacity only at discovery. Free/used space, activity and temperature
+            // remain poll-dependent, so failed updates cannot replay those cached measurements as fresh.
+            var isStaticStorageCapacity = hardware.HardwareType == HardwareType.Storage &&
+                                          sensor.SensorType == SensorType.Data &&
+                                          sensor.Name == "Total Space";
+            var staticMetadata = isStaticBatteryCapacity ||
+                                 isStaticGpuMemoryCapacity ||
+                                 isStaticStorageCapacity;
             var raw = WorkTrailSensorAccess.ReadUpdatedValue(sensor, versions, staticMetadata);
             double? value = raw is { } number && float.IsFinite(number) ? number : null;
             if (hardware.HardwareType == HardwareType.Cpu && (!_advanced || DriverStatus != "active") && sensor.SensorType != SensorType.Load)
@@ -145,6 +168,9 @@ internal sealed class LibreHardwareTelemetryCollector : IDisposable
         foreach (var child in hardware.SubHardware) AppendDevice(child, devices, versions, sampledAt);
     }
 
+    /// <summary>
+    /// Updates a hardware node and each nested node exposed by the library.
+    /// </summary>
     private static void Update(IHardware hardware)
     {
         hardware.Update();
@@ -187,6 +213,9 @@ internal sealed class LibreHardwareTelemetryCollector : IDisposable
             && physicalAdapterIds.Contains(adapterId.ToString("D"));
     }
 
+    /// <summary>
+    /// Maps a LibreHardwareMonitor sensor type to the unit rendered in WorkTrail snapshots.
+    /// </summary>
     private static string Unit(SensorType type) => type switch
     {
         SensorType.Voltage => "V",
@@ -210,6 +239,9 @@ internal sealed class LibreHardwareTelemetryCollector : IDisposable
         _ => throw new InvalidDataException("Unsupported sensor unit.")
     };
 
+    /// <summary>
+    /// Detects the availability of the optional PawnIO driver without changing its installation or configuration.
+    /// </summary>
     private static string ReadDriverStatus(bool advanced)
     {
         if (!PawnIo.IsInstalled) return "not-installed";
@@ -230,5 +262,8 @@ internal sealed class LibreHardwareTelemetryCollector : IDisposable
         _computer?.Close();
     }
 
+    /// <summary>
+    /// Retains one device's timestamped projection and failure state until its sampling cadence is due.
+    /// </summary>
     private sealed record CachedDeviceReading(DateTimeOffset SampledAt, IReadOnlyList<HardwareDeviceSnapshot> Devices, bool HadError);
 }

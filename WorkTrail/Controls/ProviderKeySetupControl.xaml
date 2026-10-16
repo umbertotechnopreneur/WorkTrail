@@ -46,6 +46,35 @@ VBWR E -->
                                AutomationProperties.HeadingLevel="Level1" />
                     <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>
+                <Grid x:Name="AiConnectionSelector" ColumnSpacing="12" RowSpacing="8" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <RadioButton x:Name="CliConnectionChoice" AutomationProperties.AutomationId="ProviderKey.CodexCli"
+                                 GroupName="SetupAiConnection" Padding="12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                 Checked="AiConnection_Checked">
+                        <StackPanel Spacing="4">
+                            <TextBlock Tag="Options.Codex.Label" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Tag="ProviderSetup.Connection.Cli" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="ApiConnectionChoice" AutomationProperties.AutomationId="ProviderKey.OpenAiApi" Grid.Column="1"
+                                 GroupName="SetupAiConnection" Padding="12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                 Checked="AiConnection_Checked">
+                        <StackPanel Spacing="4">
+                            <TextBlock Tag="Options.OpenAi.Label" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Tag="ProviderSetup.Connection.Api" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </RadioButton>
+                </Grid>
+                <StackPanel x:Name="CodexPanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Tag="Options.Codex.Description" TextWrapping="Wrap" />
+                    <TextBlock x:Name="CodexStatusText" Style="{StaticResource BodyStrongTextBlockStyle}"
+                               TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    <HyperlinkButton AutomationProperties.AutomationId="ProviderKey.CodexGuide" Tag="Options.Codex.Guide"
+                                     Padding="0,4" Click="CodexGuide_Click" />
+                    <Button x:Name="CodexRefreshButton" AutomationProperties.AutomationId="ProviderKey.CodexRefresh" Tag="Options.Codex.Refresh"
+                            HorizontalAlignment="Left" Click="CodexRefresh_Click" />
+                </StackPanel>
                 <Grid x:Name="ColumnsGrid" ColumnSpacing="24" RowSpacing="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="EntryColumn" Width="3*" />
@@ -67,14 +96,6 @@ VBWR E -->
                         <TextBlock x:Name="ExampleText" FontFamily="Consolas" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock Tag="ProviderSetup.PasteHint" Text="Paste your complete key, not the masked example." TextWrapping="Wrap" />
                         <TextBlock x:Name="ExistingKeyText" Tag="ProviderSetup.ExistingKey" Visibility="Collapsed" TextWrapping="Wrap" />
-                        <Button AutomationProperties.AutomationId="ProviderKey.VerifyButton" x:Name="VerifyButton" Tag="ProviderSetup.Verify" Content="Test connection" Click="VerifyButton_Click"
-                                HorizontalAlignment="Left" />
-                        <ProgressRing x:Name="Progress" Width="24" Height="24" HorizontalAlignment="Left" Visibility="Collapsed" />
-                        <TextBlock x:Name="ErrorText" Visibility="Collapsed" TextWrapping="Wrap"
-                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
-                        <InfoBar x:Name="CostBar" IsOpen="True" Visibility="Collapsed" IsClosable="False" Severity="Warning" />
-                        <InfoBar x:Name="ResultBar" IsOpen="True" Visibility="Collapsed" IsClosable="False" Severity="Success"
-                                 AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                     <StackPanel x:Name="HelpPanel" Grid.Column="1" Spacing="12">
                         <TextBlock Tag="ProviderSetup.HelpTitle" Text="Need an API key?" FontSize="20" FontWeight="SemiBold"
@@ -87,6 +108,16 @@ VBWR E -->
                         <TextBlock x:Name="ActivationText" Tag="ProviderSetup.Weather.Activation" TextWrapping="Wrap" Visibility="Collapsed" />
                     </StackPanel>
                 </Grid>
+                <StackPanel Spacing="12">
+                    <Button AutomationProperties.AutomationId="ProviderKey.VerifyButton" x:Name="VerifyButton" Tag="ProviderSetup.Verify" Content="Test connection" Click="VerifyButton_Click"
+                            HorizontalAlignment="Left" />
+                    <ProgressRing x:Name="Progress" Width="24" Height="24" HorizontalAlignment="Left" Visibility="Collapsed" />
+                    <TextBlock x:Name="ErrorText" Visibility="Collapsed" TextWrapping="Wrap"
+                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
+                    <InfoBar x:Name="CostBar" IsOpen="True" Visibility="Collapsed" IsClosable="False" Severity="Warning" />
+                    <InfoBar x:Name="ResultBar" IsOpen="True" Visibility="Collapsed" IsClosable="False" Severity="Success"
+                             AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
                 <HyperlinkButton AutomationProperties.AutomationId="ProviderKey.PricingButton" x:Name="PricingButton" Tag="ProviderSetup.Pricing" Content="View provider prices and limits"
                                  Padding="0,0" Click="PricingButton_Click" />
                 <TextBlock x:Name="PrivacyText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

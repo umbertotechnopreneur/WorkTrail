@@ -58,7 +58,6 @@ internal sealed class WindowPlacementService : IDisposable
     private bool _subclassInstalled;
     private bool _disposed;
     private SizeInt32 _minimumPhysicalSize = new(1, 1);
-    private double _rasterizationScale = 1d;
     private double _appliedDisplayScale;
     private XamlRoot? _xamlRoot;
     private bool _dpiRefreshQueued;
@@ -115,7 +114,6 @@ internal sealed class WindowPlacementService : IDisposable
         _subclassProc = WindowSubclassProc;
         _subclassId = (nuint)Interlocked.Increment(ref s_nextSubclassId);
         _appliedDisplayScale = WindowInteropService.GetRasterizationScale(_windowHandle);
-        _rasterizationScale = _appliedDisplayScale;
         InstallMinimumSizeSubclass();
         _root.Loaded += Root_Loaded;
         _window.Closed += Window_Closed;
@@ -528,14 +526,14 @@ internal sealed class WindowPlacementService : IDisposable
         CenterInWorkArea(area);
     }
 
-    /// <summary>Retains saved dialog size and centers each opening on its owner within the owner's work area.</summary>
+    /// <summary>Restores saved placement, centering over the owner only when no placement exists.</summary>
     // root supplies the dialog's current layout scale.
     // cancellationToken cancels restoration before owner-relative placement.
     // Throws InvalidOperationException when the owner window is unavailable.
     internal async Task RestoreAndCenterOnOwnerAsync(FrameworkElement root, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(root);
-        await RestoreAsync(root, cancellationToken);
+        if (await RestoreAsync(root, cancellationToken)) return;
         if (_disposed || _closeSaveStarted || s_preservingWorkspace) return;
 
         var owner = AppWindow.GetFromWindowId(_displayAnchorId)
@@ -738,7 +736,8 @@ internal sealed class WindowPlacementService : IDisposable
             return;
         }
 
-        var margin = (int)Math.Ceiling(_logicalScreenMargin * scale);
+        // User-selected edge positions are valid. Opening margins must not displace a restored window.
+        const int margin = 0;
         var availableWidth = Math.Max(1, area.Width - (margin * 2));
         var availableHeight = Math.Max(1, area.Height - (margin * 2));
         var minimumSize = UpdateMinimumSize(scale, area);
@@ -798,8 +797,8 @@ internal sealed class WindowPlacementService : IDisposable
     private double ResolveScale(FrameworkElement root)
     {
         AttachXamlRoot();
-        var scale = Math.Max(0.1d, root.XamlRoot?.RasterizationScale ?? _rasterizationScale);
-        _rasterizationScale = scale;
+        // Physical bounds must use HWND DPI while XAML catches up after a monitor restore.
+        var scale = WindowInteropService.GetRasterizationScale(_windowHandle);
         return scale;
     }
 

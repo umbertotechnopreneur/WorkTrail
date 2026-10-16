@@ -59,9 +59,9 @@ public sealed partial class RetentionOperationsControl : UserControl
         UiLocalization.Apply(this, _strings);
         CaptureStorageExpander.Header = _strings.Translate("History.CaptureSettings");
         RetentionMonthsBox.Header = _strings.Translate("Operations.Retention.PolicyMonths");
-        StorageWarningBox.Header = _strings.Translate("History.WarningThreshold");
-        DeleteFromPicker.Header = _strings.Translate("History.From");
-        DeleteToPicker.Header = _strings.Translate("History.To");
+        StorageWarningLabel.Text = _strings.Translate("History.WarningThreshold");
+        DeleteFromLabel.Text = _strings.Translate("History.From");
+        DeleteToLabel.Text = _strings.Translate("History.To");
         DeleteFromPicker.PlaceholderText = DeleteToPicker.PlaceholderText = _strings.Translate("History.SelectDate");
         CaptureSettingsExpander.Header = _strings.Translate("Options.Section.Snapshots");
         OcrSettingsExpander.Header = _strings.Translate("Options.Ocr.Section");

@@ -25,7 +25,7 @@ using WorkTrail.Services;
 
 namespace WorkTrail.Controls;
 
-/// <summary>Collects a provider credential and renders verification results from the shared application facade.</summary>
+/// <summary>Collects an API credential or CLI connection and renders verification through the application facade.</summary>
 public sealed partial class ProviderKeySetupControl : UserControl
 {
     private readonly CancellationTokenSource _lifetime = new();
@@ -50,7 +50,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
         SetBusy(true);
         Loaded += (_, _) =>
         {
-            if (!_busy && !_closed) KeyBox.Focus(FocusState.Programmatic);
+            if (!_busy && !_closed) FocusConnection();
         };
         Unloaded += (_, _) =>
         {
@@ -94,33 +94,16 @@ public sealed partial class ProviderKeySetupControl : UserControl
 
                 _settings = settings.Value;
                 _provider = _settings.AiProvider.ToLowerInvariant();
-                if (_provider != "openai")
+                if (_provider is not ("openai" or "codex-cli"))
                 {
                     _settings = null;
                     ShowFailure("ProviderSetup.Error.Configuration");
                     return;
                 }
 
-                var status = await application.GetAiStatusAsync(_token);
-                if (_closed || _token.IsCancellationRequested) return;
-                _canTestExisting = status.Succeeded && status.Value?.CanEnable == true;
-                ExistingKeyText.Visibility = _canTestExisting ? Visibility.Visible : Visibility.Collapsed;
-                var existingKey = await application.GetAiKeyAsync(_token);
-                if (_closed || _token.IsCancellationRequested) return;
-                if (!existingKey.Succeeded)
-                {
-                    ShowFailure("ProviderSetup.Error.Unavailable");
-                    return;
-                }
-                if (!string.IsNullOrEmpty(existingKey.Value))
-                {
-                    KeyBox.Password = existingKey.Value;
-                    _existingKeyUnchanged = true;
-                    ExistingKeyText.Visibility = Visibility.Visible;
-                }
+                ApplyCopy();
+                await LoadAiPrerequisitesAsync();
             }
-
-            if (!_closed) ApplyCopy();
         }
         catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
         catch (Exception) { if (!_closed) ShowFailure("ProviderSetup.Error.Unavailable"); }
@@ -129,26 +112,33 @@ public sealed partial class ProviderKeySetupControl : UserControl
             if (!_closed)
             {
                 SetBusy(false);
-                KeyBox.Focus(FocusState.Programmatic);
+                FocusConnection();
             }
         }
     }
 
     private void ApplyCopy()
     {
-        var name = _provider switch { "openweather" => "OpenWeather", "openrouter" => "OpenRouter", "anthropic" => "Anthropic", _ => "OpenAI" };
-        HeadingText.Text = string.Format(_strings.Culture, T("ProviderSetup.Heading"), name);
+        var name = _weather ? "OpenWeather" : "OpenAI";
+        var usesCli = !_weather && _provider == "codex-cli";
+        HeadingText.Text = string.Format(_strings.Culture, T("ProviderSetup.Heading"), _weather ? name : T("Options.AiProvider.Header"));
         DescriptionText.Text = _weather
             ? T("ProviderSetup.Weather.Description")
-            : $"{T("ProviderSetup.Ai.Description")} {T("ProviderSetup.FutureSupport")}";
+            : T("ProviderSetup.Connection.Choose");
+        AiConnectionSelector.Visibility = _weather ? Visibility.Collapsed : Visibility.Visible;
+        AutomationProperties.SetName(CliConnectionChoice, T("Options.Codex.Label"));
+        AutomationProperties.SetName(ApiConnectionChoice, T("Options.OpenAi.Label"));
+        CliConnectionChoice.IsChecked = usesCli;
+        ApiConnectionChoice.IsChecked = !usesCli;
+        ColumnsGrid.Visibility = usesCli ? Visibility.Collapsed : Visibility.Visible;
+        CodexPanel.Visibility = usesCli ? Visibility.Visible : Visibility.Collapsed;
+        PricingButton.Visibility = usesCli ? Visibility.Collapsed : Visibility.Visible;
         ExplanationText.Text = string.Format(_strings.Culture, T("ProviderSetup.Explanation"), name);
         KeyBox.Header = string.Format(_strings.Culture, T("ProviderSetup.KeyLabel"), name);
         AutomationProperties.SetName(KeyBox, KeyBox.Header.ToString());
         ExampleText.Text = string.Format(_strings.Culture, T("ProviderSetup.Example"), _provider switch
         {
             "openweather" => "a1b2********************9e8f",
-            "openrouter" => "sk-or-v1-ab12************xy89",
-            "anthropic" => "sk-ant-ab12************xy89",
             _ => "sk-proj-ab12************xy89"
         });
         InstructionsText.Text = T(_weather ? "ProviderSetup.Weather.Instructions" : "ProviderSetup.Ai.Instructions");
@@ -192,7 +182,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
                     _ => result.MessageKey
                 };
             }
-            else if (_canTestExisting && (_existingKeyUnchanged || secret.Length == 0))
+            else if (_provider == "codex-cli" || (_canTestExisting && (_existingKeyUnchanged || secret.Length == 0)))
             {
                 var result = await _application.TestAiConnectionAsync(_token);
                 succeeded = result.Succeeded;
@@ -216,7 +206,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
             }
             if (succeeded)
             {
-                ResultBar.Message = T("ProviderSetup.Success");
+                ResultBar.Message = T(_weather || _provider != "codex-cli" ? "ProviderSetup.Success" : "AiConnectionTestSucceeded");
                 ResultBar.Visibility = Visibility.Visible;
             }
             else
@@ -224,7 +214,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
                 ErrorText.Text = T(message) + " " + T(_weather ? "ProviderSetup.Retry" : "ProviderSetup.Ai.Retry");
                 ErrorText.Visibility = Visibility.Visible;
             }
-            CostBar.Visibility = succeeded ? Visibility.Visible : Visibility.Collapsed;
+            CostBar.Visibility = succeeded && _provider != "codex-cli" ? Visibility.Visible : Visibility.Collapsed;
         }
         catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
         catch (Exception) { if (!_closed) ShowFailure("ProviderSetup.Error.Unavailable"); }
@@ -270,6 +260,8 @@ public sealed partial class ProviderKeySetupControl : UserControl
     private void SetBusy(bool busy)
     {
         _busy = busy;
+        CliConnectionChoice.IsEnabled = ApiConnectionChoice.IsEnabled = !busy && _settings is not null;
+        CodexRefreshButton.IsEnabled = !busy;
         KeyBox.IsEnabled = !busy;
         ShowKeyButton.IsEnabled = !busy;
         PasteKeyButton.IsEnabled = !busy;
@@ -282,7 +274,7 @@ public sealed partial class ProviderKeySetupControl : UserControl
     private void UpdateActionState()
     {
         VerifyButton.IsEnabled = !_busy && (_weather || _settings is not null) &&
-            (KeyBox.Password.Length > 0 || _canTestExisting);
+            (_provider == "codex-cli" || KeyBox.Password.Length > 0 || _canTestExisting);
         ContinueButton.IsEnabled = !_busy && _verified;
     }
 
@@ -310,6 +302,100 @@ public sealed partial class ProviderKeySetupControl : UserControl
     private async void GuideButton_Click(object sender, RoutedEventArgs e) => await OpenLinkAsync("guide");
     private async void PricingButton_Click(object sender, RoutedEventArgs e) => await OpenLinkAsync("pricing");
 
+    private async void AiConnection_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_busy || _closed || _settings is null) return;
+        var provider = ReferenceEquals(sender, CliConnectionChoice) ? "codex-cli" : "openai";
+        if (provider == _provider) return;
+        SetBusy(true);
+        _verified = false;
+        KeyBox.Password = string.Empty;
+        ShowKeyButton.IsChecked = false;
+        KeyBox.PasswordRevealMode = PasswordRevealMode.Hidden;
+        try
+        {
+            var result = await _application.PatchSettingsAsync(new SettingsPatch(
+                new Dictionary<string, string?> { ["ai.provider"] = provider }), _token);
+            if (_closed || _token.IsCancellationRequested) return;
+            if (!result.Succeeded || result.Value is null)
+            {
+                ApplyCopy();
+                ShowFailure(result.MessageKey);
+                return;
+            }
+            _settings = result.Value;
+            _provider = result.Value.AiProvider;
+            ApplyCopy();
+            await LoadAiPrerequisitesAsync();
+        }
+        catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
+        catch (Exception) { if (!_closed) ShowFailure("ProviderSetup.Error.Unavailable"); }
+        finally
+        {
+            if (!_closed) SetBusy(false);
+        }
+    }
+
+    private async Task LoadAiPrerequisitesAsync()
+    {
+        _canTestExisting = false;
+        _existingKeyUnchanged = false;
+        ExistingKeyText.Visibility = Visibility.Collapsed;
+        var status = await _application.GetAiStatusAsync(_token);
+        if (_closed || _token.IsCancellationRequested) return;
+        if (!status.Succeeded || status.Value is null)
+        {
+            CodexStatusText.Text = T("Options.Codex.Unavailable");
+            ShowFailure(status.MessageKey);
+            return;
+        }
+        CodexStatusText.Text = T(status.Value.CodexCliInstalled ? "Options.Codex.Installed" : "Options.Codex.Missing");
+        if (_provider == "codex-cli") return;
+        _canTestExisting = status.Value.CanEnable;
+        var existingKey = await _application.GetAiKeyAsync(_token);
+        if (_closed || _token.IsCancellationRequested) return;
+        if (!existingKey.Succeeded)
+        {
+            ShowFailure(existingKey.MessageKey);
+            return;
+        }
+        if (!string.IsNullOrEmpty(existingKey.Value))
+        {
+            KeyBox.Password = existingKey.Value;
+            _existingKeyUnchanged = true;
+            ExistingKeyText.Visibility = Visibility.Visible;
+        }
+    }
+
+    private async void CodexRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy || _closed) return;
+        SetBusy(true);
+        _verified = false;
+        ResultBar.Visibility = Visibility.Collapsed;
+        try { await LoadAiPrerequisitesAsync(); }
+        catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
+        catch (Exception) { if (!_closed) ShowFailure("ProviderSetup.Error.Unavailable"); }
+        finally { if (!_closed) SetBusy(false); }
+    }
+
+    private async void CodexGuide_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var result = await _application.OpenProductLinkAsync("codex-guide", _token);
+            if (!result.Succeeded && !_closed) ShowLinkFailure();
+        }
+        catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
+        catch (Exception) { if (!_closed) ShowLinkFailure(); }
+    }
+
+    private void FocusConnection()
+    {
+        if (_provider == "codex-cli") CliConnectionChoice.Focus(FocusState.Programmatic);
+        else KeyBox.Focus(FocusState.Programmatic);
+    }
+
     private async Task OpenLinkAsync(string suffix)
     {
         try
@@ -336,11 +422,14 @@ public sealed partial class ProviderKeySetupControl : UserControl
 
     private void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (HelpPanel is null) return;
+        if (HelpPanel is null || AiConnectionSelector is null || ApiConnectionChoice is null) return;
         var narrow = e.NewSize.Width < 760;
         Grid.SetColumn(HelpPanel, narrow ? 0 : 1);
         Grid.SetRow(HelpPanel, narrow ? 1 : 0);
         HelpColumn.Width = narrow ? new GridLength(0) : new GridLength(2, GridUnitType.Star);
+        Grid.SetColumn(ApiConnectionChoice, narrow ? 0 : 1);
+        Grid.SetRow(ApiConnectionChoice, narrow ? 1 : 0);
+        AiConnectionSelector.ColumnDefinitions[1].Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
     }
 
     private string T(string key) => _strings.Translate(key);

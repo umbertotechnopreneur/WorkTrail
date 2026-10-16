@@ -105,6 +105,9 @@ internal sealed class RegistryStartupRegistrationBackend : IStartupRegistrationB
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
     }
 
+    /// <summary>
+    /// Sets the requested startup state through the active startup mechanism.
+    /// </summary>
     public Task<bool> SetEnabledAsync(bool enabled, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -124,6 +127,9 @@ internal sealed class RegistryStartupRegistrationBackend : IStartupRegistrationB
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// Returns whether the active startup mechanism is currently enabled.
+    /// </summary>
     public Task<bool> IsEnabledAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -164,6 +170,9 @@ internal sealed class PackagedStartupRegistrationBackend : IStartupRegistrationB
     internal PackagedStartupRegistrationBackend(IPackagedStartupTaskStore startupTaskStore) =>
         _startupTaskStore = startupTaskStore ?? throw new ArgumentNullException(nameof(startupTaskStore));
 
+    /// <summary>
+    /// Sets packaged startup state through Windows app-startup APIs.
+    /// </summary>
     public async Task<bool> SetEnabledAsync(bool enabled, CancellationToken cancellationToken)
     {
         var current = await _startupTaskStore.GetStateAsync(cancellationToken).ConfigureAwait(false);
@@ -192,6 +201,9 @@ internal sealed class PackagedStartupRegistrationBackend : IStartupRegistrationB
         return !IsEnabled(disabled);
     }
 
+    /// <summary>
+    /// Returns whether Windows currently permits the packaged startup task.
+    /// </summary>
     public async Task<bool> IsEnabledAsync(CancellationToken cancellationToken) =>
         IsEnabled(await _startupTaskStore.GetStateAsync(cancellationToken).ConfigureAwait(false));
 
@@ -213,12 +225,18 @@ internal sealed class WindowsPackagedStartupTaskStore : IPackagedStartupTaskStor
         _taskId = taskId;
     }
 
+    /// <summary>
+    /// Retrieves the packaged startup task state from Windows.
+    /// </summary>
     public async Task<PackagedStartupTaskState> GetStateAsync(CancellationToken cancellationToken)
     {
         var task = await GetTaskAsync(cancellationToken).ConfigureAwait(false);
         return Map(task.State);
     }
 
+    /// <summary>
+    /// Requests that Windows enable the packaged startup task.
+    /// </summary>
     public async Task<PackagedStartupTaskState> RequestEnableAsync(CancellationToken cancellationToken)
     {
         var task = await GetTaskAsync(cancellationToken).ConfigureAwait(false);
@@ -226,6 +244,9 @@ internal sealed class WindowsPackagedStartupTaskStore : IPackagedStartupTaskStor
         return Map(state);
     }
 
+    /// <summary>
+    /// Requests that Windows disable the packaged startup task.
+    /// </summary>
     public async Task<PackagedStartupTaskState> DisableAsync(CancellationToken cancellationToken)
     {
         var task = await GetTaskAsync(cancellationToken).ConfigureAwait(false);
@@ -312,12 +333,18 @@ internal sealed class CurrentUserRunStartupRegistrationStore : IStartupRegistrat
     private const string RunKeyName = "WorkTrail";
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
+    /// <summary>
+    /// Reads the current startup command line from the legacy registry location.
+    /// </summary>
     public string? Read()
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
         return key?.GetValue(RunKeyName) as string;
     }
 
+    /// <summary>
+    /// Writes the startup command line to the legacy registry location.
+    /// </summary>
     public void Write(string commandLine)
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath)
@@ -325,6 +352,9 @@ internal sealed class CurrentUserRunStartupRegistrationStore : IStartupRegistrat
         key.SetValue(RunKeyName, commandLine, RegistryValueKind.String);
     }
 
+    /// <summary>
+    /// Removes the legacy startup command line from the registry.
+    /// </summary>
     public void Delete()
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath)

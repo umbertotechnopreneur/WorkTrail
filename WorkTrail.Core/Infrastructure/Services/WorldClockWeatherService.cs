@@ -192,6 +192,9 @@ internal sealed class WorldClockWeatherCache : IDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes retained observations and their expiration timers.
+    /// </summary>
     public void Dispose()
     {
         lock (_lifecycleGate)
@@ -594,6 +597,9 @@ internal sealed class WorldClockWeatherService : IDisposable
 
     private readonly record struct WeatherFetchKey(string CityId, long ConfigurationGeneration);
 
+    /// <summary>
+    /// Cancels in-flight weather requests and releases the owned weather cache.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)

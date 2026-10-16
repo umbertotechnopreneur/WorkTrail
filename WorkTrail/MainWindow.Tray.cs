@@ -22,6 +22,9 @@ using WorkTrail.Services;
 
 namespace WorkTrail;
 
+/// <summary>
+/// Handles main-window commands that originate from the native tray-menu callback.
+/// </summary>
 public sealed partial class MainWindow
 {
     private bool _notificationsEnabled = true;
@@ -46,14 +49,18 @@ public sealed partial class MainWindow
         _workspaceUiReady && !_dashboardSurfaceClosed && !_trayCommandInProgress
             && !_manualScreenshotCaptureInProgress && TakeScreenshotButton.IsEnabled);
 
-    // command identifies the action selected after the native popup has returned.
+    /// <summary>
+    /// Queues a native tray-menu command onto the UI dispatcher after the Win32 callback returns.
+    /// </summary>
     private void TrayIcon_CommandRequested(TrayIconMenuCommand command)
     {
         // Never open WinUI windows or await runtime work inside the Win32 subclass callback.
         _ = DispatcherQueue.TryEnqueue(async () => await HandleTrayCommandAsync(command));
     }
 
-    // command identifies the existing action selected in the tray context menu.
+    /// <summary>
+    /// Executes an existing tray-menu action through the UI and application boundaries.
+    /// </summary>
     private async Task HandleTrayCommandAsync(TrayIconMenuCommand command)
     {
         if (!_workspaceUiReady || _dashboardSurfaceClosed || _trayCommandInProgress) return;

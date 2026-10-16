@@ -24,6 +24,9 @@ using Windows.Storage.Pickers;
 
 namespace WorkTrail;
 
+/// <summary>
+/// Coordinates the report-export window's timesheet batch controls while delegating all work to the application boundary.
+/// </summary>
 internal sealed partial class ReportExportWindow
 {
     private TimesheetBatchView? _timesheetView;
@@ -31,6 +34,9 @@ internal sealed partial class ReportExportWindow
     private bool _refreshingTimesheet;
     private DispatcherTimer? _timesheetTimer;
 
+    /// <summary>
+    /// Shows the populated or empty timesheet state for the currently selected tab.
+    /// </summary>
     private void UpdateTimesheetPanels()
     {
         if (TimesheetEmptyInfo is null) return;
@@ -41,6 +47,9 @@ internal sealed partial class ReportExportWindow
         TimesheetEmptyInfo.Visibility = timesheet && _timesheetView is not null && !hasJobs ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>
+    /// Clears the selected job after an option change without triggering a new application request.
+    /// </summary>
     private void ResetTimesheetSelection()
     {
         if (_applyingTimesheet || _timesheetView is null) return;
@@ -53,11 +62,14 @@ internal sealed partial class ReportExportWindow
         TimesheetStatus.Text = T("Timesheet.NewJob");
     }
 
-    // sender and args indicate changed report choices, invalidating selection of a previous result.
+    /// <summary>
+    /// Clears the previous job selection when report options change.
+    /// </summary>
     private void TimesheetOptionsChanged(object sender, RoutedEventArgs args) => ResetTimesheetSelection();
 
-    // sender is the explicit day/week choice.
-    // args identifies the selection change; a week has no morning/afternoon split.
+    /// <summary>
+    /// Updates merge availability and clears the previous job selection when the grouping changes.
+    /// </summary>
     private void TimesheetGrouping_SelectionChanged(object sender, SelectionChangedEventArgs args)
     {
         if (TimesheetMergeCheck is null) return;
@@ -65,9 +77,9 @@ internal sealed partial class ReportExportWindow
         ResetTimesheetSelection();
     }
 
-    // sender identifies the explicit limited-preview command.
-    // args describes the click that acknowledges the limit, generates the workbook and opens it.
-    // Cancellation exceptions flow to RunAsync so the shared cancellation status remains consistent.
+    /// <summary>
+    /// Generates and opens a limited local preview through the application boundary.
+    /// </summary>
     private async void ExcelPreview_Click(object sender, RoutedEventArgs args) => await RunAsync(async token =>
     {
         try
@@ -109,8 +121,9 @@ internal sealed partial class ReportExportWindow
         }
     });
 
-    // messageKey identifies the localized reason why preview generation or opening failed.
-    // Dialog exceptions fall back to the standard inline export failure status.
+    /// <summary>
+    /// Displays a localized preview failure and falls back to the inline export status if the dialog fails.
+    /// </summary>
     private async Task ShowPreviewFailureAsync(string messageKey)
     {
         try
@@ -124,8 +137,9 @@ internal sealed partial class ReportExportWindow
         }
     }
 
-    // sender identifies the grouping help link.
-    // args describes the local explanation request; it never opens a website.
+    /// <summary>
+    /// Displays the local explanation of timesheet grouping choices.
+    /// </summary>
     private async void GroupingInfo_Click(object sender, RoutedEventArgs args)
     {
         try
@@ -136,15 +150,38 @@ internal sealed partial class ReportExportWindow
         catch (Exception) { ShowStatus("Export.Failed", InfoBarSeverity.Error); }
     }
 
-    private TimesheetOptions CollectTimesheetOptions() => new(
-        new(CollectOptions() with { Format = ReportExportFormat.Excel },
-            IncludeDescriptionExcerpt: false, IncludeCompleteDescription: TimesheetDescriptions.IsChecked == true,
-            IncludeOcr: TimesheetOcr.IsChecked == true, IncludeWindowTitles: TimesheetTitles.IsChecked == true),
-        TimesheetGroupingCombo.SelectedIndex == 1 || TimesheetMergeCheck.IsChecked == true, TimesheetConsultant.Text.Trim(), TimesheetClient.Text.Trim(),
-        TimesheetBillingCheck.IsChecked == true ? (decimal)TimesheetRate.Value : null,
-        TimesheetCurrency.Text.Trim().ToUpperInvariant(), TimesheetMonthsCheck.IsChecked == true,
-        TimesheetGroupingCombo.SelectedIndex == 1 ? TimesheetGrouping.Week : TimesheetGrouping.Day);
+    /// <summary>
+    /// Collects the current UI values into a timesheet request without performing export or network work.
+    /// </summary>
+    private TimesheetOptions CollectTimesheetOptions()
+    {
+        var reportOptions = CollectOptions() with { Format = ReportExportFormat.Excel };
+        var isWeeklyGrouping = TimesheetGroupingCombo.SelectedIndex == 1;
+        var mergeMorningAndAfternoon = isWeeklyGrouping || TimesheetMergeCheck.IsChecked == true;
+        var consultant = TimesheetConsultant.Text.Trim();
+        var client = TimesheetClient.Text.Trim();
+        var currency = TimesheetCurrency.Text.Trim().ToUpperInvariant();
+        var grouping = isWeeklyGrouping ? TimesheetGrouping.Week : TimesheetGrouping.Day;
 
+        return new(
+            new(
+                reportOptions,
+                IncludeDescriptionExcerpt: false,
+                IncludeCompleteDescription: TimesheetDescriptions.IsChecked == true,
+                IncludeOcr: TimesheetOcr.IsChecked == true,
+                IncludeWindowTitles: TimesheetTitles.IsChecked == true),
+            mergeMorningAndAfternoon,
+            consultant,
+            client,
+            TimesheetBillingCheck.IsChecked == true ? (decimal)TimesheetRate.Value : null,
+            currency,
+            TimesheetMonthsCheck.IsChecked == true,
+            grouping);
+    }
+
+    /// <summary>
+    /// Loads the current timesheet jobs and starts the UI-only refresh timer.
+    /// </summary>
     private async Task LoadTimesheetJobsAsync()
     {
         var result = await _application.ManageTimesheetBatchAsync(new(TimesheetBatchAction.List), _lifetime.Token);
@@ -157,8 +194,9 @@ internal sealed partial class ReportExportWindow
         _timesheetTimer.Start();
     }
 
-    // sender is the periodic UI timer; the runtime independently retrieves cloud results.
-    // args describes the tick, which must not disable controls or disturb a newer selection.
+    /// <summary>
+    /// Refreshes the selected job on the periodic UI timer without overriding newer user interaction.
+    /// </summary>
     private async void TimesheetTimer_Tick(object? sender, object args)
     {
         var previous = _timesheetView;
@@ -186,7 +224,9 @@ internal sealed partial class ReportExportWindow
         finally { _refreshingTimesheet = false; }
     }
 
-    // command contains user choices; the facade owns persistence, credentials and networking.
+    /// <summary>
+    /// Sends a timesheet command to the application boundary and renders its bounded result.
+    /// </summary>
     private async Task RunTimesheetAsync(TimesheetBatchCommand command) => await RunAsync(async token =>
     {
         var result = await _application.ManageTimesheetBatchAsync(command, token);
@@ -204,7 +244,9 @@ internal sealed partial class ReportExportWindow
         else ShowStatus(result.MessageKey, InfoBarSeverity.Error);
     });
 
-    // view contains only bounded UI rows and job metadata; the complete data stays in Core.
+    /// <summary>
+    /// Renders the bounded timesheet job view returned by the application boundary.
+    /// </summary>
     private void RenderTimesheet(TimesheetBatchView view)
     {
         _timesheetView = view;
@@ -229,37 +271,49 @@ internal sealed partial class ReportExportWindow
                 + (current.ResultsSaved && current.CleanupPending ? "\n" + T("Timesheet.CleanupPending") : "");
     }
 
-    // sender and args identify the explicit paid batch submission.
+    /// <summary>
+    /// Starts the explicitly requested paid timesheet batch.
+    /// </summary>
     private async void TimesheetStart_Click(object sender, RoutedEventArgs args) =>
         await RunTimesheetOptionsAsync(TimesheetBatchAction.Start);
 
-    // action selects the explicit submission; invalid numeric input is reported instead of escaping async void.
+    /// <summary>
+    /// Submits the selected batch action and converts UI input failures to visible status.
+    /// </summary>
     private async Task RunTimesheetOptionsAsync(TimesheetBatchAction action)
     {
         try { await RunTimesheetAsync(new(action, CollectTimesheetOptions())); }
         catch (Exception) { ShowStatus("Export.Failed", InfoBarSeverity.Error); }
     }
 
-    // sender and args identify an explicit status refresh, including recovery after a lost create response.
+    /// <summary>
+    /// Refreshes the selected job or the current jobs page after an explicit user request.
+    /// </summary>
     private async void TimesheetRefresh_Click(object sender, RoutedEventArgs args) =>
         await RunTimesheetAsync(new(_timesheetView?.Selected is not null ? TimesheetBatchAction.Refresh : TimesheetBatchAction.List,
             JobId: _timesheetView?.Selected?.Id, Page: _timesheetView?.Page ?? 0));
 
-    // sender and args identify explicit cloud cancellation; closing the window does not use this action.
+    /// <summary>
+    /// Requests cancellation only for the currently selected durable batch job.
+    /// </summary>
     private async void TimesheetCancel_Click(object sender, RoutedEventArgs args)
     {
         if (_timesheetView?.Selected is { } selected)
             await RunTimesheetAsync(new(TimesheetBatchAction.Cancel, JobId: selected.Id, Page: _timesheetView!.Page));
     }
 
-    // sender and args identify the selected durable job; changing jobs does not generate summaries.
+    /// <summary>
+    /// Loads the explicitly selected persisted job without generating a new timesheet.
+    /// </summary>
     private async void TimesheetJobs_SelectionChanged(object sender, SelectionChangedEventArgs args)
     {
         if (_applyingTimesheet || _busy || _timesheetView is null || TimesheetJobs.SelectedIndex < 0) return;
         await RunTimesheetAsync(new(TimesheetBatchAction.List, JobId: _timesheetView.Jobs[TimesheetJobs.SelectedIndex].Id, Page: _timesheetView.Page));
     }
 
-    // sender and args identify the explicit destination picker for the saved result snapshot.
+    /// <summary>
+    /// Lets the user choose a destination and exports the selected saved result snapshot.
+    /// </summary>
     private async void TimesheetExport_Click(object sender, RoutedEventArgs args) => await RunAsync(async token =>
     {
         if (_timesheetView?.Selected is not { } selected) return;
@@ -283,14 +337,18 @@ internal sealed partial class ReportExportWindow
         else if (result.MessageKey == "Premium.Required") await ShowUpgradeAsync();
         else ShowStatus(result.MessageKey, InfoBarSeverity.Error);
     });
-    // sender and args identify an explicit archive-page change; no cloud request is submitted.
+    /// <summary>
+    /// Loads the preceding bounded page of saved timesheet jobs.
+    /// </summary>
     private async void TimesheetPrevious_Click(object sender, RoutedEventArgs args)
     {
         if (_timesheetView is { HasPreviousPage: true } view)
             await RunTimesheetAsync(new(TimesheetBatchAction.List, Page: view.Page - 1));
     }
 
-    // sender and args identify the next bounded page of saved jobs.
+    /// <summary>
+    /// Loads the next bounded page of saved timesheet jobs.
+    /// </summary>
     private async void TimesheetNext_Click(object sender, RoutedEventArgs args)
     {
         if (_timesheetView is { HasNextPage: true } view)

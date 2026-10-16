@@ -21,6 +21,9 @@ using System.Collections.Immutable;
 
 namespace WorkTrail.Search.Internal;
 
+/// <summary>
+/// Describes how one <see cref="SearchDocument"/> value is stored and indexed.
+/// </summary>
 internal sealed record SearchTextField(
     string Name,
     string StoredName,
@@ -28,6 +31,9 @@ internal sealed record SearchTextField(
     float Boost,
     Func<SearchDocument, string?> ReadValue);
 
+/// <summary>
+/// Defines the stable Lucene field names and projections used by the local-search index.
+/// </summary>
 internal static class SearchFields
 {
     internal const string IdKey = "_id_key";
@@ -68,10 +74,19 @@ internal static class SearchFields
         new("ai_description", "ai_description", null, 1.6f, document => document.AiDescription),
     ];
 
+    /// <summary>
+    /// Returns the generic analyzed field name for a logical document field.
+    /// </summary>
     internal static string GenericText(string name) => $"{name}_text";
 
+    /// <summary>
+    /// Returns the language-specific analyzed field name for a logical document field.
+    /// </summary>
     internal static string LanguageText(string name, string language) => $"{name}_text_{language}";
 
+    /// <summary>
+    /// Serializes ordered raw attributes into text that can be analyzed as one field.
+    /// </summary>
     private static string? FlattenAttributes(SearchDocument document)
     {
         if (document.AttributesRaw.Count == 0)
@@ -87,6 +102,9 @@ internal static class SearchFields
                 .Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
+    /// <summary>
+    /// Serializes non-empty span labels into text that can be analyzed as one field.
+    /// </summary>
     private static string? FlattenSpanLabels(SearchDocument document)
     {
         return document.SpanLabels.IsDefaultOrEmpty

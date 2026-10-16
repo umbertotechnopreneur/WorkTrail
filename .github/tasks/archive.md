@@ -2,6 +2,25 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-16
+
+### AI connection paths and display-aware window restore
+
+- End the owner-revoked feature freeze. Limit active AI choices to OpenAI API and
+  Codex CLI, with CLI/API radio buttons, installation detection and setup links.
+- Retain environment-only API-key storage. Route Codex image descriptions through
+  noninteractive, ephemeral execution using ChatGPT login, bounded output, timeout,
+  cancellation and categorized failures; never fall back to the API transport.
+- Keep shared capture/privacy/retention behavior. Skip the separate cloud OCR
+  refinement in CLI mode and do not represent subscription usage as an API price.
+- Persist window DPI, monitor interface identity and work-area-relative position.
+  Rebase saved geometry when display DPI/layout changes, use the primary display
+  when the saved monitor is absent, and avoid recentering already-restored dialogs.
+- Add the same CLI/API choice to guided setup and compact the history storage and
+  date-range rows. Keep API-key editing separate from the keyless CLI connection.
+- C# whitespace verification and 1,032 Core, 390 Presentation and 162 CLI tests
+  passed. Native guided-setup, provider and multi-monitor validation remain pending.
+
 ## 2026-10-15
 
 ### Inline history retention and date-range cleanup

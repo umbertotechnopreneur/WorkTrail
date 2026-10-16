@@ -309,14 +309,15 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
             var profile = AiAnalysisProfileCatalog.Resolve(settings.AiOutputDetail);
             var attemptToken = CorrelationToken(attemptId);
             var captureToken = CorrelationToken(captureResult.CaptureId);
-            var endpointHost = AiProviderTelemetry.EndpointHost(settings.AiEndpoint);
+            var endpointHost = decoder.Provider == "codex-cli" ? "chatgpt.com" : AiProviderTelemetry.EndpointHost(settings.AiEndpoint);
+            var requestedModel = decoder.Provider == "codex-cli" ? "codex-default" : settings.Model;
             _logger.LogInformation(
                 "AI analysis attempt started. Attempt={Attempt} Correlation={Correlation} Origin={Origin} Provider={Provider} Model={Model} EndpointHost={EndpointHost} ImageCount={ImageCount}",
                 attemptToken,
                 captureToken,
                 origin,
                 decoder.Provider,
-                settings.Model,
+                requestedModel,
                 endpointHost,
                 captureResult.AnalysisScreenshotPaths.Count);
             // Submit the caller-owned analysis paths; live and historical callers have different retention behavior.
@@ -341,7 +342,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     captureToken,
                     origin,
                     decoder.Provider,
-                    settings.Model,
+                    requestedModel,
                     endpointHost,
                     "cancelled");
                 throw;
@@ -354,7 +355,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     captureToken,
                     origin,
                     decoder.Provider,
-                    settings.Model,
+                    requestedModel,
                     endpointHost,
                     exception.Failure.HttpStatusCode,
                     exception.Failure.FailureCode,
@@ -385,7 +386,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     captureToken,
                     origin,
                     decoder.Provider,
-                    settings.Model,
+                    requestedModel,
                     endpointHost,
                     "unexpected",
                     elapsed,
@@ -445,7 +446,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     captureToken,
                     origin,
                     decoder.Provider,
-                    settings.Model,
+                    requestedModel,
                     endpointHost,
                     providerResult.HttpStatusCode,
                     providerResult.ElapsedMilliseconds,
@@ -460,7 +461,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 captureToken,
                 origin,
                 decoder.Provider,
-                settings.Model,
+                requestedModel,
                 endpointHost,
                 providerResult.HttpStatusCode,
                 providerResult.ElapsedMilliseconds,
@@ -539,6 +540,8 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
             throw new InvalidOperationException("Enable AI integration from the app options before running analysis.");
         }
 
+        // Codex authenticates through its own ChatGPT login; never load or forward an API key.
+        if (settings.AiProvider == "codex-cli") return string.Empty;
         var apiKey = _store.LoadApiKey(settings.AiApiKeyName);
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -588,8 +591,8 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
             origin,
             "screen_analysis",
             provider,
-            AiProviderTelemetry.EndpointHost(settings.AiEndpoint),
-            settings.Model,
+            provider == "codex-cli" ? "chatgpt.com" : AiProviderTelemetry.EndpointHost(settings.AiEndpoint),
+            provider == "codex-cli" ? "codex-default" : settings.Model,
             result?.ReturnedModel,
             result?.ProviderResponseId ?? failure?.ProviderResponseId,
             result?.ProviderRequestId ?? failure?.ProviderRequestId,
@@ -598,7 +601,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
             result?.ProviderProcessingMilliseconds ?? failure?.ProviderProcessingMilliseconds,
             imageCount,
             promptCharacters,
-            maxOutputTokens,
+            provider == "codex-cli" ? 0 : maxOutputTokens,
             result?.Usage ?? failure?.Usage ?? new AiUsageMetrics(),
             result?.FinishReason ?? failure?.FinishReason,
             result is not null && failure is null,

@@ -24,6 +24,9 @@ using WorkTrail.Presentation;
 
 namespace WorkTrail;
 
+/// <summary>
+/// Coordinates the main window's feature-access state and debug-only access simulation controls.
+/// </summary>
 public sealed partial class MainWindow
 {
     private FeatureAccessSnapshot? _featureAccessState;
@@ -34,6 +37,9 @@ public sealed partial class MainWindow
     private bool _debugOobeResetting;
 #endif
 
+    /// <summary>
+    /// Adds debug-only feature-access commands to the main menu.
+    /// </summary>
     private void InitializeFeatureAccessMenu()
     {
 #if DEBUG
@@ -48,6 +54,9 @@ public sealed partial class MainWindow
 #endif
     }
 
+    /// <summary>
+    /// Applies an authoritative feature-access snapshot to UI controls when the dashboard is still open.
+    /// </summary>
     private void ApplyFeatureAccess(FeatureAccessSnapshot? access)
     {
         if (_dashboardSurfaceClosed) return;
@@ -56,6 +65,9 @@ public sealed partial class MainWindow
         UpdateDebugFeatureMenu();
     }
 
+    /// <summary>
+    /// Refreshes debug-only feature-access labels and enabled states.
+    /// </summary>
     private void UpdateDebugFeatureMenu()
     {
 #if DEBUG
@@ -71,6 +83,9 @@ public sealed partial class MainWindow
 #endif
     }
 
+    /// <summary>
+    /// Retrieves feature access from the application boundary and renders its safe fallback on failure.
+    /// </summary>
     private async Task RefreshFeatureAccessAsync()
     {
         try
@@ -91,6 +106,9 @@ public sealed partial class MainWindow
     }
 
 #if DEBUG
+    /// <summary>
+    /// Resets quick-setup completion in debug builds through the application boundary.
+    /// </summary>
     private async void DebugResetOobe_Click(object sender, RoutedEventArgs e)
     {
         if (_debugOobeResetting || _dashboardSurfaceClosed) return;
@@ -125,6 +143,9 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Switches the simulated access tier in debug builds and reloads the affected settings.
+    /// </summary>
     private async void DebugFeatureProfile_Click(object sender, RoutedEventArgs e)
     {
         if (_featureProfileChanging || _featureAccessState is not { CanSimulate: true } current) return;

@@ -22,6 +22,9 @@ using WorkTrail.Services;
 
 namespace WorkTrail.Application;
 
+/// <summary>
+/// Coordinates report export, report-summary generation, and safe conversion of failures to application results.
+/// </summary>
 public sealed partial class WorkTrailApplication
 {
     /// <inheritdoc />
@@ -74,6 +77,9 @@ public sealed partial class WorkTrailApplication
                     }, CancellationToken.None), token).ConfigureAwait(false);
             }, token).ConfigureAwait(false), token), token), cancellationToken);
 
+    /// <summary>
+    /// Runs an export operation and converts expected validation and unknown failures to safe, localized results.
+    /// </summary>
     private async Task<OperationResult<T>> ExportOperationAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

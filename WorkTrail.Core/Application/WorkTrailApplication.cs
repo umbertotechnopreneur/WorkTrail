@@ -450,14 +450,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         {
             if (!TryValidateOpenAiConfiguration(settings, requireImageInput: true, out var validatedSettings, out var validationIssue))
             {
-                return OperationResult<ScreenshotCaptureResult>.Failure(
-                    "ai.configuration.invalid",
-                    "AiConfigurationInvalid",
-                    validationIssue!);
+                return AiConfigurationFailure<ScreenshotCaptureResult>(validationIssue!);
             }
 
             settings = validatedSettings;
-            if (string.IsNullOrWhiteSpace(_store.LoadApiKey(settings.AiApiKeyName)))
+            if (settings.AiProvider != "codex-cli" && string.IsNullOrWhiteSpace(_store.LoadApiKey(settings.AiApiKeyName)))
             {
                 return OperationResult<ScreenshotCaptureResult>.Failure("ai.configuration.invalid", "AiConfigurationInvalid");
             }
@@ -583,8 +580,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             catch (AiProviderRequestException exception)
             {
                 LogAiProviderFailure("screenshot.capture", exception);
-                EnqueueAiAnalysisFailure("ai.provider.failed", BuildAiProviderFailureDetail(exception));
-                return OperationResult<ScreenshotCaptureResult>.Failure("ai.provider.failed", "AiProviderFailed");
+                EnqueueAiAnalysisFailure(ProviderFailureCode(exception), BuildAiProviderFailureDetail(exception));
+                return OperationResult<ScreenshotCaptureResult>.Failure(ProviderFailureCode(exception), ProviderFailureMessage(exception));
             }
             catch (AiDailyAnalysisQuotaReachedException)
             {
@@ -749,10 +746,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
 
                 if (!TryValidateOpenAiConfiguration(settings, requireImageInput: true, out var validatedSettings, out var validationIssue))
                 {
-                    return OperationResult<AiAnalysis>.Failure(
-                        "ai.configuration.invalid",
-                        "AiConfigurationInvalid",
-                        validationIssue!);
+                    return AiConfigurationFailure<AiAnalysis>(validationIssue!);
                 }
 
                 settings = validatedSettings;
@@ -790,7 +784,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 {
                     LogAiProviderFailure("screenshot.analyze", exception);
                     aiFailureDetail = BuildAiProviderFailureDetail(exception);
-                    return OperationResult<AiAnalysis>.Failure("ai.provider.failed", "AiProviderFailed");
+                    return OperationResult<AiAnalysis>.Failure(ProviderFailureCode(exception), ProviderFailureMessage(exception));
                 }
                 catch (AiDailyAnalysisQuotaReachedException)
                 {
@@ -1562,7 +1556,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     public Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var key = _store.LoadApiKey(_settingsSnapshot.Value.AiApiKeyName) ?? string.Empty;
+        var settings = _settingsSnapshot.Value;
+        var key = settings.AiProvider == "codex-cli" ? string.Empty : _store.LoadApiKey(settings.AiApiKeyName) ?? string.Empty;
         return Task.FromResult(OperationResult<string>.Success("ai.key.loaded", "AiKeyLoaded", key));
     }
 
@@ -1635,11 +1630,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         var settings = _settingsSnapshot.Value;
         if (!TryValidateOpenAiConfiguration(settings, requireImageInput: false, out var validatedSettings, out var validationIssue))
         {
-            return OperationResult<AiConnectionTestResult>.Failure("ai.connection.configuration.invalid", "AiConnectionTestConfigurationInvalid", validationIssue!);
+            return AiConfigurationFailure<AiConnectionTestResult>(validationIssue!, "ai.connection.configuration.invalid", "AiConnectionTestConfigurationInvalid");
         }
 
-        var apiKey = _store.LoadApiKey(validatedSettings.AiApiKeyName);
-        if (!AiApiKeyPolicy.LooksPlausible(validatedSettings.AiProvider, validatedSettings.AiApiKeyName, apiKey))
+        var usesCli = validatedSettings.AiProvider == "codex-cli";
+        var apiKey = usesCli ? string.Empty : _store.LoadApiKey(validatedSettings.AiApiKeyName);
+        if (!usesCli && !AiApiKeyPolicy.LooksPlausible(validatedSettings.AiProvider, validatedSettings.AiApiKeyName, apiKey))
         {
             return OperationResult<AiConnectionTestResult>.Failure(
                 "ai.connection.key.missing",
@@ -1679,7 +1675,9 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return OperationResult<AiConnectionTestResult>.Success(
                 "ai.connection.succeeded",
                 "AiConnectionTestSucceeded",
-                new AiConnectionTestResult(validatedSettings.AiProvider, validatedSettings.Model, providerResult.Text, stopwatch.ElapsedMilliseconds));
+                new AiConnectionTestResult(validatedSettings.AiProvider,
+                    validatedSettings.AiProvider == "codex-cli" ? providerResult.ReturnedModel ?? "Codex default" : validatedSettings.Model,
+                    providerResult.Text, stopwatch.ElapsedMilliseconds));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -1689,6 +1687,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         {
             stopwatch.Stop();
             _logger.LogWarning("AI connection test failed. Provider={Provider} Model={Model} FailureCategory={FailureCategory} HttpStatus={HttpStatus}", validatedSettings.AiProvider, validatedSettings.Model, exception.Failure.FailureCode, exception.Failure.HttpStatusCode);
+            if (validatedSettings.AiProvider == "codex-cli")
+                return OperationResult<AiConnectionTestResult>.Failure(exception.Failure.FailureCode, CodexCliDecoder.MessageKey(exception.Failure.FailureCode));
             var messageKey = exception.Failure.HttpStatusCode switch
             {
                 401 => "ProviderSetup.Error.Authentication",
@@ -1697,6 +1697,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 _ => "ProviderSetup.Error.Unavailable"
             };
             return OperationResult<AiConnectionTestResult>.Failure("ai.connection.failed", messageKey);
+        }
+        catch (OperationCanceledException)
+        {
+            return validatedSettings.AiProvider == "codex-cli"
+                ? OperationResult<AiConnectionTestResult>.Failure("codex.timeout", "Options.Codex.Timeout")
+                : OperationResult<AiConnectionTestResult>.Failure("ai.connection.failed", "ProviderSetup.Error.Unavailable");
         }
         catch (Exception exception)
         {
@@ -1735,7 +1741,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         if (enabled
             && !TryValidateOpenAiConfiguration(settings, requireImageInput: false, out validatedSettings, out var validationIssue))
         {
-            return OperationResult<AiStatus>.Failure("ai.configuration.invalid", "AiConfigurationInvalid", validationIssue!);
+            return AiConfigurationFailure<AiStatus>(validationIssue!);
         }
 
         PersistSettings(validatedSettings);
@@ -1814,10 +1820,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 out var validatedSettings,
                 out var validationIssue))
         {
-            return OperationResult<AiAnalysis>.Failure(
-                "ai.configuration.invalid",
-                "AiConfigurationInvalid",
-                validationIssue!);
+            return AiConfigurationFailure<AiAnalysis>(validationIssue!);
         }
 
         settings = validatedSettings;
@@ -1925,7 +1928,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         catch (AiProviderRequestException exception)
         {
             LogAiProviderFailure("ai.analyze", exception);
-            return OperationResult<AiAnalysis>.Failure("ai.provider.failed", "AiProviderFailed");
+            return OperationResult<AiAnalysis>.Failure(ProviderFailureCode(exception), ProviderFailureMessage(exception));
         }
         catch (AiDailyAnalysisQuotaReachedException)
         {
@@ -2452,7 +2455,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         if (current.OpenAiEnabled
             && patch.Values.TryGetValue("quick_setup.completed", out var completed)
             && string.Equals(completed, "true", StringComparison.OrdinalIgnoreCase)
-            && !_aiConnectionVerification.Matches(current, _store.LoadApiKey(current.AiApiKeyName)))
+            && !_aiConnectionVerification.Matches(current, current.AiProvider == "codex-cli" ? string.Empty : _store.LoadApiKey(current.AiApiKeyName)))
         {
             return OperationResult<AppSettings>.Failure(
                 "quick_setup.ai.verification_required", "ProviderSetup.Error.VerificationRequired",
@@ -3079,11 +3082,17 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private AiStatus BuildAiStatus()
     {
         var settings = _settingsSnapshot.Value;
-        var key = _store.LoadApiKey(settings.AiApiKeyName);
+        var usesCli = settings.AiProvider == "codex-cli";
+        var installed = CodexCliInstallation.Find() is not null;
+        var key = usesCli ? null : _store.LoadApiKey(settings.AiApiKeyName);
         var hasKey = !string.IsNullOrWhiteSpace(key);
-        var canEnable = AiApiKeyPolicy.LooksPlausible(settings.AiProvider, settings.AiApiKeyName, key);
+        var canEnable = usesCli ? installed : AiApiKeyPolicy.LooksPlausible(settings.AiProvider, settings.AiApiKeyName, key);
         key = string.Empty;
-        return new AiStatus(settings.OpenAiEnabled, settings.AiProvider, settings.Model, settings.AiEndpoint, settings.AiApiKeyName, hasKey, canEnable, BuildCostGate(settings));
+        return new AiStatus(settings.OpenAiEnabled, settings.AiProvider, usesCli ? "codex-default" : settings.Model,
+            usesCli ? string.Empty : settings.AiEndpoint, settings.AiApiKeyName, hasKey, canEnable, BuildCostGate(settings))
+        {
+            CodexCliInstalled = installed
+        };
     }
 
     private static bool ShouldNotifyAiAnalysisFailure(string code) =>
@@ -3102,7 +3111,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             DateTimeOffset.UtcNow,
             ApplicationNotificationSeverity.Error,
             "Notification.AiAnalysisFailed.Title",
-            "Notification.AiAnalysisFailed.Message",
+            code.StartsWith("codex.", StringComparison.Ordinal) ? CodexCliDecoder.MessageKey(code) : "Notification.AiAnalysisFailed.Message",
             code,
             detail));
     }
@@ -3209,6 +3218,18 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _notifications.Enqueue(notification);
     }
 
+    private static OperationResult<T> AiConfigurationFailure<T>(ValidationIssue issue,
+        string code = "ai.configuration.invalid", string messageKey = "AiConfigurationInvalid") =>
+        issue.Code.StartsWith("codex.", StringComparison.Ordinal)
+            ? OperationResult<T>.Failure(issue.Code, issue.MessageKey, issue)
+            : OperationResult<T>.Failure(code, messageKey, issue);
+
+    private static string ProviderFailureCode(AiProviderRequestException exception) =>
+        exception.Failure.FailureCode.StartsWith("codex.", StringComparison.Ordinal) ? exception.Failure.FailureCode : "ai.provider.failed";
+
+    private static string ProviderFailureMessage(AiProviderRequestException exception) =>
+        exception.Failure.FailureCode.StartsWith("codex.", StringComparison.Ordinal) ? CodexCliDecoder.MessageKey(exception.Failure.FailureCode) : "AiProviderFailed";
+
     private static string? BuildAiProviderFailureDetail(AiProviderRequestException exception)
     {
         var lines = new List<string>();
@@ -3246,9 +3267,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private AnalysisCostGate BuildCostGate(AppSettings settings)
     {
         var count = _store.GetTodayAnalysisCount();
-        var projected = settings.OpenAiDailyCostUsd + settings.EstimatedCostPerAnalysisUsd;
+        var estimatedApiCost = settings.AiProvider == "codex-cli" ? 0m : settings.EstimatedCostPerAnalysisUsd;
+        var projected = settings.OpenAiDailyCostUsd + estimatedApiCost;
         var allowed = count < settings.OpenAiDailyLimit;
-        return new AnalysisCostGate(allowed, allowed ? null : "daily_limit", settings.EstimatedCostPerAnalysisUsd, count, projected);
+        return new AnalysisCostGate(allowed, allowed ? null : "daily_limit", estimatedApiCost, count, projected);
     }
 
     private bool CanAnalyzeHistoricalImages(AppSettings settings)
@@ -3259,6 +3281,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return false;
         }
 
+        if (validated.AiProvider == "codex-cli") return true;
         var apiKey = _store.LoadApiKey(validated.AiApiKeyName);
         var plausible = AiApiKeyPolicy.LooksPlausible(validated.AiProvider, validated.AiApiKeyName, apiKey);
         apiKey = string.Empty;
@@ -3358,6 +3381,15 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     {
         validatedSettings = settings;
         issue = null;
+        if (settings.AiProvider == "codex-cli")
+        {
+            if (settings.OpenAiEnabled && CodexCliInstallation.Find() is null)
+            {
+                issue = new ValidationIssue("ai.provider", "codex.not_installed", "Options.Codex.Missing");
+                return false;
+            }
+            return true;
+        }
         if (settings.OpenAiEnabled
             && !AiApiKeyPolicy.LooksPlausible(
                 settings.AiProvider,

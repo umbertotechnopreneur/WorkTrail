@@ -22,6 +22,9 @@ using WorkTrail.Services;
 
 namespace WorkTrail.Application;
 
+/// <summary>
+/// Coordinates timesheet previews, batch work, quota records, and restart recovery through one dedicated gate.
+/// </summary>
 public sealed partial class WorkTrailApplication
 {
     private readonly SemaphoreSlim _timesheetGate = new(1, 1);
@@ -67,9 +70,13 @@ public sealed partial class WorkTrailApplication
             await _timesheetGate.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                if (command.Action is TimesheetBatchAction.Start or TimesheetBatchAction.Export
-                    && !FeatureCatalog.IsAllowed(ProductFeature.ReportExport, _featureAccess.Snapshot))
+                var requiresPremiumAccess = command.Action is TimesheetBatchAction.Start or TimesheetBatchAction.Export;
+                var hasPremiumAccess = FeatureCatalog.IsAllowed(ProductFeature.ReportExport, _featureAccess.Snapshot);
+                if (requiresPremiumAccess && !hasPremiumAccess)
+                {
                     throw new ReportExportValidationException("Premium.Required");
+                }
+
                 // The dedicated job gate serializes files; HTTP never holds the global mutation or visual-analysis gate.
                 return await Task.Run(() => _timesheetService.ExecuteAsync(command, _settingsSnapshot.Value,
                     ReserveTimesheetUsageAsync, ReconcileTimesheetUsageAsync, token), token).ConfigureAwait(false);
@@ -77,8 +84,9 @@ public sealed partial class WorkTrailApplication
             finally { _timesheetGate.Release(); }
         }, token), cancellationToken);
 
-    // job contains the exact request count being submitted.
-    // token cancels before the reserved requests can be sent.
+    /// <summary>
+    /// Reserves daily AI usage for the exact eligible rows before the provider receives a batch request.
+    /// </summary>
     private async Task ReserveTimesheetUsageAsync(TimesheetJob job, CancellationToken token)
     {
         await MutateAsync(() =>
@@ -98,8 +106,9 @@ public sealed partial class WorkTrailApplication
         }, token).ConfigureAwait(false);
     }
 
-    // job contains a durable result snapshot, allowing idempotent telemetry recovery after restart.
-    // token cancels before reconciliation; stable IDs permit retry.
+    /// <summary>
+    /// Persists completed usage or releases reservations from a durable job snapshot after batch processing.
+    /// </summary>
     private async Task ReconcileTimesheetUsageAsync(TimesheetJob job, CancellationToken token)
     {
         await MutateAsync(() =>
@@ -113,8 +122,9 @@ public sealed partial class WorkTrailApplication
         }, token).ConfigureAwait(false);
     }
 
-    // job identifies the paid submission and its original local quota date.
-    // row identifies one remote request, independent of result ordering or polling count.
+    /// <summary>
+    /// Creates the stable usage record for one submitted timesheet row.
+    /// </summary>
     private static AiRequestUsageRecord TimesheetUsage(TimesheetJob job, TimesheetWorkRow row) => new(
         $"{job.Id:N}.{row.Row.Id}", job.Id.ToString("N"), job.CreatedAt, job.ResultsSaved ? DateTimeOffset.UtcNow : null,
         "report.timesheet", "report_timesheet_batch", "openai", "api.openai.com", ReportSummaryModelPolicy.OpenAiModel,
@@ -122,7 +132,9 @@ public sealed partial class WorkTrailApplication
         null, null, 0, row.Prompt?.Length ?? 0, 1_000, row.Usage ?? new AiUsageMetrics(),
         job.ResultsSaved ? row.Row.State : null, row.Row.State == "completed", row.Row.State == "completed" ? null : "batch_" + row.Row.State);
 
-    // token stops the worker on shutdown or atomic reset; this loop only retrieves already submitted jobs.
+    /// <summary>
+    /// Periodically refreshes already submitted jobs without allowing recovery work to monopolize interactive commands.
+    /// </summary>
     private async Task RunTimesheetRecoveryLoopAsync(CancellationToken token)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));

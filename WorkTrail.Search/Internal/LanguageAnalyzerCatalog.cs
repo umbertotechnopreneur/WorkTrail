@@ -33,12 +33,18 @@ using Lucene.Net.Util;
 
 namespace WorkTrail.Search.Internal;
 
+/// <summary>
+/// Owns the language-specific Lucene analyzers and the per-field analyzer used by the local index.
+/// </summary>
 internal sealed class LanguageAnalyzerCatalog : IDisposable
 {
     private const LuceneVersion Version = LuceneVersion.LUCENE_48;
     private readonly Analyzer _fallbackAnalyzer;
     private readonly IReadOnlyDictionary<string, Analyzer> _languageAnalyzers;
 
+    /// <summary>
+    /// Creates the fallback and language-specific analyzers supported by the local index.
+    /// </summary>
     internal LanguageAnalyzerCatalog()
     {
         _fallbackAnalyzer = new StandardAnalyzer(Version);
@@ -68,8 +74,14 @@ internal sealed class LanguageAnalyzerCatalog : IDisposable
         IndexAnalyzer = new PerFieldAnalyzerWrapper(_fallbackAnalyzer, perField);
     }
 
+    /// <summary>
+    /// Gets the analyzer that routes each indexed field to its language-specific implementation.
+    /// </summary>
     internal Analyzer IndexAnalyzer { get; }
 
+    /// <summary>
+    /// Analyzes text with the analyzer selected for the supplied language.
+    /// </summary>
     internal IReadOnlyList<string> Analyze(string value, string? language)
     {
         var normalized = TextNormalization.ForTokenization(value);
@@ -94,12 +106,18 @@ internal sealed class LanguageAnalyzerCatalog : IDisposable
         return terms;
     }
 
+    /// <summary>
+    /// Returns the language-specific analyzer or the fallback analyzer when no match exists.
+    /// </summary>
     internal Analyzer GetAnalyzer(string? language)
     {
         var key = TextNormalization.AnalyzerLanguage(language);
         return _languageAnalyzers.TryGetValue(key, out var analyzer) ? analyzer : _fallbackAnalyzer;
     }
 
+    /// <summary>
+    /// Releases every Lucene analyzer owned by this catalog.
+    /// </summary>
     public void Dispose()
     {
         IndexAnalyzer.Dispose();

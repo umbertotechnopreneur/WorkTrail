@@ -232,6 +232,7 @@ internal sealed class WindowsDeviceContextPlatform : IDeviceContextPlatform
     private const string InputLanguageSource = "windows-foreground-keyboard-layout";
     private const string LocationSource = "windows-geolocator";
 
+    /// <inheritdoc />
     public DeviceContextValue GetTimeZone()
     {
         try
@@ -247,6 +248,7 @@ internal sealed class WindowsDeviceContextPlatform : IDeviceContextPlatform
         }
     }
 
+    /// <inheritdoc />
     public DeviceContextValue GetWindowsUiLanguage()
     {
         try
@@ -268,6 +270,7 @@ internal sealed class WindowsDeviceContextPlatform : IDeviceContextPlatform
         }
     }
 
+    /// <inheritdoc />
     public DeviceContextValue GetActiveInputLanguage()
     {
         try
@@ -302,6 +305,7 @@ internal sealed class WindowsDeviceContextPlatform : IDeviceContextPlatform
         }
     }
 
+    /// <inheritdoc />
     public async Task<DeviceLocationSnapshot> GetCurrentLocationAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -339,6 +343,7 @@ internal sealed class WindowsDeviceContextPlatform : IDeviceContextPlatform
         }
     }
 
+    /// <inheritdoc />
     public async Task<DeviceLocationAccessResult> RequestLocationAccessAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

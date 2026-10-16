@@ -25,6 +25,61 @@ namespace WorkTrail.Core.Tests;
 public sealed class WindowStateCalculatorTests
 {
     [Fact]
+    public void Restore_RebasesDpiAndPositionRelativeToTheSavedMonitor()
+    {
+        var saved = new WindowState(2070, 150, 900, 600, "display-old")
+        {
+            Dpi = 144,
+            MonitorWorkArea = new WindowWorkArea(1920, 0, 2560, 1440),
+            MonitorId = "monitor-identity"
+        };
+        var restored = WindowStateCalculator.RebaseToMonitor(saved,
+            new WindowWorkArea(-1920, 0, 1920, 1080), "display-new", 96, new WindowMinimumSize(100, 100));
+        Assert.Equal(-1820, restored.X);
+        Assert.Equal(100, restored.Y);
+        Assert.Equal(600, restored.Width);
+        Assert.Equal(400, restored.Height);
+        Assert.Equal(96u, restored.Dpi);
+        Assert.Equal("monitor-identity", restored.MonitorId);
+    }
+
+    [Fact]
+    public void Restore_UnchangedMonitorAndDpiRetainsExactBoundsIncludingEdges()
+    {
+        var area = new WindowWorkArea(-1920, -200, 1920, 1080);
+        var saved = new WindowState(-1920, -200, 900, 600, "display") { Dpi = 144, MonitorWorkArea = area };
+        Assert.Equal(saved, WindowStateCalculator.RebaseToMonitor(saved, area, "display", 144, new WindowMinimumSize(100, 100)));
+    }
+
+    [Fact]
+    public void Restore_LegacyPlacementKeepsPhysicalSizeWithoutGuessingItsOldDpi()
+    {
+        var saved = new WindowState(100, 80, 900, 600, "display");
+        var restored = WindowStateCalculator.RebaseToMonitor(saved,
+            new WindowWorkArea(0, 0, 1920, 1080), "display", 144, new WindowMinimumSize(100, 100));
+        Assert.Equal(saved.Width, restored.Width);
+        Assert.Equal(saved.Height, restored.Height);
+        Assert.Equal(saved.X, restored.X);
+        Assert.Equal(144u, restored.Dpi);
+    }
+
+    [Fact]
+    public void Restore_RemovedDisplayClampsScaledBoundsToTheAvailableWorkArea()
+    {
+        var saved = new WindowState(3800, 1800, 1600, 1200, "missing")
+        {
+            Dpi = 96,
+            MonitorWorkArea = new WindowWorkArea(1920, 0, 2560, 2160)
+        };
+        var restored = WindowStateCalculator.RebaseToMonitor(saved,
+            new WindowWorkArea(0, 40, 1280, 680), "primary", 144, new WindowMinimumSize(470, 240));
+        Assert.Equal(0, restored.X);
+        Assert.Equal(40, restored.Y);
+        Assert.Equal(1280, restored.Width);
+        Assert.Equal(680, restored.Height);
+    }
+
+    [Fact]
     public void WindowStateMinimumSizes_AreSharedByRestoreAndNativeSizing()
     {
         Assert.Equal(new WindowMinimumSize(470, 240), WindowStateService.GetMinimumSize(WindowStateKeys.Main));

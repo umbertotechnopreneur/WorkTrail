@@ -227,7 +227,9 @@ internal sealed partial class AiScreenshotReprocessingDialogWindow : Window
                 plan.RemainingDailyAllowance,
                 plan.ProcessableTodayCaptureCount,
                 plan.ProcessableTodayScreenshotCount),
-            string.Format(_culture, T("AiReprocess.EstimatedCost"), plan.EstimatedMaximumCostTodayUsd));
+            plan.EstimatedMaximumCostTodayUsd is { } estimate
+                ? string.Format(_culture, T("AiReprocess.EstimatedCost"), estimate)
+                : T("Options.Codex.Description"));
         PreflightCountsGrid.Visibility = Visibility.Visible;
         PreflightBreakdownGrid.Visibility = Visibility.Visible;
 
@@ -545,7 +547,7 @@ internal sealed partial class AiScreenshotReprocessingDialogWindow : Window
         plan.ProcessableTodayCaptureCount <= plan.RemainingDailyAllowance &&
         plan.ProcessableTodayScreenshotCount >= 0 &&
         plan.ProcessableTodayScreenshotCount <= plan.EligibleScreenshotCount &&
-        plan.EstimatedMaximumCostTodayUsd >= 0m &&
+        (plan.EstimatedMaximumCostTodayUsd is >= 0m || (plan.EstimatedMaximumCostTodayUsd is null && plan.Provider == "codex-cli")) &&
         !string.IsNullOrWhiteSpace(plan.Provider) &&
         !string.IsNullOrWhiteSpace(plan.Model);
 

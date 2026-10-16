@@ -26,35 +26,67 @@ using WorkTrail.Services;
 
 namespace WorkTrail.Hardware;
 
+/// <summary>
+/// Hosts the isolated hardware collector process and its authenticated named-pipe protocol.
+/// </summary>
 internal static class Program
 {
     private static long _operationStarted;
 
+    /// <summary>
+    /// Records the start of a native hardware operation so the watchdog can enforce its deadline.
+    /// </summary>
     internal static void BeginNativeOperation() => Interlocked.Exchange(ref _operationStarted, Stopwatch.GetTimestamp());
 
+    /// <summary>
+    /// Connects the collector to its parent process and serves isolated hardware sampling requests.
+    /// </summary>
     private static async Task<int> Main(string[] arguments)
     {
-        if (arguments.Length is not (4 or 5) || arguments[0] != "--pipe" || arguments[2] != "--parent"
-            || !arguments[1].StartsWith("WorkTrail.Hardware.", StringComparison.Ordinal)
-            || !Guid.TryParseExact(arguments[1]["WorkTrail.Hardware.".Length..], "N", out _)
-            || !int.TryParse(arguments[3], NumberStyles.None, CultureInfo.InvariantCulture, out var parentId) || parentId <= 0
-            || arguments.Length == 5 && arguments[4] != "--advanced") return 2;
+        var hasExpectedArgumentCount = arguments.Length is 4 or 5;
+        var pipeArgument = hasExpectedArgumentCount ? arguments[1] : string.Empty;
+        var parentArgument = hasExpectedArgumentCount ? arguments[3] : string.Empty;
+        var hasExpectedOptionLabels = hasExpectedArgumentCount &&
+                                      arguments[0] == "--pipe" &&
+                                      arguments[2] == "--parent";
+        var hasValidPipeName = hasExpectedOptionLabels &&
+                               pipeArgument.StartsWith("WorkTrail.Hardware.", StringComparison.Ordinal) &&
+                               Guid.TryParseExact(pipeArgument["WorkTrail.Hardware.".Length..], "N", out _);
+        var hasValidParentId = int.TryParse(parentArgument, NumberStyles.None, CultureInfo.InvariantCulture, out var parentId) &&
+                               parentId > 0;
+        var hasValidAdvancedFlag = arguments.Length != 5 || arguments[4] == "--advanced";
+
+        if (!hasValidPipeName || !hasValidParentId || !hasValidAdvancedFlag)
+        {
+            return 2;
+        }
 
         var advanced = arguments.Length == 5;
         using var identity = WindowsIdentity.GetCurrent();
         var elevated = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
-        if (advanced && !elevated) return 3;
-        if (RuntimeInformation.ProcessArchitecture != Architecture.X64) return 4;
+        if (advanced && !elevated)
+        {
+            return 3;
+        }
+
+        if (RuntimeInformation.ProcessArchitecture != Architecture.X64)
+        {
+            return 4;
+        }
 
         try
         {
             using var parent = Process.GetProcessById(parentId);
-            await using var pipe = new NamedPipeClientStream(".", arguments[1], PipeDirection.InOut,
-                PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
+            await using var pipe = new NamedPipeClientStream(
+                ".",
+                arguments[1],
+                PipeDirection.InOut,
+                PipeOptions.Asynchronous,
+                TokenImpersonationLevel.Identification);
             await pipe.ConnectAsync(10_000).ConfigureAwait(false);
             HardwareTelemetryProtocol.VerifyServerProcess(pipe, parentId);
-            await HardwareTelemetryProtocol.WriteAsync(pipe,
-                new HardwareCollectorHello(HardwareTelemetryProtocol.Version, elevated), CancellationToken.None).ConfigureAwait(false);
+            var hello = new HardwareCollectorHello(HardwareTelemetryProtocol.Version, elevated);
+            await HardwareTelemetryProtocol.WriteAsync(pipe, hello, CancellationToken.None).ConfigureAwait(false);
 
             // A blocked vendor/driver read may not honor cancellation. Only this dedicated
             // helper terminates; the application keeps its screenshots and explicit failure state.
@@ -73,10 +105,22 @@ internal static class Program
             while (true)
             {
                 var request = await HardwareTelemetryProtocol.ReadAsync<HardwareCollectorRequest>(pipe, CancellationToken.None).ConfigureAwait(false);
-                if (request.Version != HardwareTelemetryProtocol.Version) return 5;
+                if (request.Version != HardwareTelemetryProtocol.Version)
+                {
+                    return 5;
+                }
+
                 var profile = HardwareSamplingProfiles.Get(request.SamplingProfile);
-                if (request.Command == "stop") return 0;
-                if (request.Command != "sample") return 6;
+                if (request.Command == "stop")
+                {
+                    return 0;
+                }
+
+                if (request.Command != "sample")
+                {
+                    return 6;
+                }
+
                 Interlocked.Exchange(ref _operationStarted, Stopwatch.GetTimestamp());
                 SystemSnapshot snapshot;
                 var fatalError = false;
@@ -94,7 +138,10 @@ internal static class Program
                 Interlocked.Exchange(ref _operationStarted, 0);
                 // Device-local errors are already isolated by the collector. A global failure may
                 // leave LHM only partly initialized, so this process must never reuse that state.
-                if (fatalError) return 8;
+                if (fatalError)
+                {
+                    return 8;
+                }
             }
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or TimeoutException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or System.Text.Json.JsonException)

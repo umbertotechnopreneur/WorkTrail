@@ -24,8 +24,14 @@ using Lucene.Net.Documents;
 
 namespace WorkTrail.Search.Internal;
 
+/// <summary>
+/// Converts between WorkTrail search documents and their persisted Lucene representation.
+/// </summary>
 internal static class SearchDocumentMapper
 {
+    /// <summary>
+    /// Creates a Lucene document from a validated WorkTrail search document.
+    /// </summary>
     internal static Document ToLucene(SearchDocument source)
     {
         var target = new Document
@@ -83,6 +89,9 @@ internal static class SearchDocumentMapper
         return target;
     }
 
+    /// <summary>
+    /// Reconstructs a WorkTrail search document from required and optional Lucene fields.
+    /// </summary>
     internal static SearchDocument FromLucene(Document source)
     {
         var id = source.Get(SearchFields.IdStored);
@@ -125,6 +134,9 @@ internal static class SearchDocumentMapper
         };
     }
 
+    /// <summary>
+    /// Adds generic and language-specific analyzed fields for a non-empty source value.
+    /// </summary>
     private static void AddSearchableText(
         Document target,
         SearchTextField field,
@@ -157,6 +169,9 @@ internal static class SearchDocumentMapper
         }
     }
 
+    /// <summary>
+    /// Stores a non-null optional field without making it searchable.
+    /// </summary>
     private static void AddStoredOptional(Document target, string name, string? value)
     {
         if (value is not null)
@@ -165,6 +180,9 @@ internal static class SearchDocumentMapper
         }
     }
 
+    /// <summary>
+    /// Adds a normalized exact-match field when an optional value contains text.
+    /// </summary>
     private static void AddExact(Document target, string name, string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -181,6 +199,9 @@ internal static class SearchDocumentMapper
         target.Add(new StringField(name, normalized, Field.Store.NO));
     }
 
+    /// <summary>
+    /// Deserializes the stored raw-attribute object or returns an empty dictionary when it is absent.
+    /// </summary>
     private static ImmutableDictionary<string, string?> ReadAttributes(string? json)
     {
         if (json is null)
@@ -200,6 +221,9 @@ internal static class SearchDocumentMapper
         }
     }
 
+    /// <summary>
+    /// Deserializes the stored span-label array or returns an empty array when it is absent.
+    /// </summary>
     private static ImmutableArray<string> ReadSpanLabels(string? json)
     {
         if (json is null)

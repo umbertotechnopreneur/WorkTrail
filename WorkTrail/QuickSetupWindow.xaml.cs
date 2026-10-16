@@ -42,7 +42,6 @@ internal sealed partial class QuickSetupWindow : Window
     private readonly LocalizationService _strings;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly bool _firstRun;
-    private readonly string _providerName;
     private string _selectedProfileId;
     private bool _applying;
     private bool _aiVerified;
@@ -63,13 +62,6 @@ internal sealed partial class QuickSetupWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(ownerAppWindow);
         _firstRun = firstRun;
-        _providerName = settings.AiProvider.ToLowerInvariant() switch
-        {
-            "openai" => "OpenAI",
-            "openrouter" => "OpenRouter",
-            "anthropic" => "Anthropic",
-            _ => throw new InvalidOperationException("The configured AI provider is unsupported.")
-        };
         _strings = new LocalizationService(settings.UiLanguage);
         _selectedProfileId = firstRun ? QuickSetupProfileIds.Complete : InferProfile(settings);
 
@@ -114,7 +106,8 @@ internal sealed partial class QuickSetupWindow : Window
         UiLocalization.Apply(RootGrid, _strings);
         Title = T("QuickSetup.Title");
         PrimaryButton.Content = T(_firstRun ? "ProviderSetup.Continue" : "QuickSetup.Apply");
-        ApiSetupButton.Content = _providerName + " API";
+        ApiSetupButton.Content = T("ProviderSetup.Connection.Open");
+        AutomationProperties.SetName(ApiSetupButton, T("ProviderSetup.Connection.Open"));
         if (_firstRun) WelcomeText.Text = T("ProviderSetup.Welcome");
         AutomationProperties.SetName(PrimaryButton, PrimaryButton.Content?.ToString() ?? T("QuickSetup.Apply"));
         AutomationProperties.SetName(CompleteProfileButton, T("QuickSetup.Profile.Complete.Accessible"));
