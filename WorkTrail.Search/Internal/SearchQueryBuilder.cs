@@ -22,12 +22,18 @@ using Lucene.Net.Search;
 
 namespace WorkTrail.Search.Internal;
 
+/// <summary>
+/// Translates validated WorkTrail search requests into bounded Lucene queries.
+/// </summary>
 internal sealed class SearchQueryBuilder
 {
     private readonly SearchOptions _options;
     private readonly LanguageAnalyzerCatalog _analyzers;
     private readonly SynonymCatalog _synonyms;
 
+    /// <summary>
+    /// Creates a query builder with the configuration, analyzers, and synonym catalog for one local index.
+    /// </summary>
     internal SearchQueryBuilder(
         SearchOptions options,
         LanguageAnalyzerCatalog analyzers,
@@ -38,6 +44,9 @@ internal sealed class SearchQueryBuilder
         _synonyms = synonyms;
     }
 
+    /// <summary>
+    /// Builds a Lucene query containing text, exact-match, and time-range constraints from a request.
+    /// </summary>
     internal Query Build(SearchRequest request)
     {
         var root = new BooleanQuery();
@@ -70,6 +79,9 @@ internal sealed class SearchQueryBuilder
         return root;
     }
 
+    /// <summary>
+    /// Combines exact, analyzed, synonym, and eligible fuzzy variants for normalized free text.
+    /// </summary>
     private Query BuildTextQuery(SearchRequest request, string normalizedText)
     {
         var textQuery = new BooleanQuery { MinimumNumberShouldMatch = 1 };
@@ -125,6 +137,9 @@ internal sealed class SearchQueryBuilder
         return textQuery;
     }
 
+    /// <summary>
+    /// Builds boosted exact-term clauses when the normalized value fits Lucene's term limit.
+    /// </summary>
     private static Query? BuildExactQuery(string normalizedText)
     {
         if (!SearchValidation.FitsIndexedTerm(normalizedText))
@@ -160,6 +175,9 @@ internal sealed class SearchQueryBuilder
         return added ? exact : null;
     }
 
+    /// <summary>
+    /// Builds analyzed field clauses for each appropriate language target.
+    /// </summary>
     private Query? BuildAnalyzedVariant(string text, string? queryLanguage, float scale)
     {
         var variant = new BooleanQuery { MinimumNumberShouldMatch = 1 };
@@ -204,6 +222,9 @@ internal sealed class SearchQueryBuilder
         return added ? variant : null;
     }
 
+    /// <summary>
+    /// Builds bounded fuzzy clauses only for tokens eligible under the configured matching rules.
+    /// </summary>
     private Query? BuildFuzzyVariant(string text, string? queryLanguage)
     {
         var variant = new BooleanQuery { MinimumNumberShouldMatch = 1 };
@@ -256,6 +277,9 @@ internal sealed class SearchQueryBuilder
         return added ? variant : null;
     }
 
+    /// <summary>
+    /// Requires every analyzed term to occur in one indexed field.
+    /// </summary>
     private static BooleanQuery BuildTermConjunction(string fieldName, IReadOnlyList<string> terms)
     {
         var query = new BooleanQuery();
@@ -267,6 +291,9 @@ internal sealed class SearchQueryBuilder
         return query;
     }
 
+    /// <summary>
+    /// Returns the generic target plus an optional language-specific target for a query.
+    /// </summary>
     private static IReadOnlyList<QueryTarget> GetTargets(string? queryLanguage)
     {
         var targets = new List<QueryTarget>
@@ -287,6 +314,9 @@ internal sealed class SearchQueryBuilder
         return targets;
     }
 
+    /// <summary>
+    /// Adds an exact-match filter containing any normalized value from the supplied collection.
+    /// </summary>
     private static void AddExactSetFilter(
         BooleanQuery root,
         string field,
@@ -313,6 +343,9 @@ internal sealed class SearchQueryBuilder
         root.Add(filter, Occur.MUST);
     }
 
+    /// <summary>
+    /// Describes the indexed fields and score multiplier used for one query-analysis target.
+    /// </summary>
     private sealed record QueryTarget(
         string FieldLanguage,
         string AnalyzerLanguage,

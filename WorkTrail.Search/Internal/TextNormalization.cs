@@ -22,10 +22,19 @@ using System.Text;
 
 namespace WorkTrail.Search.Internal;
 
+/// <summary>
+/// Normalizes user text into the canonical forms used by the local-search index and queries.
+/// </summary>
 internal static class TextNormalization
 {
+    /// <summary>
+    /// Identifies text whose language cannot be determined.
+    /// </summary>
     internal const string FallbackLanguage = "und";
 
+    /// <summary>
+    /// Folds case, diacritics, and whitespace into a stable value for exact matching.
+    /// </summary>
     internal static string ForAnalysis(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -69,11 +78,17 @@ internal static class TextNormalization
         return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 
+    /// <summary>
+    /// Returns the normalized value when input contains text; otherwise returns <see langword="null"/>.
+    /// </summary>
     internal static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : ForAnalysis(value);
     }
 
+    /// <summary>
+    /// Replaces path-like separators with spaces before an analyzer tokenizes the value.
+    /// </summary>
     internal static string ForTokenization(string value)
     {
         var normalized = ForAnalysis(value);
@@ -110,12 +125,18 @@ internal static class TextNormalization
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Converts a BCP 47 language tag to its trimmed, lowercase, hyphenated form.
+    /// </summary>
     internal static string NormalizeLanguage(string language)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(language);
         return language.Trim().Replace('_', '-').ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Resolves a language tag to the analyzer key supported by the local index.
+    /// </summary>
     internal static string AnalyzerLanguage(string? language)
     {
         if (string.IsNullOrWhiteSpace(language))
@@ -143,16 +164,25 @@ internal static class TextNormalization
         return separator < 0 ? normalized : normalized[..separator];
     }
 
+    /// <summary>
+    /// Determines whether text resembles a path, address, URL, or dotted identifier that should remain literal.
+    /// </summary>
     internal static bool IsPathLike(string value)
     {
-        return value.Contains('\\', StringComparison.Ordinal) ||
-               value.Contains('/', StringComparison.Ordinal) ||
-               value.Contains(':', StringComparison.Ordinal) ||
-               value.Contains('@', StringComparison.Ordinal) ||
-               value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                   .Any(token => token.Contains('.', StringComparison.Ordinal));
+        var containsPathSeparator = value.Contains('\\', StringComparison.Ordinal) ||
+                                    value.Contains('/', StringComparison.Ordinal);
+        var containsAddressSeparator = value.Contains(':', StringComparison.Ordinal) ||
+                                       value.Contains('@', StringComparison.Ordinal);
+        var containsDottedToken = value
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Any(token => token.Contains('.', StringComparison.Ordinal));
+
+        return containsPathSeparator || containsAddressSeparator || containsDottedToken;
     }
 
+    /// <summary>
+    /// Determines whether a token is long enough and alphabetic enough for fuzzy matching.
+    /// </summary>
     internal static bool IsFuzzyEligible(string token, int minimumLength)
     {
         return token.Length >= minimumLength && token.All(char.IsLetter);
