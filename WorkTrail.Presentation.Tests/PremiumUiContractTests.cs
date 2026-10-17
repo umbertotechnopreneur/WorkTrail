@@ -78,13 +78,13 @@ public sealed class PremiumUiContractTests
         Assert.Contains(add.Parent!.Elements(), element => Name(element) == "AddClockPremiumBadge");
     }
 
-    /// <summary>The OCR/AI action uses the same navigation control as the surrounding settings links.</summary>
+    /// <summary>The AI action uses the same navigation control as the surrounding settings links.</summary>
     [Fact]
-    public void OcrSettings_HaveNoDecorativeHeadingOrDuplicateBorder()
+    public void AiSettings_HaveNoDecorativeHeadingOrDuplicateBorder()
     {
         var document = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
         Assert.DoesNotContain(document.Descendants(), element => element.Attribute("Tag")?.Value == "Options.Section.Ai");
-        var action = document.Descendants().Single(element => Name(element) == "OcrAiSettingsButton");
+        var action = document.Descendants().Single(element => Name(element) == "AiSettingsButton");
         Assert.Equal("HyperlinkButton", action.Name.LocalName);
         Assert.DoesNotContain("OptionsPanoramaVioletBrush", document.ToString(), StringComparison.Ordinal);
     }
@@ -126,14 +126,12 @@ public sealed class PremiumUiContractTests
     {
         var options = XDocument.Load(PathFor("WorkTrail", "Controls", "OptionsControl.xaml"));
         var retention = XDocument.Load(PathFor("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
-        foreach (var controlName in new[] { "ScreenshotFolderBox", "KeepScreenshotsSwitch", "ScreenshotsEnabledSwitch", "ScreenshotModeBox", "OcrEnabledSwitch", "OcrLanguageBox" })
+        foreach (var controlName in new[] { "ScreenshotFolderBox", "KeepScreenshotsSwitch", "ScreenshotsEnabledSwitch", "ScreenshotModeBox" })
         {
             Assert.DoesNotContain(options.Descendants(), element => Name(element) == controlName);
             Assert.Single(retention.Descendants(), element => Name(element) == controlName);
         }
-        var sensors = XDocument.Load(PathFor("WorkTrail", "Controls", "SensorOptionsControl.xaml"));
-        Assert.DoesNotContain(sensors.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
-        Assert.Single(retention.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
+        Assert.DoesNotContain(retention.Descendants(), element => Name(element) == "HardwareSaveSnapshotsSwitch");
     }
 
     /// <summary>The v1 surface never advertises or instantiates the withdrawn taskbar widget.</summary>

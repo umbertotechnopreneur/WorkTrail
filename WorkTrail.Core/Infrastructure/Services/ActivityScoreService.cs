@@ -33,12 +33,9 @@ public sealed class ActivityScoreService
     private const int MaximumSnapshotIntervalMinutes = WindowMinutes / 2;
     private const double MaximumInputContribution = 86d;
     private const double MaximumActiveContribution = 8d;
-    private const double MaximumCpuContribution = 4d;
-    private const double MaximumGpuContribution = 2d;
     private const double MaximumDurableActivityContribution = MaximumInputContribution + MaximumActiveContribution;
     private readonly object _gate = new();
     private readonly Dictionary<DateTimeOffset, MinuteAggregate> _minutes = new();
-    private readonly Dictionary<DateTimeOffset, SystemTelemetryPoint> _telemetryPoints = new();
 
     /// <summary>Records keyboard, click, and active-time contributions from one durable activity sample.</summary>
     public void RecordSample(ActivitySample sample)
@@ -57,32 +54,7 @@ public sealed class ActivityScoreService
         }
     }
 
-    /// <summary>Records the low-weight system telemetry captured by the application facade.</summary>
-    public void RecordSystemSnapshot(SystemSnapshot snapshot)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-
-        var usage = HardwareUsageProjection.Read(snapshot);
-
-        lock (_gate)
-        {
-            var aggregate = GetOrCreate(TruncateToMinute(snapshot.Timestamp));
-            aggregate.CpuUsagePercent = usage.Cpu;
-            aggregate.GpuUsagePercent = usage.Gpu;
-            if (usage.Cpu is not null || usage.Gpu is not null)
-            {
-                var timestamp = snapshot.Timestamp.ToUniversalTime();
-                // The shared collector can return one cached reading to several callers.
-                // Count that measured instant once while continuing to refresh the minute display.
-                _telemetryPoints[timestamp] = new SystemTelemetryPoint(
-                    timestamp,
-                    aggregate.CpuUsagePercent,
-                    aggregate.GpuUsagePercent);
-            }
-        }
-    }
-
-    /// <summary>Builds the persisted CPU/GPU averages for one screenshot interval.</summary>
+    /// <summary>Builds the persisted activity boundaries for one screenshot interval.</summary>
     public ScreenshotIntervalTelemetry BuildScreenshotIntervalTelemetry(
         DateTimeOffset intervalStartedAt,
         DateTimeOffset capturedAt)
@@ -94,20 +66,7 @@ public sealed class ActivityScoreService
             throw new ArgumentOutOfRangeException(nameof(intervalStartedAt), "Screenshot telemetry interval must end after it starts.");
         }
 
-        lock (_gate)
-        {
-            Trim(toUtc.AddMinutes(-WindowMinutes));
-            var points = _telemetryPoints.Values
-                .Where(point => point.TimestampUtc > fromUtc && point.TimestampUtc <= toUtc)
-                .ToArray();
-            var cpuPoints = points.Where(point => point.CpuUsagePercent is not null).ToArray();
-            var gpuPoints = points.Where(point => point.GpuUsagePercent is not null).ToArray();
-            return new ScreenshotIntervalTelemetry(
-                fromUtc,
-                toUtc,
-                cpuPoints.Length == 0 ? null : (int)Math.Round(cpuPoints.Average(point => point.CpuUsagePercent!.Value)),
-                gpuPoints.Length == 0 ? null : (int)Math.Round(gpuPoints.Average(point => point.GpuUsagePercent!.Value)));
-        }
+        return new ScreenshotIntervalTelemetry(fromUtc, toUtc);
     }
 
     /// <summary>Builds a trailing thirty-minute immutable rendering state at one-minute resolution.</summary>
@@ -130,9 +89,7 @@ public sealed class ActivityScoreService
                     CalculateScore(aggregate),
                     aggregate.KeyPresses,
                     aggregate.MouseClicks,
-                    aggregate.ActiveSeconds,
-                    aggregate.CpuUsagePercent,
-                    aggregate.GpuUsagePercent));
+                    aggregate.ActiveSeconds));
             }
 
             var latestStart = windowEnd.AddMinutes(-(intervalMinutes - 1));
@@ -149,13 +106,11 @@ public sealed class ActivityScoreService
     }
 
     /// <summary>
-    /// Calculates a durable interval activity index using the same input, active-time, CPU, and GPU weights as the live score.
+    /// Calculates a durable interval activity index using the same input and active-time weights as the live score.
     /// </summary>
     internal static int CalculateIntervalActivityIndex(
         IEnumerable<ActivitySample> samples,
-        double intervalMinutes,
-        int? cpuUsagePercent,
-        int? gpuUsagePercent)
+        double intervalMinutes)
     {
         ArgumentNullException.ThrowIfNull(samples);
         var normalizedIntervalMinutes = Math.Max(1d, intervalMinutes);
@@ -176,9 +131,7 @@ public sealed class ActivityScoreService
         return CalculateScore(
             keyPresses / (double)normalizedIntervalMinutes,
             mouseClicks / (double)normalizedIntervalMinutes,
-            Math.Clamp(activeSeconds / (double)maximumActiveSeconds, 0d, 1d),
-            cpuUsagePercent,
-            gpuUsagePercent);
+            Math.Clamp(activeSeconds / (double)maximumActiveSeconds, 0d, 1d));
     }
 
     /// <summary>
@@ -219,7 +172,7 @@ public sealed class ActivityScoreService
             : Math.Clamp(activeSeconds / trackedSeconds, 0d, 1d);
         var activeContribution = activeRatio * MaximumActiveContribution;
 
-        // Daily history has no complete CPU/GPU series, so normalize the durable 94-point budget to 0-100.
+        // Normalize the durable input and active-time contributions to the displayed 0-100 range.
         var normalizedScore = (inputContribution + activeContribution) * 100d / MaximumDurableActivityContribution;
         return (int)Math.Round(Math.Clamp(normalizedScore, 0d, 100d));
     }
@@ -244,10 +197,6 @@ public sealed class ActivityScoreService
             _minutes.Remove(minute);
         }
 
-        foreach (var timestamp in _telemetryPoints.Keys.Where(timestamp => timestamp < oldestMinute).ToArray())
-        {
-            _telemetryPoints.Remove(timestamp);
-        }
     }
 
     private static ActivityScoreInterval BuildInterval(
@@ -274,23 +223,17 @@ public sealed class ActivityScoreService
     private static int CalculateScore(MinuteAggregate aggregate) => CalculateScore(
         aggregate.KeyPresses,
         aggregate.MouseClicks,
-        aggregate.ActiveSeconds > 0 ? 1d : 0d,
-        aggregate.CpuUsagePercent,
-        aggregate.GpuUsagePercent);
+        aggregate.ActiveSeconds > 0 ? 1d : 0d);
 
     private static int CalculateScore(
         double keyPresses,
         double mouseClicks,
-        double activeRatio,
-        int? cpuUsagePercent,
-        int? gpuUsagePercent)
+        double activeRatio)
     {
-        // Input is deliberately dominant; CPU and GPU together can add at most six points.
+        // Input is deliberately dominant; normalize the same durable weights used by historical scores.
         var inputContribution = Math.Min(MaximumInputContribution, (keyPresses * 0.55d) + (mouseClicks * 3.5d));
         var activeContribution = Math.Clamp(activeRatio, 0d, 1d) * MaximumActiveContribution;
-        var cpuContribution = Math.Clamp(cpuUsagePercent ?? 0, 0, 100) * MaximumCpuContribution / 100d;
-        var gpuContribution = Math.Clamp(gpuUsagePercent ?? 0, 0, 100) * MaximumGpuContribution / 100d;
-        return (int)Math.Round(Math.Clamp(inputContribution + activeContribution + cpuContribution + gpuContribution, 0d, 100d));
+        return (int)Math.Round(Math.Clamp((inputContribution + activeContribution) * 100d / MaximumDurableActivityContribution, 0d, 100d));
     }
 
     private static DateTimeOffset TruncateToMinute(DateTimeOffset value)
@@ -304,9 +247,6 @@ public sealed class ActivityScoreService
         public long KeyPresses { get; set; }
         public long MouseClicks { get; set; }
         public int ActiveSeconds { get; set; }
-        public int? CpuUsagePercent { get; set; }
-        public int? GpuUsagePercent { get; set; }
     }
 
-    private sealed record SystemTelemetryPoint(DateTimeOffset TimestampUtc, int? CpuUsagePercent, int? GpuUsagePercent);
 }

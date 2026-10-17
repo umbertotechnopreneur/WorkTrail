@@ -74,14 +74,11 @@ public sealed partial class CliRouter(IWorkTrailApplication application, CliOutp
             "runtime" => await RuntimeAsync(arguments, cancellationToken),
             "tracking" => await TrackingAsync(arguments, cancellationToken),
             "session" => await SessionAsync(arguments, cancellationToken),
-            "system" => await SystemAsync(arguments, cancellationToken),
             "screenshot" => await ScreenshotAsync(arguments, cancellationToken),
             "screenshots" => await ScreenshotAsync(arguments, cancellationToken),
             "search" => await SearchAsync(arguments, cancellationToken),
             "report" => await ReportAsync(arguments, cancellationToken),
             "world-clock" => await WorldClockAsync(arguments, cancellationToken),
-            "hardware" => arguments.Count == 2 && arguments[1].Equals("snapshot", StringComparison.OrdinalIgnoreCase)
-                ? await WriteAsync(_application.CaptureHardwareSnapshotAsync(cancellationToken)) : InvalidArguments(),
             "data" => await DataAsync(arguments, cancellationToken),
             "logs" => await LogsAsync(arguments, cancellationToken),
             "access" => arguments.Count == 2 && arguments[1].Equals("status", StringComparison.OrdinalIgnoreCase)
@@ -152,31 +149,6 @@ public sealed partial class CliRouter(IWorkTrailApplication application, CliOutp
     };
 
 
-    private async Task<int> SystemAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
-    {
-        if (arguments.ElementAtOrDefault(1)?.Equals("snapshot", StringComparison.OrdinalIgnoreCase) != true)
-        {
-            return InvalidCommand();
-        }
-
-        if (!TryParseWatchOptions(arguments, 2, out var watch, out var interval))
-        {
-            return InvalidArguments();
-        }
-
-        if (watch)
-        {
-            return await WatchAsync(
-                _application.CaptureSystemSnapshotAsync,
-                _output.RenderSystemSnapshot,
-                interval,
-                cancellationToken);
-        }
-
-        var result = await _application.CaptureSystemSnapshotAsync(cancellationToken);
-        _output.WriteResult(result, result.Value is null ? null : _output.RenderSystemSnapshot(result.Value));
-        return result.Succeeded ? 0 : ExitCodeMapper.Map(result.Code);
-    }
 
     private async Task<int> ScreenshotAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
@@ -214,8 +186,6 @@ public sealed partial class CliRouter(IWorkTrailApplication application, CliOutp
         {
             case "models" when arguments.Count == 2:
                 return await WriteAsync(_application.GetAiModelCatalogAsync(cancellationToken));
-            case "pricing" when arguments.Count == 2:
-                return await WriteAsync(_application.GetAiPricingOverviewAsync(cancellationToken));
             case "test" when TryParseOptions(arguments, 2, ["--yes"], [], out var testOptions):
                 return Confirmed(testOptions)
                     ? await WriteAsync(_application.TestAiConnectionAsync(cancellationToken))

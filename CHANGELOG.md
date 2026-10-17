@@ -11,6 +11,12 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
+- World Time menu in the player title bar, with a live saved-city preview and direct access to clocks, maps, the astronomical calendar, local sky and Moon windows.
+- Configurable automatic-capture stabilization for rapid window switching, with bounded quiet retries and no added wait for manual captures.
+- Configurable near-duplicate filtering for automatic screenshots, with conservative visual comparison and periodic refresh; manual captures bypass similarity filtering.
+- Title-only application rules: Spotify keeps its literal foreground title in existing activity data, without image crops; its visible area is masked in monitor panoramas, including manual captures.
+- Context-specific screenshot micro-prompts, process-scoped title hints, selected secondary-window crops and configurable inactivity timeouts, including Teams and Zoom presets. Browser titles remain heuristic hints, not verified domains; low-attention analysis reads titles only.
+- Internal screenshot capture rules with active/secondary window crops, monitor identities, separate AI/gallery destinations, application attention presets and an analysis blacklist.
 - Codex CLI screenshot descriptions using ChatGPT sign-in, with installation detection, setup guidance and actionable connection errors.
 - Inline history settings with a configurable storage warning (1 GB by default) and confirmed deletion of an inclusive date range.
 - Process memory monitoring with a 1 GiB limit, a native Windows warning before restart, logged recovery events, and preservation of the tracking state.
@@ -30,6 +36,8 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- Screenshot descriptions use Balanced or Complete profiles, inspect visible content by monitor and omit application-imposed response caps. Manual captures request Complete analysis with high attention without changing the saved preference or privacy exclusions.
+- Activating any WorkTrail window brings the other open app windows forward while keeping focus on the selected window.
 - AI settings offer CLI or API connections through Codex CLI or an OpenAI API key; switching connections requires explicit AI activation.
 - Guided setup offers the same CLI/API choice, and history settings keep storage controls and deletion dates on compact rows.
 - Free history is retained for one calendar month; Premium can retain one to twelve months. Automatic cleanup checks the policy daily while the app is running.
@@ -45,14 +53,13 @@ the first public preview defines what later versions need to stay compatible wit
 - AI summaries remain visible in an editable text area, and ordinary file-format or column changes preserve the draft.
 - Excel preview generation now shows progress and the completed file path below the card, with separate commands to open the workbook or copy its absolute path.
 - Debug builds preserve diagnostic data by disabling scheduled retention; manual cleanup remains available.
-- Screenshot storage, local OCR, and saved hardware settings are grouped with data retention.
-- Hardware summaries focus on CPU, GPU, physical memory, disks, and network. Complete readings remain available in expandable device groups.
-- The live sensor monitor updates controls on the visible page while continuing to collect samples for every device.
+- Activity scores use input and active time only. Screenshot monitor identity and the visual gallery are preserved.
 - Settings navigation uses consistent hover behavior, and the main-window position label is translated consistently.
 - The privacy guide explains what happens when you reset the app and delete its saved data.
 
 ### Fixed
 
+- Preserve field-level AI configuration errors when analysis is rejected after retaining a screenshot, and restore the export AI-usage option's accessible name.
 - Windows retain their monitor, position and dimensions across restarts, adapting saved geometry to current display DPI and keeping disconnected-monitor placements visible.
 - Each snapshot shows one Windows notification using the active-window or focused-monitor image, including multi-monitor captures.
 - Icon-only Windows controls declare accessible names matching their tooltips, the Excel theme selector shows its localized header, and the export window keeps a single Premium badge in its title bar.
@@ -68,6 +75,10 @@ the first public preview defines what later versions need to stay compatible wit
 - Export windows keep their title bar and close button visible; the labels editor restores its saved placement and centers on its owner on first opening.
 
 ### Removed
+
+- Monthly AI spending, price-list downloads, pricing dialogs and cost estimates in settings, storage and exports. Request and token counts remain available.
+- Hardware sensor collection, CPU/GPU readings, the sensor window, LibreHardwareMonitor and bundled PawnIO installation.
+- OCR capture processing, refinement calls, stored OCR text, controls, search fields, export columns and the obsolete adapter test project/documentation. AI visual descriptions remain available through CLI or API.
 
 - Taskbar-widget controls from Settings.
 

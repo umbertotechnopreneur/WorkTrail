@@ -62,7 +62,6 @@ public sealed class WorldClockSelectionMutationTests
                 utilities,
                 new TrackingDomainService(store),
                 capture,
-                new FakeHardwareTelemetryService(),
                 new OpenAiAnalysisService(store, capture),
                 new StartupService(),
                 new BuildInformationService(),

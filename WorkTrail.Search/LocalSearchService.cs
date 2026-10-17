@@ -49,10 +49,10 @@ public sealed class LocalSearchService : ILocalSearchService
     private int _disposeStarted;
 
     /// <summary>Gets the current on-disk index schema version.</summary>
-    public const int IndexSchemaVersion = 4;
+    public const int IndexSchemaVersion = 5;
 
     /// <summary>Gets the versioned directory name created below <see cref="SearchOptions.IndexRootPath"/>.</summary>
-    public const string IndexDirectoryName = "lucene-v4";
+    public const string IndexDirectoryName = "lucene-v5";
 
     /// <summary>
     /// Initializes a local search service and exclusively opens its Lucene writer.
@@ -63,6 +63,7 @@ public sealed class LocalSearchService : ILocalSearchService
         var rootPath = SearchValidation.ValidateOptions(options);
         _options = options;
         IndexPath = Path.Combine(rootPath, IndexDirectoryName);
+        RemoveRetiredIndex(rootPath);
 
         LanguageAnalyzerCatalog? analyzers = null;
         FSDirectory? directory = null;
@@ -227,7 +228,7 @@ public sealed class LocalSearchService : ILocalSearchService
 
                     // Add each mapped document directly to the writer. Holding a second list of
                     // every Lucene document was the largest avoidable allocation during a full
-                    // OCR index rebuild.
+                    // search index rebuild.
                     _writer.AddDocument(SearchDocumentMapper.ToLucene(document));
                 }
             }, sourceRevision);
@@ -335,11 +336,30 @@ public sealed class LocalSearchService : ILocalSearchService
         WindowTitle = null,
         AttributesRaw = [],
         SpanLabels = [],
-        OcrRawText = null,
-        OcrCorrectedText = null,
-        OcrStructuredSummary = null,
         AiDescription = null,
     };
+
+    // The retired index contains removed extracted text. Delete only its owned flat Lucene files;
+    // never traverse a redirected directory or a nested path when purging derived data.
+    private static void RemoveRetiredIndex(string rootPath)
+    {
+        var retired = new DirectoryInfo(Path.Combine(rootPath, "lucene-v4"));
+        if (!retired.Exists) return;
+        if ((new DirectoryInfo(rootPath).Attributes & FileAttributes.ReparsePoint) != 0
+            || (retired.Attributes & FileAttributes.ReparsePoint) != 0
+            || retired.EnumerateDirectories().Any())
+        {
+            throw new IOException("The retired search index is not a regular flat directory.");
+        }
+
+        var files = retired.GetFiles();
+        if (files.Any(file => (file.Attributes & FileAttributes.ReparsePoint) != 0))
+        {
+            throw new IOException("The retired search index contains redirected files.");
+        }
+        foreach (var file in files) file.Delete();
+        retired.Delete();
+    }
 
     private static long ValidateExistingSchema(FSDirectory directory)
     {

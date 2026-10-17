@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using WorkTrail.Services;
 
 namespace WorkTrail.Providers;
 
@@ -53,6 +54,7 @@ public interface IActivityContextProvider
 /// </summary>
 public sealed class ActivityContextProviderRegistry
 {
+    private static readonly Lazy<ScreenshotCaptureRules> CapturePolicy = new(ScreenshotCaptureRules.Load);
     private readonly IReadOnlyList<IActivityContextProvider> _providers =
     [
         new MicrosoftOfficeContextProvider(),
@@ -71,6 +73,11 @@ public sealed class ActivityContextProviderRegistry
             // Disabled collectors retain only process identity; the generic provider must not restore titles.
             return new ActivityContext(window.ProcessName, string.Empty);
         }
+
+        // Title-only processes use existing activity fields, without richer document/media inference.
+        // The embedded policy changes only when the application is rebuilt, so load it once.
+        if (CapturePolicy.Value.IsTitleOnly(window.ProcessName))
+            return new GenericContextProvider().Resolve(window);
 
         foreach (var provider in _providers)
         {

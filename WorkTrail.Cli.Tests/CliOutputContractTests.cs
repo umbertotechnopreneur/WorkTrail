@@ -20,42 +20,14 @@
 using System;
 using System.Linq;
 using System.Text.Json;
-using Spectre.Console;
-using Spectre.Console.Testing;
 using WorkTrail.Application;
 using WorkTrail.Cli;
-using WorkTrail.Services;
 using Xunit;
 
 namespace WorkTrail.Cli.Tests;
 
 public sealed class CliOutputContractTests
 {
-    [Fact]
-    public void HardwareSnapshot_RendersBatteryAndEscapesSensorNamesWithoutSummingPower()
-    {
-        var output = new CliOutput(new CliOptions(CliFormat.Rich, "en-US", false, false, 5, false, []));
-        var timestamp = new DateTimeOffset(2026, 9, 12, 10, 30, 0, TimeSpan.Zero);
-        var snapshot = new SystemSnapshot(timestamp, "partial",
-        [
-            new("/battery/0", "Battery [test]", "Battery", timestamp,
-            [
-                new("/battery/0/power/0", "Discharge Rate", "Power", "W", 8.4),
-                new("/battery/0/energy/0", "Remaining Capacity", "Energy", "mWh", 43000),
-                new("/battery/0/temp/0", "Temperature", "Temperature", "°C", null)
-            ])
-        ]);
-        var console = new TestConsole();
-        console.Profile.Width = 180;
-
-        console.Write(output.RenderSystemSnapshot(snapshot));
-
-        Assert.Contains("Battery [test]", console.Output, StringComparison.Ordinal);
-        Assert.Contains("8.4 W", console.Output, StringComparison.Ordinal);
-        Assert.Contains("43000 mWh", console.Output, StringComparison.Ordinal);
-        Assert.Contains("partial", console.Output, StringComparison.Ordinal);
-        Assert.Contains("not-installed", console.Output, StringComparison.Ordinal);
-    }
 
     [Theory]
     [InlineData("en-US", "Windows language", "System", "Light", "Dark")]

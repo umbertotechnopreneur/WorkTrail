@@ -1,8 +1,7 @@
 # WorkTrail.Search
 
 `WorkTrail.Search` is an independent, mandatory local-search service. It does not
-depend on the WinUI application, `WorkTrail.Core`, an AI provider, or an OCR
-engine.
+depend on the WinUI application, `WorkTrail.Core`, or an AI provider.
 
 ## Public API
 
@@ -12,7 +11,7 @@ engine.
   `SearchOptions`, and `SearchSynonymSet` records
 
 The caller supplies an absolute `SearchOptions.IndexRootPath`. The service stores
-derived data below `lucene-v2`, validates the schema marker on reopen, serializes
+derived data below `lucene-v5`, validates the schema marker on reopen, serializes
 all operations, and explicitly commits every mutation. Mutations always carry the
 authoritative source revision. Suggestions keep their own revision marker and are
 rebuilt lazily before lookup when missing or stale, coalescing multiple mutations
@@ -21,9 +20,9 @@ without serving suggestions from an older source snapshot.
 Synonyms are caller-provided equivalence groups and are expanded only while
 building a query. WorkTrail supplies 300 curated concepts for each of its ten
 search locales: 3,000 localized groups across twelve everyday work topics.
-The library itself embeds no general-purpose dictionary. OCR raw text,
-AI-corrected OCR, an OCR structured summary, and an AI screenshot description are
-separate optional fields; none is required for indexing or retrieval.
+The library itself embeds no general-purpose dictionary. Saved AI descriptions
+are optional; activity, application names, window titles, and screenshot metadata
+remain searchable without an AI description.
 
 ## Search synonyms
 

@@ -116,11 +116,10 @@ public sealed partial class OptionsControl : UserControl
             AutomationProperties.SetName(MainWindowShowInTaskbarSwitch, T("Options.Window.ShowInTaskbar.Header"));
             AutomationProperties.SetName(StartWithWindowsSwitch, T("Options.StartWithWindows.Header"));
             AutomationProperties.SetName(StartTrackingOnLaunchSwitch, T("Options.StartTracking.Header"));
-            AutomationProperties.SetName(OcrAiSettingsButton, T("Options.AiConfiguration.Title"));
+            AutomationProperties.SetName(AiSettingsButton, T("Options.AiConfiguration.Title"));
             AutomationProperties.SetName(SearchSynonymsSwitch, T("Options.Search.Synonyms"));
             AutomationProperties.SetName(SearchTypoToleranceSwitch, T("Options.Search.TypoTolerance"));
             AutomationProperties.SetName(RebuildSearchIndexButton, T("Options.Search.Rebuild"));
-            AutomationProperties.SetName(ShowAiMonthlySpendSwitch, T("Options.AiMonthlySpendVisibility.Header"));
             AutomationProperties.SetName(AiDailyLimitExpander, T("Options.AiQuota.Configure"));
             AutomationProperties.SetHelpText(AiDailyLimitExpander, T("Options.AiQuota.LimitHint"));
             AiDailyLimitActionText.Text = T("Options.AiQuota.Configure");
@@ -219,12 +218,12 @@ public sealed partial class OptionsControl : UserControl
         }
     }
 
-    /// <summary>Moves from OCR and AI configuration to general options, then back to the player.</summary>
+    /// <summary>Moves from AI configuration to general options, then back to the player.</summary>
     public void NavigateBack()
     {
-        if (OcrAiOptionsView.Visibility == Visibility.Visible)
+        if (AiConfigurationView.Visibility == Visibility.Visible)
         {
-            OcrAiOptionsView.Visibility = Visibility.Collapsed;
+            AiConfigurationView.Visibility = Visibility.Collapsed;
             AppOptionsView.Visibility = Visibility.Visible;
             NotifyLayoutChanged();
             return;
@@ -233,11 +232,11 @@ public sealed partial class OptionsControl : UserControl
         BackRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Shows the paired OCR and AI configuration view without changing persisted settings.</summary>
-    private async void OcrAiSettingsButton_Click(object sender, RoutedEventArgs e)
+    /// <summary>Shows the AI configuration view without changing persisted settings.</summary>
+    private async void AiSettingsButton_Click(object sender, RoutedEventArgs e)
     {
         AppOptionsView.Visibility = Visibility.Collapsed;
-        OcrAiOptionsView.Visibility = Visibility.Visible;
+        AiConfigurationView.Visibility = Visibility.Visible;
         NotifyLayoutChanged();
         if (_aiState is not null)
         {
@@ -544,7 +543,6 @@ public sealed partial class OptionsControl : UserControl
             SelectTheme(settings.Theme);
             AiCustomPromptBox.Text = settings.AiCustomPrompt;
             IncludeDeviceLocationSwitch.IsOn = settings.IncludeDeviceLocation;
-            ShowAiMonthlySpendSwitch.IsOn = settings.ShowAiMonthlySpend;
             UpdateAiQuotaPresentation();
             NotifyLayoutChanged();
         }
@@ -605,9 +603,6 @@ public sealed partial class OptionsControl : UserControl
             "ai.include_device_location",
             IncludeDeviceLocationSwitch.IsOn ? "true" : "false",
             refreshAiState: true);
-        ShowAiMonthlySpendSwitch.Toggled += (_, _) => QueueAutoSave(
-            "ai.show_monthly_spend",
-            ShowAiMonthlySpendSwitch.IsOn ? "true" : "false");
     }
 
     /// <summary>Persists a valid reasoning effort only with the currently selected, image-capable model.</summary>
@@ -781,7 +776,7 @@ public sealed partial class OptionsControl : UserControl
             UpdateApiKeyPresentation();
         }
 
-        if (e.PropertyName == nameof(AiApplicationState.CostGate))
+        if (e.PropertyName == nameof(AiApplicationState.RequestGate))
         {
             UpdateAiQuotaPresentation();
         }
@@ -827,8 +822,8 @@ public sealed partial class OptionsControl : UserControl
         AutomationProperties.SetName(AiQuotaPanel, title);
         AutomationProperties.SetHelpText(AiQuotaPanel, description);
 
-        var costGate = _aiState?.CostGate;
-        if (costGate is null || !_openAiDailyLimit.HasValue)
+        var requestGate = _aiState?.RequestGate;
+        if (requestGate is null || !_openAiDailyLimit.HasValue)
         {
             var unavailable = T("Options.AiQuota.Unavailable");
             AiQuotaStateText.Text = unavailable;
@@ -842,11 +837,11 @@ public sealed partial class OptionsControl : UserControl
             return;
         }
 
-        var used = Math.Max(0, costGate.DailyAnalysisCount);
+        var used = Math.Max(0, requestGate.DailyAnalysisCount);
         var limit = Math.Max(0, _openAiDailyLimit.Value);
         var reached = limit == 0
             || used >= limit
-            || string.Equals(costGate.Reason, "daily_limit", StringComparison.Ordinal);
+            || string.Equals(requestGate.Reason, "daily_limit", StringComparison.Ordinal);
         var status = T(reached ? "Options.AiQuota.Reached" : "Options.AiQuota.Available");
         var progressMaximum = Math.Max(1, limit);
 

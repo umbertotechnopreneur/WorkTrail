@@ -35,7 +35,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
     private readonly LocalStore _store;
     private readonly IAiAnalysisService _analysis;
     private readonly Func<AppSettings, bool> _canAnalyzeImages;
-    private readonly Func<AppSettings, AnalysisCostGate> _buildCostGate;
+    private readonly Func<AppSettings, AnalysisRequestGate> _buildRequestGate;
     private readonly Func<AppSettings, string, AnalysisContextSnapshot, bool> _isPrivate;
     private readonly Func<string, string> _canonicalizeModel;
     private readonly Func<Task>? _beforeWorkerHandoff;
@@ -59,7 +59,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
         LocalStore store,
         IAiAnalysisService analysis,
         Func<AppSettings, bool> canAnalyzeImages,
-        Func<AppSettings, AnalysisCostGate> buildCostGate,
+        Func<AppSettings, AnalysisRequestGate> buildRequestGate,
         Func<AppSettings, string, AnalysisContextSnapshot, bool> isPrivate,
         Func<string, string>? canonicalizeModel = null,
         ILogger? logger = null,
@@ -68,7 +68,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
         _store = store;
         _analysis = analysis;
         _canAnalyzeImages = canAnalyzeImages;
-        _buildCostGate = buildCostGate;
+        _buildRequestGate = buildRequestGate;
         _isPrivate = isPrivate;
         _canonicalizeModel = canonicalizeModel ?? (model => model.Trim());
         _logger = logger ?? NullLogger.Instance;
@@ -99,7 +99,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var settings = _store.LoadSettings();
-        var gate = _buildCostGate(settings);
+        var gate = _buildRequestGate(settings);
         var remainingAllowance = Math.Max(0, settings.OpenAiDailyLimit - gate.DailyAnalysisCount);
         var missingCandidates = candidates.Where(candidate => !candidate.HasAiDescription).ToArray();
         var missingScreenshotCount = missingCandidates.Sum(candidate => candidate.ScreenshotPaths.Count + candidate.MissingFileCount);
@@ -157,7 +157,6 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
             remainingAllowance,
             processable.Length,
             processable.Sum(candidate => candidate.ScreenshotPaths.Count),
-            settings.AiProvider == "codex-cli" ? null : processable.Length * settings.EstimatedCostPerAnalysisUsd,
             settings.AiProvider,
             settings.AiProvider == "codex-cli" ? "codex-default" : settings.Model,
             blockingReason is null,
@@ -223,7 +222,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
                             "AiScreenshotReprocessJobActive");
                     }
 
-                    var gate = _buildCostGate(settings);
+                    var gate = _buildRequestGate(settings);
                     var currentAllowance = Math.Max(0, settings.OpenAiDailyLimit - gate.DailyAnalysisCount);
                     if (currentAllowance < planned.Candidates.Count)
                     {
@@ -377,7 +376,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
                         "AiScreenshotReprocessConfigurationChanged"));
                 }
 
-                if (!_buildCostGate(settings).Allowed)
+                if (!_buildRequestGate(settings).Allowed)
                 {
                     return Task.FromResult(OperationResult<AiScreenshotReprocessJobSnapshot>.Failure(
                         "ai.screenshot_reprocess.daily_quota",
@@ -437,7 +436,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
 
             // The early facade preflight avoids unnecessary capture work; this authoritative check closes
             // the race with the batch that may have consumed the last daily slot while this call waited.
-            if (enforceDailyQuota && !_buildCostGate(_store.LoadSettings()).Allowed)
+            if (enforceDailyQuota && !_buildRequestGate(_store.LoadSettings()).Allowed)
             {
                 throw new AiDailyAnalysisQuotaReachedException();
             }
@@ -707,13 +706,19 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
             return;
         }
 
+        var analysisPaths = _store.SelectAnalysisScreenshotPaths(candidate.ScreenshotPaths);
+        if (analysisPaths.Count == 0)
+        {
+            CheckpointItem(item, "skipped", "no_analysis_images", incrementAttempt: false);
+            return;
+        }
         var attemptCount = checked(item.AttemptCount + 1);
         var capture = new ScreenshotCaptureResult(
             item.CaptureId,
-            candidate.ScreenshotPaths,
+            analysisPaths,
             candidate.ScreenshotPaths,
             item.CaptureOrigin,
-            candidate.TextSnapshots);
+            CapturedAt: item.CapturedAt);
         var attemptStarted = false;
         try
         {
@@ -778,7 +783,7 @@ internal sealed class AiScreenshotReprocessingService : IAsyncDisposable
 
                 // This check is authoritative and runs while the shared visual gate is held. The frozen job
                 // also caps attempts to the allowance shown in preview because failed calls may still be billable.
-                if (!_buildCostGate(settings).Allowed)
+                if (!_buildRequestGate(settings).Allowed)
                 {
                     _store.TransitionAiReprocessJob(
                         item.JobId,

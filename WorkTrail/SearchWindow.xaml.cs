@@ -93,14 +93,7 @@ public sealed partial class SearchWindow : Window
             _strings.Translate("Search.SnapshotCounts"),
             availability.TotalSnapshotCount,
             availability.TodaySnapshotCount);
-        TextReadingStatusText.Text = _strings.Translate(availability.TextReadingEnabled
-            ? "Search.TextReading.Status.Enabled"
-            : "Search.TextReading.Status.Disabled");
-        TextReadingStatusDot.Fill = (Brush)Microsoft.UI.Xaml.Application.Current.Resources[availability.TextReadingEnabled
-            ? "SystemFillColorSuccessBrush"
-            : "TextFillColorSecondaryBrush"];
         AutomationProperties.SetName(SearchAvailabilityText, SearchAvailabilityText.Text);
-        AutomationProperties.SetName(TextReadingStatusText, TextReadingStatusText.Text);
         AutomationProperties.SetName(SearchResultsList, _strings.Translate("Search.Results.Title"));
         AutomationProperties.SetName(PreviewScroller, _strings.Translate("Search.Preview.Title"));
         AutomationProperties.SetName(OpenSnapshotButton, _strings.Translate("Search.Preview.Open"));

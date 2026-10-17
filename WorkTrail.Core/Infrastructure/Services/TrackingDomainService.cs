@@ -245,15 +245,7 @@ public sealed class TrackingDomainService : IDisposable
         _settingsSnapshot.Replace(settings);
     }
 
-    /// <summary>Records application-owned telemetry for the live score without exposing OS access to the UI.</summary>
-    public void RecordSystemSnapshot(SystemSnapshot snapshot)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-        _activityScore.RecordSystemSnapshot(snapshot);
-        DashboardStateChanged?.Invoke(LoadCurrentDashboardState());
-    }
-
-    /// <summary>Calculates the telemetry averages that must be persisted with one screenshot.</summary>
+    /// <summary>Calculates the activity boundaries that must be persisted with one screenshot.</summary>
     public ScreenshotIntervalTelemetry BuildScreenshotIntervalTelemetry(
         DateTimeOffset intervalStartedAt,
         DateTimeOffset capturedAt) =>

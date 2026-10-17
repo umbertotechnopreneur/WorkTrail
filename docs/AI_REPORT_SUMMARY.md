@@ -15,12 +15,11 @@ The summary uses the AI provider and model you configured in settings. Your prov
 The dates and device you select determine which saved captures are used. Both the start and end dates are included, in the selected time zone. The checkboxes let you choose:
 
 - **Saved AI descriptions:** descriptions already created for your screenshots.
-- **Full OCR text:** text read from your screenshots, such as words in a document or web page.
 - **Window titles:** the titles of the windows you were using.
 
 Each included entry also carries its date and application name. Entries without any of your chosen text are skipped. Exact repeats with the same date, application and selected text are included only once. If there is no matching text, WorkTrail tells you instead of sending a request.
 
-**Check what your saved text may contain.** Descriptions and text read from screenshots can include private messages, names, passwords or file locations. WorkTrail asks the AI not to repeat sensitive details, but it does not remove them from the text before sending it. Turning off Window titles does not remove titles already mentioned inside a description or screenshot text.
+**Check what your saved text may contain.** Descriptions can include private messages, names, passwords or file locations. WorkTrail asks the AI not to repeat sensitive details, but it does not remove them from the text before sending it. Turning off Window titles does not remove titles already mentioned inside a description.
 
 These choices belong to the AI summary. Hiding the Captures table from your exported file does not exclude those captures from the summary. Likewise, seeing only five rows in the file preview does not mean only five entries will be sent.
 
@@ -30,7 +29,7 @@ WorkTrail checks the selected text before sending it. The limit is **160,000 cha
 
 If your selection is too large, WorkTrail stops before sending it. Choose fewer days, one device or fewer text sources, then try again. It does not quietly cut your text or split it into several paid requests. Your chosen AI model may have a smaller limit of its own.
 
-There is also a separate limit when reading saved activity on your computer: 50,000 captures and 32 million characters across saved descriptions and screenshot text. This check includes saved text even when its summary checkbox is off. These larger limits protect the local read; they do not increase how much can be sent to the AI.
+There is also a separate limit when reading saved activity on your computer: 50,000 captures and 32 million characters across saved descriptions. This check includes saved text even when its summary checkbox is off. These larger limits protect the local read; they do not increase how much can be sent to the AI.
 
 ## Make the summary useful to you
 

@@ -75,73 +75,10 @@ public sealed record ScreenshotGalleryRequest(DateOnly Date);
 /// <summary>Requests the bytes of one retained screenshot through the application boundary.</summary>
 public sealed record ScreenshotImageRequest(string ScreenshotPath);
 
-/// <summary>Provides the local snapshot counts and text-reading capability shown before opening search.</summary>
+/// <summary>Provides the local snapshot counts shown before opening search.</summary>
 public sealed record SearchAvailability(
     int TotalSnapshotCount,
-    int TodaySnapshotCount,
-    bool TextReadingEnabled);
-
-/// <summary>Identifies the outcome of local screenshot text extraction.</summary>
-public enum ScreenshotTextExtractionStatus
-{
-    /// <summary>OCR was explicitly disabled and no image I/O was performed.</summary>
-    Disabled,
-
-    /// <summary>OCR completed but found no readable text.</summary>
-    NoText,
-
-    /// <summary>OCR completed and returned raw text data.</summary>
-    Succeeded,
-
-    /// <summary>OCR was enabled but the local recognizer could not complete extraction.</summary>
-    Failed
-}
-
-/// <summary>Describes one raw OCR word and its image-relative pixel bounds.</summary>
-public sealed record OcrWordSnapshot(
-    string Text,
-    double X,
-    double Y,
-    double Width,
-    double Height);
-
-/// <summary>Describes one raw OCR line and all words returned by the local recognizer.</summary>
-public sealed record OcrLineSnapshot(
-    string Text,
-    IReadOnlyList<OcrWordSnapshot> Words);
-
-/// <summary>Contains the complete local OCR output retained for one screenshot artifact.</summary>
-public sealed record OcrRawSnapshot(
-    ScreenshotTextExtractionStatus Status,
-    string RawText,
-    string? LanguageTag,
-    double? TextAngleDegrees,
-    DateTimeOffset ExtractedAt,
-    string Engine,
-    uint? PixelWidth,
-    uint? PixelHeight,
-    IReadOnlyList<OcrLineSnapshot> Lines,
-    string? FailureCode = null);
-
-/// <summary>Contains an AI-produced, structured summary of locally extracted OCR text.</summary>
-public sealed record OcrStructuredSummary(
-    string Overview,
-    IReadOnlyList<string> KeyPoints,
-    IReadOnlyList<string> Entities,
-    IReadOnlyList<string> Actions);
-
-/// <summary>Contains the optional AI correction of OCR text produced by a dedicated enrichment request.</summary>
-public sealed record OcrAiRefinement(
-    string CorrectedText,
-    string? LanguageTag,
-    OcrStructuredSummary Summary,
-    DateTimeOffset RefinedAt);
-
-/// <summary>Associates raw local OCR and optional AI refinement with one screenshot source artifact.</summary>
-public sealed record ScreenshotTextSnapshot(
-    string SourceScreenshotPath,
-    OcrRawSnapshot Ocr,
-    OcrAiRefinement? AiRefinement = null);
+    int TodaySnapshotCount);
 
 /// <summary>Describes one retained screenshot that can be rendered by a presentation surface.</summary>
 /// <param name="CapturedAt">The capture timestamp stored with the retained screenshot artifact.</param>
@@ -152,17 +89,15 @@ public sealed record ScreenshotTextSnapshot(
 /// <param name="SpanLabels">Distinct consecutive activity labels sampled during the capture interval.</param>
 /// <param name="AiDescriptionMarkdown">The newest persisted AI description that references this exact artifact, formatted as Markdown.</param>
 /// <param name="AiAnalyzedAt">The timestamp of the associated AI analysis, or <see langword="null"/> when no successful result exists.</param>
-/// <param name="ActivityIndex">A 0-100 historical interval index based on durable input, active-time, CPU, and GPU telemetry.</param>
-/// <param name="TextSnapshot">The local OCR snapshot and optional AI refinement associated with this artifact.</param>
+/// <param name="ActivityIndex">A 0-100 historical interval index based on durable input and active time.</param>
 /// <param name="ForegroundWindowTitle">The closest foreground window title observed during the capture interval.</param>
-/// <param name="ScreenIndex">The one-based monitor index parsed from the retained artifact name, or <see langword="null"/> for active-window captures.</param>
+/// <param name="ScreenIndex">The one-based capture-time monitor index, including active-window crops when metadata is available.</param>
 /// <param name="ScreenName">A stable display label derived from <paramref name="ScreenIndex"/> when available.</param>
 /// <param name="MouseClicks">The number of durable mouse clicks observed during the capture interval, or <see langword="null"/> when no activity samples overlap it.</param>
-/// <param name="CpuUsagePercent">The average CPU usage persisted for the capture interval, or <see langword="null"/> when telemetry was unavailable.</param>
-/// <param name="GpuUsagePercent">The average GPU usage persisted for the capture interval, or <see langword="null"/> when telemetry was unavailable.</param>
-/// <param name="HasRemovableAnalysisData">Whether OCR, AI-provider analysis, or interval telemetry is currently persisted for this artifact.</param>
+/// <param name="HasRemovableAnalysisData">Whether AI-provider analysis or interval telemetry is currently persisted for this artifact.</param>
 /// <param name="IsVip">Whether the user explicitly marked this retained manual capture as important.</param>
 /// <param name="UserNote">The plain-text note shared by all artifacts of the capture.</param>
+/// <param name="ImageMetadata">Capture-time image role, physical bounds and related monitor identities.</param>
 public sealed record ScreenshotGalleryItem(
     DateTimeOffset CapturedAt,
     string Path,
@@ -173,25 +108,20 @@ public sealed record ScreenshotGalleryItem(
     string? AiDescriptionMarkdown = null,
     DateTimeOffset? AiAnalyzedAt = null,
     int? ActivityIndex = null,
-    ScreenshotTextSnapshot? TextSnapshot = null,
     string? ForegroundWindowTitle = null,
     int? ScreenIndex = null,
     string? ScreenName = null,
     long? MouseClicks = null,
-    int? CpuUsagePercent = null,
-    int? GpuUsagePercent = null,
     InstallationProfile? Installation = null,
     bool HasRemovableAnalysisData = false,
-    SystemSnapshot? HardwareSnapshot = null,
     bool IsVip = false,
-    string UserNote = "");
+    string UserNote = "",
+    ScreenshotImageMetadata? ImageMetadata = null);
 
-/// <summary>Contains telemetry averaged between the previous retained screenshot and the current capture.</summary>
+/// <summary>Identifies the activity interval between the previous retained screenshot and the current capture.</summary>
 public sealed record ScreenshotIntervalTelemetry(
     DateTimeOffset IntervalStartedAt,
-    DateTimeOffset CapturedAt,
-    int? CpuUsagePercent,
-    int? GpuUsagePercent);
+    DateTimeOffset CapturedAt);
 
 /// <summary>Describes one distinct local activity label observed during a screenshot interval.</summary>
 public sealed record ActivityLabelSample(
@@ -319,7 +249,6 @@ public sealed record AiScreenshotReprocessPlan(
     int RemainingDailyAllowance,
     int ProcessableTodayCaptureCount,
     int ProcessableTodayScreenshotCount,
-    decimal? EstimatedMaximumCostTodayUsd,
     string Provider,
     string Model,
     bool CanStart,
@@ -398,8 +327,6 @@ public sealed record WindowState(
     public string? MonitorId { get; init; }
 }
 
-/// <summary>Identifies the retained screenshot whose existing OCR metadata belongs in the restored text window.</summary>
-public sealed record OcrTextWindowSource(string ScreenshotPath, DateTimeOffset CapturedAt);
 
 /// <summary>Defines the minimum usable logical dimensions for a window surface.</summary>
 public readonly record struct WindowMinimumSize(int Width, int Height);
@@ -571,8 +498,7 @@ public sealed record RetentionStatus(int DataRetentionDays, int ScreenshotRetent
     int MaximumMonths = 1, DateOnly? FirstActivationDate = null, DateOnly? LastCleanupDate = null,
     DateOnly? NextCleanupDate = null, bool IsCleanupDue = false, RetentionCleanupProgress? Progress = null,
     bool KeepScreenshots = false, bool ScreenshotsEnabled = false, string ScreenshotCaptureMode = "all-screens",
-    bool OcrEnabled = false, string OcrLanguage = "system", bool HardwareSaveSnapshots = true,
-    bool HardwareSensorsEnabled = true, long StorageBytes = 0, int HistoryWarningMegabytes = 1024)
+    long StorageBytes = 0, int HistoryWarningMegabytes = 1024)
 {
     /// <summary>Reports whether measured local history exceeds the saved warning threshold.</summary>
     public bool IsStorageWarning => StorageBytes > HistoryWarningMegabytes * 1024L * 1024L;
@@ -585,32 +511,11 @@ public sealed record AtomicResetRequest(bool FirstConfirmation, bool FinalConfir
 public sealed record AtomicResetPlan(string DataDirectory, string ScreenshotDirectory, string ExecutablePath);
 
 /// <summary>Describes safe, non-secret AI configuration state.</summary>
-public sealed record AiStatus(bool Enabled, string Provider, string Model, string Endpoint, string KeyVariable, bool HasKey, bool CanEnable, AnalysisCostGate CostGate)
+public sealed record AiStatus(bool Enabled, string Provider, string Model, string Endpoint, string KeyVariable, bool HasKey, bool CanEnable, AnalysisRequestGate RequestGate)
 {
     /// <summary>Reports executable discovery only, without claiming authentication or model access.</summary>
     public bool CodexCliInstalled { get; init; }
 }
-
-/// <summary>Contains a simplified cached provider price for presentation surfaces.</summary>
-public sealed record AiPricingCostRow(string Model, decimal InputUsdPerMillionTokens, decimal OutputUsdPerMillionTokens);
-
-/// <summary>Contains simplified provider pricing plus daily and month-to-date local usage costs.</summary>
-public sealed record AiPricingOverview(
-    DateTimeOffset? LastSynchronizedAt,
-    int PriceRowCount,
-    int DisplayedModelCount,
-    decimal? EstimatedCostTodayUsd,
-    int EstimatedCostTodayRequestCount,
-    decimal? ActualCostTodayUsd,
-    int ActualCostTodayRequestCount,
-    long TodayInputTokens,
-    long TodayOutputTokens,
-    long TodayTotalTokens,
-    DateOnly CurrentMonthStart,
-    DateOnly CurrentMonthEnd,
-    decimal? EstimatedCostCurrentMonthUsd,
-    decimal? ActualCostCurrentMonthUsd,
-    IReadOnlyList<AiPricingCostRow> Models);
 
 /// <summary>Contains the safe, displayable output of an explicit AI connection check.</summary>
 public sealed record AiConnectionTestResult(string Provider, string Model, string Output, long ElapsedMilliseconds);
@@ -836,7 +741,7 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Gets today's activity summary.</summary>
     Task<OperationResult<DailySummary>> GetTodaySummaryAsync(CancellationToken cancellationToken);
 
-    /// <summary>Searches every locally available activity, screenshot, OCR, and AI text field.</summary>
+    /// <summary>Searches locally available activity, screenshot metadata, and AI text.</summary>
     Task<OperationResult<SearchResponse>> SearchAsync(SearchRequest request, CancellationToken cancellationToken);
 
     /// <summary>Gets the retained snapshot counts and local text-reading availability before search opens.</summary>
@@ -871,15 +776,6 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Generates, opens, or copies the path of a temporary ten-record Excel sample without sending AI requests.</summary>
     Task<OperationResult<ReportExportResult>> OpenReportFilePreviewAsync(ReportFilePreviewRequest request, CancellationToken cancellationToken);
 
-    /// <summary>Captures a current system snapshot.</summary>
-    Task<OperationResult<SystemSnapshot>> CaptureSystemSnapshotAsync(CancellationToken cancellationToken);
-
-    /// <summary>Reads only the shared hardware collector for live sensor presentation.</summary>
-    Task<OperationResult<SystemSnapshot>> CaptureHardwareSnapshotAsync(CancellationToken cancellationToken);
-
-    /// <summary>Installs the bundled PawnIO driver when needed and explicitly enables the elevated hardware collector.</summary>
-    Task<OperationResult<SystemSnapshot>> EnableAdvancedHardwareTelemetryAsync(CancellationToken cancellationToken);
-
     /// <summary>Captures screenshots after privacy checks.</summary>
     Task<OperationResult<ScreenshotCaptureResult>> CaptureScreenshotAsync(CaptureScreenshotRequest request, CancellationToken cancellationToken);
 
@@ -905,7 +801,7 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Deletes all local image artifacts belonging to one retained screenshot capture.</summary>
     Task<OperationResult<string>> DeleteScreenshotAsync(string screenshotPath, CancellationToken cancellationToken);
 
-    /// <summary>Deletes local OCR, AI-provider analysis, and interval telemetry associated with one retained screenshot.</summary>
+    /// <summary>Deletes AI-provider analysis and interval telemetry associated with one retained screenshot.</summary>
     Task<OperationResult<string>> DeleteScreenshotAnalysisAsync(string screenshotPath, CancellationToken cancellationToken);
 
     /// <summary>Gets the most recent retained screenshot.</summary>
@@ -995,9 +891,6 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Gets the configured AI key for the credential editor without logging or persisting the value.</summary>
     Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken);
 
-    /// <summary>Gets simplified cached OpenAI pricing plus daily and month-to-date local usage cost.</summary>
-    Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken);
-
     /// <summary>Sends a minimal non-image prompt to verify the persisted AI connection.</summary>
     Task<OperationResult<AiConnectionTestResult>> TestAiConnectionAsync(CancellationToken cancellationToken);
 
@@ -1074,7 +967,7 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Restores one window placement using the current monitor topology.</summary>
     Task<OperationResult<WindowState?>> RestoreWindowStateAsync(string windowKey, long windowHandle, CancellationToken cancellationToken);
 
-    /// <summary>Reveals only the supplied already-open UI peers while the main window retains foreground focus.</summary>
+    /// <summary>Reveals only the supplied already-open UI peers while the supplied active window retains foreground focus.</summary>
     Task<OperationResult<int>> RevealOpenWindowsAsync(WindowRevealRequest request, CancellationToken cancellationToken);
 
     /// <summary>Persists one window placement read from its native window handle.</summary>
@@ -1083,8 +976,6 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Persists whether a window is open so its visibility can be restored on the next launch.</summary>
     Task<OperationResult<bool>> SetWindowOpenStateAsync(string windowKey, bool isOpen, CancellationToken cancellationToken);
 
-    /// <summary>Remembers the screenshot to reopen in the OCR text window without duplicating extracted text.</summary>
-    Task<OperationResult<OcrTextWindowSource>> SetOcrTextWindowSourceAsync(string screenshotPath, DateTimeOffset capturedAt, CancellationToken cancellationToken);
 
     /// <summary>Gets startup registration state.</summary>
     Task<OperationResult<bool>> GetStartupStatusAsync(CancellationToken cancellationToken);

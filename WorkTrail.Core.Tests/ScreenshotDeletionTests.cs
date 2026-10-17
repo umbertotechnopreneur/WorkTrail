@@ -169,11 +169,11 @@ public sealed class ScreenshotDeletionTests
             var capturedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
             var capture = CreateCapture(store, dataDirectory, capturedAt);
             var genuinePath = capture.StoredScreenshotPaths[0];
-            store.UpsertScreenshotTextSnapshot(capture.CaptureId, CreateTextSnapshot(genuinePath, capturedAt));
+            AppendAnalysis(store, capture.CaptureId, genuinePath, capturedAt);
             store.UpsertScreenshotIntervalTelemetry(
                 capture.CaptureId,
                 capture.StoredScreenshotPaths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-15), capturedAt, 30, 20));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-15), capturedAt));
             var outsidePath = Path.Combine(outsideDirectory, Path.GetFileName(genuinePath));
             File.WriteAllBytes(outsidePath, [7, 8, 9]);
             await using var application = CreateApplication(store);
@@ -182,7 +182,7 @@ public sealed class ScreenshotDeletionTests
 
             Assert.False(result.Succeeded);
             Assert.Equal("screenshot.analysis.not_found", result.Code);
-            Assert.NotNull(store.LoadScreenshotTextSnapshot(genuinePath));
+            Assert.Equal("Retained screenshot description", store.LoadAiAnalysis(capture.CaptureId)?.Summary);
             Assert.NotNull(store.LoadScreenshotIntervalTelemetry(genuinePath));
             Assert.True(File.Exists(genuinePath));
         }
@@ -471,14 +471,12 @@ public sealed class ScreenshotDeletionTests
             store.UpsertScreenshotIntervalTelemetry(
                 capture.CaptureId,
                 capture.StoredScreenshotPaths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-15), capturedAt, null, null));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-15), capturedAt));
 
             var gallery = store.GetScreenshotGallery(DateOnly.FromDateTime(capturedAt.ToLocalTime().DateTime));
 
             var item = Assert.Single(gallery.Items);
             Assert.True(item.HasRemovableAnalysisData);
-            Assert.Null(item.CpuUsagePercent);
-            Assert.Null(item.GpuUsagePercent);
         }
         finally
         {
@@ -741,6 +739,40 @@ public sealed class ScreenshotDeletionTests
         finally { DeleteTemporaryDirectory(directory); }
     }
 
+    /// <summary>AI-only images are published for analysis but never survive completed cleanup or recovery.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Publication_MixedDestinationsRetainOnlyGalleryImages(bool recover)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var journal = new ScreenshotPublicationJournal(store);
+            var staged = CreateStagedCapture(directory);
+            var retained = staged.StoredScreenshotPaths[0];
+            var transient = staged.StoredScreenshotPaths[1];
+            var capture = staged with { StoredScreenshotPaths = [retained] };
+            journal.Publish(capture, directory, store.LoadSettings().InstallationId, keep: true);
+            Assert.True(File.Exists(retained));
+            Assert.True(File.Exists(transient));
+            var journalDirectory = Path.Combine(directory, "pending-screenshot-publications");
+            Assert.Single(Directory.GetFiles(journalDirectory, "*.json"));
+            if (recover)
+            {
+                var errors = new List<Exception>();
+                journal.Recover(errors.Add);
+                Assert.Empty(errors);
+            }
+            else journal.CleanupTransientArtifacts(capture.CaptureId);
+            Assert.True(File.Exists(retained));
+            Assert.False(File.Exists(transient));
+            Assert.Empty(Directory.GetFiles(journalDirectory, "*.json"));
+        }
+        finally { DeleteTemporaryDirectory(directory); }
+    }
+
     /// <summary>A failed capture's rollback intent cannot turn back into publication after restart.</summary>
     [Fact]
     public void Publication_FailedRollbackRemainsADiscardAcrossRestart()
@@ -972,19 +1004,16 @@ public sealed class ScreenshotDeletionTests
         return result;
     }
 
-    private static ScreenshotTextSnapshot CreateTextSnapshot(string screenshotPath, DateTimeOffset capturedAt) =>
-        new(
-            screenshotPath,
-            new OcrRawSnapshot(
-                ScreenshotTextExtractionStatus.Succeeded,
-                "retained OCR text",
-                "en-US",
-                null,
-                capturedAt,
-                "test",
-                1,
-                1,
-                []));
+    private static void AppendAnalysis(LocalStore store, string captureId, string screenshotPath, DateTimeOffset capturedAt)
+    {
+        var usage = new AiRequestUsageRecord(
+            Guid.NewGuid().ToString("N"), captureId, capturedAt, capturedAt.AddMilliseconds(10),
+            "snapshot.manual", "screen_analysis", "test-provider", "provider.invalid", "test-model", "test-model",
+            null, null, 200, 10, null, 1, 10, 100, new AiUsageMetrics(10, 5, 15), "stop", true, null);
+        store.AppendAiAnalysisAndUsage(usage, new AiAnalysis(
+            capturedAt, "Test", "Deletion", "Retained screenshot description", store.LoadSettings().InstallationId,
+            screenshotPath, CorrelationId: captureId, Origin: "snapshot.manual"));
+    }
 
     private static ActivitySample CreateActivitySample(
         DateTimeOffset timestamp,
@@ -1010,7 +1039,6 @@ public sealed class ScreenshotDeletionTests
             new UtilityService(),
             new TrackingDomainService(store),
             new UnexpectedCaptureService(),
-            new FakeHardwareTelemetryService(),
             analysis ?? new UnexpectedAnalysisService(),
             new StartupService(),
             new BuildInformationService(), startScheduledSnapshotTimer: false);

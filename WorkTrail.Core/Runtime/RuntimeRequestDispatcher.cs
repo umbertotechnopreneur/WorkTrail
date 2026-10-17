@@ -81,9 +81,6 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.SearchQueryV1 => await DispatchSearchAsync(request, cancellationToken),
                 RuntimeOperation.SearchAvailabilityV1 => ToResponse(request, await _application.GetSearchAvailabilityAsync(cancellationToken)),
                 RuntimeOperation.SearchRebuildV1 => ToResponse(request, await _application.RebuildSearchIndexAsync(cancellationToken)),
-                RuntimeOperation.HardwareSnapshotV1 => ToResponse(request, await _application.CaptureHardwareSnapshotAsync(cancellationToken)),
-                RuntimeOperation.SystemSnapshot => ToResponse(request, await _application.CaptureSystemSnapshotAsync(cancellationToken)),
-                RuntimeOperation.HardwareAdvancedEnableV1 => ToResponse(request, await _application.EnableAdvancedHardwareTelemetryAsync(cancellationToken)),
                 RuntimeOperation.ScreenshotCapture => await DispatchScreenshotCaptureAsync(request, cancellationToken),
                 RuntimeOperation.ScreenshotVipCaptureV1 => await DispatchScreenshotCaptureAsync(request, cancellationToken),
                 RuntimeOperation.ScreenshotManualCapture => ToResponse(request, await _application.CaptureManualScreenshotAsync(cancellationToken)),
@@ -127,7 +124,6 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.NotificationsDrain => ToResponse(request, await _application.DrainApplicationNotificationsAsync(cancellationToken)),
                 RuntimeOperation.AiStatus => ToResponse(request, await _application.GetAiStatusAsync(cancellationToken)),
                 RuntimeOperation.AiKeyGet => ToResponse(request, await _application.GetAiKeyAsync(cancellationToken)),
-                RuntimeOperation.AiPricingOverview => ToResponse(request, await _application.GetAiPricingOverviewAsync(cancellationToken)),
                 RuntimeOperation.AiConnectionTest => ToResponse(request, await _application.TestAiConnectionAsync(cancellationToken)),
                 RuntimeOperation.AiScreenshotReprocessPreviewV1 => await DispatchAiScreenshotReprocessPreviewAsync(request, cancellationToken),
                 RuntimeOperation.AiScreenshotReprocessStartV1 => ToResponse(request, await _application.StartAiScreenshotReprocessingAsync(ReadGuid(request.Payload, "planId"), cancellationToken)),
@@ -183,7 +179,6 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.WindowRevealOpenV1 => ToResponse(request, await _application.RevealOpenWindowsAsync(Read<WindowRevealRequest>(request.Payload) ?? throw new ArgumentException("A window reveal request is required."), cancellationToken)),
                 RuntimeOperation.WindowStateSave => ToResponse(request, await _application.SaveWindowStateAsync(ReadString(request.Payload, "windowKey"), ReadInt64(request.Payload, "windowHandle"), cancellationToken)),
                 RuntimeOperation.WindowOpenStateSet => ToResponse(request, await _application.SetWindowOpenStateAsync(ReadString(request.Payload, "windowKey"), ReadRequiredBool(request.Payload, "isOpen"), cancellationToken)),
-                RuntimeOperation.WindowOcrSourceSet => ToResponse(request, await DispatchOcrTextWindowSourceAsync(request, cancellationToken)),
                 RuntimeOperation.StartupStatus => ToResponse(request, await _application.GetStartupStatusAsync(cancellationToken)),
                 RuntimeOperation.StartupEnable => ToResponse(request, await _application.SetStartupEnabledAsync(true, cancellationToken)),
                 RuntimeOperation.StartupDisable => ToResponse(request, await _application.SetStartupEnabledAsync(false, cancellationToken)),
@@ -349,13 +344,6 @@ internal sealed class RuntimeRequestDispatcher
             ? property.GetBoolean()
             // A missing visibility flag must fail rather than silently close the saved window.
             : throw new InvalidOperationException($"A boolean '{name}' property is required.");
-
-    private Task<OperationResult<OcrTextWindowSource>> DispatchOcrTextWindowSourceAsync(RuntimeRequestEnvelope request, CancellationToken cancellationToken)
-    {
-        var source = Read<OcrTextWindowSource>(request.Payload)
-            ?? throw new InvalidOperationException("An OCR text window source is required.");
-        return _application.SetOcrTextWindowSourceAsync(source.ScreenshotPath, source.CapturedAt, cancellationToken);
-    }
 
     private static long ReadInt64(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object

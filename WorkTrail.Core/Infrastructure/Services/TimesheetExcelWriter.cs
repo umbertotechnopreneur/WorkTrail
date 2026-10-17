@@ -73,7 +73,6 @@ internal static class TimesheetExcelWriter
                 [workbook.T("Sources"), string.Join(" / ", new[]
                 {
                     options.Sources.IncludeDescriptionExcerpt || options.Sources.IncludeCompleteDescription ? strings.Translate("Export.SavedDescriptions") : null,
-                    options.Sources.IncludeOcr ? "OCR" : null,
                     options.Sources.IncludeWindowTitles ? strings.Translate("Export.Titles") : null
                 }.OfType<string>())],
                 [workbook.T("DataHelp"), workbook.T("ArchiveHelp")], [workbook.T("Coverage"), workbook.T("CoverageHelp")],

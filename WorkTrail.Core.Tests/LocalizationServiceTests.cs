@@ -91,19 +91,12 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void LanguageContracts_KeepUiSearchAndWindowsOcrCapabilitiesDistinct()
+    public void LanguageContracts_UseCanonicalUiAndSearchLocales()
     {
         Assert.Equal(
             new[] { "system", "en-US", "it-IT", "fr-FR", "de-DE", "es-ES", "zh-Hans", "vi-VN", "ko-KR", "pt-PT", "pt-BR" },
             ProductLanguageCatalog.UiChoices);
         Assert.Equal(ProductLanguageCatalog.UiChoices, ProductLanguageCatalog.SearchChoices);
-        Assert.Equal(
-            new[] { "system", "en-US", "it-IT", "fr-FR", "de-DE", "es-ES", "zh-CN", "ko-KR", "pt-PT", "pt-BR" },
-            ProductLanguageCatalog.OcrChoices);
-        Assert.Null(ProductLanguageCatalog.ResolveOcrLanguage("system"));
-        Assert.Equal("zh-CN", ProductLanguageCatalog.ResolveOcrLanguage("zh-CN"));
-        Assert.Throws<ArgumentException>(() => ProductLanguageCatalog.ResolveOcrLanguage("vi-VN"));
-        Assert.Throws<ArgumentException>(() => ProductLanguageCatalog.ResolveOcrLanguage("zh-Hans"));
 
         Assert.Equal(
             ProductLanguageCatalog.UiChoices,
@@ -111,9 +104,6 @@ public sealed class LocalizationServiceTests
         Assert.Equal(
             ProductLanguageCatalog.SearchChoices,
             SettingsCatalog.Definitions.Single(definition => definition.Key == "search.language").AllowedValues);
-        Assert.Equal(
-            ProductLanguageCatalog.OcrChoices,
-            SettingsCatalog.Definitions.Single(definition => definition.Key == "ocr.language").AllowedValues);
     }
 
     [Theory]
@@ -143,23 +133,13 @@ public sealed class LocalizationServiceTests
             Assert.True(SettingsCatalog.Apply(
                 new AppSettings(),
                 new SettingsPatch(new Dictionary<string, string?> { ["search.language"] = locale })).Succeeded));
-        Assert.All(ProductLanguageCatalog.OcrChoices, locale =>
-            Assert.True(SettingsCatalog.Apply(
-                new AppSettings(),
-                new SettingsPatch(new Dictionary<string, string?> { ["ocr.language"] = locale })).Succeeded));
 
         Assert.False(SettingsCatalog.Apply(
             new AppSettings(),
             new SettingsPatch(new Dictionary<string, string?> { ["language"] = "en" })).Succeeded);
-        Assert.False(SettingsCatalog.Apply(
-            new AppSettings(),
-            new SettingsPatch(new Dictionary<string, string?> { ["ocr.language"] = "vi-VN" })).Succeeded);
 
         Assert.Throws<InvalidDataException>(() => SettingsCatalog.NormalizePersisted(
             new AppSettings { UiLanguage = "it" },
-            Path.GetTempPath()));
-        Assert.Throws<InvalidDataException>(() => SettingsCatalog.NormalizePersisted(
-            new AppSettings { OcrLanguage = "vi" },
             Path.GetTempPath()));
     }
 
@@ -182,7 +162,6 @@ public sealed class LocalizationServiceTests
             var legacy = new AppSettings(
                 InstallationId: installationId,
                 UiLanguage: legacyLocale,
-                OcrLanguage: legacyLocale,
                 SearchLanguage: legacyLocale);
             var persisted = JsonSerializer.Serialize(legacy, serializerOptions);
             File.WriteAllText(settingsPath, persisted);
@@ -356,7 +335,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void OcrTextWindow_CopyIsAvailableInEverySupportedLanguage()
+    public void RemovedTextExtraction_CopyIsAbsentInEverySupportedLanguage()
     {
         string[] keys =
         [
@@ -372,7 +351,7 @@ public sealed class LocalizationServiceTests
         Assert.All(LocalizationService.SupportedLanguages, language =>
         {
             var strings = new LocalizationService(language);
-            Assert.All(keys, key => Assert.False(string.IsNullOrWhiteSpace(strings.Translate(key))));
+            Assert.All(keys, key => Assert.Throws<KeyNotFoundException>(() => strings.Translate(key)));
         });
     }
 
@@ -437,7 +416,7 @@ public sealed class LocalizationServiceTests
             var strings = new LocalizationService(language);
             Assert.NotEqual("Notification.AiDailyLimitReached.Title", strings.Translate("Notification.AiDailyLimitReached.Title"));
             Assert.NotEqual("Notification.AiDailyLimitReached.Message", strings.Translate("Notification.AiDailyLimitReached.Message"));
-            Assert.Contains("OCR", strings.Translate("Notification.AiDailyLimitReached.Message"), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("OCR", strings.Translate("Notification.AiDailyLimitReached.Message"), StringComparison.OrdinalIgnoreCase);
         });
 
         var english = new LocalizationService("en-US");
@@ -454,7 +433,7 @@ public sealed class LocalizationServiceTests
         Assert.Contains("visual AI provider requests", english.Translate("Notification.AiDailyLimitReached.Message"), StringComparison.Ordinal);
         Assert.Contains("le nuove descrizioni", italian.Translate("Notification.AiDailyLimitReached.Message"), StringComparison.Ordinal);
         Assert.Contains("mezzanotte locale", italian.Translate("Notification.AiDailyLimitReached.Message"), StringComparison.Ordinal);
-        Assert.Contains("perfezionamento OCR tramite AI", italian.Translate("Notification.AiDailyLimitReached.Message"), StringComparison.Ordinal);
+        Assert.Contains("Le catture continuano", italian.Translate("Notification.AiDailyLimitReached.Message"), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -468,7 +447,7 @@ public sealed class LocalizationServiceTests
             Assert.NotEqual("Options.AiQuota.Reached", strings.Translate("Options.AiQuota.Reached"));
             Assert.NotEqual("Options.AiQuota.Unavailable", strings.Translate("Options.AiQuota.Unavailable"));
             Assert.NotEqual("Options.AiQuota.Description", strings.Translate("Options.AiQuota.Description"));
-            Assert.Contains("OCR", strings.Translate("Options.AiQuota.Description"), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("OCR", strings.Translate("Options.AiQuota.Description"), StringComparison.OrdinalIgnoreCase);
             Assert.NotEqual("Options.AiQuota.ProgressAccessible", strings.Translate("Options.AiQuota.ProgressAccessible"));
             Assert.NotEqual("Options.AiQuota.UnavailableAccessible", strings.Translate("Options.AiQuota.UnavailableAccessible"));
             Assert.NotEqual("Options.AiQuota.Configure", strings.Translate("Options.AiQuota.Configure"));

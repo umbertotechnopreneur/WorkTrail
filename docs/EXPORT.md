@@ -14,11 +14,11 @@ The files are analytical exports, not importable WorkTrail archives. The existin
 
 ## Understand what is included
 
-**Summary**, **Days** and **Applications** use recorded activity samples. **Captures** contains retained screenshot metadata and selected saved descriptions/OCR. A screenshot does not establish the duration of a task. Days without samples are marked with `has_data: false`; missing measurements are not interpreted as zero.
+**Summary**, **Days** and **Applications** use recorded activity samples. **Captures** contains retained screenshot metadata and selected saved AI descriptions. A screenshot does not establish the duration of a task. Days without samples are marked with `has_data: false`; missing measurements are not interpreted as zero.
 
-Device filters apply to activity and captures. AI usage totals currently have no device dimension in the report contract, so you must choose **All devices** to include them. Provider-reported and estimated costs have separate columns; unavailable costs remain empty/null.
+Device filters apply to activity and captures. AI usage totals currently have no device dimension in the report contract, so you must choose **All devices** to include them. AI usage includes request and token counts, not costs or spending estimates.
 
-Ordinary exports do not call an AI provider or include image bytes. Titles, device identifiers, paths, full OCR and telemetry are opt-in. Descriptions and OCR may themselves contain personal information even when the corresponding metadata columns are excluded. The short description is a local excerpt; the complete description retains its saved Markdown.
+Ordinary exports do not call an AI provider or include image bytes. Titles, device identifiers, paths and activity details are opt-in. Descriptions may themselves contain personal information even when the corresponding metadata columns are excluded. The short description is a local excerpt; the complete description retains its saved Markdown.
 
 An export accepts up to 366 days, 50,000 retained captures and 32 million loaded text characters. Larger requests fail with guidance to shorten the range; records are never silently omitted to fit. The file is written to a sibling temporary file and finalized only after successful completion. Cancellation or failure before finalization preserves an existing destination.
 

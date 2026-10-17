@@ -131,7 +131,7 @@ public sealed class ReportExportTests : IDisposable
         Assert.False(row.TryGetProperty("screenshot_path", out _));
     }
 
-    /// <summary>Details contain missing telemetry as null rather than invented zero measurements.</summary>
+    /// <summary>Missing activity measurements stay null, while retired hardware fields stay absent.</summary>
     [Fact]
     public void Json_OptedInFieldsAndNullMeasurementsRemainExplicit()
     {
@@ -140,7 +140,10 @@ public sealed class ReportExportTests : IDisposable
         using var json = JsonDocument.Parse(File.ReadAllText(path));
         var row = json.RootElement.GetProperty("tables").GetProperty("Captures")[0];
         Assert.Equal("PRIVATE-WINDOW-TITLE", row.GetProperty("window_title").GetString());
-        Assert.Equal(JsonValueKind.Null, row.GetProperty("cpu_percent").ValueKind);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("activity_index").ValueKind);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("mouse_clicks").ValueKind);
+        Assert.False(row.TryGetProperty("cpu_percent", out _));
+        Assert.False(row.TryGetProperty("gpu_percent", out _));
     }
 
     /// <summary>The XLSX package has resolvable sheets, inert text cells and complete overflow text.</summary>
@@ -254,9 +257,9 @@ public sealed class ReportExportTests : IDisposable
         Assert.Throws<ReportExportValidationException>(() => ReportSummaryService.BuildPrompt(request, [Capture(null)], out _));
     }
 
-    /// <summary>Invalid ranges, identities and ambiguous cost attribution are rejected before export.</summary>
+    /// <summary>Invalid ranges, identities and ambiguous usage attribution are rejected before export.</summary>
     [Fact]
-    public void Validation_RejectsInvalidOptionsAndDeviceLocalAiCosts()
+    public void Validation_RejectsInvalidOptionsAndDeviceLocalAiUsage()
     {
         var store = Store(); var service = new ReportExportService(store);
         Assert.Throws<ArgumentException>(() => service.Validate(Options with { From = Day.AddDays(1) }));
@@ -271,10 +274,10 @@ public sealed class ReportExportTests : IDisposable
     public void Preferences_RoundTripFieldChoicesAndRejectCorruption()
     {
         var store = Store(); var service = new ReportExportService(store);
-        service.SavePreferences(Options with { Format = ReportExportFormat.Csv, IncludeOcr = true }, CancellationToken.None);
+        service.SavePreferences(Options with { Format = ReportExportFormat.Csv, IncludeWindowTitles = true }, CancellationToken.None);
         var setup = new ReportExportService(store).Setup();
         Assert.Equal(ReportExportFormat.Csv, setup.Options.Format);
-        Assert.True(setup.Options.IncludeOcr);
+        Assert.True(setup.Options.IncludeWindowTitles);
         Assert.Equal(DateOnly.FromDateTime(DateTime.Today), setup.Options.ToInclusive);
         File.WriteAllText(Path.Combine(store.DataDirectory, "report-export-preferences.json"), "invalid");
         Assert.Throws<JsonException>(() => service.Setup());
@@ -282,7 +285,7 @@ public sealed class ReportExportTests : IDisposable
 
     private static WorkTrailApplication CreateApplication(LocalStore store, ProductTier tier) =>
         new(store, new UtilityService(), new TrackingDomainService(store), DispatchProxy.Create<IScreenCaptureService, NoCalls>(),
-            new FakeHardwareTelemetryService(), DispatchProxy.Create<IAiAnalysisService, NoCalls>(), new StartupService(), new BuildInformationService(),
+            DispatchProxy.Create<IAiAnalysisService, NoCalls>(), new StartupService(), new BuildInformationService(),
             startScheduledSnapshotTimer: false, featureLicenseSource: new License(tier));
 
     /// <summary>Text-only summary attempts count toward the same daily request limit as screenshot analysis.</summary>

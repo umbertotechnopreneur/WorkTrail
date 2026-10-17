@@ -42,21 +42,19 @@ internal static class ReportExcelData
             var metadata = captures.Columns.Select((name, index) => (name, index))
                 .Where(column => !IsText(column.name)).ToArray();
             var descriptionCount = captures.Columns.Count(name => name.StartsWith("description_", StringComparison.Ordinal));
-            var ocrCount = captures.Columns.Count(name => name.StartsWith("ocr_", StringComparison.Ordinal));
-            var textSheet = descriptionCount > 0 ? "Saved text" : ocrCount > 0 ? "OCR text" : null;
-            var fieldsPerRecord = descriptionCount > 0 ? descriptionCount : ocrCount;
+            var textSheet = descriptionCount > 0 ? "Saved text" : null;
+            var fieldsPerRecord = descriptionCount;
             workbook.Add(new("Captures", workbook.T("Captures"), archiveNote ?? workbook.T("CapturesHelp"),
                 metadata.Select(column => Column(workbook, column.name)).ToArray(),
                 () => captures.Rows().Select((row, index) => metadata.Select(column => column.name == "record"
                     ? new ExcelReportCell(row[column.index], Location: textSheet is not null && (workbook.RowLimit is null || index * fieldsPerRecord < workbook.RowLimit)
                         ? ReportExcelWorkbook.Location(textSheet, "A" + (8 + index * fieldsPerRecord)) : null)
                     : Typed(column.name, row[column.index])).ToArray())));
-            foreach (var kind in new[] { "Saved text", "OCR text" })
+            if (descriptionCount > 0)
             {
                 var selected = captures.Columns.Select((name, index) => (name, index))
-                    .Where(column => kind == "OCR text" ? column.name.StartsWith("ocr_", StringComparison.Ordinal) : column.name.StartsWith("description_", StringComparison.Ordinal)).ToArray();
-                if (selected.Length == 0) continue;
-                workbook.Add(new(kind, kind, archiveNote ?? workbook.T("LongTextHelp"),
+                    .Where(column => column.name.StartsWith("description_", StringComparison.Ordinal)).ToArray();
+                workbook.Add(new("Saved text", "Saved text", archiveNote ?? workbook.T("LongTextHelp"),
                     [new("record", 10, ExcelFormat.Number), new("source", 24), new("text", 100)],
                     () => captures.Rows().SelectMany((row, index) => selected.Select(column => new object?[]
                     {
@@ -71,7 +69,7 @@ internal static class ReportExcelData
     }
 
     // name identifies a complete text field, separated from the compact capture metadata.
-    private static bool IsText(string name) => name.StartsWith("description_", StringComparison.Ordinal) || name.StartsWith("ocr_", StringComparison.Ordinal);
+    private static bool IsText(string name) => name.StartsWith("description_", StringComparison.Ordinal);
 
     // workbook supplies localized labels.
     // name identifies an exact source-contract column; technical fields retain their own identifiers.
@@ -85,8 +83,6 @@ internal static class ReportExcelData
             "date" or "from" or "to_inclusive" => (name.Replace('_', ' '), 23d, ExcelFormat.Date),
             "captured_at" => (workbook.T("CapturedAt"), 26d, ExcelFormat.DateTime),
             "coverage_ratio" => (workbook.T("Coverage"), 18d, ExcelFormat.Percent),
-            "cpu_percent" or "gpu_percent" => (name.StartsWith("cpu", StringComparison.Ordinal) ? "CPU (%)" : "GPU (%)", 14d, ExcelFormat.Percent),
-            "actual_cost_usd" or "estimated_cost_usd" => (name.Replace('_', ' '), 23d, ExcelFormat.Money),
             "application" => (workbook.T("Apps"), 36d, ExcelFormat.Text),
             "text" => (workbook.T("Text"), 100d, ExcelFormat.Text),
             "window_title" or "screenshot_path" => (name.Replace('_', ' '), 60d, ExcelFormat.Text),
@@ -103,7 +99,6 @@ internal static class ReportExcelData
     {
         if (value is null) return null;
         if (name.EndsWith("_seconds", StringComparison.Ordinal)) return Convert.ToDouble(value, CultureInfo.InvariantCulture) / 86400d;
-        if (name is "cpu_percent" or "gpu_percent") return Convert.ToDouble(value, CultureInfo.InvariantCulture) / 100d;
         if (name is "date" or "from" or "to_inclusive") return DateOnly.ParseExact((string)value, "yyyy-MM-dd", CultureInfo.InvariantCulture);
         if (name == "captured_at") return DateTimeOffset.ParseExact((string)value, "O", CultureInfo.InvariantCulture);
         return value;

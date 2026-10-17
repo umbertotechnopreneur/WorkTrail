@@ -92,8 +92,6 @@ public sealed class MainPlayerResponsiveLayoutTests
         Assert.DoesNotContain(player.Descendants(), element => element.Name.LocalName == "ScrollViewer");
         var fit = player.Descendants().Single(element => element.Name.LocalName == "Viewbox");
         Assert.Equal("DownOnly", fit.Attribute("StretchDirection")?.Value);
-        var sensors = view.Descendants().Single(element => element.Attribute(x + "Name")?.Value == "SensorsButton");
-        Assert.Equal("Sensors.Open", sensors.Attribute("Tag")?.Value);
-        Assert.Equal(sensors.Attribute("ToolTipService.ToolTip")?.Value, sensors.Attribute("AutomationProperties.Name")?.Value);
+        Assert.DoesNotContain(view.Descendants(), element => element.Attribute(x + "Name")?.Value == "SensorsButton");
     }
 }

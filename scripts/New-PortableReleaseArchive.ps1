@@ -159,17 +159,11 @@ Extract the entire ZIP into a folder and run WorkTrail.exe from that folder.
 Keep all DLLs, resources, and subfolders beside the executable; do not copy only the EXE.
 Use the archive matching your Windows architecture ($Platform).
 Basic startup needs no MSIX installation, administrator access, or certificate import.
-No CLI alias is registered. On x64, the included PawnIO driver can be installed offline
-from Sensors options with Windows administrator consent for advanced sensor access.
-The shared driver remains installed after this portable folder is removed.
+No CLI alias is registered.
 This unsigned prerelease preparation artifact may trigger Windows security prompts.
 Follow your organization's policy for unsigned software; do not disable security checks.
 
 The .NET and Windows App SDK runtimes are included.
-On-device screenshot OCR requires the MSIX edition; it is unavailable in this portable build.
-OCR is initialized on extraction, not basic startup. An OCR failure is recorded on
-the capture without discarding the screenshot or terminating the application.
-This feature limitation does not by itself prevent basic application startup.
 
 Portable describes application deployment, not a portable user profile.
 Settings, screenshots, history, and other application data use the normal LocalAppData

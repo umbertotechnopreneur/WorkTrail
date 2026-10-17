@@ -48,7 +48,6 @@ public sealed class ScreenshotDeletionSurfaceContractTests
         Assert.Contains("await LoadGalleryAsync(_selectedDate);", deleteOperation, StringComparison.Ordinal);
         Assert.Contains("HeaderSection.SetDeletionActionsEnabled(true);", deleteOperation, StringComparison.Ordinal);
         Assert.Contains("HeaderSection.SetAnalysisDeletionAvailable(", source, StringComparison.Ordinal);
-        Assert.Contains("CloseOcrTextWindowForScreenshot(selected.Path);", deleteOperation, StringComparison.Ordinal);
     }
 
     private static string MethodBody(string source, string startSignature, string nextSignature)

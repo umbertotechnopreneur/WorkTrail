@@ -145,7 +145,7 @@ foreach ($platform in @('x64', 'ARM64')) {
         Assert-PortableTest ($null -ne $archive.GetEntry('empty-directory/')) "$platform omitted an empty publish directory."
         $readme = Read-ZipText -Archive $archive -Name 'README.txt'
         Assert-PortableTest ($readme -like '*LocalAppData*' -and
-            $readme -like '*On-device screenshot OCR requires the MSIX edition*') "$platform run instructions omit prerequisites or data behavior."
+            $readme -like '*The .NET and Windows App SDK runtimes are included*') "$platform run instructions omit prerequisites or data behavior."
         $manifest = Read-ZipText -Archive $archive -Name 'SHA256SUMS.txt'
         $hashedNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
         foreach ($line in $manifest.TrimEnd().Split("`n")) {

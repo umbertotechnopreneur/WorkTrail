@@ -29,23 +29,26 @@ namespace WorkTrail.Presentation.Tests;
 /// <summary>Guards the shared title-bar and main-window lifetime ownership contracts.</summary>
 public sealed class WindowChromeLifecycleContractTests
 {
-    /// <summary>Main activation delegates live peer handles to Core without opening new windows or activating each peer.</summary>
+    /// <summary>Shared window activation delegates live peer handles to Core without activating each peer.</summary>
     [Fact]
-    public void MainActivation_RevealsOnlyLivePeersThroughTheFacade()
+    public void WindowActivation_RevealsOnlyLivePeersThroughTheFacade()
     {
         var main = File.ReadAllText(RepositoryFile("WorkTrail", "MainWindow.xaml.cs"));
         var placement = File.ReadAllText(RepositoryFile("WorkTrail", "WindowPlacementService.cs"));
-        Assert.Contains("Activated += MainWindow_Activated;", main, StringComparison.Ordinal);
-        Assert.Contains("Activated -= MainWindow_Activated;", main, StringComparison.Ordinal);
-        var start = main.IndexOf("private async void MainWindow_Activated", StringComparison.Ordinal);
-        var end = main.IndexOf("private void ShowWindowRevealFailure", start, StringComparison.Ordinal);
-        var handler = main[start..end];
+        Assert.Contains("_window.Activated += Window_Activated;", placement, StringComparison.Ordinal);
+        Assert.Contains("_window.Activated -= Window_Activated;", placement, StringComparison.Ordinal);
+        Assert.Contains("WindowPlacementService.RevealFailed += ShowWindowRevealFailure;", main, StringComparison.Ordinal);
+        Assert.Contains("WindowPlacementService.RevealFailed -= ShowWindowRevealFailure;", main, StringComparison.Ordinal);
+        var start = placement.IndexOf("private async void Window_Activated", StringComparison.Ordinal);
+        var end = placement.IndexOf("private void AppWindow_Changed", start, StringComparison.Ordinal);
+        var handler = placement[start..end];
         Assert.Contains("WindowActivationState.Deactivated", handler, StringComparison.Ordinal);
-        Assert.Contains("_dashboardSurfaceClosed || _revealingOpenWindows", handler, StringComparison.Ordinal);
+        Assert.Contains("_disposed || _closeSaveStarted || _shutdownPrepared || s_preservingWorkspace", handler, StringComparison.Ordinal);
         Assert.Contains("_revealingOpenWindows = true;", handler, StringComparison.Ordinal);
         Assert.Contains("_revealingOpenWindows = false;", handler, StringComparison.Ordinal);
-        Assert.Contains("WindowPlacementService.GetOpenPeerWindowHandles(mainHandle)", handler, StringComparison.Ordinal);
-        Assert.Contains("_application.RevealOpenWindowsAsync(new WindowRevealRequest(mainHandle, peers), _lifecycle.Token)", handler, StringComparison.Ordinal);
+        Assert.Contains("GetOpenPeerWindowHandles(activeHandle)", handler, StringComparison.Ordinal);
+        Assert.Contains("new WindowRevealRequest(activeHandle, peers), cancellationToken", handler, StringComparison.Ordinal);
+        Assert.Contains("_revealLifetime.Cancel();", placement, StringComparison.Ordinal);
         Assert.DoesNotContain(".Activate(", handler, StringComparison.Ordinal);
         Assert.DoesNotContain("new ScreenshotWindow", handler, StringComparison.Ordinal);
         Assert.DoesNotContain("RestoreWorkspace", handler, StringComparison.Ordinal);
@@ -84,7 +87,6 @@ public sealed class WindowChromeLifecycleContractTests
     private static readonly string[] MigratedTopLevelWindows =
     [
         "AboutWindow",
-        "OcrTextWindow",
         "QuickSetupWindow",
         "ScheduleWindow",
         "ScreenshotWindow",
@@ -97,7 +99,6 @@ public sealed class WindowChromeLifecycleContractTests
     [
         "ActivityCalendarDialogWindow",
         "AiConnectionTestDialogWindow",
-        "AiPricingDialogWindow",
         "AiScreenshotReprocessingDialogWindow",
         "WorldClockCityPickerDialogWindow"
     ];
@@ -237,7 +238,6 @@ public sealed class WindowChromeLifecycleContractTests
         var compactDialogs = new HashSet<string>(StringComparer.Ordinal)
         {
             "ActivityCalendarDialogWindow",
-            "AiPricingDialogWindow",
             "WorldClockCityPickerDialogWindow"
         };
 

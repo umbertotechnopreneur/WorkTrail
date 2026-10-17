@@ -127,7 +127,7 @@ VBWR E -->
                         Tag="SearchIndex.Results.Description"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="Activity, screenshots, OCR and local descriptions"
+                        Text="Activity, screenshots and AI descriptions"
                         TextWrapping="Wrap" />
                 </StackPanel>
                 <TextBlock

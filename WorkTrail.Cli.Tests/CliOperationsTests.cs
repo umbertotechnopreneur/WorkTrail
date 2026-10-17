@@ -174,11 +174,9 @@ public sealed class CliOperationsTests
     /// <summary>Operational reads use the intended facade and preserve its failure code.</summary>
     [Theory]
     [InlineData("search", "status", nameof(IWorkTrailApplication.GetSearchAvailabilityAsync))]
-    [InlineData("hardware", "snapshot", nameof(IWorkTrailApplication.CaptureHardwareSnapshotAsync))]
     [InlineData("world-clock", "list", nameof(IWorkTrailApplication.GetWorldClocksAsync))]
     [InlineData("world-clock", "cities", nameof(IWorkTrailApplication.GetWorldClockCityCatalogAsync))]
     [InlineData("ai", "models", nameof(IWorkTrailApplication.GetAiModelCatalogAsync))]
-    [InlineData("ai", "pricing", nameof(IWorkTrailApplication.GetAiPricingOverviewAsync))]
     [InlineData("logs", "open", nameof(IWorkTrailApplication.OpenApplicationLogAsync))]
     [InlineData("logs", "open-folder", nameof(IWorkTrailApplication.OpenApplicationLogFolderAsync))]
     [InlineData("screenshots", "gallery", nameof(IWorkTrailApplication.GetLatestScreenshotGalleryAsync))]

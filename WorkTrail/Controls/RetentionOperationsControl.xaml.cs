@@ -64,12 +64,10 @@ public sealed partial class RetentionOperationsControl : UserControl
         DeleteToLabel.Text = _strings.Translate("History.To");
         DeleteFromPicker.PlaceholderText = DeleteToPicker.PlaceholderText = _strings.Translate("History.SelectDate");
         CaptureSettingsExpander.Header = _strings.Translate("Options.Section.Snapshots");
-        OcrSettingsExpander.Header = _strings.Translate("Options.Ocr.Section");
         TierBadge.Text = _strings.Translate("Premium.Badge");
         UiLocalization.SetAccessibleLabel(OpenFolderButton, _strings.Translate("Options.OpenFolderAction"));
         AutomationProperties.SetName(KeepScreenshotsSwitch, _strings.Translate("Options.KeepSnapshots.Header"));
         AutomationProperties.SetName(ScreenshotsEnabledSwitch, _strings.Translate("Options.SnapshotsEnabled.Header"));
-        AutomationProperties.SetName(OcrEnabledSwitch, _strings.Translate("Options.Ocr.Enabled"));
         _renderingStorageSettings = true;
         try
         {
@@ -80,14 +78,6 @@ public sealed partial class RetentionOperationsControl : UserControl
                     Tag = months,
                     Content = months == 1 ? _strings.Translate("Operations.Retention.OneMonth") : _strings.Format("History.Months", months)
                 });
-            OcrLanguageBox.Items.Clear();
-            foreach (var ocrLanguage in SettingsCatalog.Definitions.Single(setting => setting.Key == "ocr.language").AllowedValues)
-            {
-                // Language labels use translated captions where available and the culture's native name otherwise.
-                var label = _strings.TryTranslate($"Options.Ocr.Language.{ocrLanguage}", out var translated)
-                    ? translated : CultureInfo.GetCultureInfo(ocrLanguage).NativeName;
-                OcrLanguageBox.Items.Add(new ComboBoxItem { Tag = ocrLanguage, Content = label });
-            }
         }
         finally { _renderingStorageSettings = false; }
         AutomationProperties.SetName(RetentionMonthsBox, _strings.Translate("Operations.Retention.PolicyMonths"));
@@ -160,9 +150,7 @@ public sealed partial class RetentionOperationsControl : UserControl
         DeleteFromPicker.IsEnabled = DeleteToPicker.IsEnabled = ready;
         OpenFolderButton.IsEnabled = RetentionMonthsBox.IsEnabled = StorageWarningBox.IsEnabled = ready;
         ScreenshotFolderBox.IsEnabled = KeepScreenshotsSwitch.IsEnabled = ready;
-        ScreenshotsEnabledSwitch.IsEnabled = ScreenshotModeBox.IsEnabled = OcrEnabledSwitch.IsEnabled = ready;
-        OcrLanguageBox.IsEnabled = ready && _retentionStatus?.OcrEnabled == true;
-        HardwareSaveSnapshotsSwitch.IsEnabled = ready && _retentionStatus?.HardwareSensorsEnabled == true;
+        ScreenshotsEnabledSwitch.IsEnabled = ScreenshotModeBox.IsEnabled = ready;
         TierBadge.Visibility = _retentionStatus?.MaximumMonths == 12 ? Visibility.Visible : Visibility.Collapsed;
         StorageWarning.IsOpen = _retentionStatus?.IsStorageWarning == true;
         StorageWarning.Title = _strings.Translate("History.WarningTitle");
@@ -188,10 +176,6 @@ public sealed partial class RetentionOperationsControl : UserControl
                 ScreenshotModeBox.SelectedItem = ScreenshotModeBox.Items.OfType<ComboBoxItem>().Single(item =>
                     string.Equals(item.Tag?.ToString(), status.ScreenshotCaptureMode, StringComparison.Ordinal));
                 ScreenshotModeHintBox.Text = _strings.Translate(status.ScreenshotCaptureMode == "active-window" ? "Options.SnapshotHintActive" : "Options.SnapshotHintAll");
-                OcrEnabledSwitch.IsOn = status.OcrEnabled;
-                OcrLanguageBox.SelectedItem = OcrLanguageBox.Items.OfType<ComboBoxItem>().Single(item =>
-                    string.Equals(item.Tag?.ToString(), status.OcrLanguage, StringComparison.Ordinal));
-                HardwareSaveSnapshotsSwitch.IsOn = status.HardwareSaveSnapshots;
             }
             finally { _renderingStorageSettings = false; }
             return;
@@ -265,28 +249,11 @@ public sealed partial class RetentionOperationsControl : UserControl
     private void ScreenshotsEnabledSwitch_Toggled(object sender, RoutedEventArgs e) =>
         QueueStorageSave("screenshots.enabled", ScreenshotsEnabledSwitch.IsOn ? "true" : "false");
 
-    // sender is the hardware-metadata persistence toggle.
-    // e contains the toggle notification.
-    private void HardwareSaveSnapshotsSwitch_Toggled(object sender, RoutedEventArgs e) =>
-        QueueStorageSave("sensors.save_snapshots", HardwareSaveSnapshotsSwitch.IsOn ? "true" : "false");
-
-    // sender is the local screenshot-text extraction toggle.
-    // e contains the toggle notification.
-    private void OcrEnabledSwitch_Toggled(object sender, RoutedEventArgs e) =>
-        QueueStorageSave("ocr.enabled", OcrEnabledSwitch.IsOn ? "true" : "false");
-
     // sender is the capture-mode selector.
     // e contains the selection notification.
     private void ScreenshotModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ScreenshotModeBox.SelectedItem is ComboBoxItem { Tag: string mode }) QueueStorageSave("screenshots.mode", mode);
-    }
-
-    // sender is the local OCR language selector.
-    // e contains the selection notification.
-    private void OcrLanguageBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (OcrLanguageBox.SelectedItem is ComboBoxItem { Tag: string language }) QueueStorageSave("ocr.language", language);
     }
 
     // key is the shared setting changed by the storage controls.
@@ -300,9 +267,6 @@ public sealed partial class RetentionOperationsControl : UserControl
             "screenshots.keep" => status.KeepScreenshots ? "true" : "false",
             "screenshots.enabled" => status.ScreenshotsEnabled ? "true" : "false",
             "screenshots.mode" => status.ScreenshotCaptureMode,
-            "sensors.save_snapshots" => status.HardwareSaveSnapshots ? "true" : "false",
-            "ocr.enabled" => status.OcrEnabled ? "true" : "false",
-            "ocr.language" => status.OcrLanguage,
             "retention.warning_mb" => status.HistoryWarningMegabytes.ToString(CultureInfo.InvariantCulture),
             _ => throw new InvalidOperationException("The retention page cannot submit an undeclared storage preference.")
         };
@@ -332,10 +296,6 @@ public sealed partial class RetentionOperationsControl : UserControl
                     KeepScreenshots = updated.KeepScreenshots,
                     ScreenshotsEnabled = updated.ScreenshotsEnabled,
                     ScreenshotCaptureMode = updated.ScreenshotCaptureMode,
-                    OcrEnabled = updated.OcrEnabled,
-                    OcrLanguage = updated.OcrLanguage,
-                    HardwareSaveSnapshots = updated.HardwareSaveSnapshots,
-                    HardwareSensorsEnabled = updated.HardwareSensorsEnabled,
                     HistoryWarningMegabytes = updated.HistoryWarningMegabytes
                 };
                 _retentionPreview = null;

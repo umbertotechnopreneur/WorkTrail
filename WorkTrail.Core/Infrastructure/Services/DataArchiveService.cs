@@ -66,12 +66,12 @@ internal sealed class DataArchiveService
         "http_status", "elapsed_ms", "provider_processing_ms", "image_count", "prompt_characters", "max_output_tokens",
         "input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "cache_write_tokens",
         "cache_creation_input_tokens", "cache_read_input_tokens", "reasoning_tokens", "thinking_tokens",
-        "reported_cost_microusd", "reported_upstream_cost_microusd", "cost_source", "finish_reason", "success", "failure_code"
+        "finish_reason", "success", "failure_code"
     ];
 
     private static readonly string[] AiAnalysisColumns =
     [
-        "correlation_id", "attempt_id", "timestamp_utc_ticks", "snapshot_utc_ticks", "application", "context",
+        "correlation_id", "attempt_id", "timestamp_utc_ticks", "application", "context",
         "summary", "installation_id", "origin", "informational_schedule", "screenshot_paths", "image_count"
     ];
 
@@ -80,25 +80,20 @@ internal sealed class DataArchiveService
         "capture_id", "installation_id", "captured_utc_ticks", "origin"
     ];
 
+    private static readonly string[] ScreenshotImageColumns =
+    [
+        "artifact_identity", "capture_id", "metadata_json"
+    ];
+
     private static readonly string[] VipScreenshotColumns =
     [
         "capture_id", "note", "updated_utc_ticks"
     ];
 
-    private static readonly string[] ScreenshotSnapshotColumns =
-    [
-        "artifact_identity", "capture_id", "source_path", "extracted_utc_ticks", "snapshot_json", "updated_utc_ticks"
-    ];
-
     private static readonly string[] ScreenshotTelemetryColumns =
     [
         "artifact_identity", "capture_id", "interval_started_utc_ticks", "captured_utc_ticks",
-        "cpu_usage_percent", "gpu_usage_percent", "updated_utc_ticks"
-    ];
-
-    private static readonly string[] CaptureHardwareSnapshotColumns =
-    [
-        "capture_id", "sampled_utc_ticks", "snapshot_json"
+        "updated_utc_ticks"
     ];
 
     private static readonly string[] AiArtifactColumns =
@@ -149,7 +144,7 @@ internal sealed class DataArchiveService
         {
             progress?.Invoke(new(DataArchivePhase.PreparingDatabase));
             CreateConsistentDatabaseSnapshot(snapshotPath, cancellationToken);
-            SanitizeArchiveDatabase(snapshotPath, fromUtcTicks, toUtcTicks, cancellationToken);
+            var excludedImages = SanitizeArchiveDatabase(snapshotPath, fromUtcTicks, toUtcTicks, cancellationToken);
 
             var settings = _store.LoadSettings();
             var screenshotRoot = ScreenshotStorageLayout.NormalizeRoot(settings.ScreenshotDirectory);
@@ -160,7 +155,7 @@ internal sealed class DataArchiveService
             var databaseSummary = ReadDatabaseSummary(snapshotPath, cancellationToken);
             progress?.Invoke(new(DataArchivePhase.ScanningScreenshots));
             var screenshotEntries = request.IncludeScreenshots
-                ? BuildScreenshotEntries(snapshotPath, screenshotRoot, progress, cancellationToken)
+                ? BuildScreenshotEntries(snapshotPath, screenshotRoot, excludedImages, progress, cancellationToken)
                 : Array.Empty<ArchiveSourceEntry>();
             var entryManifest = new List<ArchiveEntryManifest>(screenshotEntries.Count + 1)
             {
@@ -363,7 +358,7 @@ internal sealed class DataArchiveService
         }
     }
 
-    private static void SanitizeArchiveDatabase(
+    private IReadOnlySet<string> SanitizeArchiveDatabase(
         string databasePath,
         long? fromUtcTicks,
         long? toUtcTicks,
@@ -372,6 +367,26 @@ internal sealed class DataArchiveService
         using var connection = OpenDatabase(databasePath, readOnly: false);
         ExecuteNonQuery(connection, "PRAGMA foreign_keys = OFF;");
         using var transaction = connection.BeginTransaction();
+        var excludedImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = "SELECT artifact_identity, metadata_json FROM screenshot_images;";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var image = JsonSerializer.Deserialize<ScreenshotImageMetadata>(reader.GetString(1), _json)
+                    ?? throw new InvalidDataException("Screenshot image metadata is missing.");
+                if (!image.ForGallery) excludedImages.Add(reader.GetString(0));
+            }
+        }
+        foreach (var identity in excludedImages)
+        {
+            ExecuteNonQuery(connection, transaction, "DELETE FROM screenshot_images WHERE artifact_identity = $identity;", ("$identity", identity));
+            ExecuteNonQuery(connection, transaction, "DELETE FROM screenshot_interval_telemetry WHERE artifact_identity = $identity;", ("$identity", identity));
+            ExecuteNonQuery(connection, transaction, "DELETE FROM ai_analysis_artifacts WHERE artifact_identity = $identity;", ("$identity", identity));
+        }
         if (fromUtcTicks is { } from && toUtcTicks is { } to)
         {
             ExecuteNonQuery(connection, transaction,
@@ -394,18 +409,16 @@ internal sealed class DataArchiveService
             "DELETE FROM ai_analysis_artifacts WHERE correlation_id NOT IN (SELECT correlation_id FROM ai_analysis_results) " +
             "OR capture_id NOT IN (SELECT capture_id FROM screenshot_captures);");
         ExecuteNonQuery(connection, transaction,
-            "DELETE FROM screenshot_text_snapshots WHERE capture_id NOT IN (SELECT capture_id FROM screenshot_captures);");
-        ExecuteNonQuery(connection, transaction,
             "DELETE FROM screenshot_interval_telemetry WHERE capture_id NOT IN (SELECT capture_id FROM screenshot_captures);");
         ExecuteNonQuery(connection, transaction,
-            "DELETE FROM capture_hardware_snapshots WHERE capture_id NOT IN (SELECT capture_id FROM screenshot_captures);");
+            "DELETE FROM screenshot_images WHERE capture_id NOT IN (SELECT capture_id FROM screenshot_captures);");
         ExecuteNonQuery(connection, transaction, "DELETE FROM ai_analysis_search;");
-        ExecuteNonQuery(connection, transaction, "DELETE FROM ai_model_pricing;");
         ExecuteNonQuery(connection, transaction, "DELETE FROM ai_reprocess_job_items;");
         ExecuteNonQuery(connection, transaction, "DELETE FROM ai_reprocess_jobs;");
         ExecuteNonQuery(connection, transaction, "DELETE FROM archive_imports;");
         ExecuteNonQuery(connection, transaction, "DELETE FROM store_metadata;");
         transaction.Commit();
+        return excludedImages;
     }
 
     private void RewriteDatabasePathsForArchive(
@@ -463,38 +476,6 @@ internal sealed class DataArchiveService
                 ("$paths", update.ScreenshotPaths), ("$id", update.CorrelationId));
         }
 
-        var snapshotUpdates = new List<(string Identity, string SourcePath, string SnapshotJson)>();
-        using (var select = connection.CreateCommand())
-        {
-            select.Transaction = transaction;
-            select.CommandText = "SELECT artifact_identity, source_path, snapshot_json FROM screenshot_text_snapshots;";
-            using var reader = select.ExecuteReader();
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var sourcePath = pathMapper(reader.GetString(1));
-                var snapshot = JsonSerializer.Deserialize<ScreenshotTextSnapshot>(reader.GetString(2), _json)
-                    ?? throw new InvalidDataException("An archived screenshot text snapshot is invalid.");
-                var snapshotPath = pathMapper(snapshot.SourceScreenshotPath);
-                if (!string.Equals(sourcePath, snapshotPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidDataException("Screenshot text paths do not refer to the same artifact.");
-                }
-
-                snapshotUpdates.Add((
-                    reader.GetString(0),
-                    sourcePath,
-                    JsonSerializer.Serialize(snapshot with { SourceScreenshotPath = snapshotPath }, _json)));
-            }
-        }
-
-        foreach (var update in snapshotUpdates)
-        {
-            ExecuteNonQuery(connection, transaction,
-                "UPDATE screenshot_text_snapshots SET source_path = $path, snapshot_json = $json WHERE artifact_identity = $id;",
-                ("$path", update.SourcePath), ("$json", update.SnapshotJson), ("$id", update.Identity));
-        }
-
         transaction.Commit();
     }
 
@@ -525,19 +506,6 @@ internal sealed class DataArchiveService
             }
         }
 
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "SELECT source_path, snapshot_json FROM screenshot_text_snapshots;";
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                ValidateArchiveScreenshotPath(reader.GetString(0));
-                var snapshot = JsonSerializer.Deserialize<ScreenshotTextSnapshot>(reader.GetString(1), _json)
-                    ?? throw new InvalidDataException("An archive screenshot text snapshot is invalid.");
-                ValidateArchiveScreenshotPath(snapshot.SourceScreenshotPath);
-            }
-        }
     }
 
     private DatabaseSummary ReadDatabaseSummary(string databasePath, CancellationToken cancellationToken)
@@ -562,6 +530,7 @@ internal sealed class DataArchiveService
     private IReadOnlyList<ArchiveSourceEntry> BuildScreenshotEntries(
         string archiveDatabasePath,
         string screenshotRoot,
+        IReadOnlySet<string> excludedImages,
         Action<DataArchiveProgress>? progress, CancellationToken cancellationToken)
     {
         using var connection = OpenDatabase(archiveDatabasePath, readOnly: true);
@@ -573,7 +542,7 @@ internal sealed class DataArchiveService
             cancellationToken.ThrowIfCancellationRequested();
             var identity = LocalStore.ScreenshotIdentity(Path.GetFileName(sourcePath));
             var captureId = TryGetCaptureId(identity);
-            if (captureId is null || !captureIds.Contains(captureId))
+            if (captureId is null || !captureIds.Contains(captureId) || excludedImages.Contains(identity))
             {
                 continue;
             }
@@ -768,19 +737,7 @@ internal sealed class DataArchiveService
         }
 
         EnsureArchiveRelations(connection);
-        using (var hardwareCommand = connection.CreateCommand())
-        {
-            hardwareCommand.CommandText = "SELECT sampled_utc_ticks, snapshot_json FROM capture_hardware_snapshots;";
-            using var hardwareReader = hardwareCommand.ExecuteReader();
-            while (hardwareReader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                // Imported readings must satisfy the same schema and value contract as local
-                // measurements; malformed evidence fails preflight before any destination writes.
-                _ = SqliteActivityStore.ReadCaptureHardwareSnapshot(hardwareReader.GetInt64(0), hardwareReader.GetString(1));
-            }
-        }
-
+        ValidateScreenshotImageMetadata(connection, cancellationToken);
         using var captureCommand = connection.CreateCommand();
         captureCommand.CommandText = "SELECT capture_id, installation_id, origin FROM screenshot_captures;";
         using var captureReader = captureCommand.ExecuteReader();
@@ -794,6 +751,48 @@ internal sealed class DataArchiveService
             }
 
             _ = ScreenshotCaptureOrigins.Validate(captureReader.GetString(2));
+        }
+    }
+
+    private void ValidateScreenshotImageMetadata(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT artifact_identity, capture_id, metadata_json FROM screenshot_images;";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var identity = reader.GetString(0);
+            ScreenshotImageMetadata? image;
+            try
+            {
+                image = JsonSerializer.Deserialize<ScreenshotImageMetadata>(reader.GetString(2), _json);
+            }
+            catch (JsonException exception)
+            {
+                throw new InvalidDataException("The archive contains invalid screenshot image metadata.", exception);
+            }
+
+            if (image is null || string.IsNullOrWhiteSpace(identity)
+                || identity.IndexOfAny(['/', '\\', ':']) >= 0
+                || identity is "." or ".."
+                || !identity.StartsWith(reader.GetString(1) + "_", StringComparison.Ordinal)
+                || !string.Equals(image.Path, identity, StringComparison.Ordinal)
+                || image.Role is not ("active-window" or "secondary-window" or "monitor-context")
+                || image.Priority is not ("primary" or "secondary" or "context")
+                || image.Attention is not ("high" or "normal" or "low")
+                || string.IsNullOrWhiteSpace(image.RuleReason)
+                || image.MicroPromptIds?.Any(string.IsNullOrWhiteSpace) == true
+                || (!image.ForAnalysis && !image.ForGallery)
+                || image.ScreenIndex < 1 || string.IsNullOrWhiteSpace(image.ScreenName)
+                || image.ScreenWidth <= 0 || image.ScreenHeight <= 0
+                || image.ImageWidth <= 0 || image.ImageHeight <= 0
+                || image.RelatedScreenIndices is null || image.RelatedScreenIndices.Count == 0
+                || image.RelatedScreenIndices.Any(index => index < 1)
+                || !image.RelatedScreenIndices.Contains(image.ScreenIndex))
+            {
+                throw new InvalidDataException("The archive contains invalid screenshot image metadata.");
+            }
         }
     }
 
@@ -900,10 +899,9 @@ internal sealed class DataArchiveService
             "SELECT 1 FROM activity_samples AS row LEFT JOIN installation_profiles AS profile ON profile.installation_id = row.installation_id WHERE profile.installation_id IS NULL LIMIT 1;",
             "SELECT 1 FROM ai_analysis_results AS row LEFT JOIN installation_profiles AS profile ON profile.installation_id = row.installation_id WHERE profile.installation_id IS NULL LIMIT 1;",
             "SELECT 1 FROM screenshot_captures AS row LEFT JOIN installation_profiles AS profile ON profile.installation_id = row.installation_id WHERE profile.installation_id IS NULL LIMIT 1;",
+            "SELECT 1 FROM screenshot_images AS row LEFT JOIN screenshot_captures AS capture ON capture.capture_id = row.capture_id WHERE capture.capture_id IS NULL LIMIT 1;",
             "SELECT 1 FROM ai_analysis_results AS row LEFT JOIN ai_request_usage AS request ON request.attempt_id = row.attempt_id WHERE request.attempt_id IS NULL LIMIT 1;",
-            "SELECT 1 FROM screenshot_text_snapshots AS row LEFT JOIN screenshot_captures AS capture ON capture.capture_id = row.capture_id WHERE capture.capture_id IS NULL LIMIT 1;",
             "SELECT 1 FROM screenshot_interval_telemetry AS row LEFT JOIN screenshot_captures AS capture ON capture.capture_id = row.capture_id WHERE capture.capture_id IS NULL LIMIT 1;",
-            "SELECT 1 FROM capture_hardware_snapshots AS row LEFT JOIN screenshot_captures AS capture ON capture.capture_id = row.capture_id WHERE capture.capture_id IS NULL LIMIT 1;",
             "SELECT 1 FROM ai_analysis_artifacts AS row LEFT JOIN ai_analysis_results AS analysis ON analysis.correlation_id = row.correlation_id LEFT JOIN screenshot_captures AS capture ON capture.capture_id = row.capture_id WHERE analysis.correlation_id IS NULL OR capture.capture_id IS NULL LIMIT 1;"
         };
         foreach (var sql in checks)
@@ -935,11 +933,10 @@ internal sealed class DataArchiveService
             EnsureNoPayloadConflict(connection, "ai_analysis_results", ["correlation_id"], AiAnalysisColumns.Except(["correlation_id"]).ToArray());
             EnsureNoAlternateUniqueConflict(connection, "ai_analysis_results", "attempt_id", "correlation_id");
             EnsureNoPayloadConflict(connection, "screenshot_captures", ["capture_id"], ScreenshotCaptureColumns.Except(["capture_id"]).ToArray());
+            EnsureNoPayloadConflict(connection, "screenshot_images", ["artifact_identity"], ScreenshotImageColumns.Except(["artifact_identity"]).ToArray());
             EnsureNoVersionedPayloadConflict(connection, "screenshot_vip_metadata", "capture_id", "updated_utc_ticks", VipScreenshotColumns);
             EnsureNoPayloadConflict(connection, "ai_analysis_artifacts", ["artifact_identity"], AiArtifactColumns.Except(["artifact_identity"]).ToArray());
-            EnsureNoVersionedPayloadConflict(connection, "screenshot_text_snapshots", "artifact_identity", "updated_utc_ticks", ScreenshotSnapshotColumns, "snapshot_json");
             EnsureNoVersionedPayloadConflict(connection, "screenshot_interval_telemetry", "artifact_identity", "updated_utc_ticks", ScreenshotTelemetryColumns);
-            EnsureNoPayloadConflict(connection, "capture_hardware_snapshots", ["capture_id"], CaptureHardwareSnapshotColumns.Except(["capture_id"]).ToArray());
         }
         finally
         {
@@ -1076,16 +1073,14 @@ internal sealed class DataArchiveService
                     connection, transaction, "ai_analysis_results", ["correlation_id"], AiAnalysisColumns, cancellationToken);
                 _ = MergeImmutableTable(
                     connection, transaction, "screenshot_captures", ["capture_id"], ScreenshotCaptureColumns, cancellationToken);
+                _ = MergeImmutableTable(
+                    connection, transaction, "screenshot_images", ["artifact_identity"], ScreenshotImageColumns, cancellationToken);
                 MergeVersionedTable(
                     connection, transaction, "screenshot_vip_metadata", "capture_id", "updated_utc_ticks", VipScreenshotColumns);
                 _ = MergeImmutableTable(
                     connection, transaction, "ai_analysis_artifacts", ["artifact_identity"], AiArtifactColumns, cancellationToken);
                 MergeVersionedTable(
-                    connection, transaction, "screenshot_text_snapshots", "artifact_identity", "updated_utc_ticks", ScreenshotSnapshotColumns);
-                MergeVersionedTable(
                     connection, transaction, "screenshot_interval_telemetry", "artifact_identity", "updated_utc_ticks", ScreenshotTelemetryColumns);
-                _ = MergeImmutableTable(
-                    connection, transaction, "capture_hardware_snapshots", ["capture_id"], CaptureHardwareSnapshotColumns, cancellationToken);
                 RebuildSqliteAiSearch(connection, transaction);
 
                 var published = 0;

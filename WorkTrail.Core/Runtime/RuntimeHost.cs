@@ -213,9 +213,6 @@ public sealed class RuntimeClient : IWorkTrailApplication
     private static readonly TimeSpan DataArchiveTimeout = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan SearchTimeout = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan StartupMutationTimeout = TimeSpan.FromMinutes(2);
-    // Allow up to five minutes for driver setup, followed by consent, helper startup, and its first read.
-    internal static readonly TimeSpan HardwareAdvancedTimeout = TimeSpan.FromMinutes(7);
-    internal static readonly TimeSpan HardwareSnapshotTimeout = TimeSpan.FromSeconds(30);
     internal static readonly TimeSpan ScreenshotCaptureTimeout = TimeSpan.FromSeconds(60);
     internal static readonly TimeSpan ScreenshotImageTimeout = TimeSpan.FromSeconds(15);
     internal static readonly TimeSpan WorldClockQueryTimeout = TimeSpan.FromSeconds(15);
@@ -327,17 +324,6 @@ public sealed class RuntimeClient : IWorkTrailApplication
     public Task<OperationResult<ReportSummaryResult>> GenerateReportSummaryAsync(ReportSummaryRequest request, CancellationToken cancellationToken) =>
         SendAsync<ReportSummaryResult>(RuntimeOperation.ReportExportSummaryV1, request, cancellationToken, DataArchiveTimeout);
     /// <inheritdoc />
-    public Task<OperationResult<SystemSnapshot>> CaptureHardwareSnapshotAsync(CancellationToken cancellationToken) =>
-        SendAsync<SystemSnapshot>(RuntimeOperation.HardwareSnapshotV1, null, cancellationToken, HardwareSnapshotTimeout);
-
-    /// <inheritdoc />
-    public Task<OperationResult<SystemSnapshot>> CaptureSystemSnapshotAsync(CancellationToken cancellationToken) =>
-        SendAsync<SystemSnapshot>(RuntimeOperation.SystemSnapshot, null, cancellationToken, HardwareSnapshotTimeout);
-
-    /// <inheritdoc />
-    public Task<OperationResult<SystemSnapshot>> EnableAdvancedHardwareTelemetryAsync(CancellationToken cancellationToken) =>
-        SendAsync<SystemSnapshot>(RuntimeOperation.HardwareAdvancedEnableV1, null, cancellationToken, HardwareAdvancedTimeout);
-    /// <inheritdoc />
     public Task<OperationResult<ScreenshotCaptureResult>> CaptureScreenshotAsync(CaptureScreenshotRequest request, CancellationToken cancellationToken) =>
         SendAsync<ScreenshotCaptureResult>(request.IsVip ? RuntimeOperation.ScreenshotVipCaptureV1 : RuntimeOperation.ScreenshotCapture,
             request, cancellationToken, ScreenshotCaptureTimeout);
@@ -418,8 +404,6 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public Task<OperationResult<string>> GetAiKeyAsync(CancellationToken cancellationToken) => SendAsync<string>(RuntimeOperation.AiKeyGet, null, cancellationToken);
     /// <inheritdoc />
-    public Task<OperationResult<AiPricingOverview>> GetAiPricingOverviewAsync(CancellationToken cancellationToken) => SendAsync<AiPricingOverview>(RuntimeOperation.AiPricingOverview, null, cancellationToken, ReportQueryTimeout);
-    /// <inheritdoc />
     public Task<OperationResult<AiConnectionTestResult>> TestAiConnectionAsync(CancellationToken cancellationToken) => SendAsync<AiConnectionTestResult>(RuntimeOperation.AiConnectionTest, null, cancellationToken, TimeSpan.FromSeconds(35));
     /// <inheritdoc />
     public Task<OperationResult<AiScreenshotReprocessPlan>> PreviewAiScreenshotReprocessingAsync(
@@ -487,9 +471,7 @@ public sealed class RuntimeClient : IWorkTrailApplication
     public Task<OperationResult<AppSettings>> ApplyQuickSetupProfileAsync(QuickSetupProfileRequest request, CancellationToken cancellationToken) => SendAsync<AppSettings>(RuntimeOperation.QuickSetupApplyV1, request, cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<AppSettings>> PatchSettingsAsync(SettingsPatch patch, CancellationToken cancellationToken) =>
-        // A sensor preference may drain one bounded native read before reconfiguring its existing collector.
-        SendAsync<AppSettings>(RuntimeOperation.SettingsPatch, patch, cancellationToken,
-            patch.Values.Keys.Any(key => key.Trim().StartsWith("sensors.", StringComparison.OrdinalIgnoreCase)) ? HardwareSnapshotTimeout : null);
+        SendAsync<AppSettings>(RuntimeOperation.SettingsPatch, patch, cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<WindowState?>> RestoreWindowStateAsync(string windowKey, long windowHandle, CancellationToken cancellationToken) => SendAsync<WindowState?>(RuntimeOperation.WindowStateRestore, new { windowKey, windowHandle }, cancellationToken);
     /// <inheritdoc />
@@ -499,7 +481,6 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public Task<OperationResult<bool>> SetWindowOpenStateAsync(string windowKey, bool isOpen, CancellationToken cancellationToken) => SendAsync<bool>(RuntimeOperation.WindowOpenStateSet, new { windowKey, isOpen }, cancellationToken);
     /// <inheritdoc />
-    public Task<OperationResult<OcrTextWindowSource>> SetOcrTextWindowSourceAsync(string screenshotPath, DateTimeOffset capturedAt, CancellationToken cancellationToken) => SendAsync<OcrTextWindowSource>(RuntimeOperation.WindowOcrSourceSet, new OcrTextWindowSource(screenshotPath, capturedAt), cancellationToken);
     /// <inheritdoc />
     public Task<OperationResult<bool>> GetStartupStatusAsync(CancellationToken cancellationToken) => SendAsync<bool>(RuntimeOperation.StartupStatus, null, cancellationToken);
     /// <inheritdoc />

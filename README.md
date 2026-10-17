@@ -48,9 +48,7 @@ Open `WorkTrail.exe` from the folder created under `artifacts/unpackaged/<versio
 ## Before you start
 
 > [!IMPORTANT]
-> **Portable limitation:** on-device screenshot OCR requires MSIX package identity and is unavailable in the portable edition; failed OCR is recorded without discarding the screenshot.
->
-> OCR is initialized when text extraction is requested. The x64 portable has passed an extracted `--version` launch check; full UI startup on clean x64/ARM64 machines remains a separate release check. See [portable requirements and verification](docs/RELEASING.md#portable-startup-and-feature-limitations).
+> The x64 portable has passed an extracted `--version` launch check; full UI startup on clean x64/ARM64 machines remains a separate release check. See [portable requirements and verification](docs/RELEASING.md#portable-startup-and-feature-limitations).
 
 > [!NOTE]
 > **MSIX installers are temporarily unavailable.** I'm working on the code-signing certificate needed to distribute them. Use an unpackaged build for now.
@@ -75,7 +73,7 @@ You know you saw it today. Was it in the browser, a document, or another app? Wo
   <tr>
     <td width="33%">
       <strong>Find it again</strong><br />
-      Search your activity, app names, window titles, saved screenshots, text read from images (OCR), and optional AI descriptions in one place.
+      Search your activity, app names, window titles, saved screenshots, and optional AI descriptions in one place.
     </td>
     <td width="33%">
       <strong>Pick up where you left off</strong><br />
@@ -104,9 +102,9 @@ These previews use made-up demo data and show the app in English, Italian, and V
       <sub><strong>Captured moments · English</strong> — open a saved screenshot and browse nearby moments on the timeline.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/readme/trackmeup-local-search-vi.png" alt="WorkTrail local search and OCR in Vietnamese" width="100%" />
+      <img src="docs/images/readme/trackmeup-local-search-vi.png" alt="An earlier WorkTrail local search interface in Vietnamese" width="100%" />
       <br />
-      <sub><strong>Local search and OCR · Tiếng Việt</strong> — find something by its app, screenshot text, or optional AI description.</sub>
+      <sub><strong>Local search · Tiếng Việt</strong> — an earlier interface; current search uses activity, app names, window titles, and optional AI descriptions.</sub>
     </td>
   </tr>
   <tr>
@@ -123,7 +121,7 @@ These previews use made-up demo data and show the app in English, Italian, and V
 ## How WorkTrail works
 
 1. **Track your day.** WorkTrail saves active and idle time, app and window details, key-press and click counts, and selected system measurements on this PC.
-2. **Choose what else to save.** Screenshots, text recognition on your PC, and analysis by an AI provider are separate options. You can use the tracker without them.
+2. **Choose what else to save.** Screenshots and analysis by an AI provider are separate options. You can use the tracker without them.
 3. **Look back when you need to.** Search your history, open a screenshot, browse the timeline, or compare days in the activity calendar.
 4. **Bring history from another installation.** Export a `.tmuarchive` with your history and, if you choose, saved screenshots. You can preview it before confirming an import. Each installation keeps its own identity, name, color, and icon so you can tell where the records came from.
 
@@ -135,7 +133,7 @@ WorkTrail uses WinUI and native Windows controls for the desktop app and activit
 
 The app and readable CLI output can follow your Windows language. You can also choose English, Italian, French, German, Spanish, Simplified Chinese, Vietnamese, Korean, European Portuguese, or Brazilian Portuguese.
 
-You can choose separate languages for the interface, search, and text recognition (OCR). Search supports all the app's languages. OCR needs a supported Windows language pack installed on your PC. Vietnamese works for the interface and search, but isn't available for Windows OCR.
+You can choose separate languages for the interface and search. Search supports all the app's languages.
 
 Search also understands 300 curated concepts in each supported language, with synonyms for documents, messages, meetings, development, spreadsheets, payments, and more. For example, Italian `copia di sicurezza progetto` can also find `backup progetto`. Synonyms work locally and can be turned off in search settings.
 
@@ -169,12 +167,12 @@ You can track your activity without taking screenshots or using AI. Turn on eith
 | Setup | What it adds | What leaves this PC |
 | --- | --- | --- |
 | **Activity timeline** | Active and idle time, app and window details, activity calendar | Nothing unless optional diagnostics are enabled |
-| **Screenshots and text recognition** | Saved screenshots and text read from them on your PC | Nothing unless optional diagnostics are enabled |
-| **AI descriptions** | Descriptions or improved screenshot text from your chosen AI provider | The data included in each enabled provider request, plus optional diagnostics if enabled |
+| **Screenshots** | Saved screenshots on your PC | Nothing unless optional diagnostics are enabled |
+| **AI descriptions** | Descriptions from your chosen AI provider | The data included in each enabled provider request, plus optional diagnostics if enabled |
 
 The table covers tracking, screenshots, and AI analysis. Exporting files and
-sharing screenshots or logs happen when you choose. World-clock weather and
-provider pricing downloads have their own requests, described in the
+sharing screenshots or logs happen when you choose. World-clock weather
+has its own requests, described in the
 [privacy guide](docs/PRIVACY.md#what-can-leave-the-pc).
 
 You choose your AI provider and model. API keys are stored in Windows environment variables and sent directly to the selected provider to authenticate requests. Don't put keys in CLI arguments; WorkTrail won't accept them there.

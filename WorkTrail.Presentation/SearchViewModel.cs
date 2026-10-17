@@ -248,8 +248,6 @@ public sealed class SearchViewModel : ViewModelBase
         var windowTitle = string.IsNullOrWhiteSpace(document.WindowTitle) ? "—" : document.WindowTitle;
         var localTimestamp = document.Timestamp.ToLocalTime();
         var mouseClicks = ReadNonNegativeInt64(document, SearchAttributeKeys.MouseClicks);
-        var cpuUsagePercent = ReadPercentage(document, SearchAttributeKeys.CpuUsagePercent);
-        var gpuUsagePercent = ReadPercentage(document, SearchAttributeKeys.GpuUsagePercent);
         var installation = ReadInstallation(document);
         var preview = BuildPreview(document, query);
         var snippet = BuildSnippet(preview, query);
@@ -267,7 +265,7 @@ public sealed class SearchViewModel : ViewModelBase
             snippet,
             preview,
             query,
-            FormatActivity(mouseClicks, cpuUsagePercent, gpuUsagePercent, culture, formatClickCount),
+            FormatActivity(mouseClicks, culture, formatClickCount),
             matchLabel,
             hit.Score,
             matchPercent,
@@ -330,21 +328,8 @@ public sealed class SearchViewModel : ViewModelBase
         return value;
     }
 
-    private static int? ReadPercentage(SearchDocument document, string key)
-    {
-        var value = ReadNonNegativeInt64(document, key);
-        if (value is > 100)
-        {
-            throw new InvalidDataException($"Search document '{document.Id}' has an invalid '{key}' attribute.");
-        }
-
-        return value is null ? null : checked((int)value.Value);
-    }
-
     private static string FormatActivity(
         long? mouseClicks,
-        int? cpuUsagePercent,
-        int? gpuUsagePercent,
         CultureInfo culture,
         Func<long?, CultureInfo, string> formatClickCount)
     {
@@ -354,16 +339,13 @@ public sealed class SearchViewModel : ViewModelBase
             throw new InvalidOperationException("The host click-count formatter returned an empty result.");
         }
 
-        return $"{clicks} · CPU {(cpuUsagePercent is { } cpu ? $"{cpu}%" : "—")} · GPU {(gpuUsagePercent is { } gpu ? $"{gpu}%" : "—")}";
+        return clicks;
     }
 
     private static string BuildPreview(SearchDocument document, string query)
     {
         var candidates = new[]
         {
-            document.OcrCorrectedText,
-            document.OcrRawText,
-            document.OcrStructuredSummary,
             document.AiDescription,
             document.Context,
             document.WindowTitle

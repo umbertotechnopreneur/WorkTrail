@@ -95,6 +95,14 @@ public sealed class AnthropicDecoder : IAIDecoder
 
             using var document = JsonDocument.Parse(responseBody);
             var root = document.RootElement;
+            if (string.Equals(AiProviderTelemetry.ReadString(root, "stop_reason"), "max_tokens", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new AiProviderRequestException(
+                    "Anthropic returned an incomplete response because its output limit was reached.",
+                    new AiProviderFailure("incomplete.max_tokens", (int)response.StatusCode,
+                        timer.ElapsedMilliseconds, providerResponseId, providerRequestId,
+                        null, ReadUsage(root), "max_tokens"));
+            }
             return new AiProviderResult(
                 ReadOutputText(root) ?? "The model did not return text.",
                 ReadUsage(root),
@@ -152,9 +160,10 @@ public sealed class AnthropicDecoder : IAIDecoder
         AppSettings settings,
         AiProviderRequestOptions? requestOptions = null)
     {
-        var profile = AiAnalysisProfileCatalog.Resolve(settings.AiOutputDetail);
         if (requestOptions?.MaxOutputTokens is <= 0)
             throw new ArgumentOutOfRangeException(nameof(requestOptions), "The output token budget must be positive.");
+        var outputLimit = requestOptions?.MaxOutputTokens
+            ?? throw new InvalidOperationException("Anthropic requires an explicit model-compatible output maximum. Uncapped screenshot analysis is not supported by this adapter.");
         var content = new List<object>
         {
             new Dictionary<string, object?>
@@ -181,7 +190,7 @@ public sealed class AnthropicDecoder : IAIDecoder
         var payload = new Dictionary<string, object?>
         {
             ["model"] = settings.Model,
-            ["max_tokens"] = requestOptions?.MaxOutputTokens ?? profile.MaxOutputTokens,
+            ["max_tokens"] = outputLimit,
             ["messages"] = new[]
             {
                 new Dictionary<string, object?>

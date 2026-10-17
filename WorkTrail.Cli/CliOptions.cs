@@ -122,7 +122,7 @@ public static class ExitCodeMapper
         "runtime.unavailable" => 4,
         "privacy.blocked" => 5,
         "ai.disabled" or "ai.configuration.invalid" => 6,
-        "ai.cost_guardrail" => 7,
+        "ai.daily_limit" => 7,
         "ipc.protocol.unsupported" => 9,
         var value when value.EndsWith(".failed", StringComparison.Ordinal) => 8,
         _ => 10

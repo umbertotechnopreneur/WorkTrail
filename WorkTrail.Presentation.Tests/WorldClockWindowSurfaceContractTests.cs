@@ -90,29 +90,55 @@ public sealed class WorldClockWindowSurfaceContractTests
     }
 
     [Fact]
-    public void Player_OpensOneIndependentWorldClockWindowInsteadOfAFlyout()
+    public void Player_UsesWorldTimeMenuToOpenExistingIndependentWindows()
     {
         var main = XDocument.Load(RepositoryFile("WorkTrail", "MainWindow.xaml"));
         var mainSource = File.ReadAllText(RepositoryFile("WorkTrail", "MainWindow.xaml.cs"));
+        var menuSource = File.ReadAllText(RepositoryFile("WorkTrail", "MainWindow.WorldTime.cs"));
         var appSource = File.ReadAllText(RepositoryFile("WorkTrail", "App.xaml.cs"));
         var button = main.Descendants().Single(element => HasName(element, "WorldClockButton"));
-        var icon = button.Descendants().Single(element => element.Name.LocalName == "SymbolIcon");
+        var flyout = button.Descendants().Single(element => HasName(element, "WorldTimeFlyout"));
 
-        Assert.Equal("WorldClockButton_Click", button.Attribute("Click")?.Value);
-        Assert.Equal("WorldClock.OpenWindow", button.Attribute("Tag")?.Value);
+        Assert.Null(button.Attribute("Click"));
+        Assert.Equal("WorldTime.OpenMenu", button.Attribute("Tag")?.Value);
         Assert.Equal("True", button.Attribute("AllowFocusOnInteraction")?.Value);
         Assert.Equal("True", button.Attribute("IsTabStop")?.Value);
-        Assert.Equal("Clock", icon.Attribute("Symbol")?.Value);
-        Assert.DoesNotContain(button.Descendants(), element => element.Name.LocalName == "Flyout");
+        Assert.Contains(button.Descendants(), element => element.Attribute("Tag")?.Value == "WorldTime.Title");
+        Assert.Equal("False", flyout.Attribute("ShouldConstrainToRootBounds")?.Value);
+        Assert.Equal("WorldTimeFlyout_Opening", flyout.Attribute("Opening")?.Value);
+        Assert.Equal("WorldTimeFlyout_Closed", flyout.Attribute("Closed")?.Value);
+        Assert.Contains(flyout.Descendants(), element => element.Name.LocalName == "DesktopAcrylicBackdrop");
+        Assert.Contains(flyout.Descendants(), element => element.Name.LocalName == "ScrollViewer");
+        Assert.Equal(7, flyout.Descendants().Count(element => element.Attribute("AutomationProperties.AutomationId") is not null));
         Assert.DoesNotContain(main.Descendants(), element => HasName(element, "WorldClockRail"));
         Assert.Contains("public event EventHandler? WorldClocksRequested;", mainSource, StringComparison.Ordinal);
-        Assert.Contains("WorldClocksRequested?.Invoke(this, EventArgs.Empty);", mainSource, StringComparison.Ordinal);
+        Assert.Contains("WorldClocksRequested?.Invoke(this, EventArgs.Empty);", menuSource, StringComparison.Ordinal);
+        Assert.Contains("WorldTimeWindowRequested += OpenAstronomyWindowFromMenu;", appSource, StringComparison.Ordinal);
+        Assert.Contains("WorldTimeWindowRequested -= OpenAstronomyWindowFromMenu;", appSource, StringComparison.Ordinal);
+        Assert.Contains("GetCelestialReferenceAsync(cancellation.Token)", menuSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetWorldClocksAsync", menuSource, StringComparison.Ordinal);
+        Assert.Contains("CloseWorldTimeMenu();", mainSource, StringComparison.Ordinal);
+        Assert.Contains("ReferenceEquals(_worldTimePreviewCancellation, cancellation)", menuSource, StringComparison.Ordinal);
         Assert.Contains("private WorldClockWindow? _worldClockWindow;", appSource, StringComparison.Ordinal);
         Assert.Contains("if (_worldClockWindow is not null)", appSource, StringComparison.Ordinal);
         Assert.Contains("_worldClockWindow.Activate();", appSource, StringComparison.Ordinal);
         Assert.Contains("_worldClockWindow.CloseForShutdown();", appSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("WorldClockFlyout", mainSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("WorldClockRefreshTimer", mainSource, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("WorldTimeMapButton", "WorldMap")]
+    [InlineData("WorldTimeCalendarButton", "AstronomyAgenda")]
+    [InlineData("WorldTimeSkyButton", "LocalSky")]
+    [InlineData("WorldTimeSunButton", "CelestialMap")]
+    [InlineData("WorldTimeMoonButton", "LunarPhase")]
+    public void WorldTimeTiles_RouteToTheirExistingWindow(string buttonName, string windowKey)
+    {
+        var main = XDocument.Load(RepositoryFile("WorkTrail", "MainWindow.xaml"));
+        var source = File.ReadAllText(RepositoryFile("WorkTrail", "MainWindow.WorldTime.cs"));
+        var button = main.Descendants().Single(element => HasName(element, buttonName));
+
+        Assert.Equal(buttonName + "_Click", button.Attribute("Click")?.Value);
+        Assert.Contains($"{buttonName}_Click(object sender, RoutedEventArgs args) => OpenWorldTimeWindow(WindowStateKeys.{windowKey});", source, StringComparison.Ordinal);
     }
 
     /// <summary>Verifies the acrylic window, integrated header, options layer, and theme-aware clock compositing contract.</summary>

@@ -161,7 +161,6 @@ jobs:
 
           Portable ZIPs can be extracted and run through WorkTrail.exe and include .NET and Windows App SDK.
           Application data remains in LocalAppData.
-          On-device screenshot OCR requires the MSIX edition and is unavailable in the portable build.
           Every ZIP includes payload checksums and an adjacent archive checksum.
           Clean-machine portable-launch checks remain required before public publication.
           Microsoft Store MSIX packages are built and signed locally, outside this workflow.

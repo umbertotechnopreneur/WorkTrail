@@ -25,7 +25,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using WorkTrail.Application;
-using WorkTrail.Ocr;
 using WorkTrail.Services;
 using Xunit;
 
@@ -112,6 +111,228 @@ public sealed class RuntimeCaptureSafetyTests
             Assert.Equal(2, capture.StoredScreenshotPaths.Count);
             Assert.All(capture.StoredScreenshotPaths, path => Assert.True(File.Exists(path)));
             Assert.Empty(notifications.Paths);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>Comparison baselines are committed only after publication and only for retained captures.</summary>
+    /// <param name="keep">Whether the application retains the published image.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CapturePublication_ReportsRetentionOnlyAfterFinalFileExists(bool keep)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            var capture = new BoundaryCaptureService(dataDirectory);
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture, startTimer: false);
+
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", keep, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true), CancellationToken.None);
+
+            Assert.True(result.Succeeded);
+            var published = Assert.IsType<ScreenshotCaptureResult>(result.Value);
+            var observation = Assert.Single(capture.PublicationCalls);
+            Assert.Equal(published.CaptureId, observation.CaptureId);
+            Assert.Equal(keep, observation.Retained);
+            Assert.True(observation.FinalFileExists);
+            Assert.False(observation.StagedFileExists);
+            Assert.Equal(keep, File.Exists(capture.OutputPath));
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>A missing staged artifact rejects publication without committing a comparison baseline or preview.</summary>
+    [Fact]
+    public async Task CapturePublication_FailureDiscardsBaselineWithoutReportingRetention()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false,
+                NotificationsEnabled = true,
+                ScreenshotNotificationsEnabled = true
+            };
+            store.SaveSettings(settings);
+            var notifications = new RecordingScreenshotNotifications();
+            BoundaryCaptureService? capture = null;
+            capture = new BoundaryCaptureService(dataDirectory,
+                afterCapture: () => File.Delete(ScreenshotPublicationJournal.StagingPath(capture!.OutputPath)));
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture,
+                startTimer: false, screenshotNotifications: notifications);
+
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true), CancellationToken.None);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal("screenshot.telemetry.persistence.failed", result.Code);
+            var observation = Assert.Single(capture.PublicationCalls);
+            Assert.False(observation.Retained);
+            Assert.False(observation.FinalFileExists);
+            Assert.False(observation.StagedFileExists);
+            Assert.False(File.Exists(capture.OutputPath));
+            Assert.Empty(notifications.Paths);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>A skipped automatic capture is never published, previewed or sent to the provider.</summary>
+    /// <param name="decision">The reason the native capture boundary skipped acquisition.</param>
+    /// <param name="code">The application result expected for that decision.</param>
+    /// <param name="captureOrigin">Manual capture also respects content exclusion.</param>
+    [Theory]
+    [InlineData(ScreenshotCaptureDecision.Unchanged, "screenshot.unchanged", ScreenshotCaptureOrigins.Scheduled)]
+    [InlineData(ScreenshotCaptureDecision.Unstable, "screenshot.unstable", ScreenshotCaptureOrigins.Scheduled)]
+    [InlineData(ScreenshotCaptureDecision.ContentExcluded, "screenshot.excluded", ScreenshotCaptureOrigins.Scheduled)]
+    [InlineData(ScreenshotCaptureDecision.ContentExcluded, "screenshot.excluded", ScreenshotCaptureOrigins.Manual)]
+    public async Task Capture_QuietSkipAvoidsPublicationPreviewAndAi(ScreenshotCaptureDecision decision, string code, string captureOrigin)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = true,
+                NotificationsEnabled = true,
+                ScreenshotNotificationsEnabled = true
+            };
+            store.SaveSettings(settings);
+            var notifications = new RecordingScreenshotNotifications();
+            var analysis = new RecordingAiAnalysisService();
+            var capture = new BoundaryCaptureService(dataDirectory,
+                beforeAuthorization: () => throw new ScreenshotCapturePreconditionException(decision));
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture,
+                startTimer: false, screenshotNotifications: notifications, analysis: analysis);
+
+            var result = await application.CaptureScreenshotAsync(
+                new("all-screens", Keep: true, captureOrigin, DeferAiAnalysis: false), CancellationToken.None);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal(code, result.Code);
+            Assert.Equal(0, capture.PixelReadCount);
+            Assert.Empty(capture.PublicationCalls);
+            Assert.Empty(notifications.Paths);
+            Assert.Equal(0, analysis.CallCount);
+            Assert.False(File.Exists(capture.OutputPath));
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>Continuous window changes receive two short retries, then return to the normal capture interval.</summary>
+    [Fact]
+    public async Task ScheduledCapture_UnstableRetriesAreBounded()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                ScreenshotIntervalMinutes = 1,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            var attempts = 0;
+            var capture = new BoundaryCaptureService(dataDirectory, beforeAuthorization: () =>
+            {
+                attempts++;
+                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unstable);
+            });
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture, startTimer: false);
+            Assert.True((await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None)).Succeeded);
+            var deadline = RuntimeField("_nextScheduledSnapshotAt");
+            var retries = RuntimeField("_scheduledSnapshotStabilityRetries");
+
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                deadline.SetValue(application, DateTimeOffset.Now.AddSeconds(-1));
+                var startedAt = DateTimeOffset.Now;
+                await RunScheduledSnapshotAsync(application);
+                var next = Assert.IsType<DateTimeOffset>(deadline.GetValue(application));
+
+                Assert.Equal(attempt, attempts);
+                Assert.Equal(attempt <= 2 ? attempt : 0, Assert.IsType<int>(retries.GetValue(application)));
+                Assert.InRange(next,
+                    startedAt.AddSeconds(attempt <= 2 ? 2 : 55),
+                    DateTimeOffset.Now.AddSeconds(attempt <= 2 ? 5 : 65));
+            }
+            Assert.Equal(0, capture.PixelReadCount);
+            Assert.Empty(capture.PublicationCalls);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>A retry cannot undo a newer deadline or an explicit screenshot-disable decision.</summary>
+    /// <param name="disableScreenshots">Whether the concurrent change disables capture instead of replacing its deadline.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ScheduledCapture_UnstableRetryPreservesNewerSchedulingDecision(bool disableScreenshots)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                ScreenshotIntervalMinutes = 1,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            var snapshot = new SettingsSnapshot(settings);
+            var deadline = RuntimeField("_nextScheduledSnapshotAt");
+            WorkTrailApplication? running = null;
+            DateTimeOffset? expectedDeadline = null;
+            var attempts = 0;
+            var capture = new BoundaryCaptureService(dataDirectory, beforeAuthorization: () =>
+            {
+                attempts++;
+                if (disableScreenshots)
+                {
+                    expectedDeadline = (DateTimeOffset?)deadline.GetValue(running);
+                    snapshot.Replace(snapshot.Value with { ScreenshotsEnabled = false });
+                }
+                else
+                {
+                    expectedDeadline = DateTimeOffset.Now.AddMinutes(30);
+                    deadline.SetValue(running, expectedDeadline);
+                }
+                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unstable);
+            });
+            await using var application = CreateApplication(store, snapshot, capture, startTimer: false);
+            running = application;
+            Assert.True((await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None)).Succeeded);
+            deadline.SetValue(application, DateTimeOffset.Now.AddSeconds(-1));
+
+            await RunScheduledSnapshotAsync(application);
+
+            Assert.Equal(1, attempts);
+            Assert.NotNull(expectedDeadline);
+            Assert.Equal(expectedDeadline.Value, Assert.IsType<DateTimeOffset>(deadline.GetValue(application)));
+            Assert.Equal(0, Assert.IsType<int>(RuntimeField("_scheduledSnapshotStabilityRetries").GetValue(application)));
+            Assert.Equal(0, capture.PixelReadCount);
+            Assert.Empty(capture.PublicationCalls);
         }
         finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
     }
@@ -307,9 +528,9 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
-    /// <summary>Verifies that cancellation removes captured files and releases pending ownership.</summary>
+    /// <summary>Cancellation before capture starts reads no pixels and creates no pending owner.</summary>
     [Fact]
-    public async Task CancelledManualCapture_RemovesFilesAndLeavesNoPendingOwner()
+    public async Task CancelledManualCapture_BeforePixelsLeavesNoFilesOrPendingOwner()
     {
         var dataDirectory = CreateTemporaryDirectory();
         try
@@ -319,31 +540,62 @@ public sealed class RuntimeCaptureSafetyTests
             {
                 ScreenshotsEnabled = true,
                 ScreenshotDirectory = dataDirectory,
-                OcrEnabled = true,
                 OpenAiEnabled = false
             };
             store.SaveSettings(settings);
             var snapshot = new SettingsSnapshot(settings);
             var capture = new BoundaryCaptureService(dataDirectory);
-            var ocr = new CancellationAwareOcrService();
             await using var application = CreateApplication(
                 store,
                 snapshot,
                 capture,
-                startTimer: false,
-                screenshotOcr: ocr);
+                startTimer: false);
             using var cancellation = new CancellationTokenSource();
 
-            var operation = application.CaptureManualScreenshotAsync(cancellation.Token);
-            await capture.Captured.Task.WaitAsync(TimeSpan.FromSeconds(5));
             cancellation.Cancel();
-            var result = await operation.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                application.CaptureManualScreenshotAsync(cancellation.Token));
             var dashboard = await application.GetDashboardAsync(CancellationToken.None);
 
-            Assert.False(result.Succeeded);
-            Assert.Equal("operation.cancelled", result.Code);
+            Assert.Equal(0, capture.PixelReadCount);
             Assert.False(File.Exists(capture.OutputPath));
             Assert.Null(dashboard.Value?.PendingManualScreenshot);
+        }
+        finally
+        {
+            await DeleteTemporaryDirectoryAsync(dataDirectory);
+        }
+    }
+
+    /// <summary>A completed capture receives an owner even if its caller cancels after the pixel read.</summary>
+    [Fact]
+    public async Task CancelledManualCapture_AfterPixelsRegistersPendingOwner()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            using var cancellation = new CancellationTokenSource();
+            var capture = new BoundaryCaptureService(dataDirectory, afterCapture: cancellation.Cancel);
+            await using var application = CreateApplication(
+                store, new SettingsSnapshot(settings), capture, startTimer: false);
+
+            var result = await application.CaptureManualScreenshotAsync(cancellation.Token)
+                .WaitAsync(TimeSpan.FromSeconds(5));
+            var dashboard = await application.GetDashboardAsync(CancellationToken.None);
+
+            Assert.True(cancellation.IsCancellationRequested);
+            Assert.True(result.Succeeded);
+            Assert.Equal(1, capture.PixelReadCount);
+            Assert.True(File.Exists(capture.OutputPath));
+            Assert.Equal(capture.OutputPath, dashboard.Value?.PendingManualScreenshot?.ScreenshotPath);
         }
         finally
         {
@@ -444,14 +696,27 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
+    private static FieldInfo RuntimeField(string name) =>
+        typeof(WorkTrailApplication).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException($"Runtime field '{name}' was not found.");
+
+    private static Task RunScheduledSnapshotAsync(WorkTrailApplication application)
+    {
+        var method = typeof(WorkTrailApplication).GetMethod("ProcessScheduledSnapshotAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Scheduled snapshot method was not found.");
+        return (Task)(method.Invoke(application, null)
+            ?? throw new InvalidOperationException("Scheduled snapshot processing returned no task."));
+    }
+
     private static WorkTrailApplication CreateApplication(
         LocalStore store,
         SettingsSnapshot settings,
         IScreenCaptureService capture,
         bool startTimer,
         TrackingDomainService? tracking = null,
-        IScreenshotOcrService? screenshotOcr = null,
-        IScreenshotNotificationService? screenshotNotifications = null)
+        IScreenshotNotificationService? screenshotNotifications = null,
+        IAiAnalysisService? analysis = null)
     {
         var utilities = new UtilityService();
         return new WorkTrailApplication(
@@ -459,11 +724,9 @@ public sealed class RuntimeCaptureSafetyTests
             utilities,
             tracking ?? new TrackingDomainService(store, settings),
             capture,
-            new FakeHardwareTelemetryService(),
-            new OpenAiAnalysisService(store, capture),
+            analysis ?? new OpenAiAnalysisService(store, capture),
             new StartupService(),
             new BuildInformationService(),
-            screenshotOcr: screenshotOcr,
             settingsSnapshot: settings,
             startScheduledSnapshotTimer: startTimer,
             screenshotNotifications: screenshotNotifications);
@@ -518,6 +781,31 @@ public sealed class RuntimeCaptureSafetyTests
         public void Dispose() { }
     }
 
+    private sealed class RecordingAiAnalysisService : IAiAnalysisService
+    {
+        internal int CallCount { get; private set; }
+
+        /// <inheritdoc />
+        public Task<AiAnalysis> AnalyzeCurrentScreenAsync(AnalysisContextSnapshot? activity, bool allowCapture = true,
+            string origin = "manual", CancellationToken cancellationToken = default) => RejectUnexpectedAnalysis();
+
+        /// <inheritdoc />
+        public Task<AiAnalysis> AnalyzeCapturedScreenAsync(AnalysisContextSnapshot? activity,
+            ScreenshotCaptureResult captureResult, bool keepCapture, string origin,
+            CancellationToken cancellationToken = default) => RejectUnexpectedAnalysis();
+
+        /// <inheritdoc />
+        public Task<AiAnalysis> AnalyzeHistoricalCapturedScreenAsync(AnalysisContextSnapshot activity,
+            ScreenshotCaptureResult captureResult, string origin,
+            CancellationToken cancellationToken = default) => RejectUnexpectedAnalysis();
+
+        private Task<AiAnalysis> RejectUnexpectedAnalysis()
+        {
+            CallCount++;
+            throw new InvalidOperationException("A skipped capture must never reach AI analysis.");
+        }
+    }
+
     private sealed class NotificationCaptureService(bool keep) : IScreenCaptureService
     {
         /// <inheritdoc />
@@ -546,9 +834,10 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
-    private sealed class BoundaryCaptureService : IScreenCaptureService
+    private sealed class BoundaryCaptureService : IScreenCaptureService, IScreenshotCapturePublicationObserver
     {
         private readonly Action _beforeAuthorization;
+        private readonly Action _afterCapture;
         private readonly ScreenshotCaptureContext _context;
         private readonly string _captureId = Guid.NewGuid().ToString("N");
         private readonly DateTimeOffset _capturedAt = DateTimeOffset.UtcNow;
@@ -556,9 +845,11 @@ public sealed class RuntimeCaptureSafetyTests
         internal BoundaryCaptureService(
             string directory,
             Action? beforeAuthorization = null,
-            ScreenshotCaptureContext? context = null)
+            ScreenshotCaptureContext? context = null,
+            Action? afterCapture = null)
         {
             _beforeAuthorization = beforeAuthorization ?? (() => { });
+            _afterCapture = afterCapture ?? (() => { });
             _context = context ?? new ScreenshotCaptureContext("allowed-app", "Allowed", "Work", "Allowed window");
             OutputPath = Path.Combine(ScreenshotStorageLayout.GetDayDirectory(directory, _capturedAt),
                 $"{_captureId}_1.0.0_manual_monitor-1.webp");
@@ -566,9 +857,14 @@ public sealed class RuntimeCaptureSafetyTests
 
         internal int PixelReadCount { get; private set; }
 
-        internal string OutputPath { get; }
+        internal string OutputPath { get; private set; }
+
+        internal List<(string CaptureId, bool Retained, bool FinalFileExists, bool StagedFileExists)> PublicationCalls { get; } = [];
 
         internal TaskCompletionSource<bool> Captured { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void IScreenshotCapturePublicationObserver.CompletePublication(string captureId, bool retained) =>
+            PublicationCalls.Add((captureId, retained, File.Exists(OutputPath), File.Exists(ScreenshotPublicationJournal.StagingPath(OutputPath))));
 
         /// <inheritdoc />
         public ScreenshotCaptureResult CaptureByMode(
@@ -585,8 +881,11 @@ public sealed class RuntimeCaptureSafetyTests
             }
 
             PixelReadCount++;
+            OutputPath = Path.Combine(ScreenshotStorageLayout.GetDayDirectory(directory, _capturedAt),
+                $"{_captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
             Directory.CreateDirectory(Path.GetDirectoryName(OutputPath)!);
             File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(OutputPath), [1, 2, 3]);
+            _afterCapture();
             Captured.TrySetResult(true);
             return new ScreenshotCaptureResult(
                 _captureId,
@@ -630,20 +929,4 @@ public sealed class RuntimeCaptureSafetyTests
         }
     }
 
-    private sealed class CancellationAwareOcrService : IScreenshotOcrService
-    {
-        internal TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public bool IsEnabled => true;
-
-        /// <inheritdoc />
-        public async Task<ScreenshotOcrResult> ExtractAsync(
-            string imagePath,
-            CancellationToken cancellationToken = default)
-        {
-            Started.TrySetResult(true);
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            throw new InvalidOperationException("Cancellation should stop OCR before a result is created.");
-        }
-    }
 }

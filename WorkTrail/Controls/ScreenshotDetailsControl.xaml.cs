@@ -29,13 +29,8 @@ namespace WorkTrail.Controls;
 /// <summary>Passively renders safe metadata and Markdown blocks for the selected screenshot.</summary>
 public sealed partial class ScreenshotDetailsControl : UserControl
 {
-    private string? _ocrText;
-
     /// <summary>Creates the screenshot detail pane.</summary>
     public ScreenshotDetailsControl() => InitializeComponent();
-
-    /// <summary>Raised when the user requests the OCR text currently rendered by this passive detail pane.</summary>
-    public event Action<string>? OcrTextRequested;
 
     /// <summary>Replaces every displayed value with one immutable screenshot-detail projection.</summary>
     /// <param name="state">The selected screenshot details, or <see langword="null"/> when no screenshot is selected.</param>
@@ -70,23 +65,11 @@ public sealed partial class ScreenshotDetailsControl : UserControl
             state is null ? "--" : $"{state.InstallationName} · {state.InstallationMachineName}");
         ActivityLabelsValueText.Text = state?.ActivityLabels ?? "--";
         MouseClicksValueText.Text = state?.MouseClicks ?? "--";
-        CpuUsageValueText.Text = state?.CpuUsage ?? "--";
-        GpuUsageValueText.Text = state?.GpuUsage ?? "--";
-        var hasHardwareData = state?.Hardware.HasData == true;
-        HardwareSection.Visibility = hasHardwareData ? Visibility.Visible : Visibility.Collapsed;
-        HardwareStatusText.Text = hasHardwareData ? state!.Hardware.Status : string.Empty;
-        HardwareCollectedAtText.Text = hasHardwareData ? state!.Hardware.CollectedAt : string.Empty;
-        HardwareDriverStatusText.Text = hasHardwareData ? state!.Hardware.DriverStatus : string.Empty;
-        HardwareSummaryList.ItemsSource = hasHardwareData ? state!.Hardware.Summary : null;
-        HardwareSensorList.ItemsSource = hasHardwareData ? state!.Hardware.Details : null;
         PrivacyStatusValueText.Text = privacyStatusText;
         AnalysisTimeValueText.Text = state?.AnalysisTime ?? "--";
         AnalysisTimePanel.Visibility = string.IsNullOrWhiteSpace(state?.AnalysisTime)
             ? Visibility.Collapsed
             : Visibility.Visible;
-        _ocrText = string.IsNullOrWhiteSpace(state?.OcrText) ? null : state.OcrText;
-        OcrTextSection.Visibility = _ocrText is null ? Visibility.Collapsed : Visibility.Visible;
-        OpenOcrTextButton.IsEnabled = _ocrText is not null;
 
         AiMarkdownHost.Children.Clear();
         var blocks = state?.AiDescription ?? Array.Empty<SafeMarkdownBlock>();
@@ -95,14 +78,6 @@ public sealed partial class ScreenshotDetailsControl : UserControl
         foreach (var block in blocks)
         {
             AiMarkdownHost.Children.Add(CreateMarkdownBlock(block));
-        }
-    }
-
-    private void OpenOcrTextButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_ocrText is { } ocrText)
-        {
-            OcrTextRequested?.Invoke(ocrText);
         }
     }
 

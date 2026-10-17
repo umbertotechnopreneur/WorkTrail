@@ -221,7 +221,7 @@ public sealed class SettingsAndRetentionSafetyTests
         {
             ["ai.provider"] = "OpenAI",
             ["ai.model"] = "gpt-5.6",
-            ["ai.output_detail"] = "DETAILED",
+            ["ai.output_detail"] = "COMPLETE",
             ["ai.reasoning_effort"] = "XHIGH"
         });
 
@@ -232,8 +232,27 @@ public sealed class SettingsAndRetentionSafetyTests
         Assert.Equal("openai", result.Value.AiProvider);
         Assert.Equal("OPENAI_API_KEY", result.Value.AiApiKeyName);
         Assert.Equal("https://api.openai.com/v1/responses", result.Value.AiEndpoint);
-        Assert.Equal("detailed", result.Value.AiOutputDetail);
+        Assert.Equal("complete", result.Value.AiOutputDetail);
         Assert.Equal("xhigh", result.Value.AiReasoningEffort);
+    }
+
+    [Theory]
+    [InlineData("compact")]
+    [InlineData("detailed")]
+    public void Apply_RejectsRetiredScreenshotAnalysisProfiles(string profile)
+    {
+        var original = new AppSettings(AiOutputDetail: "balanced");
+        var patch = new SettingsPatch(new Dictionary<string, string?>
+        {
+            ["ai.output_detail"] = profile
+        });
+
+        var result = SettingsCatalog.Apply(original, patch);
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Value);
+        Assert.Contains(result.Issues, issue => issue.Field == "ai.output_detail");
+        Assert.Equal("balanced", original.AiOutputDetail);
     }
 
     [Fact]
@@ -331,49 +350,6 @@ public sealed class SettingsAndRetentionSafetyTests
             }));
         Assert.False(invalid.Succeeded);
         Assert.Contains(invalid.Issues, issue => issue.Field == "screenshots.details_pane_open");
-    }
-
-    [Fact]
-    public void AiMonthlySpendPreference_IsOptInAndRoundTripsThroughTheSettingsCatalog()
-    {
-        var defaults = Assert.IsType<AppSettings>(
-            JsonSerializer.Deserialize<AppSettings>("{}", new JsonSerializerOptions(JsonSerializerDefaults.Web)));
-        var enabled = SettingsCatalog.Apply(
-            defaults,
-            new SettingsPatch(new Dictionary<string, string?>
-            {
-                ["ai.show_monthly_spend"] = "true"
-            }));
-
-        Assert.False(defaults.ShowAiMonthlySpend);
-        Assert.True(enabled.Succeeded);
-        var settings = Assert.IsType<AppSettings>(enabled.Value);
-        Assert.True(settings.ShowAiMonthlySpend);
-        Assert.True(SettingsCatalog.TryGetValue(settings, "ai.show_monthly_spend", out var storedPreference));
-        Assert.Equal(true, storedPreference);
-
-        var restored = Assert.IsType<AppSettings>(JsonSerializer.Deserialize<AppSettings>(
-            JsonSerializer.Serialize(settings, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
-            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
-        Assert.True(restored.ShowAiMonthlySpend);
-
-        var disabled = SettingsCatalog.Apply(
-            restored,
-            new SettingsPatch(new Dictionary<string, string?>
-            {
-                ["ai.show_monthly_spend"] = "false"
-            }));
-        Assert.True(disabled.Succeeded);
-        Assert.False(disabled.Value?.ShowAiMonthlySpend);
-
-        var invalid = SettingsCatalog.Apply(
-            defaults,
-            new SettingsPatch(new Dictionary<string, string?>
-            {
-                ["ai.show_monthly_spend"] = "yes"
-            }));
-        Assert.False(invalid.Succeeded);
-        Assert.Contains(invalid.Issues, issue => issue.Field == "ai.show_monthly_spend");
     }
 
     [Fact]
@@ -710,7 +686,7 @@ public sealed class SettingsAndRetentionSafetyTests
             store.UpsertScreenshotIntervalTelemetry(
                 expiredReferencedId,
                 [expiredReferencedPath],
-                new ScreenshotIntervalTelemetry(expiredAt.AddMinutes(-5), expiredAt, null, null));
+                new ScreenshotIntervalTelemetry(expiredAt.AddMinutes(-5), expiredAt));
             var jobId = Guid.NewGuid();
             store.CreateAiReprocessJob(
                 new AiReprocessJobRecord(

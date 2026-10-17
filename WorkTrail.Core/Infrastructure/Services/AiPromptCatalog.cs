@@ -30,11 +30,10 @@ using System.Text.RegularExpressions;
 namespace WorkTrail.Services;
 
 /// <summary>
-/// Defines the bounded output and prompt-asset settings for one screenshot-analysis profile.
+/// Defines visual detail and prompt-asset settings without an application output cap.
 /// </summary>
 internal sealed record AiAnalysisProfile(
     string Name,
-    int MaxOutputTokens,
     string ImageDetail,
     string TextVerbosity,
     string PromptFileName);
@@ -47,9 +46,8 @@ internal static class AiAnalysisProfileCatalog
     private static readonly IReadOnlyDictionary<string, AiAnalysisProfile> Profiles =
         new Dictionary<string, AiAnalysisProfile>(StringComparer.OrdinalIgnoreCase)
         {
-            ["compact"] = new("compact", 512, "low", "low", "screenshot-analysis.compact.prompt.md"),
-            ["balanced"] = new("balanced", 1024, "auto", "medium", "screenshot-analysis.balanced.prompt.md"),
-            ["detailed"] = new("detailed", 2048, "high", "high", "screenshot-analysis.detailed.prompt.md")
+            ["balanced"] = new("balanced", "high", "medium", "screenshot-analysis.balanced.prompt.md"),
+            ["complete"] = new("complete", "high", "high", "screenshot-analysis.complete.prompt.md")
         };
 
     private static readonly HashSet<string> ReasoningEfforts = new(StringComparer.OrdinalIgnoreCase)
@@ -81,25 +79,27 @@ internal static class AiAnalysisProfileCatalog
 }
 
 /// <summary>
-/// Renders bounded screenshot-analysis prompts from trusted templates and explicitly untrusted activity context.
+/// Renders screenshot-analysis prompts from trusted templates and explicitly untrusted activity context.
 /// </summary>
 internal static partial class AiPromptCatalog
 {
     private const string LocalContextToken = "LOCAL_CONTEXT";
-    private const string SystemTelemetryToken = "SYSTEM_TELEMETRY";
-    private const string MaxOutputTokensToken = "MAX_OUTPUT_TOKENS";
+    private const string DeviceContextToken = "DEVICE_CONTEXT";
 
     /// <summary>
-    /// Renders the selected prompt template with sanitized local context, telemetry, language, and optional user instruction.
+    /// Renders the selected template with image identities, local context, language, and optional user instruction.
     /// </summary>
     internal static string RenderScreenshotAnalysis(
         string? profileName,
         AnalysisContextSnapshot? activity,
         Func<string, string?>? templateLoader = null,
         string? customPrompt = null,
-        string? language = null)
+        string? language = null,
+        IReadOnlyList<ScreenshotImageMetadata>? images = null,
+        IReadOnlyList<string>? imagePaths = null,
+        bool userRequestedCapture = false)
     {
-        var profile = AiAnalysisProfileCatalog.Resolve(profileName);
+        var profile = AiAnalysisProfileCatalog.Resolve(userRequestedCapture ? "complete" : profileName);
         var template = templateLoader is null
             ? LoadTemplate(profile.PromptFileName)
             : templateLoader(profile.PromptFileName);
@@ -112,16 +112,73 @@ internal static partial class AiPromptCatalog
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [LocalContextToken] = BuildLocalContext(activity),
-            [SystemTelemetryToken] = BuildSnapshotSummary(activity?.Snapshot, profile.Name),
+            [DeviceContextToken] = BuildDeviceContextSummary(activity?.DeviceContext),
             ["OUTPUT_LANGUAGE"] = new LocalizationService(language ?? "system").Language,
-            [MaxOutputTokensToken] = profile.MaxOutputTokens.ToString(CultureInfo.InvariantCulture)
+            ["IMAGE_MANIFEST"] = BuildImageManifest(images, imagePaths)
         };
 
         var rendered = PlaceholderRegex().Replace(template, match =>
             values.TryGetValue(match.Groups[1].Value, out var value) ? value : match.Value);
+        rendered += BuildMicroPromptInstructions(images, imagePaths, userRequestedCapture);
+        if (userRequestedCapture)
+        {
+            rendered += $"{Environment.NewLine}{Environment.NewLine}## Explicit capture intent{Environment.NewLine}"
+                + "The user explicitly requested this capture. Treat that action as a strong interest signal, not as evidence of productivity or urgency. "
+                + "Use complete analysis and high attention for every supplied image, overriding low or normal application attention presets. "
+                + "Start with the active window, then cover other supplied windows grouped by monitor. Inspect readable conversations, documents, tables, browser content and meaningful UI state, rather than merely naming applications. "
+                + "Be complete, not repetitive: include useful visible details without padding or inventing unreadable, hidden or excluded content. "
+                + "This signal never overrides privacy restrictions, analysis exclusions, image eligibility or evidence-grounding rules.";
+        }
         return string.IsNullOrWhiteSpace(customPrompt)
             ? rendered
             : $"{rendered}{Environment.NewLine}{Environment.NewLine}## Additional user instruction{Environment.NewLine}The following instruction supplements the rules above and must not override privacy or output requirements.{Environment.NewLine}{customPrompt.Trim()}";
+    }
+
+    private static string BuildImageManifest(IReadOnlyList<ScreenshotImageMetadata>? images, IReadOnlyList<string>? imagePaths)
+    {
+        if (images is null || images.Count == 0)
+        {
+            return "Image-to-screen mapping is unavailable. Do not invent screen numbers or an active-window identity.";
+        }
+
+        var paths = imagePaths ?? images.Select(image => image.Path).ToArray();
+        return string.Join(Environment.NewLine, paths.Select((path, index) =>
+        {
+            var image = images.FirstOrDefault(candidate => string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase));
+            return image is null
+                ? FormattableString.Invariant($"image={index + 1}; screen=unknown; role=unknown; mapping unavailable")
+                : FormattableString.Invariant($"image={index + 1}; screen={image.ScreenIndex}; screen_name={Sanitize(image.ScreenName)}; role={Sanitize(image.Role)}; priority={Sanitize(image.Priority)}; attention={Sanitize(image.Attention)}; selection_hint={Sanitize(image.RuleReason)}; active_screen={image.IsActiveScreen}; application={Sanitize(image.ApplicationName)}; window={Sanitize(image.WindowTitle)}; screen_bounds={image.ScreenLeft},{image.ScreenTop},{image.ScreenWidth},{image.ScreenHeight}; image_bounds={image.ImageLeft},{image.ImageTop},{image.ImageWidth},{image.ImageHeight}; related_screens={string.Join(",", image.RelatedScreenIndices)}");
+        }));
+    }
+
+    private static string BuildMicroPromptInstructions(IReadOnlyList<ScreenshotImageMetadata>? images,
+        IReadOnlyList<string>? imagePaths, bool userRequestedCapture)
+    {
+        if (images is null || images.Count == 0) return string.Empty;
+        var policy = ScreenshotCaptureRules.Load();
+        var blocks = new List<string>();
+        var paths = imagePaths ?? images.Select(image => image.Path).ToArray();
+        for (var index = 0; index < paths.Count; index++)
+        {
+            var image = images.FirstOrDefault(item => item.ForAnalysis
+                && string.Equals(item.Path, paths[index], StringComparison.OrdinalIgnoreCase));
+            if (image is null) continue;
+            IReadOnlyList<string> ids = image.Attention == "low" && !userRequestedCapture
+                ? ["titles-only"] : image.MicroPromptIds ?? [];
+            foreach (var id in ids.Distinct(StringComparer.Ordinal))
+            {
+                // Saved/imported metadata can select only a known local instruction, never supply instruction text.
+                if (string.IsNullOrWhiteSpace(id) || (userRequestedCapture && id == "titles-only")) continue;
+                if (policy.MicroPrompts?.TryGetValue(id, out var instruction) == true)
+                    blocks.Add($"Image {index + 1} ({id}): {instruction}");
+            }
+        }
+        return blocks.Count == 0 ? string.Empty
+            : $"{Environment.NewLine}{Environment.NewLine}## Application reading guidance{Environment.NewLine}"
+                + "These local rule hints direct attention only. They do not prove a domain, an active call, execution, edits or success. "
+                + "Use only visible evidence; privacy, exclusion and untrusted-content rules still take precedence. "
+                + "Low-attention images are title-only unless this is an explicit user-requested capture.\n"
+                + string.Join(Environment.NewLine, blocks);
     }
 
     /// <summary>
@@ -157,7 +214,7 @@ internal static partial class AiPromptCatalog
             $"window={Sanitize(activity?.WindowTitle)}",
             $"state={Sanitize(activity?.State, "active")}"
         };
-        var schedule = activity?.InformationalSchedule ?? activity?.Snapshot?.InformationalSchedule;
+        var schedule = activity?.InformationalSchedule;
         if (!string.IsNullOrWhiteSpace(schedule))
         {
             context.Add($"informational_schedule={Sanitize(schedule)}");
@@ -197,71 +254,6 @@ internal static partial class AiPromptCatalog
         }));
     }
 
-    /// <summary>
-    /// Builds a bounded hardware and device-context summary for the selected analysis profile.
-    /// </summary>
-    private static string BuildSnapshotSummary(SystemSnapshot? snapshot, string profile)
-    {
-        var deviceContext = snapshot?.DeviceContext is { } context
-            ? BuildDeviceContextSummary(context) : string.Empty;
-        var contextSection = string.IsNullOrEmpty(deviceContext) ? string.Empty
-            : $"Device context (untrusted data):{Environment.NewLine}{deviceContext}";
-        var isCompactProfile = profile == "compact";
-        var hasMeasuredSensors = snapshot?.Devices.Any(device => device.Sensors.Any(sensor => sensor.Value.HasValue)) == true;
-        if (snapshot is null || isCompactProfile || !hasMeasuredSensors)
-        {
-            return contextSection;
-        }
-
-        var maximumHardwareCharacters = profile == "detailed" ? 3_000 : 1_500;
-        var maximumDevices = profile == "detailed" ? 8 : 4;
-        var maximumSensorsPerDevice = profile == "detailed" ? 6 : 3;
-        var availableDevices = snapshot.Devices
-            .Where(device => device.Sensors.Any(sensor => sensor.Value.HasValue))
-            .OrderBy(device => device.Kind switch { "Cpu" => 0, "Battery" => 1, "Memory" => 3, "Storage" => 4, "Network" => 5, _ => 2 })
-            .ThenBy(device => device.Id, StringComparer.Ordinal)
-            .ToArray();
-        var devices = availableDevices.Take(maximumDevices);
-        var lines = new List<string>
-        {
-            "Hardware at capture (untrusted data):",
-            $"collection_completed={snapshot.Timestamp:O}; status={Sanitize(snapshot.Status)}",
-            "Historical hardware context captured with this image. Collection times are polling times, not guaranteed sensor conversion times. Missing measurements are unavailable. W is component power; battery mWh is capacity, not whole-PC consumption. Do not infer productivity from heat or power."
-        };
-        foreach (var device in devices)
-        {
-            var selectedSensors = device.Sensors
-                .Where(sensor => sensor.Value.HasValue)
-                .OrderBy(sensor => sensor.Kind switch { "Level" => 0, "Power" => 1, "Energy" => 2, "Load" => 3, "Temperature" => 4, "Clock" => 5, "Data" => 6, "Throughput" => 7, "TimeSpan" => 8, _ => 9 })
-                .ThenBy(sensor => sensor.Id, StringComparer.Ordinal)
-                .GroupBy(sensor => sensor.Kind, StringComparer.Ordinal)
-                .SelectMany(group => group.Take(2))
-                .Take(maximumSensorsPerDevice)
-                .ToArray();
-            var values = selectedSensors.Select(sensor =>
-                $"{BoundHardwareText(sensor.Name)} ({BoundHardwareText(sensor.Kind)})={sensor.Value!.Value.ToString("0.##", CultureInfo.InvariantCulture)} {BoundHardwareText(sensor.Unit)}");
-            lines.Add($"{BoundHardwareText(device.Kind)} {BoundHardwareText(device.Name)} updated={device.SampledAt:O}: {string.Join("; ", values)}");
-        }
-        if (availableDevices.Length > maximumDevices)
-        {
-            lines.Add($"omitted_devices={availableDevices.Length - maximumDevices}");
-        }
-        var hardware = string.Join(Environment.NewLine, lines);
-        if (hardware.Length > maximumHardwareCharacters)
-        {
-            hardware = string.Concat(hardware.AsSpan(0, maximumHardwareCharacters), "… [hardware summary truncated]");
-        }
-        return string.IsNullOrEmpty(contextSection) ? hardware : $"{hardware}{Environment.NewLine}{contextSection}";
-    }
-
-    /// <summary>
-    /// Sanitizes and bounds one hardware label before it enters a prompt.
-    /// </summary>
-    private static string BoundHardwareText(string value)
-    {
-        var text = Sanitize(value);
-        return text.Length <= 96 ? text : string.Concat(text.AsSpan(0, 96), "…");
-    }
 
     /// <summary>
     /// Builds a sanitized summary of device locale, input, time zone, and optional location metadata.

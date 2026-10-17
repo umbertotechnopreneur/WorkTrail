@@ -65,12 +65,6 @@ internal enum RuntimeOperation
     SearchAvailabilityV1,
     [RuntimeOperationWireName("search.rebuild.v1")]
     SearchRebuildV1,
-    [RuntimeOperationWireName("system.snapshot")]
-    SystemSnapshot,
-    [RuntimeOperationWireName("hardware.snapshot.v1")]
-    HardwareSnapshotV1,
-    [RuntimeOperationWireName("hardware.advanced.enable.v1")]
-    HardwareAdvancedEnableV1,
     [RuntimeOperationWireName("screenshot.capture")]
     ScreenshotCapture,
     [RuntimeOperationWireName("screenshot.vip.capture.v1")]
@@ -127,8 +121,6 @@ internal enum RuntimeOperation
     AiStatus,
     [RuntimeOperationWireName("ai.key.get")]
     AiKeyGet,
-    [RuntimeOperationWireName("ai.pricing.overview")]
-    AiPricingOverview,
     [RuntimeOperationWireName("ai.connection.test")]
     AiConnectionTest,
     [RuntimeOperationWireName("ai.screenshot_reprocess.preview.v1")]
@@ -215,8 +207,6 @@ internal enum RuntimeOperation
     WindowStateSave,
     [RuntimeOperationWireName("window.open_state.set")]
     WindowOpenStateSet,
-    [RuntimeOperationWireName("window.ocr_source.set")]
-    WindowOcrSourceSet,
     [RuntimeOperationWireName("startup.status")]
     StartupStatus,
     [RuntimeOperationWireName("startup.enable")]

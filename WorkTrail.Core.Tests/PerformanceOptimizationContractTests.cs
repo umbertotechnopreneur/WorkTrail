@@ -45,7 +45,7 @@ public sealed class PerformanceOptimizationContractTests
     }
 
     [Fact]
-    public void HardwareTelemetry_HasOneRuntimeOwnerAndNoLegacyReaders()
+    public void Runtime_DoesNotCollectHardwareTelemetry()
     {
         // Runtime ownership spans the facade's partial files after responsibility-based extraction.
         var source = string.Join(Environment.NewLine,
@@ -53,8 +53,8 @@ public sealed class PerformanceOptimizationContractTests
                 .OrderBy(path => path, StringComparer.Ordinal)
                 .Select(File.ReadAllText));
 
-        Assert.Contains("IHardwareTelemetryService", source, StringComparison.Ordinal);
-        Assert.Contains("_snapshot.CaptureAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("IHardwareTelemetryService", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_snapshot.CaptureAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ManagementObjectSearcher", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SystemSnapshotReuseWindow", source, StringComparison.Ordinal);
         Assert.False(File.Exists(RepositoryFile("WorkTrail.Core", "Infrastructure", "Services", "SystemUsageSampler.cs")));

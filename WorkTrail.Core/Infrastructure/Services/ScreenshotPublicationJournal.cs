@@ -27,7 +27,8 @@ internal sealed class ScreenshotPublicationJournal(LocalStore store)
     private string JournalDirectory => Path.Combine(store.DataDirectory, "pending-screenshot-publications");
     internal string TransientRoot => Path.Combine(store.DataDirectory, "transient-screenshots");
     internal sealed record Plan(string CaptureId, string InstallationId, DateTimeOffset CapturedAt,
-        string Origin, string AuthorizedRoot, string[] Artifacts, bool Keep);
+        string Origin, string AuthorizedRoot, string[] Artifacts, string[] RetainedArtifacts, bool Keep,
+        IReadOnlyList<ScreenshotImageMetadata>? Images = null);
 
     internal static string StagingPath(string finalPath) => finalPath + ".pending";
 
@@ -42,11 +43,12 @@ internal sealed class ScreenshotPublicationJournal(LocalStore store)
         var capturedAt = capture.CapturedAt ?? new DateTimeOffset(
             File.GetLastWriteTimeUtc(File.Exists(StagingPath(first)) ? StagingPath(first) : first), TimeSpan.Zero);
         var plan = new Plan(capture.CaptureId, installationId, capturedAt, capture.CaptureOrigin,
-            ScreenshotStorageLayout.NormalizeRoot(authorizedRoot), capture.AllScreenshotPaths.ToArray(), keep);
+            ScreenshotStorageLayout.NormalizeRoot(authorizedRoot), capture.AllScreenshotPaths.ToArray(),
+            keep ? capture.StoredScreenshotPaths.ToArray() : [], keep, capture.Images);
         Validate(plan);
         Save(plan);
         Publish(plan);
-        if (keep) Complete(plan);
+        if (keep && plan.Artifacts.Length == plan.RetainedArtifacts.Length) Complete(plan);
     }
 
     // reportFailure receives isolated errors while preserving the corresponding durable intent.
@@ -59,7 +61,11 @@ internal sealed class ScreenshotPublicationJournal(LocalStore store)
             try
             {
                 var plan = Read(path);
-                if (plan.Keep) { Publish(plan); Complete(plan); }
+                if (plan.Keep)
+                {
+                    Publish(plan, retainedOnly: true);
+                    CleanupTransientArtifacts(plan);
+                }
                 else Discard(plan);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
@@ -82,6 +88,31 @@ internal sealed class ScreenshotPublicationJournal(LocalStore store)
             Save(plan, overwrite: true);
         }
         Discard(plan);
+    }
+
+    // Retained images survive; transient removal remains retryable until every file and row is gone.
+    internal void CleanupTransientArtifacts(string captureId)
+    {
+        var path = GetPath(captureId);
+        if (!File.Exists(path)) return;
+        var plan = Read(path);
+        if (plan.Keep) CleanupTransientArtifacts(plan);
+        else Discard(plan);
+    }
+
+    private void CleanupTransientArtifacts(Plan plan)
+    {
+        Validate(plan);
+        foreach (var path in plan.Artifacts.Except(plan.RetainedArtifacts, StringComparer.OrdinalIgnoreCase))
+        {
+            File.Delete(StagingPath(path));
+            File.Delete(path);
+            store.DeleteScreenshotIntervalTelemetry(path);
+            store.DeleteScreenshotImage(path);
+        }
+        if (plan.RetainedArtifacts.Length == 0)
+            store.DeleteScreenshotCaptureIfOrphaned(plan.Artifacts[0], hasPhysicalArtifact: false);
+        Complete(plan);
     }
 
     // root limits cleanup to the root being maintained, including the private transient workspace.
@@ -115,11 +146,14 @@ internal sealed class ScreenshotPublicationJournal(LocalStore store)
         }
     }
 
-    private void Publish(Plan plan)
+    private void Publish(Plan plan, bool retainedOnly = false)
     {
         Validate(plan);
-        store.RegisterScreenshotCapture(plan.CaptureId, plan.InstallationId, plan.CapturedAt, plan.Origin);
-        foreach (var path in plan.Artifacts)
+        var artifacts = retainedOnly ? plan.RetainedArtifacts : plan.Artifacts;
+        var images = plan.Images?.Where(image => artifacts.Contains(image.Path, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (artifacts.Length > 0)
+            store.RegisterScreenshotCapture(plan.CaptureId, plan.InstallationId, plan.CapturedAt, plan.Origin, images);
+        foreach (var path in artifacts)
         {
             var staged = StagingPath(path);
             if (File.Exists(staged)) File.Move(staged, path, overwrite: false);
@@ -134,8 +168,8 @@ internal sealed class ScreenshotPublicationJournal(LocalStore store)
         {
             File.Delete(StagingPath(path));
             File.Delete(path);
-            store.DeleteScreenshotTextSnapshot(path);
             store.DeleteScreenshotIntervalTelemetry(path);
+            store.DeleteScreenshotImage(path);
         }
         store.DeleteScreenshotCaptureIfOrphaned(plan.Artifacts[0], hasPhysicalArtifact: false);
         Complete(plan);
@@ -155,11 +189,17 @@ internal sealed class ScreenshotPublicationJournal(LocalStore store)
     private static void Validate(Plan plan)
     {
         if (!Guid.TryParseExact(plan.CaptureId, "N", out _) || !Guid.TryParseExact(plan.InstallationId, "N", out _)
-            || plan.Artifacts is null || plan.Artifacts.Length == 0)
+            || plan.Artifacts is null || plan.Artifacts.Length == 0 || plan.RetainedArtifacts is null
+            || plan.Artifacts.Distinct(StringComparer.OrdinalIgnoreCase).Count() != plan.Artifacts.Length
+            || plan.RetainedArtifacts.Distinct(StringComparer.OrdinalIgnoreCase).Count() != plan.RetainedArtifacts.Length
+            || plan.RetainedArtifacts.Any(path => !plan.Artifacts.Contains(path, StringComparer.OrdinalIgnoreCase)))
             throw new InvalidDataException("Screenshot publication has invalid identity or artifacts.");
         ScreenshotCaptureOrigins.Validate(plan.Origin);
         var root = ScreenshotStorageLayout.NormalizeRoot(plan.AuthorizedRoot);
         ScreenshotStorageLayout.RejectLinks(root);
+        if (plan.Images is not null && plan.Images.Any(image =>
+            !plan.Artifacts.Contains(image.Path, StringComparer.OrdinalIgnoreCase)))
+            throw new InvalidDataException("Screenshot metadata references an image outside its capture.");
         foreach (var path in plan.Artifacts)
         {
             if (!Path.IsPathFullyQualified(path) || !ScreenCaptureService.IsOwnedArtifact(path)

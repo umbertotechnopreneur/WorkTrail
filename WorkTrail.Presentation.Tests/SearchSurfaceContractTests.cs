@@ -63,7 +63,7 @@ public sealed class SearchSurfaceContractTests
         Assert.Contains(activity.Descendants(), element => element.Attribute("AutomationProperties.LiveSetting")?.Value == "Polite");
         Assert.Equal("5", footer.Attribute("Grid.Row")?.Value);
         Assert.Contains(footer.Descendants(), element => HasName(element, "SearchAvailabilityText"));
-        Assert.Contains(footer.Descendants(), element => HasName(element, "TextReadingStatusText"));
+        Assert.DoesNotContain(footer.Descendants(), element => HasName(element, "TextReadingStatusText"));
         Assert.DoesNotContain("IsAlwaysOnTop", windowSource, StringComparison.Ordinal);
         Assert.Contains("presenter.IsResizable = hasResults;", windowSource, StringComparison.Ordinal);
         Assert.Contains("presenter.IsMinimizable = false;", windowSource, StringComparison.Ordinal);
@@ -171,22 +171,20 @@ public sealed class SearchSurfaceContractTests
     }
 
     [Fact]
-    public void Options_ExposeSearchPreferencesAndOnlyOcrCanBeDisabled()
+    public void Options_ExposeSearchPreferencesWithoutTextExtractionControls()
     {
         var options = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml"));
         var source = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "OptionsControl.xaml.cs"));
         var retention = XDocument.Load(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml"));
-        var retentionSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "RetentionOperationsControl.xaml.cs"));
         var localization = File.ReadAllText(RepositoryFile("WorkTrail", "UiLocalization.cs"));
 
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchOptionsView"));
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchLanguageBox"));
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchSynonymsSwitch"));
         Assert.Contains(options.Descendants(), element => HasName(element, "SearchTypoToleranceSwitch"));
-        Assert.Contains(retention.Descendants(), element => HasName(element, "OcrEnabledSwitch"));
+        Assert.DoesNotContain(retention.Descendants(), element => HasName(element, "OcrEnabledSwitch"));
         Assert.DoesNotContain(options.Descendants(), element => HasName(element, "OcrEnabledSwitch"));
         Assert.DoesNotContain(options.Descendants(), element => HasName(element, "SearchEnabledSwitch"));
-        Assert.Contains("QueueStorageSave(\"ocr.enabled\"", retentionSource, StringComparison.Ordinal);
         Assert.Contains("QueueAutoSave(", source, StringComparison.Ordinal);
         Assert.Contains("\"search.synonyms\"", source, StringComparison.Ordinal);
         Assert.Contains("SearchIndexingRequested?.Invoke", source, StringComparison.Ordinal);

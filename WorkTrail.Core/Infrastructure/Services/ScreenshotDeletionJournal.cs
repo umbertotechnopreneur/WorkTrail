@@ -131,8 +131,8 @@ internal sealed class ScreenshotDeletionJournal(LocalStore store)
         if (plan.DeleteAnalysis)
             foreach (var path in plan.Artifacts.Append(plan.ScreenshotPath).Distinct(StringComparer.OrdinalIgnoreCase))
                 store.DeleteAiAnalysesReferencingScreenshot(path);
-        store.DeleteScreenshotTextSnapshot(plan.ScreenshotPath);
         store.DeleteScreenshotIntervalTelemetry(plan.ScreenshotPath);
+        store.DeleteScreenshotImage(plan.ScreenshotPath);
         store.DeleteScreenshotCaptureIfOrphaned(plan.ScreenshotPath,
             inventory.ContainsKey(Path.GetFileName(plan.ScreenshotPath)[..32]));
     }

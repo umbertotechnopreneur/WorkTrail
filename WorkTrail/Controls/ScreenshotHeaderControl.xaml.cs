@@ -153,7 +153,7 @@ public sealed partial class ScreenshotHeaderControl : UserControl
         UpdateDeletionActionState();
     }
 
-    /// <summary>Shows whether the selected image still owns removable OCR, AI, or interval telemetry.</summary>
+    /// <summary>Shows whether the selected image still owns removable AI or interval activity data.</summary>
     public void SetAnalysisDeletionAvailable(bool isAvailable)
     {
         _analysisDeletionAvailable = isAvailable;

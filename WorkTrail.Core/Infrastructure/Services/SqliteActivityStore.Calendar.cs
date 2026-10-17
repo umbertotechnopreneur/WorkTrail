@@ -62,24 +62,6 @@ internal sealed partial class SqliteActivityStore
         CREATE INDEX ix_calendar_saints_month_day ON calendar_saints (month, day);
         """;
 
-    private static void ValidateCalendarSchema(SqliteConnection connection)
-    {
-        foreach (var table in new[] { "calendar_dataset", "calendar_countries", "calendar_holidays", "calendar_saints" })
-        {
-            ValidateCreateStatement(connection, table, CalendarSchemaSql);
-        }
-
-        if (ReadIndexes(connection, "calendar_dataset").Count != 0
-            || !ReadIndexes(connection, "calendar_countries").SetEquals(["sqlite_autoindex_calendar_countries_1"])
-            || !ReadIndexes(connection, "calendar_holidays").SetEquals(
-                ["sqlite_autoindex_calendar_holidays_1", "ix_calendar_holidays_date"])
-            || !ReadIndexes(connection, "calendar_saints").SetEquals(
-                ["sqlite_autoindex_calendar_saints_1", "ix_calendar_saints_month_day"]))
-        {
-            throw new InvalidOperationException("The celestial calendar indexes do not match the supported schema.");
-        }
-    }
-
     /// <summary>Replaces a changed bundled catalog in one transaction; identical content causes no database write.</summary>
     internal void EnsureCelestialCalendar(CelestialCalendarDataset dataset)
     {

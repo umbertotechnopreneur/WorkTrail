@@ -34,9 +34,7 @@ public sealed record AiUsageMetrics(
     long? CacheCreationInputTokens = null,
     long? CacheReadInputTokens = null,
     long? ReasoningTokens = null,
-    long? ThinkingTokens = null,
-    decimal? ReportedCostUsd = null,
-    decimal? ReportedUpstreamCostUsd = null);
+    long? ThinkingTokens = null);
 
 /// <summary>Contains a successful provider response and its allowlisted transport metadata.</summary>
 public sealed record AiProviderResult(
@@ -117,21 +115,6 @@ internal static class AiProviderTelemetry
         {
             JsonValueKind.Number when value.TryGetInt64(out var number) && number >= 0 => number,
             JsonValueKind.String when long.TryParse(value.GetString(), out var number) && number >= 0 => number,
-            _ => null
-        };
-    }
-
-    internal static decimal? ReadDecimal(JsonElement element, string property)
-    {
-        if (!element.TryGetProperty(property, out var value))
-        {
-            return null;
-        }
-
-        return value.ValueKind switch
-        {
-            JsonValueKind.Number when value.TryGetDecimal(out var number) && number >= 0m => number,
-            JsonValueKind.String when decimal.TryParse(value.GetString(), out var number) && number >= 0m => number,
             _ => null
         };
     }

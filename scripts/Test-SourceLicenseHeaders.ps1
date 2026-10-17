@@ -24,9 +24,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $expectedHeader = '// SPDX-License-Identifier: MIT'
-$protectedThirdPartyHeaders = @{
-    'WorkTrail.Hardware/LibreHardwareMonitor/MemoryGroup.cs' = '// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.'
-}
 $repositoryRoot = (& git rev-parse --show-toplevel).Trim()
 
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($repositoryRoot)) {
@@ -78,14 +75,6 @@ foreach ($relativePath in $sourcePaths) {
     }
     else {
         ''
-    }
-
-    if ($protectedThirdPartyHeaders.ContainsKey($relativePath)) {
-        if (-not $probe.StartsWith($protectedThirdPartyHeaders[$relativePath], [System.StringComparison]::Ordinal)) {
-            # Never relicense adapted upstream code, even when the caller explicitly requests -Fix.
-            throw "Protected third-party license header is invalid: $relativePath. Restore its original MPL notice manually."
-        }
-        continue
     }
 
     if ($probe.StartsWith($expectedHeader, [System.StringComparison]::Ordinal)) {

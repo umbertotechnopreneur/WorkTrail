@@ -117,7 +117,7 @@ public sealed class SearchViewModelTests
         Assert.Contains("riunione", item.TextSnippet, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("#", item.TextSnippet, StringComparison.Ordinal);
         Assert.DoesNotContain("**", item.TextSnippet, StringComparison.Ordinal);
-        Assert.Equal("42 localized clicks · CPU 37% · GPU 61%", item.ActivityDisplay);
+        Assert.Equal("42 localized clicks", item.ActivityDisplay);
         Assert.Equal("LOCALIZED MATCH", item.MatchLabel);
         Assert.Equal(4.5f, item.Score);
         Assert.Equal(100, item.MatchPercent);
@@ -127,10 +127,10 @@ public sealed class SearchViewModelTests
         Assert.Equal("Office laptop · WORKTRAIL-OFFICE", item.InstallationDisplay);
         Assert.Equal("#5B8DEF", item.InstallationColor);
         Assert.Equal("laptop", item.InstallationIcon);
-        Assert.Equal("1 localized click · CPU — · GPU —", viewModel.Results[1].ActivityDisplay);
+        Assert.Equal("1 localized click", viewModel.Results[1].ActivityDisplay);
         Assert.Equal(3f, viewModel.Results[1].Score);
         Assert.Equal(67, viewModel.Results[1].MatchPercent);
-        Assert.Equal("Localized clicks — · CPU — · GPU —", viewModel.Results[2].ActivityDisplay);
+        Assert.Equal("Localized clicks —", viewModel.Results[2].ActivityDisplay);
         Assert.Equal(2.25f, viewModel.Results[2].Score);
         Assert.Equal(50, viewModel.Results[2].MatchPercent);
         Assert.Equal(23, viewModel.TotalCount);
@@ -174,7 +174,7 @@ public sealed class SearchViewModelTests
                                 Timestamp = new DateTimeOffset(2026, 8, 9, 9, 0, 0, TimeSpan.Zero),
                                 Application = "Browser",
                                 WindowTitle = "Notes",
-                                OcrRawText = "Una riunione con un solo clic",
+                                AiDescription = "Una riunione con un solo clic",
                                 AttributesRaw = ImmutableDictionary<string, string?>.Empty
                                     .Add(SearchAttributeKeys.MouseClicks, "1"),
                                 CapturePath = @"C:\captures\single-click.png"
@@ -190,7 +190,7 @@ public sealed class SearchViewModelTests
                                 Timestamp = new DateTimeOffset(2026, 8, 9, 8, 30, 0, TimeSpan.Zero),
                                 Application = "Outlook",
                                 WindowTitle = "Planning",
-                                OcrRawText = "Promemoria per la riunione settimanale",
+                                AiDescription = "Promemoria per la riunione settimanale",
                                 AttributesRaw = ImmutableDictionary<string, string?>.Empty,
                                 CapturePath = @"C:\captures\planning.png"
                             },
@@ -205,11 +205,9 @@ public sealed class SearchViewModelTests
                                 Timestamp = new DateTimeOffset(2026, 8, 9, 9, 30, 0, TimeSpan.Zero),
                                 Application = "Teams",
                                 WindowTitle = "Project review",
-                                OcrRawText = PreviewOverride ?? "## Activity\n\nAppunti della **riunione** di progetto",
+                                AiDescription = PreviewOverride ?? "## Activity\n\nAppunti della **riunione** di progetto",
                                 AttributesRaw = ImmutableDictionary<string, string?>.Empty
                                     .Add(SearchAttributeKeys.MouseClicks, "42")
-                                    .Add(SearchAttributeKeys.CpuUsagePercent, "37")
-                                    .Add(SearchAttributeKeys.GpuUsagePercent, "61")
                                     .Add(SearchAttributeKeys.InstallationId, "11111111111111111111111111111111")
                                     .Add(SearchAttributeKeys.InstallationFriendlyName, "Office laptop")
                                     .Add(SearchAttributeKeys.InstallationMachineName, "WORKTRAIL-OFFICE")

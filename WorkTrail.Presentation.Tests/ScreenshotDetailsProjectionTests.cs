@@ -20,13 +20,43 @@
 using System;
 using System.Globalization;
 using WorkTrail.Application;
-using WorkTrail.Services;
 using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
 public sealed class ScreenshotDetailsProjectionTests
 {
+    [Fact]
+    public void SelectScreenDescription_KeepsSummaryAndRequestedMonitorWithoutRenumbering()
+    {
+        const string markdown = "<!-- summary -->\nMain topic.\n<!-- screen:2 -->\n## Schermo 2\nChat content.\n<!-- screen:1 -->\n## Schermo 1\nDocument content.\n<!-- unmapped -->\nUnknown image.";
+        var selected = ScreenshotDetailsProjection.SelectScreenDescription(markdown, 1);
+        Assert.Contains("Main topic.", selected);
+        Assert.Contains("Document content.", selected);
+        Assert.DoesNotContain("Chat content.", selected);
+        Assert.DoesNotContain("Unknown image.", selected);
+        Assert.Equal(markdown, ScreenshotDetailsProjection.SelectScreenDescription(markdown, 3));
+    }
+
+    [Fact]
+    public void SelectScreenDescription_PreservesUnmarkedOrAmbiguousOutput()
+    {
+        const string unmarked = "## Schermo 1\nA document.";
+        const string duplicate = "<!-- screen:1 -->\nFirst.\n<!-- screen:1 -->\nSecond.";
+        Assert.Equal(unmarked, ScreenshotDetailsProjection.SelectScreenDescription(unmarked, 1));
+        Assert.Equal(duplicate, ScreenshotDetailsProjection.SelectScreenDescription(duplicate, 1));
+    }
+
+    [Fact]
+    public void ParseMarkdown_DoesNotSilentlyTruncateCompleteDescriptions()
+    {
+        var text = new string('x', 13_000);
+        Assert.Equal(text, Assert.Single(ScreenshotDetailsProjection.ParseMarkdown(text)).Text);
+        var bullets = string.Join('\n', System.Linq.Enumerable.Repeat("- Visible detail", 100));
+        Assert.Equal(100, ScreenshotDetailsProjection.ParseMarkdown(bullets).Count);
+        Assert.Empty(ScreenshotDetailsProjection.ParseMarkdown("<!-- summary -->\n<!-- screen:2 -->"));
+    }
+
     [Fact]
     public void ParseMarkdown_ProjectsHeadingsListsAndParagraphsWithoutInteractiveTargets()
     {
@@ -83,8 +113,7 @@ public sealed class ScreenshotDetailsProjectionTests
             CultureInfo.GetCultureInfo("it-IT"),
             "Schermo",
             "Pianificata",
-            "--",
-            new LocalizationService("it-IT").Translate);
+            "--");
 
         Assert.Equal("ChatGPT", state.Application);
         Assert.Equal("--", state.WindowTitle);
@@ -94,11 +123,8 @@ public sealed class ScreenshotDetailsProjectionTests
         Assert.Equal("72", state.ActivityIndex);
         Assert.Equal("Review", state.ActivityLabels);
         Assert.Equal("--", state.MouseClicks);
-        Assert.Equal("--", state.CpuUsage);
-        Assert.Equal("--", state.GpuUsage);
         Assert.Empty(state.AiDescription);
         Assert.Null(state.AnalysisTime);
-        Assert.Null(state.OcrText);
     }
 
     [Fact]
@@ -114,81 +140,13 @@ public sealed class ScreenshotDetailsProjectionTests
             ForegroundWindowTitle: "WorkTrail — ScreenshotWindow.xaml",
             ScreenIndex: 2,
             ScreenName: "Monitor 2",
-            MouseClicks: 18,
-            CpuUsagePercent: 42,
-            GpuUsagePercent: 7);
+            MouseClicks: 18);
 
         var state = CreateState(item);
 
         Assert.Equal("WorkTrail — ScreenshotWindow.xaml", state.WindowTitle);
         Assert.Equal("Monitor 2", state.Screen);
         Assert.Equal("18", state.MouseClicks);
-        Assert.Equal("42%", state.CpuUsage);
-        Assert.Equal("7%", state.GpuUsage);
-    }
-
-    [Fact]
-    public void Create_PrefersAiCorrectedOcrTextOverRawText()
-    {
-        var capturedAt = new DateTimeOffset(2026, 8, 9, 2, 21, 0, TimeSpan.Zero);
-        var item = CreateItemWithOcr(
-            capturedAt,
-            rawText: "Riunone proggeto",
-            correctedText: "Riunione progetto");
-
-        var state = CreateState(item);
-
-        Assert.Equal("Riunione progetto", state.OcrText);
-    }
-
-    [Fact]
-    public void Create_FallsBackToRawOcrTextWhenAiCorrectionIsUnavailable()
-    {
-        var capturedAt = new DateTimeOffset(2026, 8, 9, 2, 21, 0, TimeSpan.Zero);
-        var item = CreateItemWithOcr(
-            capturedAt,
-            rawText: "Raw OCR text",
-            correctedText: "   ");
-
-        var state = CreateState(item);
-
-        Assert.Equal("Raw OCR text", state.OcrText);
-    }
-
-    private static ScreenshotGalleryItem CreateItemWithOcr(
-        DateTimeOffset capturedAt,
-        string rawText,
-        string? correctedText)
-    {
-        var ocr = new OcrRawSnapshot(
-            ScreenshotTextExtractionStatus.Succeeded,
-            rawText,
-            "it-IT",
-            TextAngleDegrees: null,
-            capturedAt,
-            "Windows.Media.Ocr",
-            PixelWidth: 1920,
-            PixelHeight: 1080,
-            Lines: Array.Empty<OcrLineSnapshot>());
-        var refinement = correctedText is null
-            ? null
-            : new OcrAiRefinement(
-                correctedText,
-                "it-IT",
-                new OcrStructuredSummary(
-                    "Overview",
-                    Array.Empty<string>(),
-                    Array.Empty<string>(),
-                    Array.Empty<string>()),
-                capturedAt.AddSeconds(1));
-
-        return new ScreenshotGalleryItem(
-            capturedAt,
-            "C:\\captures\\frame.webp",
-            "WorkTrail",
-            "monitor",
-            "scheduled",
-            TextSnapshot: new ScreenshotTextSnapshot("C:\\captures\\frame.webp", ocr, refinement));
     }
 
     private static ScreenshotDetailsViewState CreateState(ScreenshotGalleryItem item)
@@ -198,7 +156,6 @@ public sealed class ScreenshotDetailsProjectionTests
             CultureInfo.GetCultureInfo("it-IT"),
             "Schermo",
             "Pianificata",
-            "--",
-            new LocalizationService("it-IT").Translate);
+            "--");
     }
 }

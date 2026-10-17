@@ -35,7 +35,7 @@ internal sealed class ReportSummaryService(LocalStore store, IAIDecoder? decoder
         var exports = new ReportExportService(store);
         exports.Validate(request.Options);
         if (!Enum.IsDefined(request.Grouping) || (!request.IncludeDescriptionExcerpt && !request.IncludeCompleteDescription
-            && !request.IncludeOcr && !request.IncludeWindowTitles))
+            && !request.IncludeWindowTitles))
             throw new ReportExportValidationException("Export.NoSources");
         var captures = await Task.Run(() => exports.ReadCaptures(request.Options, cancellationToken), cancellationToken).ConfigureAwait(false);
         var prompt = BuildPrompt(request, captures, out var sourceCount);
@@ -87,10 +87,9 @@ internal sealed class ReportSummaryService(LocalStore store, IAIDecoder? decoder
             description_excerpt = request.IncludeDescriptionExcerpt
                 ? ReportExportService.Excerpt(ReportExportService.PlainText(item.AiDescriptionMarkdown), 240) : null,
             description_markdown = request.IncludeCompleteDescription ? item.AiDescriptionMarkdown : null,
-            ocr = request.IncludeOcr ? item.TextSnapshot?.Ocr.RawText : null,
             title = request.IncludeWindowTitles ? item.ForegroundWindowTitle : null
         }).Where(item => !string.IsNullOrWhiteSpace(item.description_excerpt) || !string.IsNullOrWhiteSpace(item.description_markdown)
-            || !string.IsNullOrWhiteSpace(item.ocr) || !string.IsNullOrWhiteSpace(item.title))
+            || !string.IsNullOrWhiteSpace(item.title))
             .Distinct().ToArray();
         sourceCount = sources.Length;
         if (sourceCount == 0) throw new ReportExportValidationException("Export.NoSources");

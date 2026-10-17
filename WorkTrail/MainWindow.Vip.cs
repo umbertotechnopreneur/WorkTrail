@@ -64,7 +64,7 @@ public sealed partial class MainWindow
             await RefreshDashboardAsync(cancellationToken);
             await _dialogs.ShowVipSnapshotAsync(_application, this, capture, _strings);
             cancellationToken.ThrowIfCancellationRequested();
-            // Continue the existing OCR/AI workflow using these pixels, never a second capture.
+            // Continue the existing AI workflow using these pixels, never a second capture.
             await _application.AnalyzeCapturedScreenshotAsync(new(capture, KeepCapture: true, Origin: "snapshot.manual"), cancellationToken);
             await RefreshLastSessionIfDueAsync(force: true);
         }

@@ -25,7 +25,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using WorkTrail.Application;
-using WorkTrail.Ocr;
 using WorkTrail.Services;
 using Xunit;
 
@@ -36,94 +35,16 @@ public sealed class SnapshotAnalysisFlowTests
 {
     private const string TestApiKeyVariable = "WORKTRAIL_OPENAI_APIKEY";
 
-    /// <summary>Reading and retention preferences are independent and never remove older capture evidence.</summary>
-    [Theory]
-    [InlineData(true, true)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(false, false)]
-    public async Task CaptureScreenshot_HonorsSensorReadingAndSavingPreferences(bool enabled, bool save)
-    {
-        var directory = CreateTemporaryDirectory();
-        try
-        {
-            var store = new LocalStore(directory);
-            store.SaveSettings(store.LoadSettings() with
-            {
-                ScreenshotsEnabled = true,
-                ScreenshotDirectory = directory,
-                HardwareSensorsEnabled = enabled,
-                HardwareSaveSnapshots = save
-            });
-            var olderId = Guid.NewGuid().ToString("N");
-            var olderTime = DateTimeOffset.UtcNow.AddMinutes(-1);
-            var olderSnapshot = HardwareTestData.Snapshot(olderTime);
-            store.UpsertScreenshotIntervalTelemetry(olderId,
-                [Path.Combine(directory, $"{olderId}_1.0.0_manual_monitor-1.webp")],
-                new ScreenshotIntervalTelemetry(olderTime.AddMinutes(-1), olderTime, 25, 15), olderSnapshot);
-            var capture = new RecordingCaptureService(directory);
-            var hardware = new FakeHardwareTelemetryService();
-            await using var application = CreateApplication(store, capture,
-                new RecordingAnalysisService(store.LoadSettings().InstallationId), hardwareTelemetry: hardware);
-
-            var result = await application.CaptureScreenshotAsync(
-                new CaptureScreenshotRequest("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual), CancellationToken.None);
-
-            Assert.True(result.Succeeded);
-            Assert.Equal(enabled ? 1 : 0, hardware.CaptureCount);
-            Assert.Equal(enabled && save, store.LoadCaptureHardwareSnapshot(capture.Result.CaptureId) is not null);
-            Assert.Equal(olderTime, store.LoadCaptureHardwareSnapshot(olderId)!.Timestamp);
-            Assert.Equal(enabled ? "ready" : "disabled", result.Value!.HardwareSnapshot!.Status);
-        }
-        finally { Directory.Delete(directory, recursive: true); }
-    }
-
-    /// <summary>Saved advanced preference never causes automatic elevation; changes reach the existing service immediately.</summary>
+    /// <summary>A post-commit index failure keeps the saved and published preferences aligned.</summary>
     [Fact]
-    public async Task SensorSettings_ApplyLiveWithoutImplicitAdvancedActivation()
+    public async Task SearchSettings_PostCommitFailureKeepsPublishedPreferencesAligned()
     {
         var directory = CreateTemporaryDirectory();
         try
         {
             var store = new LocalStore(directory);
-            store.SaveSettings(store.LoadSettings() with { HardwareUseAdvancedSensors = true, HardwareSamplingProfile = "slow" });
-            var hardware = new FakeHardwareTelemetryService();
             await using var application = CreateApplication(store, new RecordingCaptureService(directory),
-                new RecordingAnalysisService(store.LoadSettings().InstallationId), hardwareTelemetry: hardware);
-            Assert.Equal("slow", hardware.Configuration.SamplingProfile);
-            Assert.True(hardware.Configuration.UseAdvancedSensors);
-            Assert.False(hardware.AdvancedEnabled);
-
-            var changed = await application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
-            {
-                ["sensors.sampling_profile"] = "fastest",
-                ["sensors.enabled"] = "false",
-                ["sensors.save_snapshots"] = "false"
-            }), CancellationToken.None);
-
-            Assert.True(changed.Succeeded);
-            Assert.Equal("fastest", hardware.Configuration.SamplingProfile);
-            Assert.False(hardware.Configuration.Enabled);
-            Assert.False(store.LoadSettings().HardwareSaveSnapshots);
-            Assert.True(store.LoadSettings().HardwareUseAdvancedSensors);
-            var disabledActivation = await application.EnableAdvancedHardwareTelemetryAsync(CancellationToken.None);
-            Assert.False(disabledActivation.Succeeded);
-            Assert.False(hardware.AdvancedEnabled);
-        }
-        finally { Directory.Delete(directory, recursive: true); }
-    }
-
-    /// <summary>A post-commit index failure cannot restore sensor collection against the saved and published preference.</summary>
-    [Fact]
-    public async Task SensorSettings_PostCommitFailureKeepsHardwareAlignedWithPublishedPreferences()
-    {
-        var directory = CreateTemporaryDirectory();
-        try
-        {
-            var store = new LocalStore(directory);
-            var hardware = new FakeHardwareTelemetryService();
-            await using var application = CreateApplication(store, new RecordingCaptureService(directory),
-                new RecordingAnalysisService(store.LoadSettings().InstallationId), hardwareTelemetry: hardware);
+                new RecordingAnalysisService(store.LoadSettings().InstallationId));
             using (var connection = new SqliteConnection($"Data Source={store.ActivityDatabasePath};Pooling=False"))
             {
                 connection.Open();
@@ -139,40 +60,19 @@ public sealed class SnapshotAnalysisFlowTests
             await Assert.ThrowsAsync<SqliteException>(() => application.PatchSettingsAsync(
                 new SettingsPatch(new Dictionary<string, string?>
                 {
-                    ["sensors.enabled"] = "false",
-                    ["sensors.sampling_profile"] = "fast",
                     ["search.synonyms"] = "false"
                 }), CancellationToken.None));
 
             var persisted = store.LoadSettings();
             var published = Assert.IsType<AppSettings>((await application.GetSettingsAsync(CancellationToken.None)).Value);
-            Assert.False(persisted.HardwareSensorsEnabled);
-            Assert.False(published.HardwareSensorsEnabled);
             Assert.False(persisted.SearchSynonymsEnabled);
             Assert.False(published.SearchSynonymsEnabled);
-            Assert.Equal("fast", persisted.HardwareSamplingProfile);
-            Assert.Equal("fast", published.HardwareSamplingProfile);
-            Assert.Equal(persisted.HardwareSensorsEnabled, hardware.Configuration.Enabled);
-            Assert.Equal(persisted.HardwareSamplingProfile, hardware.Configuration.SamplingProfile);
-
-            var retry = await application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
-            {
-                ["sensors.enabled"] = "false"
-            }), CancellationToken.None);
-            Assert.True(retry.Succeeded);
-            Assert.False(hardware.Configuration.Enabled);
-            var snapshot = await application.CaptureSystemSnapshotAsync(CancellationToken.None);
-            Assert.True(snapshot.Succeeded);
-            Assert.Equal("disabled", snapshot.Value!.Status);
-            Assert.Equal(0, hardware.CaptureCount);
         }
         finally { Directory.Delete(directory, recursive: true); }
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task CaptureScreenshot_AnalyzesTheSameSnapshot_WhenOpenAiIsEnabled(bool saveSensorSnapshot)
+    [Fact]
+    public async Task CaptureScreenshot_AnalyzesTheSameSnapshot_WhenOpenAiIsEnabled()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -186,14 +86,12 @@ public sealed class SnapshotAnalysisFlowTests
                 ScreenshotsEnabled = true,
                 OpenAiEnabled = true,
                 AiApiKeyName = TestApiKeyVariable,
-                HardwareSaveSnapshots = saveSensorSnapshot,
                 ScreenshotDirectory = dataDirectory
             });
 
             var capture = new RecordingCaptureService(dataDirectory);
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
-            var hardware = new FakeHardwareTelemetryService();
-            await using var application = CreateApplication(store, capture, analysis, hardwareTelemetry: hardware);
+            await using var application = CreateApplication(store, capture, analysis);
 
             var result = await application.CaptureScreenshotAsync(
                 new CaptureScreenshotRequest("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual),
@@ -204,13 +102,7 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.Equal(1, capture.CallCount);
             Assert.Equal(1, analysis.CallCount);
             Assert.Equal(capture.Result.CaptureId, analysis.Capture?.CaptureId);
-            Assert.Same(result.Value.HardwareSnapshot, analysis.Capture?.HardwareSnapshot);
-            Assert.Equal(1, hardware.CaptureCount);
-            var savedSnapshot = store.LoadCaptureHardwareSnapshot(capture.Result.CaptureId);
-            if (saveSensorSnapshot)
-                Assert.Equal(result.Value.HardwareSnapshot?.Timestamp, savedSnapshot?.Timestamp);
-            else
-                Assert.Null(savedSnapshot);
+            Assert.Same(result.Value.DeviceContext, analysis.Capture?.DeviceContext);
             Assert.Equal("snapshot.manual", analysis.Origin);
             Assert.True(analysis.KeepCapture);
         }
@@ -221,10 +113,8 @@ public sealed class SnapshotAnalysisFlowTests
         }
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task DeferredCapture_AnalyzesTheSameSnapshotOnlyAfterExplicitRequest_WhenOpenAiIsEnabled(bool saveSensorSnapshot)
+    [Fact]
+    public async Task DeferredCapture_AnalyzesTheSameSnapshotOnlyAfterExplicitRequest_WhenOpenAiIsEnabled()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -238,14 +128,12 @@ public sealed class SnapshotAnalysisFlowTests
                 ScreenshotsEnabled = true,
                 OpenAiEnabled = true,
                 AiApiKeyName = TestApiKeyVariable,
-                HardwareSaveSnapshots = saveSensorSnapshot,
                 ScreenshotDirectory = dataDirectory
             });
 
             var capture = new RecordingCaptureService(dataDirectory);
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
-            var hardware = new FakeHardwareTelemetryService();
-            await using var application = CreateApplication(store, capture, analysis, hardwareTelemetry: hardware);
+            await using var application = CreateApplication(store, capture, analysis);
 
             var captureResult = await application.CaptureScreenshotAsync(
                 new CaptureScreenshotRequest("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual, DeferAiAnalysis: true),
@@ -254,7 +142,6 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.True(captureResult.Succeeded);
             Assert.Equal(1, capture.CallCount);
             Assert.Equal(0, analysis.CallCount);
-            hardware.Snapshot = HardwareTestData.Snapshot(DateTimeOffset.UtcNow, cpu: 99, gpu: 99);
 
             var analysisResult = await application.AnalyzeCapturedScreenshotAsync(
                 new AnalyzeCapturedScreenshotRequest(capture.Result, KeepCapture: true),
@@ -263,17 +150,6 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.True(analysisResult.Succeeded);
             Assert.Equal(1, analysis.CallCount);
             Assert.Equal(capture.Result.CaptureId, analysis.Capture?.CaptureId);
-            if (saveSensorSnapshot)
-            {
-                Assert.Equal(captureResult.Value?.HardwareSnapshot?.Timestamp, analysis.Capture?.HardwareSnapshot?.Timestamp);
-                Assert.Equal(25, HardwareUsageProjection.Read(analysis.Capture!.HardwareSnapshot!).Cpu);
-            }
-            else
-            {
-                Assert.Null(analysis.Capture?.HardwareSnapshot);
-                Assert.Null(store.LoadCaptureHardwareSnapshot(capture.Result.CaptureId));
-            }
-            Assert.Equal(1, hardware.CaptureCount);
             Assert.Equal("snapshot.manual", analysis.Origin);
             Assert.True(analysis.KeepCapture);
         }
@@ -312,128 +188,6 @@ public sealed class SnapshotAnalysisFlowTests
         }
         finally
         {
-            Directory.Delete(dataDirectory, recursive: true);
-        }
-    }
-
-    /// <summary>Ensures an unexpected OCR failure removes every captured artifact and returns an explicit failure.</summary>
-    [Fact]
-    public async Task CaptureScreenshot_UnexpectedOcrFailureCleansAllArtifactsAndReturnsFailure()
-    {
-        var dataDirectory = CreateTemporaryDirectory();
-        try
-        {
-            var store = new LocalStore(dataDirectory);
-            store.SaveSettings(store.LoadSettings() with
-            {
-                ScreenshotsEnabled = true,
-                OpenAiEnabled = false,
-                ScreenshotDirectory = dataDirectory
-            });
-            var capture = new ArtifactCaptureService();
-            var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
-            await using var application = CreateApplication(
-                store,
-                capture,
-                analysis,
-                screenshotOcr: new UnexpectedFailureOcrService());
-
-            var result = await application.CaptureScreenshotAsync(
-                new CaptureScreenshotRequest("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual),
-                CancellationToken.None);
-
-            Assert.False(result.Succeeded);
-            Assert.Equal("screenshot.capture.failed", result.Code);
-            Assert.NotNull(capture.RawPath);
-            Assert.NotNull(capture.StoredPath);
-            Assert.False(File.Exists(capture.RawPath));
-            Assert.False(File.Exists(capture.StoredPath));
-            Assert.Equal(0, analysis.CallCount);
-        }
-        finally
-        {
-            Directory.Delete(dataDirectory, recursive: true);
-        }
-    }
-
-    [Fact]
-    public async Task DeferredCapture_StillSavesVisualDescription_WhenOcrRefinementFails()
-    {
-        var dataDirectory = CreateTemporaryDirectory();
-        var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
-        Environment.SetEnvironmentVariable(TestApiKeyVariable, "sk-test-only-key-1234567890", EnvironmentVariableTarget.Process);
-
-        try
-        {
-            var store = new LocalStore(dataDirectory);
-            store.SaveSettings(store.LoadSettings() with
-            {
-                ScreenshotsEnabled = true,
-                OpenAiEnabled = true,
-                AiApiKeyName = TestApiKeyVariable,
-                ScreenshotDirectory = dataDirectory
-            });
-            var capture = new RecordingCaptureService(dataDirectory);
-            var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
-            await using var application = CreateApplication(
-                store,
-                capture,
-                analysis,
-                ocrRefinement: new FailingOcrRefinementService());
-
-            var result = await application.AnalyzeCapturedScreenshotAsync(
-                new AnalyzeCapturedScreenshotRequest(capture.Result, KeepCapture: true),
-                CancellationToken.None);
-
-            Assert.True(result.Succeeded);
-            Assert.Equal("analyzed", result.Value?.Summary);
-            Assert.Equal(1, analysis.CallCount);
-            Assert.Equal(capture.Result.CaptureId, analysis.Capture?.CaptureId);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(TestApiKeyVariable, previousApiKey, EnvironmentVariableTarget.Process);
-            Directory.Delete(dataDirectory, recursive: true);
-        }
-    }
-
-    [Fact]
-    public async Task CaptureScreenshot_StillSavesVisualDescription_WhenOcrRefinementFails()
-    {
-        var dataDirectory = CreateTemporaryDirectory();
-        var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
-        Environment.SetEnvironmentVariable(TestApiKeyVariable, "sk-test-only-key-1234567890", EnvironmentVariableTarget.Process);
-
-        try
-        {
-            var store = new LocalStore(dataDirectory);
-            store.SaveSettings(store.LoadSettings() with
-            {
-                ScreenshotsEnabled = true,
-                OpenAiEnabled = true,
-                AiApiKeyName = TestApiKeyVariable,
-                ScreenshotDirectory = dataDirectory
-            });
-            var capture = new RecordingCaptureService(dataDirectory);
-            var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
-            await using var application = CreateApplication(
-                store,
-                capture,
-                analysis,
-                ocrRefinement: new FailingOcrRefinementService());
-
-            var result = await application.CaptureScreenshotAsync(
-                new CaptureScreenshotRequest("all-screens", Keep: true, ScreenshotCaptureOrigins.Manual),
-                CancellationToken.None);
-
-            Assert.True(result.Succeeded);
-            Assert.Equal(1, analysis.CallCount);
-            Assert.Equal(capture.Result.CaptureId, analysis.Capture?.CaptureId);
-            Assert.NotNull(analysis.Capture?.HardwareSnapshot);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(TestApiKeyVariable, previousApiKey, EnvironmentVariableTarget.Process);
             Directory.Delete(dataDirectory, recursive: true);
         }
     }
@@ -545,6 +299,8 @@ public sealed class SnapshotAnalysisFlowTests
             var capture = new RecordingCaptureService(dataDirectory);
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
             await using var application = CreateApplication(store, capture, analysis);
+            var started = await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None);
+            Assert.True(started.Succeeded);
 
             var result = await application.CaptureScreenshotAsync(
                 new CaptureScreenshotRequest(
@@ -558,6 +314,7 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.Equal(1, capture.CallCount);
             Assert.Equal(ScreenshotCaptureOrigins.Scheduled, capture.LastCaptureOrigin);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -662,6 +419,8 @@ public sealed class SnapshotAnalysisFlowTests
             var capture = new RecordingCaptureService(dataDirectory);
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
             await using var application = CreateApplication(store, capture, analysis);
+            var started = await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None);
+            Assert.True(started.Succeeded);
 
             var result = await application.CaptureScreenshotAsync(
                 new CaptureScreenshotRequest(
@@ -675,6 +434,7 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.Equal(1, capture.CallCount);
             Assert.Equal("active-window", capture.LastCaptureMode);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -722,7 +482,7 @@ public sealed class SnapshotAnalysisFlowTests
     }
 
     [Fact]
-    public async Task CaptureScreenshot_RejectsUnsupportedPersistedModelBeforeCapture()
+    public async Task CaptureScreenshot_RetainsCaptureButRejectsUnsupportedPersistedModelBeforeAnalysis()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -751,8 +511,9 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.False(result.Succeeded);
             Assert.Equal("ai.configuration.invalid", result.Code);
             Assert.Contains(result.Issues, issue => issue.Field == "ai.model" && issue.Code == "unsupported");
-            Assert.Equal(0, capture.CallCount);
+            Assert.Equal(1, capture.CallCount);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -762,7 +523,7 @@ public sealed class SnapshotAnalysisFlowTests
     }
 
     [Fact]
-    public async Task CaptureScreenshot_RejectsUnsupportedPersistedThinkingEffortBeforeCapture()
+    public async Task CaptureScreenshot_RetainsCaptureButRejectsUnsupportedPersistedThinkingEffortBeforeAnalysis()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -792,8 +553,9 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.False(result.Succeeded);
             Assert.Equal("ai.configuration.invalid", result.Code);
             Assert.Contains(result.Issues, issue => issue.Field == "ai.reasoning_effort" && issue.Code == "unsupported");
-            Assert.Equal(0, capture.CallCount);
+            Assert.Equal(1, capture.CallCount);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -803,7 +565,7 @@ public sealed class SnapshotAnalysisFlowTests
     }
 
     [Fact]
-    public async Task CaptureScreenshot_RejectsTextOnlyPreviewModelBeforeCapture()
+    public async Task CaptureScreenshot_RetainsCaptureButRejectsTextOnlyPreviewModelBeforeAnalysis()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -833,8 +595,9 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.False(result.Succeeded);
             Assert.Equal("ai.configuration.invalid", result.Code);
             Assert.Contains(result.Issues, issue => issue.Field == "ai.model" && issue.Code == "image_input_unsupported");
-            Assert.Equal(0, capture.CallCount);
+            Assert.Equal(1, capture.CallCount);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -924,7 +687,7 @@ public sealed class SnapshotAnalysisFlowTests
     }
 
     [Fact]
-    public async Task DeferredAnalysis_CostGuardrailDeletesRawRetainsStoredAndWarnsOncePerDay()
+    public async Task DeferredAnalysis_DailyRequestLimitDeletesRawRetainsStoredAndWarnsOncePerDay()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -961,7 +724,7 @@ public sealed class SnapshotAnalysisFlowTests
                 CancellationToken.None);
 
             Assert.False(result.Succeeded);
-            Assert.Equal("ai.cost_guardrail", result.Code);
+            Assert.Equal("ai.daily_limit", result.Code);
             Assert.False(File.Exists(rawPath));
             Assert.True(File.Exists(storedPath));
             Assert.Equal(0, analysis.CallCount);
@@ -970,14 +733,14 @@ public sealed class SnapshotAnalysisFlowTests
                 new AnalyzeCapturedScreenshotRequest(capture, KeepCapture: true),
                 CancellationToken.None);
             Assert.False(repeated.Succeeded);
-            Assert.Equal("ai.cost_guardrail", repeated.Code);
+            Assert.Equal("ai.daily_limit", repeated.Code);
 
             var notifications = await application.DrainApplicationNotificationsAsync(CancellationToken.None);
             var notification = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<ApplicationNotification>>(notifications.Value));
             Assert.Equal(ApplicationNotificationSeverity.Warning, notification.Severity);
             Assert.Equal("Notification.AiDailyLimitReached.Title", notification.TitleKey);
             Assert.Equal("Notification.AiDailyLimitReached.Message", notification.MessageKey);
-            Assert.Equal("ai.cost_guardrail", notification.Code);
+            Assert.Equal("ai.daily_limit", notification.Code);
             Assert.Equal("0 / 0", notification.Detail);
         }
         finally
@@ -991,10 +754,7 @@ public sealed class SnapshotAnalysisFlowTests
         LocalStore store,
         IScreenCaptureService capture,
         IAiAnalysisService analysis,
-        ApplicationLogService? applicationLogs = null,
-        IAiOcrRefinementService? ocrRefinement = null,
-        IScreenshotOcrService? screenshotOcr = null,
-        IHardwareTelemetryService? hardwareTelemetry = null)
+        ApplicationLogService? applicationLogs = null)
     {
         var utilities = new UtilityService();
         return new WorkTrailApplication(
@@ -1002,13 +762,24 @@ public sealed class SnapshotAnalysisFlowTests
             utilities,
             new TrackingDomainService(store),
             capture,
-            hardwareTelemetry ?? new FakeHardwareTelemetryService(),
             analysis,
             new StartupService(),
             new BuildInformationService(),
             applicationLogs: applicationLogs,
-            screenshotOcr: screenshotOcr,
-            ocrRefinement: ocrRefinement);
+            startScheduledSnapshotTimer: false);
+    }
+
+    private static void AssertRetainedCapture(LocalStore store, ScreenshotCaptureResult capture)
+    {
+        var capturedAt = Assert.IsType<DateTimeOffset>(capture.CapturedAt);
+        var gallery = store.GetScreenshotGallery(DateOnly.FromDateTime(capturedAt.LocalDateTime));
+        var item = Assert.Single(gallery.Items);
+        Assert.Equal(Assert.Single(capture.StoredScreenshotPaths), item.Path);
+        Assert.True(File.Exists(item.Path));
+        Assert.NotNull(item.Installation);
+        Assert.NotNull(store.LoadScreenshotIntervalTelemetry(item.Path));
+        Assert.Null(item.AiDescriptionMarkdown);
+        Assert.Equal(0, gallery.UnavailableArtifactCount);
     }
 
     private static string CreateTemporaryDirectory()
@@ -1069,32 +840,6 @@ public sealed class SnapshotAnalysisFlowTests
         }
     }
 
-    private sealed class ArtifactCaptureService : IScreenCaptureService
-    {
-        public string? RawPath { get; private set; }
-
-        public string? StoredPath { get; private set; }
-
-        /// <inheritdoc />
-        public ScreenshotCaptureResult CaptureByMode(
-            string requestedDirectory,
-            string captureMode,
-            string captureOrigin,
-            Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
-        {
-            Authorize(authorizeCapture);
-            var captureId = Guid.NewGuid().ToString("N");
-            var capturedAt = DateTimeOffset.UtcNow;
-            var dayDirectory = ScreenshotStorageLayout.GetDayDirectory(requestedDirectory, capturedAt);
-            Directory.CreateDirectory(dayDirectory);
-            RawPath = Path.Combine(dayDirectory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1-raw.webp");
-            StoredPath = Path.Combine(dayDirectory, $"{captureId}_1.0.0_{captureOrigin}_monitor-1.webp");
-            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(RawPath), [1, 2, 3]);
-            File.WriteAllBytes(ScreenshotPublicationJournal.StagingPath(StoredPath), [4, 5, 6]);
-            return new ScreenshotCaptureResult(captureId, [RawPath], [StoredPath], captureOrigin, CapturedAt: capturedAt);
-        }
-    }
-
     private static void Authorize(Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
     {
         var decision = authorizeCapture(new ScreenshotCaptureContext("allowed-app", "Allowed", "Work", "Allowed window"));
@@ -1102,23 +847,6 @@ public sealed class SnapshotAnalysisFlowTests
         {
             throw new ScreenshotCapturePreconditionException(decision);
         }
-    }
-
-    private sealed class UnexpectedFailureOcrService : IScreenshotOcrService
-    {
-        public bool IsEnabled => true;
-
-        public Task<ScreenshotOcrResult> ExtractAsync(string imagePath, CancellationToken cancellationToken = default) =>
-            Task.FromException<ScreenshotOcrResult>(new InvalidDataException("Unexpected OCR failure."));
-    }
-
-    private sealed class FailingOcrRefinementService : IAiOcrRefinementService
-    {
-        public Task<ScreenshotCaptureResult> RefineAsync(
-            ScreenshotCaptureResult capture,
-            AppSettings settings,
-            CancellationToken cancellationToken) =>
-            Task.FromException<ScreenshotCaptureResult>(new InvalidDataException("Truncated OCR JSON."));
     }
 
     private sealed class RecordingAnalysisService(string installationId) : IAiAnalysisService

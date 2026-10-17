@@ -35,7 +35,7 @@ public sealed class AiApplicationState : ViewModelBase
     private bool _hasInvalidKey;
     private bool _isStatusUnavailable = true;
     private bool _isBusy;
-    private AnalysisCostGate? _costGate;
+    private AnalysisRequestGate? _requestGate;
 
     /// <summary>Initializes the shared AI state with the application facade.</summary>
     public AiApplicationState(IWorkTrailApplication application) => _application = application;
@@ -71,7 +71,7 @@ public sealed class AiApplicationState : ViewModelBase
     public bool IsBusy { get => _isBusy; private set => Set(ref _isBusy, value); }
 
     /// <summary>Gets the latest privacy-safe daily AI usage gate returned by the application facade.</summary>
-    public AnalysisCostGate? CostGate { get => _costGate; private set => Set(ref _costGate, value); }
+    public AnalysisRequestGate? RequestGate { get => _requestGate; private set => Set(ref _requestGate, value); }
 
     /// <summary>Reloads redacted AI state from the application facade.</summary>
     public async Task<OperationResult<AiStatus>> LoadAsync(CancellationToken cancellationToken)
@@ -165,7 +165,7 @@ public sealed class AiApplicationState : ViewModelBase
         IsStatusUnavailable = false;
         IsKeyMissing = status.Provider != "codex-cli" && !status.HasKey;
         HasInvalidKey = status.Provider != "codex-cli" && status.HasKey && !status.CanEnable;
-        CostGate = status.CostGate;
+        RequestGate = status.RequestGate;
         UpdateCanToggle();
     }
 
@@ -177,7 +177,7 @@ public sealed class AiApplicationState : ViewModelBase
         CanEnable = false;
         IsKeyMissing = false;
         HasInvalidKey = false;
-        CostGate = null;
+        RequestGate = null;
         UpdateCanToggle();
     }
 

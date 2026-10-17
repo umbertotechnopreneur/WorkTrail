@@ -2,7 +2,147 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-17
+
+### PR validation regressions
+
+- Remove the orphan OCR test project and adapter README left after OCR removal.
+  Recursive CI test discovery still found the project outside the solution and
+  failed against its deleted production dependency; keep test discovery intact.
+- Preserve structured AI validation issues after gallery capture and before analysis.
+  Scheduled-capture fixtures explicitly start tracking with the background timer
+  disabled, and configuration failures assert retained images and zero analysis calls.
+- Replace hardware-era score/export expectations, keep Spotify image exclusion
+  covered by the title-only suite and restore the export AI-usage accessible name.
+- Strict Debug x64 solution compilation passes without warnings; Core, Presentation,
+  CLI and Search suites all pass. No checks are disabled. Native UI validation and
+  installation remain separate.
+
+### Native World Time launcher
+
+- Replace the player's icon-only clock command with a labelled acrylic flyout,
+  a three-city live preview and six direct links to the retained clocks, map,
+  astronomical calendar, local sky, day/night globe and Moon windows.
+- Use the saved clock selection and local weather-free projection only while the
+  menu is open; cancel stale results on dismissal and shutdown. Keep the tray's
+  direct clock command and the existing window instances and placement behavior.
+- Localize labels in all ten catalogs, register accessible selectors and update
+  Presentation surface contracts. Strict Debug x64 build and surface contracts pass;
+  native validation remains pending.
+
+### Strict local validation checkpoint
+
+- Correct twelve xUnit2031 assertion forms without changing their meaning.
+- Debug x64 solution build passes with analyzers and warnings-as-errors; C# formatting,
+  source-license checks, PowerShell parsing and script safeguard checks pass.
+- Presentation, CLI and Search suites pass. Core completes with ten failures covering
+  activity scoring, accessibility, capture flow, export and an obsolete Spotify expectation.
+  Native validation and installation remain pending; no checks are disabled.
+
+### Command Prompt capture profile
+
+- Add `cmd` to high-attention application profiles and terminal-status title hints.
+  Reuse terminal guidance for visible commands, output and errors while preserving
+  existing console-host profiles. Build, tests and native validation pending.
+
+### Creative and Android application guidance
+
+- Add high-attention Adobe Audition and Android Studio profiles with exact process
+  aliases; enrich existing Notepad and Photoshop profiles without duplicates.
+- Route focused instructions for text, image editing, audio editing and Android
+  development through the existing micro-prompt registry. Preserve background,
+  inactivity and privacy defaults; do not infer audible content from screenshots.
+- Configuration and documentation only. Build, tests and native validation pending.
+
+### Title-only application capture
+
+- Configure Spotify through `titleOnlyProcesses`: reuse literal foreground titles in
+  existing activity storage/exports, without OCR, audio inference or a new table.
+- Remove its similarity preset and prevent its pixels in crops and monitor panoramas,
+  including manual captures. Preserve unrelated windows and monitor identities.
+- Empty selections skip without AI; manual requests receive a localized explanation.
+  Regression cases are authored but not executed; native validation is pending.
+
+### Automatic capture stabilization
+
+- Wait for a configurable foreground quiet period before scheduled pixels, with a
+  bounded metadata-only worker delay. Manual captures bypass the wait.
+- Treat detected scene transitions as quiet retries, capped per scheduled capture;
+  preserve newer settings/deadlines and reset retry state on pause or reconfiguration.
+- Add timing, window-transition and scheduler regression cases. C# formatting and
+  verification passed; tests, build and native validation remain pending.
+
+### Automatic near-duplicate filtering
+
+- Compare in-memory RGB thumbnails after privacy checks and before encoding or AI.
+  Keep manual captures, changed identities and periodic refreshes; configure global,
+  application and context thresholds, including a more tolerant Spotify preset.
+- Advance the bounded cache only after retained publication, and quietly skip a
+  fully unchanged pass. C# formatting and verification passed; regression execution
+  and native validation remain pending.
+
+### Context-aware capture policy
+
+- Expand developer, terminal and database profiles; add process-scoped title hints,
+  deterministic precedence and a minimum visible fraction for selected secondary crops.
+- Add configurable input-idle capture limits (Teams 10 minutes, Zoom 15), checked at
+  the native pixel boundary without altering activity samples or report accounting.
+- Compose per-image micro-prompts from an internal registry. Low attention reads
+  titles only; manual Complete analysis remains an explicit override. Persist routing
+  IDs/reasons with image metadata, not arbitrary instruction text.
+- Browser rules use labeled title hints, not verified domains or inactive tabs.
+  Added regression coverage; C# formatting and verification passed. Tests, build
+  and native validation are pending.
+
+### Rule-driven capture and content-first descriptions
+
+- Add an internal embedded capture policy, active-window crops and optional monitor
+  panoramas, preserving native resolution and privacy checks before publication.
+- Make the policy an ordered rule list with subjects, priorities, exact process
+  filters and AI/gallery destinations. Capture secondary application windows with
+  conservative visible-region masks; keep shell windows as occluders, not subjects.
+- Keep AI-only images transient through journaled cleanup and restart recovery.
+  Exclude gallery-only images from reanalysis and AI-only images from archives.
+- Persist per-image monitor identities, roles and crop bounds; retain them through
+  historical analysis, gallery projection and archive roundtrips.
+- Replace Compact/Detailed with Balanced/Complete and remove application-imposed
+  screenshot response caps. Describe visible content with explicit monitor sections.
+- Add 23 high-attention and 23 low-attention application presets with independent
+  active/background attention. Keep unknown applications at normal attention.
+- Apply the analysis blacklist after destination merging, including panoramas with
+  visible excluded content, and omit excluded foreground identity from AI context.
+  Keep gallery retention separate from AI eligibility and privacy exclusions.
+- Manual captures request Complete analysis and high attention as an explicit
+  interest signal, without changing saved preferences or bypassing exclusions.
+- Add focused planning, persistence, payload and presentation coverage. Tests and
+  native validation remain pending. Debug x64 1.0.6.22 built and installed with
+  Windows package status Ok before the manual-capture override. C# formatting and
+  verification passed on 377 files before PR delivery; the final override has not
+  been built locally.
+
 ## 2026-10-16
+
+### Shared activation for open windows
+
+- Move automatic peer reveal from the main player to the shared window lifecycle.
+  Activating an existing map, sky, lunar, clock or other app window raises its open
+  peers without moving them or transferring focus away from the selected window.
+- Reuse the application's visibility facade and native foreground/process guards.
+  Cancel pending reveals on close and report failures through the existing player banner.
+- C# whitespace checks and the Debug x64 package build passed. Version 1.0.6.21
+  was installed with Windows package status Ok. Native window-order behavior
+  remains owner-validation pending; tests were not run.
+
+### Remove AI spending estimates
+
+- Remove the monthly player total, preference, pricing window, background price-list
+  download, monetary telemetry, estimates, export columns and CLI pricing command.
+- Preserve model selection, request/token telemetry and the daily request limit.
+- Remove one-time schema cleanup code; database opening remains best effort and
+  does not migrate retired storage. The owner authorized resetting local history.
+- Build, tests, installation and Git delivery were not run for this cleanup.
+- C# whitespace formatting and verification passed on 374 source files. Syntax
+  inspection and diff whitespace checks found no errors; runtime behavior is unverified.
 
 ### AI connection paths and display-aware window restore
 

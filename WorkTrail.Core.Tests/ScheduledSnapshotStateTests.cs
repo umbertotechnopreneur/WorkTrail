@@ -60,7 +60,6 @@ public sealed class ScheduledSnapshotStateTests
                 utilities,
                 new TrackingDomainService(store),
                 new ScreenCaptureService(utilities.GetAppVersion()),
-                new FakeHardwareTelemetryService(),
                 new OpenAiAnalysisService(store, new ScreenCaptureService(utilities.GetAppVersion())),
                 new StartupService(),
                 new BuildInformationService(), featureLicenseSource: new PremiumLicense());
@@ -105,7 +104,6 @@ public sealed class ScheduledSnapshotStateTests
                 utilities,
                 new TrackingDomainService(store),
                 new ScreenCaptureService(utilities.GetAppVersion()),
-                new FakeHardwareTelemetryService(),
                 new OpenAiAnalysisService(store, new ScreenCaptureService(utilities.GetAppVersion())),
                 new StartupService(),
                 new BuildInformationService());
@@ -151,7 +149,6 @@ public sealed class ScheduledSnapshotStateTests
                 utilities,
                 new TrackingDomainService(store),
                 new ScreenCaptureService(utilities.GetAppVersion()),
-                new FakeHardwareTelemetryService(),
                 new OpenAiAnalysisService(store, new ScreenCaptureService(utilities.GetAppVersion())),
                 new StartupService(),
                 new BuildInformationService(),
@@ -208,7 +205,6 @@ public sealed class ScheduledSnapshotStateTests
                 utilities,
                 new TrackingDomainService(store),
                 capture,
-                new FakeHardwareTelemetryService(),
                 analysis,
                 new StartupService(),
                 new BuildInformationService(),

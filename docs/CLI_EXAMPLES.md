@@ -8,7 +8,7 @@ The entire CLI requires Premium: Free includes no commands, help, version or int
 
 The commercial license source is not connected yet, so the current production default is Free. Developers can select Premium simulation in the desktop Debug menu before trying these commands. The override ends when the runtime restarts; the CLI cannot grant access. See [Premium access](PREMIUM_FEATURES.md).
 
-## Search, reports, clocks and hardware
+## Search, reports and clocks
 
 ```powershell
 pwsh -NoProfile -Command '& worktrail.exe -cli search status --json; exit $LASTEXITCODE'
@@ -17,7 +17,6 @@ pwsh -NoProfile -Command '& worktrail.exe -cli search query --from 2026-09-01T00
 pwsh -NoProfile -Command '& worktrail.exe -cli report --from 2026-09-01 --to 2026-09-21 --timezone UTC --view applications --json; exit $LASTEXITCODE'
 pwsh -NoProfile -Command '& worktrail.exe -cli world-clock list --json; exit $LASTEXITCODE'
 pwsh -NoProfile -Command '& worktrail.exe -cli world-clock cities --json; exit $LASTEXITCODE'
-pwsh -NoProfile -Command '& worktrail.exe -cli hardware snapshot --json; exit $LASTEXITCODE'
 ```
 
 Search requires text or a filter. `--from` includes its timestamp and `--to`
@@ -32,8 +31,7 @@ Choose `calendar` (default), `hour-of-week`, `trend` or `applications`.
 For conversion, use a city ID from `world-clock cities` in
 `world-clock convert --city <id> --local-time 2026-09-21T14:30:00`.
 This is civil time without an offset; Core handles daylight-saving validation.
-Clock output omits celestial maps and artwork. Hardware reads available sensors
-without requesting installation. Unavailable readings are not reported as zero.
+Clock output omits celestial maps and artwork.
 
 ## Screenshot gallery and maintenance
 
@@ -42,7 +40,7 @@ pwsh -NoProfile -Command '& worktrail.exe -cli screenshots gallery --date 2026-0
 ```
 
 Omit `--date` to read the latest gallery. `screenshots` aliases `screenshot`.
-Gallery results can contain private titles, OCR and AI descriptions.
+Gallery results can contain private titles and AI descriptions.
 
 Copy an exact absolute path from the gallery into
 `screenshots delete --date 2026-09-21 --path "<absolute-path>" --json` to preview
@@ -81,17 +79,14 @@ retrying a write.
 
 ```powershell
 pwsh -NoProfile -Command '& worktrail.exe -cli ai models --json; exit $LASTEXITCODE'
-pwsh -NoProfile -Command '& worktrail.exe -cli ai pricing --json; exit $LASTEXITCODE'
 pwsh -NoProfile -Command '& worktrail.exe -cli ai reprocess preview --date 2026-09-21 --json; exit $LASTEXITCODE'
 ```
 
-`ai models` reads the validated model catalog. `ai pricing` reads the service's
-cached prices and local usage overview; this is not live billing or a promise of
-price coverage for every provider. `ai test --yes` sends the minimal non-image
+`ai models` reads the validated model catalog. `ai test --yes` sends the minimal non-image
 connection check to the configured AI provider and can incur cost.
 
 Reprocessing preview sends no analysis requests. Review eligibility, blocked
-items, remaining allowance, estimated cost, `canStart`, `expiresAt` and `planId`.
+items, remaining daily request allowance, `canStart`, `expiresAt` and `planId`.
 
 | Action | Command after `worktrail.exe -cli` |
 | --- | --- |
@@ -218,7 +213,7 @@ pwsh -NoProfile -Command '& worktrail.exe -cli retention preview --json; exit $L
 The preview deletes nothing. Read its fields as follows:
 
 - `fileCount` counts both expired screenshots and database records, including
-  activity, AI, OCR, and saved device readings.
+  activity and AI records.
 - `totalBytes` estimates the affected content, not the disk space you will regain.
 - `paths` lists affected screenshots and, where relevant, the activity database.
   Cleanup removes expired records, not the entire database.

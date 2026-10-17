@@ -42,7 +42,7 @@ VBWR E -->
     <EmbeddedResource Include="Data\ui-automation-names.json" LogicalName="WorkTrail.Data.ui-automation-names.json" />
     <EmbeddedResource Include="Data\important-dates.json" LogicalName="WorkTrail.Data.important-dates.json" />
     <EmbeddedResource Include="Data\celestial-calendar.json" LogicalName="WorkTrail.Data.celestial-calendar.json" />
-    <EmbeddedResource Include="..\WorkTrail.Hardware\PawnIO\distribution.json" LogicalName="WorkTrail.PawnIO.distribution.json" />
+    <EmbeddedResource Include="Data\screenshot-capture-rules.json" LogicalName="WorkTrail.Data.screenshot-capture-rules.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,7 +53,6 @@ VBWR E -->
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\WorkTrail.Ocr\WorkTrail.Ocr.csproj" />
     <ProjectReference Include="..\WorkTrail.Search\WorkTrail.Search.csproj" />
   </ItemGroup>
 

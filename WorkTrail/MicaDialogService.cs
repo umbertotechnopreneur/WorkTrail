@@ -223,24 +223,6 @@ internal sealed class MicaDialogService
         return result ?? throw new OperationCanceledException("The progress dialog was cancelled during shutdown.");
     }
 
-    /// <summary>Shows provider-specific pricing and locally estimated costs in the shared acrylic dialog queue.</summary>
-    internal async Task ShowPricingAsync(
-        IWorkTrailApplication application,
-        Window owner,
-        AiPricingOverview overview,
-        ElementTheme theme,
-        LocalizationService strings)
-    {
-        ArgumentNullException.ThrowIfNull(application);
-        ArgumentNullException.ThrowIfNull(overview);
-        ArgumentNullException.ThrowIfNull(strings);
-        await RunModalSessionAsync(owner, async (ownerAppWindow, ownerHandle) =>
-        {
-            var dialog = new AiPricingDialogWindow(application, overview, theme, strings, ownerAppWindow, ownerHandle);
-            await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
-        });
-    }
-
     /// <summary>Shows the label editor in a queued Mica window and returns its latest saved settings.</summary>
     internal async Task<AppSettings?> ShowActivityLabelsAsync(
         IWorkTrailApplication application,

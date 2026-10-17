@@ -60,7 +60,7 @@ public interface IAiAnalysisService
 
     /// <summary>Analyzes retained historical images without attaching current device or system context.</summary>
     /// <param name="activity">Historical context reconstructed for the original capture interval.</param>
-    /// <param name="captureResult">Retained images and previously extracted OCR associated with one capture.</param>
+    /// <param name="captureResult">Retained images associated with one capture.</param>
     /// <param name="origin">Stable analysis origin recorded with local usage and history.</param>
     /// <param name="cancellationToken">Cancels the provider request during runtime shutdown.</param>
     /// <returns>The AI summary record persisted in the local history store.</returns>
@@ -142,6 +142,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         {
             _screenshotPublications.Publish(captureResult, captureRoot, settings.InstallationId, settings.KeepScreenshots);
             published = true;
+            (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(captureResult.CaptureId, settings.KeepScreenshots);
             return await AnalyzeCapturedScreenCoreAsync(
                 settings,
                 apiKey,
@@ -154,6 +155,8 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         }
         finally
         {
+            if (!published)
+                (_capture as IScreenshotCapturePublicationObserver)?.CompletePublication(captureResult.CaptureId, retained: false);
             if (captureResult.AllScreenshotPaths.Count > 0 && (!settings.KeepScreenshots || !published))
             {
                 try
@@ -189,6 +192,10 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            captureResult = captureResult with
+            {
+                AnalysisScreenshotPaths = _store.SelectAnalysisScreenshotPaths(captureResult.AnalysisScreenshotPaths, captureResult.Images)
+            };
             if (captureResult.AnalysisScreenshotPaths.Count == 0 ||
                 captureResult.AnalysisScreenshotPaths.Any(path => !ScreenCaptureService.IsOwnedArtifact(path) || !File.Exists(path)))
             {
@@ -230,6 +237,10 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            captureResult = captureResult with
+            {
+                AnalysisScreenshotPaths = _store.SelectAnalysisScreenshotPaths(captureResult.AnalysisScreenshotPaths, captureResult.Images)
+            };
             if (captureResult.AnalysisScreenshotPaths.Count == 0 ||
                 captureResult.AnalysisScreenshotPaths.Any(path => !ScreenCaptureService.IsOwnedArtifact(path) || !File.Exists(path)))
             {
@@ -253,7 +264,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         {
             if (!coreOwnsCleanup)
             {
-                CleanupCapture(captureResult, keepCapture: true);
+                CleanupCapture(captureResult, keepCapture: true, ownsPublication: false);
             }
         }
     }
@@ -275,38 +286,53 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 throw new InvalidOperationException("Historical analysis context is required.");
             }
 
-            // Hardware and device context belong to the capture boundary. An absent historical
-            // measurement stays absent; AI processing never polls the current machine.
-            var snapshot = captureResult.HardwareSnapshot ?? activity?.Snapshot;
-            if (!settings.IncludeDeviceLocation && snapshot?.DeviceContext is { } deviceContext)
+            if (captureResult.AllScreenshotPaths.Count > 0 && captureResult.AnalysisScreenshotPaths.Count == 0)
+                throw new InvalidOperationException("The capture rules selected gallery images only; no image is eligible for AI analysis.");
+
+            // Locale context belongs to the capture boundary; historical analysis never polls the current machine.
+            var deviceContext = captureResult.DeviceContext ?? activity?.DeviceContext;
+            if (!settings.IncludeDeviceLocation && deviceContext is not null)
             {
                 // Revocation applies to every outgoing request, including saved historical context.
                 // Clone only the outbound projection so durable capture-time evidence stays unchanged.
-                snapshot = snapshot with
+                deviceContext = deviceContext with
                 {
-                    DeviceContext = deviceContext with
-                    {
-                        Location = new DeviceLocationSnapshot(null, null, null, "windows-geolocator", "disabled_by_setting")
-                    }
+                    Location = new DeviceLocationSnapshot(null, null, null, "windows-geolocator", "disabled_by_setting")
                 };
             }
             var context = (activity ?? new AnalysisContextSnapshot(
                 "not available", "not available", "not available", "active", null)) with
             {
-                Snapshot = snapshot,
-                InformationalSchedule = snapshot?.InformationalSchedule ?? activity?.InformationalSchedule
+                DeviceContext = deviceContext,
+                InformationalSchedule = activity?.InformationalSchedule
+                    ?? (includeCurrentSystemContext ? ActiveHoursSchedule.BuildInformationalNote(
+                        settings.ActiveHours, captureResult.CapturedAt ?? DateTimeOffset.UtcNow) : null)
             };
-            context = ApplyCaptureFocusMetadata(context, captureResult.FocusMetadata);
+            // Explicit capture intent outweighs application attention presets, including on reanalysis.
+            // Override only this request; keep the saved preference and capture/privacy policy unchanged.
+            var userRequestedCapture = captureResult.CaptureOrigin == ScreenshotCaptureOrigins.Manual;
+            if (userRequestedCapture)
+            {
+                settings = settings with { AiOutputDetail = "complete" };
+            }
+            var images = captureResult.Images ?? _store.LoadScreenshotImages(captureResult.AllScreenshotPaths);
+            if (userRequestedCapture)
+            {
+                images = images.Select(image => image with { Attention = "high" }).ToArray();
+            }
+            context = PrepareImageContext(context, captureResult.FocusMetadata, images, captureResult.AnalysisScreenshotPaths);
 
             var prompt = AiPromptCatalog.RenderScreenshotAnalysis(
                 settings.AiOutputDetail,
                 context,
                 customPrompt: settings.AiCustomPrompt,
-                language: settings.UiLanguage);
+                language: settings.UiLanguage,
+                images: images,
+                imagePaths: captureResult.AnalysisScreenshotPaths,
+                userRequestedCapture: userRequestedCapture);
             var decoder = _decoder ?? AIDecoderFactory.Create(settings);
             var attemptId = Guid.NewGuid().ToString("N");
             var attemptedAt = DateTimeOffset.UtcNow;
-            var profile = AiAnalysisProfileCatalog.Resolve(settings.AiOutputDetail);
             var attemptToken = CorrelationToken(attemptId);
             var captureToken = CorrelationToken(captureResult.CaptureId);
             var endpointHost = decoder.Provider == "codex-cli" ? "chatgpt.com" : AiProviderTelemetry.EndpointHost(settings.AiEndpoint);
@@ -371,7 +397,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     settings,
                     captureResult.AnalysisScreenshotPaths.Count,
                     prompt.Length,
-                    profile.MaxOutputTokens,
+                    0, // No application-imposed output cap for screenshot descriptions.
                     null,
                     exception.Failure),
                     exception);
@@ -401,7 +427,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     settings,
                     captureResult.AnalysisScreenshotPaths.Count,
                     prompt.Length,
-                    profile.MaxOutputTokens,
+                    0,
                     null,
                     new AiProviderFailure("unexpected", null, elapsed)),
                     exception);
@@ -417,11 +443,10 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 providerResult.Text,
                 settings.InstallationId,
                 keepCapture ? string.Join(";", captureResult.StoredScreenshotPaths) : null,
-                context.Snapshot,
+                context.DeviceContext,
                 captureResult.CaptureId,
                 origin,
-                context.InformationalSchedule,
-                captureResult.TextSnapshots);
+                context.InformationalSchedule);
             var usage = CreateUsageRecord(
                 attemptId,
                 captureResult.CaptureId,
@@ -431,7 +456,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 settings,
                 captureResult.AnalysisScreenshotPaths.Count,
                 prompt.Length,
-                profile.MaxOutputTokens,
+                0,
                 providerResult,
                 null);
             try
@@ -472,12 +497,24 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
         }
         finally
         {
-            CleanupCapture(captureResult, keepCapture);
+            CleanupCapture(captureResult, keepCapture, ownsPublication: includeCurrentSystemContext);
         }
     }
 
-    private static void CleanupCapture(ScreenshotCaptureResult captureResult, bool keepCapture)
+    private void CleanupCapture(ScreenshotCaptureResult captureResult, bool keepCapture, bool ownsPublication = true)
     {
+        // Reprocessing borrows retained images; it must never complete another live capture's journal.
+        if (!ownsPublication) return;
+        try
+        {
+            if (keepCapture) _screenshotPublications.CleanupTransientArtifacts(captureResult.CaptureId);
+            else _screenshotPublications.Discard(captureResult.CaptureId);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            // The durable journal retries transient cleanup on restart without hiding the primary error.
+            _logger.LogWarning("Screenshot destination cleanup remains journaled. ExceptionType={ExceptionType}", exception.GetType().Name);
+        }
         var retainedPaths = captureResult.StoredScreenshotPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var cleanupPaths = keepCapture
             ? captureResult.AnalysisScreenshotPaths.Where(path => !retainedPaths.Contains(path))
@@ -497,6 +534,28 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 // Cleanup is best effort: retained history remains valid and provider/persistence errors stay primary.
             }
         }
+    }
+
+    /// <summary>Prevents excluded foreground details from leaking through text beside otherwise eligible images.</summary>
+    internal static AnalysisContextSnapshot PrepareImageContext(AnalysisContextSnapshot context,
+        ScreenshotFocusMetadata? focus, IReadOnlyList<ScreenshotImageMetadata> images, IReadOnlyList<string> paths)
+    {
+        if (images.Count == 0) return ApplyCaptureFocusMetadata(context, focus);
+        var eligible = images.Where(image => image.ForAnalysis && paths.Contains(image.Path, StringComparer.OrdinalIgnoreCase)).ToArray();
+        var active = eligible.FirstOrDefault(image => image.Role == "active-window")
+            ?? eligible.FirstOrDefault(image => image.Role == "monitor-context" && image.IsActiveScreen);
+        // Activity samples may name an excluded app. Rebuild foreground evidence only from eligible capture facts.
+        var safeContext = context with
+        {
+            Application = "not available",
+            Context = "not available",
+            WindowTitle = string.Empty,
+            Attributes = null
+        };
+        if (active is null) return safeContext;
+        return ApplyCaptureFocusMetadata(safeContext, new ScreenshotFocusMetadata(
+            active.ScreenName, active.ScreenIndex, active.ScreenLeft, active.ScreenTop, active.ScreenWidth, active.ScreenHeight,
+            active.ApplicationName, active.WindowTitle, active.Role == "active-window" ? "active-window" : $"monitor-{active.ScreenIndex}"));
     }
 
     private static AnalysisContextSnapshot ApplyCaptureFocusMetadata(

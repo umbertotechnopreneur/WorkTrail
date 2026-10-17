@@ -9,10 +9,39 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, validate the native World Time menu in the app.
+  Check opening, Escape/light dismiss,
+  all six existing destinations, saved-city preview refresh, rapid close/reopen,
+  theme/language changes, keyboard access and small mixed-DPI work areas in the app.
+  Strict Debug x64 compilation and Presentation surface contracts pass; installation
+  and native behavior remain unverified.
+
+- [ ] After owner authorization, validate the rule-driven screenshot
+  engine and Balanced/Complete analysis: native crop/privacy behavior on one, two
+  and three mixed-DPI monitors.
+  Check live and historical API/CLI descriptions, gallery monitor sections,
+  metadata archive roundtrips, occluded secondary windows, destination isolation,
+  application attention, title-hint precedence, micro-prompt routing, title-only/manual
+  overrides, idle boundaries and clock rollover, blacklist image/context isolation,
+  interrupted transient cleanup and response-truncation failures. Check lock/unlock,
+  pause/resume, renamed/translated titles and disabled detail collectors on Windows.
+  Check near-duplicate thresholds on real 4K text,
+  partial multi-monitor skips, manual bypass, publication failures and forced refresh.
+  Check rapid foreground changes, maximum wait, bounded retries, pause/setting races
+  and scene changes during acquisition without recurrent error notifications.
+  Check title-only Spotify foreground data, panorama masks across monitors, hidden
+  windows, manual exclusion, empty selections and unchanged masked-title noise.
+  The October 17 strict Debug x64 build and all four test suites pass after the
+  regression fixes. The earlier 1.0.6.22 Debug package predates these changes and the manual override.
+
+- [ ] After owner authorization, build and validate AI-spending removal: fresh
+  database creation, request/token reports, daily request limits, exports and
+  absence of the monthly total and pricing window. No schema migration is provided.
+
 - [ ] Validate native CLI/API selection in Settings and guided setup, API-key
   retention, missing/outdated CLI,
   ChatGPT login expiry, account limits, timeout/cancellation and screenshot output.
-  Confirm no API fallback and no extra cloud OCR call in CLI mode.
+  Confirm no API fallback and one visual-description request per analysis.
 - [ ] After owner authorization, validate restart placement on mixed-DPI displays:
   unchanged topology, reordered monitors, a disconnected saved monitor and changed
   scaling. Check main-window manual size, dialogs and workspace shutdown flushing.
@@ -73,17 +102,11 @@ the action needs authorization. Remove the item when it is complete.
   exercise the theme, capture, gallery and export paths on an isolated Windows desktop.
   Update `docs/UI_AUTOMATION.md` by UI surface only after the relevant interactions pass.
 
-- [ ] Drain pending hardware requests before disposing tracking and its snapshot gate.
-  Attempt every runtime shutdown step even after one fails, and protect the normal WinUI
-  close handler with error reporting and logging shutdown. Verify close during collection
+- [ ] Attempt every runtime shutdown step even after one fails, and protect the normal WinUI
+  close handler with error reporting and logging shutdown. Verify close during capture
   and injected disposal failures using synthetic services before a separately approved live run.
-- [ ] Restore previously enabled advanced sensors after the application is ready, so UAC
-  consent or its timeout cannot hold the initial window. Keep fresh installation consent explicit.
-- [ ] Preserve PawnIO's pending-reboot requirement across WorkTrail restarts until Windows
-  has rebooted or the loaded driver is positively verified. Registry package version alone
-  must not authorize activation after installer exit code 3010.
 - [ ] Bound gallery memory with paged metadata and selected-capture detail loading while
-  retaining all hardware, OCR, and AI data in SQLite. Measure large synthetic days before
+  retaining capture provenance and AI descriptions in SQLite. Measure large synthetic days before
   claiming a memory improvement; live profiling requires separate owner authorization.
 
 - [ ] Finish final synthetic Core validation of the implemented screenshot publication,
@@ -154,8 +177,6 @@ the action needs authorization. Remove the item when it is complete.
 - [ ] Run the space-weather location-filter and search-surface checks, including persistence,
   low latitude, polar day/night, expired alerts, the 48-hour forecast window, and unchanged
   non-geomagnetic alerts.
-- [ ] Run the sensor-startup and shared-accessibility presentation scenarios. Declined or
-  failed advanced-sensor activation must fall back to basic readings without repeated consent.
 - [ ] Run the focused activity export, archive operations, Premium CLI, and screenshot
   maintenance scenarios with synthetic data only.
 - [ ] Once the source has settled, run the required x64 solution tests and Debug build. Run the
@@ -204,10 +225,10 @@ the action needs authorization. Remove the item when it is complete.
   and stable placement beside the timer.
 - [ ] Verify the streamlined Quick Setup cards, selected profile, Start with Windows, and the
   single confirmation action. The removed Sensors entry point must not reappear.
-- [ ] Verify simplified OCR/AI settings, AI spend visibility, world-clock options, data-transfer
+- [ ] Verify simplified AI settings, AI spend visibility, world-clock options, data-transfer
   tabs, and maintenance material without horizontal scrolling or clipped actions.
 
-### Activity, clocks, sky, and sensors
+### Activity, clocks, and sky
 
 - [ ] Verify Activity history, Screenshot gallery, and Search are top-level actions; calendar
   startup remains closed; the current-time marker and active-interval borders are correct.
@@ -216,9 +237,6 @@ the action needs authorization. Remove the item when it is complete.
 - [ ] Verify Local Sky, Astronomical Agenda, Earth globe, zodiac/stellar labels, ISS/Tiangong
   visibility, city-local aurora, weather/advisory rows, Moonrise/Moonset artwork, responsive
   centering, cancellation, and independent window restoration.
-- [ ] Verify advanced-sensor prerequisite consent, offline installation, required restart,
-  first advanced reading, basic-reading fallback, and compact graph layout at narrow and wide
-  sizes.
 
 ## Delivery checkpoints
 

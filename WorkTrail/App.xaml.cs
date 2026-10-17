@@ -48,8 +48,6 @@ public partial class App : Microsoft.UI.Xaml.Application
     private readonly DispatcherQueue _dispatcherQueue;
     private MainWindow? _window;
     private WorldClockWindow? _worldClockWindow;
-    private SensorsWindow? _sensorsWindow;
-    private bool _sensorsWindowOpening;
     private WorldMapWindow? _worldMapWindow;
     private LunarPhaseWindow? _lunarPhaseWindow;
     private readonly Dictionary<string, CelestialWindow> _celestialWindows = new(StringComparer.Ordinal);
@@ -300,8 +298,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.DebugOobeResetRequested += MainWindow_DebugOobeResetRequested;
 #endif
             _window.WorldClocksRequested += MainWindow_WorldClocksRequested;
+            _window.WorldTimeWindowRequested += OpenAstronomyWindowFromMenu;
             _window.TrayAstronomyRequested += MainWindow_TrayAstronomyRequested;
-            _window.SensorsRequested += MainWindow_SensorsRequested;
             _window.SearchRequested += MainWindow_SearchRequested;
             _window.ScreenshotGalleryRequested += MainWindow_ScreenshotGalleryRequested;
             _window.ScreenshotGalleryDateRequested += MainWindow_ScreenshotGalleryDateRequested;
@@ -394,18 +392,6 @@ public partial class App : Microsoft.UI.Xaml.Application
     private async Task RestoreWorkspaceAsync(IWorkTrailApplication application, AppSettings settings)
     {
         var windowKeys = WorkspaceWindowState.GetWindowsToRestore(settings.WindowOpenStates);
-        if (windowKeys.Contains(WindowStateKeys.OcrText) && settings.OcrTextWindowSource is null)
-        {
-            // An OCR surface requires a retained source; invalid session state must be visible to the user.
-            var cleared = await application.SetWindowOpenStateAsync(WindowStateKeys.OcrText, false, CancellationToken.None);
-            if (!cleared.Succeeded)
-            {
-                throw new InvalidOperationException($"The invalid OCR workspace state could not be cleared ({cleared.Code}).");
-            }
-
-            throw new InvalidOperationException("The saved OCR workspace is missing its screenshot source.");
-        }
-
         foreach (var key in windowKeys)
         {
             if (_window is null || Volatile.Read(ref _shutdownStarted) != 0)
@@ -415,9 +401,6 @@ public partial class App : Microsoft.UI.Xaml.Application
 
             switch (key)
             {
-                case WindowStateKeys.Sensors:
-                    await ShowSensorsWindowAsync(application);
-                    break;
                 case WindowStateKeys.WorldClocks:
                     await ShowWorldClockWindowAsync(application);
                     break;
@@ -441,17 +424,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                         break;
                     }
 
-                    if (windowKeys.Contains(WindowStateKeys.OcrText) && settings.OcrTextWindowSource is { } source)
-                    {
-                        _screenshotsWindow = new ScreenshotWindow(application, _dialogs, null,
-                            source.ScreenshotPath, source.CapturedAt, restoreOcrWindow: true);
-                        _screenshotsWindow.Closed += ScreenshotsWindow_Closed;
-                        _screenshotsWindow.Activate();
-                    }
-                    else
-                    {
-                        await ShowScreenshotWindowAsync(application, null);
-                    }
+                    await ShowScreenshotWindowAsync(application, null);
 
                     break;
             }
@@ -585,61 +558,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
     }
 
-    private async void MainWindow_SensorsRequested(object? sender, EventArgs eventArgs) =>
-        await ShowSensorsWindowAsync(StartOrConnectRuntime());
-
-    private async Task ShowSensorsWindowAsync(IWorkTrailApplication application)
-    {
-        if (_sensorsWindow is not null) { _sensorsWindow.Activate(); return; }
-        if (_sensorsWindowOpening) return;
-        _sensorsWindowOpening = true;
-        try
-        {
-            var settings = await application.GetSettingsAsync(CancellationToken.None);
-            if (_window is null || Volatile.Read(ref _shutdownStarted) != 0) return;
-            if (!settings.Succeeded || settings.Value is null) { _window.ShowSensorsOpenFailure(); return; }
-            _sensorsWindow = new SensorsWindow(application, settings.Value);
-            _sensorsWindow.SettingsSaved += SensorsWindow_SettingsSaved;
-            _sensorsWindow.Closed += SensorsWindow_Closed;
-            _sensorsWindow.Activate();
-        }
-        catch (Exception exception)
-        {
-            // Opening failures remain visible; never start an alternate telemetry collector.
-            _logger.LogError(exception, "Sensor window could not be opened.");
-            if (_sensorsWindow is not null)
-            {
-                _sensorsWindow.SettingsSaved -= SensorsWindow_SettingsSaved;
-                _sensorsWindow.Closed -= SensorsWindow_Closed;
-                _sensorsWindow.CloseForShutdown();
-                _sensorsWindow = null;
-            }
-            _window?.ShowSensorsOpenFailure();
-        }
-        finally { _sensorsWindowOpening = false; }
-    }
-
-    private async void SensorsWindow_SettingsSaved(AppSettings settings)
-    {
-        try
-        {
-            if (_window is not null) await _window.ApplyExternalSettingsAsync(settings);
-        }
-        catch (Exception exception)
-        {
-            // Persistence succeeded; report a failed peer refresh instead of undoing confirmed preferences.
-            _logger.LogError(exception, "Sensor settings could not refresh the main window.");
-            _window?.ShowSensorsOpenFailure();
-        }
-    }
-
-    private void SensorsWindow_Closed(object sender, WindowEventArgs args)
-    {
-        if (_sensorsWindow is null) return;
-        _sensorsWindow.SettingsSaved -= SensorsWindow_SettingsSaved;
-        _sensorsWindow.Closed -= SensorsWindow_Closed;
-        _sensorsWindow = null;
-    }
 
     private async Task ShowWorldClockWindowAsync(IWorkTrailApplication application)
     {
@@ -698,7 +616,6 @@ public partial class App : Microsoft.UI.Xaml.Application
     private void ApplyWorldClockWindowSettings(AppSettings settings)
     {
         _worldClockWindow?.ApplySettings(settings);
-        _sensorsWindow?.ApplySettings(settings);
         ApplyAstronomyWindowSettings(settings);
     }
 
@@ -849,6 +766,10 @@ public partial class App : Microsoft.UI.Xaml.Application
         if (key == WindowStateKeys.WorldMap)
         {
             await ShowAstronomyWindowAsync(isLunarPhase: false);
+        }
+        else if (key == WindowStateKeys.LunarPhase)
+        {
+            await ShowAstronomyWindowAsync(isLunarPhase: true);
         }
         else
         {
@@ -1145,8 +1066,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.DebugOobeResetRequested -= MainWindow_DebugOobeResetRequested;
 #endif
             _window.WorldClocksRequested -= MainWindow_WorldClocksRequested;
+            _window.WorldTimeWindowRequested -= OpenAstronomyWindowFromMenu;
             _window.TrayAstronomyRequested -= MainWindow_TrayAstronomyRequested;
-            _window.SensorsRequested -= MainWindow_SensorsRequested;
             _window.SearchRequested -= MainWindow_SearchRequested;
             _window.ScreenshotGalleryRequested -= MainWindow_ScreenshotGalleryRequested;
             _window.ScreenshotGalleryDateRequested -= MainWindow_ScreenshotGalleryDateRequested;
@@ -1163,14 +1084,6 @@ public partial class App : Microsoft.UI.Xaml.Application
             _quickSetupWindow.Closed -= QuickSetupWindow_Closed;
             _quickSetupWindow.Close();
             _quickSetupWindow = null;
-        }
-
-        if (_sensorsWindow is not null)
-        {
-            _sensorsWindow.SettingsSaved -= SensorsWindow_SettingsSaved;
-            _sensorsWindow.Closed -= SensorsWindow_Closed;
-            _sensorsWindow.CloseForShutdown();
-            _sensorsWindow = null;
         }
 
         if (_worldClockWindow is not null)

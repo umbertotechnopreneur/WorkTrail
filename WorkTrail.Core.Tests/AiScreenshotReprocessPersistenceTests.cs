@@ -44,7 +44,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, 12, 4));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
 
             var candidates = store.ListAiReprocessCandidates(
                 capturedAt.AddMinutes(-1),
@@ -86,8 +86,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, null, null));
-            store.UpsertCaptureHardwareSnapshot(captureId, new SystemSnapshot(capturedAt, "unavailable", []));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
             store.AppendSample(ActivitySampleAt(
                 capturedAt.AddSeconds(-1),
                 durationSeconds: 20,
@@ -107,8 +106,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
                 CancellationToken.None));
 
             Assert.Equal("Friendly editor", candidate.HistoricalContext!.Application);
-            Assert.Equal(capturedAt, candidate.HistoricalContext.Snapshot!.Timestamp);
-            Assert.Equal("unavailable", candidate.HistoricalContext.Snapshot.Status);
+            Assert.Null(candidate.HistoricalContext.DeviceContext);
             Assert.Equal("secret-editor.exe", candidate.ProcessName);
             Assert.True(TrackingDomainService.IsHistoricalContextPrivate(
                 store.LoadSettings() with { PrivacyProcessNames = "rule-id|secret-editor.exe" },
@@ -138,7 +136,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, null, null));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
             store.AppendSample(ActivitySampleAt(
                 capturedAt.AddSeconds(-1),
                 durationSeconds: 20,
@@ -174,7 +172,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, null, null));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
             store.AppendSample(ActivitySampleAt(
                 capturedAt.AddSeconds(5),
                 durationSeconds: 10,
@@ -216,7 +214,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, null, null));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
             store.AppendSample(ActivitySampleAt(
                 capturedAt.AddSeconds(5),
                 durationSeconds: 10,
@@ -252,7 +250,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, null, null));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
             store.AppendSample(ActivitySampleAt(
                 capturedAt.AddSeconds(5),
                 durationSeconds: 10,
@@ -339,7 +337,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, null, null));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
             store.AppendSample(ActivitySampleAt(
                 capturedAt,
                 durationSeconds: 60,
@@ -380,7 +378,7 @@ public sealed class AiScreenshotReprocessPersistenceTests
             store.UpsertScreenshotIntervalTelemetry(
                 captureId,
                 paths,
-                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt, null, null));
+                new ScreenshotIntervalTelemetry(capturedAt.AddMinutes(-5), capturedAt));
             store.AppendSample(ActivitySampleAt(
                 capturedAt.AddSeconds(10),
                 durationSeconds: 20,

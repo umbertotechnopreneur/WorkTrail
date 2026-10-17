@@ -359,7 +359,7 @@ public sealed class TimesheetBatchTests : IDisposable
         SaveJob(store, job);
         store.SaveTimesheetUsage([Usage(job.Id.ToString("N") + "." + job.Rows[0].Row.Id)], CancellationToken.None);
         await using var application = new WorkTrailApplication(store, new UtilityService(), new TrackingDomainService(store),
-            DispatchProxy.Create<IScreenCaptureService, ReportExportTests.NoCalls>(), new FakeHardwareTelemetryService(),
+            DispatchProxy.Create<IScreenCaptureService, ReportExportTests.NoCalls>(),
             DispatchProxy.Create<IAiAnalysisService, ReportExportTests.NoCalls>(), new StartupService(), new BuildInformationService());
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         TimesheetJobInfo? recovered;
@@ -470,20 +470,19 @@ public sealed class TimesheetBatchTests : IDisposable
         Assert.Equal(new[] { "cached", "completed", "consumed", "other-batch", "response", "summary" }, ReadUsage(store).Select(row => row.AttemptId).Order());
     }
 
-    /// <summary>Incomplete responses still contribute their consumed tokens at the batch price.</summary>
+    /// <summary>Incomplete responses still contribute their consumed tokens.</summary>
     [Fact]
-    public void IncompleteBatchUsage_IncludesDiscountedTokenCost()
+    public void IncompleteBatchUsage_PreservesConsumedTokens()
     {
         var store = new LocalStore(Path.Combine(_directory, "data"));
-        store.ReplaceAiModelPricing(AiPricingProviders.OpenAi,
-            [new("openai", "gpt-test", AiPricingServiceTiers.Standard, AiPricingContextWindows.Short, "usd",
-                1m, null, null, 2m, "https://developers.openai.com/api/docs/pricing.md", Day)]);
         store.SaveTimesheetUsage([Usage("incomplete") with
         { CompletedAt = Day.AddSeconds(1), Usage = new(InputTokens: 100, OutputTokens: 50, TotalTokens: 150), FinishReason = "incomplete" }], CancellationToken.None);
         var result = new ReportAggregationService(store).Build(new(DateOnly.FromDateTime(Day.DateTime), DateOnly.FromDateTime(Day.DateTime), "UTC"), CancellationToken.None);
         Assert.True(result.Succeeded);
-        Assert.Equal(0.0001m, result.Value!.AiUsage.EstimatedCostUsd);
-        Assert.Equal(1, result.Value.AiUsage.EstimatedCostRequestCount);
+        Assert.Equal(100, result.Value!.AiUsage.InputTokens);
+        Assert.Equal(50, result.Value.AiUsage.OutputTokens);
+        Assert.Equal(150, result.Value.AiUsage.TotalTokens);
+        Assert.Equal(1, result.Value.AiUsage.RequestCount);
     }
 
     /// <summary>Each day part combines projects once without crossing the noon boundary.</summary>

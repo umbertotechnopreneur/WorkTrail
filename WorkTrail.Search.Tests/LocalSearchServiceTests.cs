@@ -79,7 +79,7 @@ public sealed class LocalSearchServiceTests
         Assert.Empty((await harness.Service.SearchAsync(new SearchRequest { Text = "originalmarker" })).Hits);
     }
 
-    /// <summary>The current v4 index leaves obsolete derived indexes untouched and writes only source documents.</summary>
+    /// <summary>The current index writes only source documents and excludes retired text fields.</summary>
     [Fact]
     public async Task SourceOnlySchema_PreservesOldDerivedIndexAndContainsNoSuggestionDocuments()
     {
@@ -93,11 +93,60 @@ public sealed class LocalSearchServiceTests
             await service.RebuildAsync([CreateDocument("one"), CreateDocument("two")], 1);
 
             Assert.True(Directory.Exists(oldIndex));
-            Assert.Equal(4, LocalSearchService.IndexSchemaVersion);
+            Assert.Equal(5, LocalSearchService.IndexSchemaVersion);
             using var directory = FSDirectory.Open(new DirectoryInfo(service.IndexPath));
             using var reader = DirectoryReader.Open(directory);
             Assert.Equal(2, reader.NumDocs);
-            Assert.All(Enumerable.Range(0, reader.MaxDoc), id => Assert.Null(reader.Document(id).Get("suggestion_text")));
+            Assert.All(Enumerable.Range(0, reader.MaxDoc), id =>
+            {
+                Assert.Null(reader.Document(id).Get("suggestion_text"));
+                Assert.Null(reader.Document(id).Get("ocr_raw_text"));
+                Assert.Null(reader.Document(id).Get("ocr_corrected_text"));
+                Assert.Null(reader.Document(id).Get("ocr_structured_summary"));
+            });
+        }
+        finally { SearchHarness.DeleteRoot(root); }
+    }
+
+    [Fact]
+    public async Task Constructor_RemovesRetiredTextIndexAndPreservesSiblingData()
+    {
+        var root = SearchHarness.CreateRoot();
+        try
+        {
+            var retired = Path.Combine(root, "lucene-v4");
+            Directory.CreateDirectory(retired);
+            File.WriteAllText(Path.Combine(retired, "retired-text.bin"), "retired extracted text");
+            var sibling = Path.Combine(root, "owner-note.txt");
+            File.WriteAllText(sibling, "preserve");
+
+            await using var service = new LocalSearchService(new SearchOptions { IndexRootPath = root });
+
+            Assert.False(Directory.Exists(retired));
+            Assert.Equal("preserve", File.ReadAllText(sibling));
+            Assert.Equal(Path.Combine(root, "lucene-v5"), service.IndexPath);
+            await service.RebuildAsync([CreateDocument("preserved-description") with { AiDescription = "Project progress" }], 1);
+            Assert.Equal("preserved-description", Assert.Single((await service.SearchAsync(new SearchRequest { Text = "progress" })).Hits).Document.Id);
+        }
+        finally { SearchHarness.DeleteRoot(root); }
+    }
+
+    [Fact]
+    public void Constructor_RejectsNestedRetiredIndexWithoutDeletingFiles()
+    {
+        var root = SearchHarness.CreateRoot();
+        try
+        {
+            var retired = Path.Combine(root, "lucene-v4");
+            var nested = Path.Combine(retired, "unexpected-child");
+            Directory.CreateDirectory(nested);
+            var marker = Path.Combine(retired, "marker.bin");
+            File.WriteAllText(marker, "preserve");
+
+            Assert.Throws<IOException>(() => new LocalSearchService(new SearchOptions { IndexRootPath = root }));
+
+            Assert.True(Directory.Exists(nested));
+            Assert.Equal("preserve", File.ReadAllText(marker));
         }
         finally { SearchHarness.DeleteRoot(root); }
     }
@@ -191,7 +240,7 @@ public sealed class LocalSearchServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_SearchesEveryRawFieldWithoutAiDescription()
+    public async Task SearchAsync_SearchesScreenshotMetadataWithoutAiDescription()
     {
         await using var harness = new SearchHarness();
         var document = CreateDocument("raw-fields") with
@@ -206,9 +255,6 @@ public sealed class LocalSearchServiceTests
             CaptureKind = "active-window",
             CaptureOrigin = "manual-capture",
             CapturePath = @"C:\captures\quarterly-budget.png",
-            OcrRawText = "Totale vendite Europa",
-            OcrCorrectedText = "Totale delle vendite europee",
-            OcrStructuredSummary = "Categoria: ricavi",
             AiDescription = null,
         };
         await harness.UpsertAsync(document);
@@ -224,9 +270,6 @@ public sealed class LocalSearchServiceTests
             "active-window",
             "manual-capture",
             @"C:\captures\quarterly-budget.png",
-            "vendite europa",
-            "vendite europee",
-            "categoria ricavi",
         };
 
         foreach (var query in queries)
@@ -250,7 +293,6 @@ public sealed class LocalSearchServiceTests
         Assert.Null(stored.AiDescription);
         Assert.Equal("RevenuePlan.xlsx", stored.AttributesRaw["Workbook"]);
         Assert.Equal(new[] { "Finance review" }, stored.SpanLabels.ToArray());
-        Assert.Equal("Totale vendite Europa", stored.OcrRawText);
     }
 
     [Fact]
@@ -562,8 +604,7 @@ public sealed class LocalSearchServiceTests
         {
             Application = "Teams",
             CapturePath = @"C:\captures\meeting.png",
-            OcrRawText = new string('x', 10_000),
-            AiDescription = "Private analysis body"
+            AiDescription = "Private analysis body " + new string('x', 10_000)
         });
 
         var response = await harness.Service.SearchAsync(new SearchRequest
@@ -578,7 +619,6 @@ public sealed class LocalSearchServiceTests
         Assert.Equal("metadata-only", document.Id);
         Assert.Equal("Teams", document.Application);
         Assert.Equal(@"C:\captures\meeting.png", document.CapturePath);
-        Assert.Null(document.OcrRawText);
         Assert.Null(document.AiDescription);
         Assert.Empty(document.AttributesRaw);
         Assert.Empty(document.SpanLabels);

@@ -64,7 +64,6 @@ public sealed record ReportExportOptions(
     bool IncludeCaptures = true,
     bool IncludeDescriptions = true,
     ReportDescriptionMode DescriptionMode = ReportDescriptionMode.Both,
-    bool IncludeOcr = false,
     bool IncludeWindowTitles = false,
     bool IncludeDevices = false,
     bool IncludePaths = false,
@@ -106,7 +105,6 @@ public sealed record ReportSummaryRequest(
     bool Detailed = false,
     bool IncludeDescriptionExcerpt = true,
     bool IncludeCompleteDescription = false,
-    bool IncludeOcr = false,
     bool IncludeWindowTitles = false);
 
 /// <summary>Selects the dedicated OpenAI model for text-only export summaries.</summary>

@@ -90,14 +90,13 @@ public sealed class WorkspaceWindowStateTests
     {
         var openStates = new Dictionary<string, bool>
         {
-            [WindowStateKeys.OcrText] = true,
             [WindowStateKeys.Screenshots] = false,
             [WindowStateKeys.Licenses] = true,
             [WindowStateKeys.About] = false
         };
 
         Assert.Equal(
-            new[] { WindowStateKeys.Screenshots, WindowStateKeys.OcrText, WindowStateKeys.About, WindowStateKeys.Licenses },
+            new[] { WindowStateKeys.About, WindowStateKeys.Licenses },
             WorkspaceWindowState.GetWindowsToRestore(openStates));
     }
 
@@ -107,7 +106,6 @@ public sealed class WorkspaceWindowStateTests
     {
         var openStates = new Dictionary<string, bool>
         {
-            [WindowStateKeys.OcrText] = false,
             [WindowStateKeys.Licenses] = false
         };
 
@@ -122,7 +120,6 @@ public sealed class WorkspaceWindowStateTests
     [InlineData(WindowStateKeys.SearchIndexing)]
     [InlineData(WindowStateKeys.WorldClockCityPicker)]
     [InlineData(WindowStateKeys.AiScreenshotReprocessing)]
-    [InlineData(WindowStateKeys.AiPricing)]
     [InlineData(WindowStateKeys.AiConnectionTest)]
     public void Restore_LeavesTransientSurfacesClosed(string windowKey)
     {
