@@ -78,7 +78,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 - Monthly AI spending, price-list downloads, pricing dialogs and cost estimates in settings, storage and exports. Request and token counts remain available.
 - Hardware sensor collection, CPU/GPU readings, the sensor window, LibreHardwareMonitor and bundled PawnIO installation.
-- OCR capture processing, refinement calls, stored OCR text, controls, search fields and export columns. AI visual descriptions remain available through CLI or API.
+- OCR capture processing, refinement calls, stored OCR text, controls, search fields, export columns and the obsolete adapter test project/documentation. AI visual descriptions remain available through CLI or API.
 
 - Taskbar-widget controls from Settings.
 

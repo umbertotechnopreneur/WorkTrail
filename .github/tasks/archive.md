@@ -6,6 +6,9 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ### PR validation regressions
 
+- Remove the orphan OCR test project and adapter README left after OCR removal.
+  Recursive CI test discovery still found the project outside the solution and
+  failed against its deleted production dependency; keep test discovery intact.
 - Preserve structured AI validation issues after gallery capture and before analysis.
   Scheduled-capture fixtures explicitly start tracking with the background timer
   disabled, and configuration failures assert retained images and zero analysis calls.
