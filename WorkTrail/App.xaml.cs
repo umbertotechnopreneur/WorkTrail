@@ -298,6 +298,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.DebugOobeResetRequested += MainWindow_DebugOobeResetRequested;
 #endif
             _window.WorldClocksRequested += MainWindow_WorldClocksRequested;
+            _window.WorldTimeWindowRequested += OpenAstronomyWindowFromMenu;
             _window.TrayAstronomyRequested += MainWindow_TrayAstronomyRequested;
             _window.SearchRequested += MainWindow_SearchRequested;
             _window.ScreenshotGalleryRequested += MainWindow_ScreenshotGalleryRequested;
@@ -766,6 +767,10 @@ public partial class App : Microsoft.UI.Xaml.Application
         {
             await ShowAstronomyWindowAsync(isLunarPhase: false);
         }
+        else if (key == WindowStateKeys.LunarPhase)
+        {
+            await ShowAstronomyWindowAsync(isLunarPhase: true);
+        }
         else
         {
             await ShowCelestialWindowAsync(key);
@@ -1061,6 +1066,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window.DebugOobeResetRequested -= MainWindow_DebugOobeResetRequested;
 #endif
             _window.WorldClocksRequested -= MainWindow_WorldClocksRequested;
+            _window.WorldTimeWindowRequested -= OpenAstronomyWindowFromMenu;
             _window.TrayAstronomyRequested -= MainWindow_TrayAstronomyRequested;
             _window.SearchRequested -= MainWindow_SearchRequested;
             _window.ScreenshotGalleryRequested -= MainWindow_ScreenshotGalleryRequested;

@@ -245,26 +245,23 @@ public sealed class ScreenshotSimilarityFilterTests
     }
 
     [Fact]
-    public void SimilarityPolicy_SpotifyPermitsSmallProgressChangesButWorkAppsStayConservative()
+    public void SimilarityPolicy_WorkAppsStayConservativeAndSpotifyHasNoSpecialPreset()
     {
         var rules = ScreenshotCaptureRules.Load();
-        var spotify = rules.ResolveWindowPolicy("Spotify", "Track one").Similarity;
+        Assert.True(rules.IsCaptureExcluded("Spotify"));
+        Assert.DoesNotContain(rules.ApplicationProfiles!, profile => profile.Id == "spotify");
         var editor = rules.ResolveWindowPolicy("Code", "Project").Similarity;
         var unknown = rules.ResolveWindowPolicy("unknown-app", "Window").Similarity;
         Assert.Equal(rules.Similarity, editor);
         Assert.Equal(rules.Similarity, unknown);
-        Assert.True(spotify.MaxMeanDifference > editor.MaxMeanDifference);
-        Assert.True(spotify.MaxChangedPixelFraction > editor.MaxChangedPixelFraction);
-        Assert.Equal(255, spotify.MaxPixelDifference);
 
         using var before = NewBitmap(128, 96, Color.Black);
         using var after = NewBitmap(128, 96, Color.Black);
         using (var graphics = Graphics.FromImage(after))
             graphics.FillRectangle(Brushes.White, 10, 80, 20, 1);
-        var baseline = ScreenshotVisualFingerprint.Create(before, spotify);
-        var candidate = ScreenshotVisualFingerprint.Create(after, spotify);
+        var baseline = ScreenshotVisualFingerprint.Create(before, editor);
+        var candidate = ScreenshotVisualFingerprint.Create(after, editor);
 
-        Assert.True(candidate.IsSimilarTo(baseline, spotify));
         Assert.False(candidate.IsSimilarTo(baseline, editor));
     }
 

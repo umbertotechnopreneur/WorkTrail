@@ -75,14 +75,13 @@ process-local and starts empty after restart; no thumbnails are stored in the da
 
 An application profile or matching context rule can supply a complete `similarity`
 object. Precedence is context, application, global; omitted fields inside an override
-use the standard defaults, not a field-by-field merge. Spotify allows a mean difference
-of 1.5 and 2% changed pixels, with no strongest-pixel veto, to tolerate small playback
-progress changes. Its changed window title still forces a new candidate.
+use the standard defaults, not a field-by-field merge. Spotify uses title-only collection
+instead of a similarity preset; no Spotify image reaches this comparison.
 
 Identity includes window handle, title, geometry, monitor, visible regions and rule
 destinations. A matching identity is necessary, never sufficient: pixels are compared
 too. Monitor panoramas use the global conservative settings and their visible scene
-identity, not the Spotify override. Sampling is lossy; tiny text edits can be missed,
+identity. Sampling is lossy; tiny text edits can be missed,
 so these defaults need native validation and sensitive profiles can disable filtering.
 
 Images are filtered independently. Kept images retain their actual monitor IDs; old
@@ -99,14 +98,14 @@ These are editable judgment presets, not measurements of productivity or evidenc
 High attention when active, normally normal in the background:
 
 - Original examples: Word, Excel, Teams.
-- Office, Visual Studio, VS Code/Insiders, Notepad/Notepad++, Obsidian, Notion, Slack, Zoom, Acrobat, Figma, Photoshop, Illustrator, AutoCAD, Blender and DBeaver.
-- Windows Terminal (including WSL sessions), console hosts, PuTTY, mintty, WezTerm, Alacritty, Tabby and MobaXterm.
-- SSMS, Oracle SQL Developer, DataGrip, pgAdmin, MySQL Workbench and HeidiSQL; JetBrains IDEs, Sublime Text, Postman and Power BI Desktop.
+- Office, Visual Studio, VS Code/Insiders, Notepad/Notepad++, Obsidian, Notion, Slack, Zoom, Acrobat, Figma, Photoshop, Adobe Audition, Illustrator, AutoCAD, Blender and DBeaver.
+- Windows Terminal (including WSL sessions), Command Prompt (`cmd`), console hosts, PuTTY, mintty, WezTerm, Alacritty, Tabby and MobaXterm. Hosted command prompts use the existing terminal/console-host profile when that host owns the visible window; no shell detection is inferred from the host process.
+- SSMS, Oracle SQL Developer, DataGrip, pgAdmin, MySQL Workbench and HeidiSQL; JetBrains IDEs, Android Studio, Sublime Text, Postman and Power BI Desktop.
 - Browser processes default to normal attention and no separate secondary crop. Process-scoped title hints can select a visible work page; this is not verified URL/domain recognition.
 
 Low attention both active and in the background:
 
-- Original examples: Spotify, File Explorer, Windows Settings.
+- Original examples: File Explorer, Windows Settings. Spotify is title-only, not a low-attention image.
 - Twenty additional presets: Calculator, Clock, Photos, Media Player, VLC, Windows Media Player, iTunes, Apple Music, Steam, Epic Games Launcher, GOG Galaxy, Battle.net, Ubisoft Connect, Xbox, Discord, Telegram, WhatsApp, Phone Link, OneDrive, Dropbox.
 
 ## Context rules and micro-prompts
@@ -118,6 +117,14 @@ The highest-priority matching context wins; ties use ordinal ID order, so reorde
 Shipped hints cover IDE/debugger windows, SQL query editors, terminal status, Teams/Zoom pop-outs, and browser titles mentioning code review, work-item tracking, documents, diagrams or dashboards. News-title hints request title-only attention; they are not a privacy blacklist. Language, renamed titles and app versions can prevent a match or produce false positives. Browser hints do not inspect inactive tabs, retrieve pages or prove domain identity. Unknown pages stay normal; do not infer work/leisure from a browser process.
 
 `microPrompts` is the internal ID-to-instruction dictionary. Profiles select small reusable blocks such as `sql`, `debugger`, `terminal`, `code-review`, `work-items`, `dashboard` or `titles-only`. The prompt renderer attaches only relevant blocks to the correct submitted image number. Saved/imported metadata carries IDs, not executable instructions; unknown IDs are ignored. Gallery-only or unattached images do not add blocks. Reanalysis uses the current internal dictionary for the recorded IDs.
+
+Notepad adds `text-editor` guidance for substantive text, notes and configuration.
+Photoshop adds `image-editing` guidance for the canvas, layers, masks and visible tools.
+Adobe Audition adds `audio-editing` guidance for sessions, tracks, selections and effects;
+waveforms do not reveal speech or audible content. Android Studio combines `code`
+and `android-development` for source, UI previews, Gradle, Logcat and visible debugging
+state. These profiles retain normal background attention and secondary-crop eligibility,
+without extended idle timeouts or assumptions that a save, export or build succeeded.
 
 `RuleReason` records `app-profile:<id>`, `title-hint:<id>`, `default` or `capture-rule`, and `MicroPromptIds` records routing IDs. Both travel with image metadata in database/archive roundtrips. They are selection provenance, not activity classification. A debugger hint must still be confirmed by readable image evidence; a SQL editor is not proof that a query ran. These deterministic decisions work without AI. Semantic descriptions still require the configured AI connection.
 
@@ -135,11 +142,39 @@ These presets are engineering choices, informed by documented capabilities rathe
 - [VS Code custom layouts](https://code.visualstudio.com/docs/configure/custom-layout), [Visual Studio floating windows](https://learn.microsoft.com/en-us/visualstudio/ide/customizing-window-layouts-in-visual-studio?view=visualstudio).
 - [Windows Terminal versus shell](https://learn.microsoft.com/en-us/windows/terminal/faq), [customizable terminal titles](https://learn.microsoft.com/en-us/windows/terminal/tutorials/tab-title).
 - [Oracle SQL Developer Windows launch](https://www.oracle.com/database/technologies/appdev/sqldev/sqldev-install-windows.html), [DataGrip command-line executable](https://www.jetbrains.com/help/datagrip/opening-files-from-command-line.html).
+- [Adobe Audition Windows executable](https://helpx.adobe.com/audition/desktop/introduction/known-issues.html) documents `Adobe Audition.exe`; [Android Studio installation](https://developer.android.com/studio/install) documents `studio64.exe`. Profiles use these process names without the extension; shared Java hosts and Adobe helper processes are not matched.
 - [Chrome URL and title are separate fields](https://developer.chrome.com/docs/extensions/reference/api/tabs); this implementation has no browser extension or verified-domain collector.
 - [OpenAI prompt engineering](https://developers.openai.com/api/docs/guides/prompt-engineering) informs the separation of local instructions and untrusted visual context.
+
+## Title-only applications
+
+`titleOnlyProcesses` lists exact case-insensitive process aliases without `.exe`.
+The shipped list contains `Spotify`. These applications never receive an image crop.
+Their visible regions are subtracted from every monitor panorama before pixels are
+copied, leaving black areas rather than capturing content behind the excluded window.
+Covered title-only windows do not hide the unrelated windows above them. Monitor IDs
+and the other eligible crops are preserved, including across multiple monitors.
+
+This applies to scheduled and manual capture, regardless of priority, destination or
+Complete analysis. If nothing remains, automatic acquisition skips quietly; manual
+acquisition reports that the selected applications only allow window titles. No image,
+AI request, preview or empty day folder is produced for that attempt.
+
+The existing foreground activity sampler keeps only the literal window title and
+process identity as application context, bypassing richer context providers. It uses
+the existing `window_title`, context and attributes fields, so their existing storage
+and export paths need no schema change. Privacy exclusions and disabled detail
+collectors still take precedence. This requires tracking and a foreground sample:
+it is not a background playback history, audio capture, or an artist/track parser.
+
+Title-only app details are not attributed to another application's screenshot or
+included in its AI image context. Their title changes do not invalidate a masked
+panorama's duplicate key; geometry changes still do. The list matches native process
+names, not browser tabs, websites, taskbar thumbnails or content mirrored by another
+application. Existing retained history is not rewritten or deleted.
 
 ## Analysis blacklist
 
 `analysisBlacklist` is a separate list of exact process aliases. Unlike low attention, this is an absolute analysis veto applied after matching rules have merged their destinations. A matching window never goes to AI. A monitor panorama containing visible pixels from a blacklisted window also loses its analysis destination, preventing a panorama from bypassing the window veto. Fully covered blacklisted windows do not block unrelated visible content. Occlusion-masked crops do not contain the blocked overlay and can still be analyzed.
 
-The gallery destination remains allowed by this blacklist; use privacy exclusions when content must not be captured or retained at all. Analysis-only targets that become blocked are discarded from the plan. The shipped blacklist contains `SearchHost`, `SearchApp`, `StartMenuExperienceHost` and `LockApp`. Generic hosts such as `ApplicationFrameHost` and `msedgewebview2` are deliberately not blacklisted because unrelated applications share them.
+The gallery destination remains allowed by this blacklist. Use `titleOnlyProcesses` to retain foreground titles without images, or privacy exclusions to reject the context entirely. Analysis-only targets that become blocked are discarded from the plan. The shipped blacklist contains `SearchHost`, `SearchApp`, `StartMenuExperienceHost` and `LockApp`. Generic hosts such as `ApplicationFrameHost` and `msedgewebview2` are deliberately not blacklisted because unrelated applications share them.

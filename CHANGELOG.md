@@ -11,8 +11,10 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
+- World Time menu in the player title bar, with a live saved-city preview and direct access to clocks, maps, the astronomical calendar, local sky and Moon windows.
 - Configurable automatic-capture stabilization for rapid window switching, with bounded quiet retries and no added wait for manual captures.
-- Configurable near-duplicate filtering for automatic screenshots, with conservative visual comparison, a Spotify preset and periodic refresh; manual captures remain unfiltered.
+- Configurable near-duplicate filtering for automatic screenshots, with conservative visual comparison and periodic refresh; manual captures bypass similarity filtering.
+- Title-only application rules: Spotify keeps its literal foreground title in existing activity data, without image crops; its visible area is masked in monitor panoramas, including manual captures.
 - Context-specific screenshot micro-prompts, process-scoped title hints, selected secondary-window crops and configurable inactivity timeouts, including Teams and Zoom presets. Browser titles remain heuristic hints, not verified domains; low-attention analysis reads titles only.
 - Internal screenshot capture rules with active/secondary window crops, monitor identities, separate AI/gallery destinations, application attention presets and an analysis blacklist.
 - Codex CLI screenshot descriptions using ChatGPT sign-in, with installation detection, setup guidance and actionable connection errors.
@@ -57,6 +59,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Fixed
 
+- Preserve field-level AI configuration errors when analysis is rejected after retaining a screenshot, and restore the export AI-usage option's accessible name.
 - Windows retain their monitor, position and dimensions across restarts, adapting saved geometry to current display DPI and keeping disconnected-monitor placements visible.
 - Each snapshot shows one Windows notification using the active-window or focused-monitor image, including multi-monitor captures.
 - Icon-only Windows controls declare accessible names matching their tooltips, the Excel theme selector shows its localized header, and the export window keeps a single Premium badge in its title bar.

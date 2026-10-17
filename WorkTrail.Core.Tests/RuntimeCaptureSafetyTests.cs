@@ -193,10 +193,13 @@ public sealed class RuntimeCaptureSafetyTests
     /// <summary>A skipped automatic capture is never published, previewed or sent to the provider.</summary>
     /// <param name="decision">The reason the native capture boundary skipped acquisition.</param>
     /// <param name="code">The application result expected for that decision.</param>
+    /// <param name="captureOrigin">Manual capture also respects content exclusion.</param>
     [Theory]
-    [InlineData(ScreenshotCaptureDecision.Unchanged, "screenshot.unchanged")]
-    [InlineData(ScreenshotCaptureDecision.Unstable, "screenshot.unstable")]
-    public async Task Capture_QuietSkipAvoidsPublicationPreviewAndAi(ScreenshotCaptureDecision decision, string code)
+    [InlineData(ScreenshotCaptureDecision.Unchanged, "screenshot.unchanged", ScreenshotCaptureOrigins.Scheduled)]
+    [InlineData(ScreenshotCaptureDecision.Unstable, "screenshot.unstable", ScreenshotCaptureOrigins.Scheduled)]
+    [InlineData(ScreenshotCaptureDecision.ContentExcluded, "screenshot.excluded", ScreenshotCaptureOrigins.Scheduled)]
+    [InlineData(ScreenshotCaptureDecision.ContentExcluded, "screenshot.excluded", ScreenshotCaptureOrigins.Manual)]
+    public async Task Capture_QuietSkipAvoidsPublicationPreviewAndAi(ScreenshotCaptureDecision decision, string code, string captureOrigin)
     {
         var dataDirectory = CreateTemporaryDirectory();
         try
@@ -219,7 +222,7 @@ public sealed class RuntimeCaptureSafetyTests
                 startTimer: false, screenshotNotifications: notifications, analysis: analysis);
 
             var result = await application.CaptureScreenshotAsync(
-                new("all-screens", Keep: true, ScreenshotCaptureOrigins.Scheduled, DeferAiAnalysis: false), CancellationToken.None);
+                new("all-screens", Keep: true, captureOrigin, DeferAiAnalysis: false), CancellationToken.None);
 
             Assert.False(result.Succeeded);
             Assert.Equal(code, result.Code);

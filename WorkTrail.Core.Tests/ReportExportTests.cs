@@ -131,7 +131,7 @@ public sealed class ReportExportTests : IDisposable
         Assert.False(row.TryGetProperty("screenshot_path", out _));
     }
 
-    /// <summary>Details contain missing telemetry as null rather than invented zero measurements.</summary>
+    /// <summary>Missing activity measurements stay null, while retired hardware fields stay absent.</summary>
     [Fact]
     public void Json_OptedInFieldsAndNullMeasurementsRemainExplicit()
     {
@@ -140,7 +140,10 @@ public sealed class ReportExportTests : IDisposable
         using var json = JsonDocument.Parse(File.ReadAllText(path));
         var row = json.RootElement.GetProperty("tables").GetProperty("Captures")[0];
         Assert.Equal("PRIVATE-WINDOW-TITLE", row.GetProperty("window_title").GetString());
-        Assert.Equal(JsonValueKind.Null, row.GetProperty("cpu_percent").ValueKind);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("activity_index").ValueKind);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("mouse_clicks").ValueKind);
+        Assert.False(row.TryGetProperty("cpu_percent", out _));
+        Assert.False(row.TryGetProperty("gpu_percent", out _));
     }
 
     /// <summary>The XLSX package has resolvable sheets, inert text cells and complete overflow text.</summary>

@@ -9,21 +9,30 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, validate the native World Time menu in the app.
+  Check opening, Escape/light dismiss,
+  all six existing destinations, saved-city preview refresh, rapid close/reopen,
+  theme/language changes, keyboard access and small mixed-DPI work areas in the app.
+  Strict Debug x64 compilation and Presentation surface contracts pass; installation
+  and native behavior remain unverified.
+
 - [ ] After owner authorization, validate the rule-driven screenshot
-  engine and Balanced/Complete analysis: Core/Presentation tests, Debug x64 build,
-  then native crop/privacy behavior on one, two and three mixed-DPI monitors.
+  engine and Balanced/Complete analysis: native crop/privacy behavior on one, two
+  and three mixed-DPI monitors.
   Check live and historical API/CLI descriptions, gallery monitor sections,
   metadata archive roundtrips, occluded secondary windows, destination isolation,
   application attention, title-hint precedence, micro-prompt routing, title-only/manual
   overrides, idle boundaries and clock rollover, blacklist image/context isolation,
   interrupted transient cleanup and response-truncation failures. Check lock/unlock,
   pause/resume, renamed/translated titles and disabled detail collectors on Windows.
-  Check near-duplicate thresholds on real 4K text, Spotify progress/title changes,
+  Check near-duplicate thresholds on real 4K text,
   partial multi-monitor skips, manual bypass, publication failures and forced refresh.
   Check rapid foreground changes, maximum wait, bounded retries, pause/setting races
   and scene changes during acquisition without recurrent error notifications.
-  The current context/idle/micro-prompt changes have not been built or tested; the
-  earlier 1.0.6.22 Debug package predates these changes and the manual override.
+  Check title-only Spotify foreground data, panorama masks across monitors, hidden
+  windows, manual exclusion, empty selections and unchanged masked-title noise.
+  The October 17 strict Debug x64 build and all four test suites pass after the
+  regression fixes. The earlier 1.0.6.22 Debug package predates these changes and the manual override.
 
 - [ ] After owner authorization, build and validate AI-spending removal: fresh
   database creation, request/token reports, daily request limits, exports and

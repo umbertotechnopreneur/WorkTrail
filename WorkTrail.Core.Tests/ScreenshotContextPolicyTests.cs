@@ -143,7 +143,6 @@ public sealed class ScreenshotContextPolicyTests
     }
 
     [Theory]
-    [InlineData("Spotify")]
     [InlineData("explorer")]
     [InlineData("SystemSettings")]
     public void LowAttentionApplication_RemainsEligibleWhenActive(string processName)

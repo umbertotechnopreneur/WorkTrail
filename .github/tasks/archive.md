@@ -4,6 +4,62 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-17
 
+### PR validation regressions
+
+- Preserve structured AI validation issues after gallery capture and before analysis.
+  Scheduled-capture fixtures explicitly start tracking with the background timer
+  disabled, and configuration failures assert retained images and zero analysis calls.
+- Replace hardware-era score/export expectations, keep Spotify image exclusion
+  covered by the title-only suite and restore the export AI-usage accessible name.
+- Strict Debug x64 solution compilation passes without warnings; Core, Presentation,
+  CLI and Search suites all pass. No checks are disabled. Native UI validation and
+  installation remain separate.
+
+### Native World Time launcher
+
+- Replace the player's icon-only clock command with a labelled acrylic flyout,
+  a three-city live preview and six direct links to the retained clocks, map,
+  astronomical calendar, local sky, day/night globe and Moon windows.
+- Use the saved clock selection and local weather-free projection only while the
+  menu is open; cancel stale results on dismissal and shutdown. Keep the tray's
+  direct clock command and the existing window instances and placement behavior.
+- Localize labels in all ten catalogs, register accessible selectors and update
+  Presentation surface contracts. Strict Debug x64 build and surface contracts pass;
+  native validation remains pending.
+
+### Strict local validation checkpoint
+
+- Correct twelve xUnit2031 assertion forms without changing their meaning.
+- Debug x64 solution build passes with analyzers and warnings-as-errors; C# formatting,
+  source-license checks, PowerShell parsing and script safeguard checks pass.
+- Presentation, CLI and Search suites pass. Core completes with ten failures covering
+  activity scoring, accessibility, capture flow, export and an obsolete Spotify expectation.
+  Native validation and installation remain pending; no checks are disabled.
+
+### Command Prompt capture profile
+
+- Add `cmd` to high-attention application profiles and terminal-status title hints.
+  Reuse terminal guidance for visible commands, output and errors while preserving
+  existing console-host profiles. Build, tests and native validation pending.
+
+### Creative and Android application guidance
+
+- Add high-attention Adobe Audition and Android Studio profiles with exact process
+  aliases; enrich existing Notepad and Photoshop profiles without duplicates.
+- Route focused instructions for text, image editing, audio editing and Android
+  development through the existing micro-prompt registry. Preserve background,
+  inactivity and privacy defaults; do not infer audible content from screenshots.
+- Configuration and documentation only. Build, tests and native validation pending.
+
+### Title-only application capture
+
+- Configure Spotify through `titleOnlyProcesses`: reuse literal foreground titles in
+  existing activity storage/exports, without OCR, audio inference or a new table.
+- Remove its similarity preset and prevent its pixels in crops and monitor panoramas,
+  including manual captures. Preserve unrelated windows and monitor identities.
+- Empty selections skip without AI; manual requests receive a localized explanation.
+  Regression cases are authored but not executed; native validation is pending.
+
 ### Automatic capture stabilization
 
 - Wait for a configurable foreground quiet period before scheduled pixels, with a

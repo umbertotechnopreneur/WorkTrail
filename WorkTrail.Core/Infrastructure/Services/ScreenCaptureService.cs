@@ -75,7 +75,10 @@ public enum ScreenshotCaptureDecision
     Unchanged,
 
     /// <summary>The desktop did not settle before an automatic capture could safely complete.</summary>
-    Unstable
+    Unstable,
+
+    /// <summary>Capture rules exclude every selected image before any pixels are read.</summary>
+    ContentExcluded
 }
 
 /// <summary>Describes the foreground target observed at the capture boundary.</summary>
@@ -255,8 +258,6 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
         var captureDirectory = ScreenshotStorageLayout.GetDayDirectory(directory, capturedAt);
         ScreenshotStorageLayout.RejectLinks(captureDirectory);
-        // All artifacts from this capture pass share one resolved day directory; directory creation failures abort capture.
-        Directory.CreateDirectory(captureDirectory);
         var displays = EnumerateDisplays();
         var visibleWindows = ReadVisibleWindows();
         var windows = visibleWindows.Select(window => new CaptureWindow(window.WindowHandle, window.Bounds,
@@ -266,10 +267,12 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
             window.IsApplicationWindow)).ToArray();
         var policy = ScreenshotCaptureRules.Load();
         var targets = policy.Plan(displays, foreground, windows, activeWindowOnly);
-        var foregroundExcluded = policy.AnalysisBlacklist?.Contains(foreground.ProcessName, StringComparer.OrdinalIgnoreCase) == true;
+        var foregroundExcluded = policy.IsAnalysisExcluded(foreground.ProcessName);
         var activeTarget = targets.FirstOrDefault(target => target.Role == "active-window");
         var focusedDisplay = activeTarget?.Display ?? ResolveFocusedDisplay(displays, foreground.WindowBounds);
-        var focusMetadata = CreateFocusMetadata(focusedDisplay, foreground, activeTarget?.Stem ?? focusedDisplay.Stem);
+        var focusMetadata = CreateFocusMetadata(focusedDisplay, foreground, activeTarget?.Stem ?? focusedDisplay.Stem, policy);
+        // A fully excluded pass must not leave an empty day folder behind.
+        Directory.CreateDirectory(captureDirectory);
 
         var storage = new List<string>(displays.Count);
         var analysis = new List<string>(displays.Count);
@@ -284,7 +287,8 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
                     ? policy.Similarity ?? new ScreenshotSimilarityOptions()
                     : policy.ResolveWindowPolicy(processName ?? string.Empty, target.WindowTitle).Similarity;
                 var similarityKey = validatedOrigin == ScreenshotCaptureOrigins.Scheduled && similarityOptions.Enabled
-                    ? CreateSimilarityKey(directory, target, processName, visibleWindows) : string.Empty;
+                    ? CreateSimilarityKey(directory, target, processName,
+                        visibleWindows.Where(window => !policy.IsCaptureExcluded(window.Context.ProcessName)).ToArray()) : string.Empty;
                 var paths = CaptureRect(
                     captureDirectory,
                     target.Bounds,
@@ -486,10 +490,11 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         return length <= 0 ? string.Empty : builder.ToString().Trim();
     }
 
-    private ScreenshotFocusMetadata CreateFocusMetadata(
+    internal ScreenshotFocusMetadata CreateFocusMetadata(
         CaptureDisplay display,
         ForegroundCaptureTarget foreground,
-        string artifactStem)
+        string artifactStem,
+        ScreenshotCaptureRules policy)
         => new(
             display.Name,
             display.Index,
@@ -497,8 +502,9 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
             display.Bounds.Top,
             display.Bounds.Right - display.Bounds.Left,
             display.Bounds.Bottom - display.Bounds.Top,
-            foreground.ApplicationName,
-            _settingsSnapshot is not null && !ActivityContextProviderRegistry.IsDetailEnabled(foreground.ProcessName, _settingsSnapshot.Value)
+            policy.IsAnalysisExcluded(foreground.ProcessName) ? string.Empty : foreground.ApplicationName,
+            policy.IsAnalysisExcluded(foreground.ProcessName)
+                || (_settingsSnapshot is not null && !ActivityContextProviderRegistry.IsDetailEnabled(foreground.ProcessName, _settingsSnapshot.Value))
                 ? string.Empty : foreground.WindowTitle,
             artifactStem);
 

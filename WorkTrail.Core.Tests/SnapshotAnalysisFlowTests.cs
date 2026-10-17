@@ -299,6 +299,8 @@ public sealed class SnapshotAnalysisFlowTests
             var capture = new RecordingCaptureService(dataDirectory);
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
             await using var application = CreateApplication(store, capture, analysis);
+            var started = await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None);
+            Assert.True(started.Succeeded);
 
             var result = await application.CaptureScreenshotAsync(
                 new CaptureScreenshotRequest(
@@ -312,6 +314,7 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.Equal(1, capture.CallCount);
             Assert.Equal(ScreenshotCaptureOrigins.Scheduled, capture.LastCaptureOrigin);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -416,6 +419,8 @@ public sealed class SnapshotAnalysisFlowTests
             var capture = new RecordingCaptureService(dataDirectory);
             var analysis = new RecordingAnalysisService(store.LoadSettings().InstallationId);
             await using var application = CreateApplication(store, capture, analysis);
+            var started = await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None);
+            Assert.True(started.Succeeded);
 
             var result = await application.CaptureScreenshotAsync(
                 new CaptureScreenshotRequest(
@@ -429,6 +434,7 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.Equal(1, capture.CallCount);
             Assert.Equal("active-window", capture.LastCaptureMode);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -476,7 +482,7 @@ public sealed class SnapshotAnalysisFlowTests
     }
 
     [Fact]
-    public async Task CaptureScreenshot_RejectsUnsupportedPersistedModelBeforeCapture()
+    public async Task CaptureScreenshot_RetainsCaptureButRejectsUnsupportedPersistedModelBeforeAnalysis()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -505,8 +511,9 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.False(result.Succeeded);
             Assert.Equal("ai.configuration.invalid", result.Code);
             Assert.Contains(result.Issues, issue => issue.Field == "ai.model" && issue.Code == "unsupported");
-            Assert.Equal(0, capture.CallCount);
+            Assert.Equal(1, capture.CallCount);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -516,7 +523,7 @@ public sealed class SnapshotAnalysisFlowTests
     }
 
     [Fact]
-    public async Task CaptureScreenshot_RejectsUnsupportedPersistedThinkingEffortBeforeCapture()
+    public async Task CaptureScreenshot_RetainsCaptureButRejectsUnsupportedPersistedThinkingEffortBeforeAnalysis()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -546,8 +553,9 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.False(result.Succeeded);
             Assert.Equal("ai.configuration.invalid", result.Code);
             Assert.Contains(result.Issues, issue => issue.Field == "ai.reasoning_effort" && issue.Code == "unsupported");
-            Assert.Equal(0, capture.CallCount);
+            Assert.Equal(1, capture.CallCount);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -557,7 +565,7 @@ public sealed class SnapshotAnalysisFlowTests
     }
 
     [Fact]
-    public async Task CaptureScreenshot_RejectsTextOnlyPreviewModelBeforeCapture()
+    public async Task CaptureScreenshot_RetainsCaptureButRejectsTextOnlyPreviewModelBeforeAnalysis()
     {
         var dataDirectory = CreateTemporaryDirectory();
         var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
@@ -587,8 +595,9 @@ public sealed class SnapshotAnalysisFlowTests
             Assert.False(result.Succeeded);
             Assert.Equal("ai.configuration.invalid", result.Code);
             Assert.Contains(result.Issues, issue => issue.Field == "ai.model" && issue.Code == "image_input_unsupported");
-            Assert.Equal(0, capture.CallCount);
+            Assert.Equal(1, capture.CallCount);
             Assert.Equal(0, analysis.CallCount);
+            AssertRetainedCapture(store, capture.Result);
         }
         finally
         {
@@ -756,7 +765,21 @@ public sealed class SnapshotAnalysisFlowTests
             analysis,
             new StartupService(),
             new BuildInformationService(),
-            applicationLogs: applicationLogs);
+            applicationLogs: applicationLogs,
+            startScheduledSnapshotTimer: false);
+    }
+
+    private static void AssertRetainedCapture(LocalStore store, ScreenshotCaptureResult capture)
+    {
+        var capturedAt = Assert.IsType<DateTimeOffset>(capture.CapturedAt);
+        var gallery = store.GetScreenshotGallery(DateOnly.FromDateTime(capturedAt.LocalDateTime));
+        var item = Assert.Single(gallery.Items);
+        Assert.Equal(Assert.Single(capture.StoredScreenshotPaths), item.Path);
+        Assert.True(File.Exists(item.Path));
+        Assert.NotNull(item.Installation);
+        Assert.NotNull(store.LoadScreenshotIntervalTelemetry(item.Path));
+        Assert.Null(item.AiDescriptionMarkdown);
+        Assert.Equal(0, gallery.UnavailableArtifactCount);
     }
 
     private static string CreateTemporaryDirectory()

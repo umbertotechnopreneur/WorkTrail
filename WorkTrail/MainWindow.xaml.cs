@@ -132,6 +132,9 @@ public sealed partial class MainWindow : Window
     /// <summary>Occurs when the user requests the independent world-clock window.</summary>
     public event EventHandler? WorldClocksRequested;
 
+    /// <summary>Requests an existing astronomy surface from the World Time menu.</summary>
+    internal event Action<string>? WorldTimeWindowRequested;
+
     /// <summary>Occurs when the user requests the floating local-search surface.</summary>
     public event EventHandler? SearchRequested;
 
@@ -180,6 +183,7 @@ public sealed partial class MainWindow : Window
         _viewModel = new MainViewModel(application);
         AiState = new AiApplicationState(application);
         InitializeComponent();
+        InitializeWorldTimeMenu();
         SetWorkspaceUiReady(false);
         UiLocalization.Apply(RootGrid, _strings);
         ApplyMainAccessibility();
@@ -376,6 +380,7 @@ public sealed partial class MainWindow : Window
         MoreButton.IsEnabled = isReady;
         TitleBarMoreButton.IsEnabled = isReady;
         TitleBarSearchButton.IsEnabled = isReady;
+        WorldClockButton.IsEnabled = isReady;
         QuickSearchMenuItem.IsEnabled = isReady;
         QuickActivityCalendarMenuItem.IsEnabled = isReady;
         QuickScreenshotGalleryMenuItem.IsEnabled = isReady;
@@ -918,10 +923,6 @@ public sealed partial class MainWindow : Window
         QuickSetupRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Forwards world-clock activation to the application composition root.</summary>
-    private void WorldClockButton_Click(object sender, RoutedEventArgs e) =>
-        WorldClocksRequested?.Invoke(this, EventArgs.Empty);
-
     /// <summary>Shows the native aggregate activity calendar through the shared dialog coordinator.</summary>
     private async void ActivityCalendarMenuItem_Click(object sender, RoutedEventArgs e)
     {
@@ -1388,6 +1389,7 @@ public sealed partial class MainWindow : Window
         PlayerPanel.Visibility = Visibility.Collapsed;
         PlayerBackgroundSurface.Visibility = Visibility.Collapsed;
         WorldClockButton.Visibility = Visibility.Collapsed;
+        WorldTimeFlyout.Hide();
         OptionsPanel.Visibility = Visibility.Collapsed;
         OperationsPanel.Visibility = Visibility.Collapsed;
         panel.Visibility = Visibility.Visible;
@@ -2068,7 +2070,7 @@ public sealed partial class MainWindow : Window
         UiLocalization.SetAccessibleLabel(TitleBarSearchButton, T("Search.Title"));
         UiLocalization.SetAccessibleLabel(TitleBarMinimizeToTrayButton, T("Main.Menu.MinimizeToTray"));
         UiLocalization.SetAccessibleLabel(TitleBarCloseButton, T("Tray.CloseApplication"));
-        UiLocalization.SetAccessibleLabel(WorldClockButton, T("WorldClock.OpenWindow"));
+        UiLocalization.SetAccessibleLabel(WorldClockButton, T("WorldTime.OpenMenu"));
         UiLocalization.SetAccessibleLabel(TrackingButton, T(_isTracking ? "TrackingActionPause" : "TrackingActionStart"));
         UiLocalization.SetAccessibleLabel(TakeScreenshotButton, T("Snapshot.Take"));
         UiLocalization.SetAccessibleLabel(VibeWareManifestoButton, $"VibeWare · {T("About.VibeWare.Manifesto")}");
@@ -2524,6 +2526,12 @@ public sealed partial class MainWindow : Window
         _workspaceReady.TrySetCanceled();
         _placement.DpiChanged -= Placement_DpiChanged;
         _dashboardSurfaceClosed = true;
+        CloseWorldTimeMenu();
+        if (_worldTimeRefreshTimer is { } worldTimeTimer)
+        {
+            worldTimeTimer.Tick -= WorldTimeRefreshTimer_Tick;
+            _worldTimeRefreshTimer = null;
+        }
         _dashboardRefreshReady = false;
         CancelLatestScreenshotLoad();
         _lifecycle.Cancel();

@@ -12,7 +12,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
     int DefaultIdleTimeoutSeconds = 60,
     IReadOnlyDictionary<string, string>? MicroPrompts = null,
     ScreenshotSimilarityOptions? Similarity = null,
-    ScreenshotStabilityOptions? Stability = null)
+    ScreenshotStabilityOptions? Stability = null,
+    IReadOnlyList<string>? TitleOnlyProcesses = null)
 {
     internal static ScreenshotCaptureRules Load()
     {
@@ -68,6 +69,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
         }
         if (AnalysisBlacklist?.Any(string.IsNullOrWhiteSpace) == true)
             throw new InvalidDataException("Screenshot analysis blacklist contains an empty process name.");
+        if (TitleOnlyProcesses?.Any(string.IsNullOrWhiteSpace) == true)
+            throw new InvalidDataException("Title-only capture rules contain an empty process name.");
         var contextIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var rule in ContextRules ?? [])
         {
@@ -139,6 +142,7 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
             for (var index = 0; index < windows.Count; index++)
             {
                 var window = windows[index];
+                if (IsCaptureExcluded(window.ProcessName)) continue;
                 var active = window.WindowHandle == foreground.WindowHandle;
                 if (!active && !window.IsApplicationWindow) continue;
                 if ((rule.Subject == "active-window") != active ||
@@ -166,6 +170,22 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                     RuleReason: windowPolicy.Reason, MicroPromptIds: windowPolicy.MicroPromptIds));
             }
         }
+        // Subtract excluded pixels from every destination, including monitor panoramas, before acquisition.
+        // Excluded windows remain occluders: never expose the hidden content beneath them.
+        var captureBlockedRegions = windows.Select((window, index) => (window, index))
+            .Where(item => IsCaptureExcluded(item.window.ProcessName))
+            .SelectMany(item => VisibleRegions(displays, windows, item.index)).ToArray();
+        var selectedBeforeCaptureExclusion = result.Count;
+        result = result.Select(target =>
+        {
+            var regions = target.VisibleRegions.ToList();
+            foreach (var blocked in captureBlockedRegions)
+                regions = regions.SelectMany(region => Subtract(region, blocked)).ToList();
+            return target with { VisibleRegions = regions };
+        }).Where(target => target.VisibleRegions.Count > 0).ToList();
+        if (result.Count == 0 && (selectedBeforeCaptureExclusion > 0 || IsCaptureExcluded(foreground.ProcessName)))
+            throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.ContentExcluded);
+
         // Apply vetoes after destination union: another matching rule must never restore AI access.
         var blockedRegions = windows.Select((window, index) => (window, index))
             .Where(item => IsBlacklisted(item.window.ProcessName))
@@ -184,6 +204,12 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
         // Stable sort keeps configured rule and native window order for equal priorities.
         return result.OrderBy(target => PriorityRank(target.Priority)).ToArray();
     }
+
+    internal bool IsTitleOnly(string processName) => TitleOnlyProcesses?.Contains(processName, StringComparer.OrdinalIgnoreCase) == true;
+
+    internal bool IsCaptureExcluded(string processName) => IsTitleOnly(processName);
+
+    internal bool IsAnalysisExcluded(string processName) => IsCaptureExcluded(processName) || IsBlacklisted(processName);
 
     private bool IsBlacklisted(string processName) => AnalysisBlacklist?.Contains(processName, StringComparer.OrdinalIgnoreCase) == true;
 

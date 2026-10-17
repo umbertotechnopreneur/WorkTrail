@@ -184,7 +184,7 @@ public sealed class AiPromptAndPayloadTests
         Assert.Contains($"Image 2 (code): {microPrompts["code"]}", prompt);
         Assert.Contains($"Image 2 (debugger): {microPrompts["debugger"]}", prompt);
         Assert.Contains($"Image 3 (sql): {microPrompts["sql"]}", prompt);
-        Assert.Single(prompt.Split('\n').Where(line => line.StartsWith("Image 2 (debugger):", StringComparison.Ordinal)));
+        Assert.Single(prompt.Split('\n'), line => line.StartsWith("Image 2 (debugger):", StringComparison.Ordinal));
         Assert.DoesNotContain("Image 1 (", prompt);
         Assert.DoesNotContain("Image 2 (sql):", prompt);
         Assert.DoesNotContain("Image 3 (debugger):", prompt);
@@ -234,7 +234,7 @@ public sealed class AiPromptAndPayloadTests
         Assert.DoesNotContain(untrustedId, prompt);
         Assert.DoesNotContain("Image 1 (SQL):", prompt);
         Assert.Contains($"Image 1 (sql): {microPrompts["sql"]}", prompt);
-        Assert.Single(prompt.Split('\n').Where(line => line.StartsWith("Image 1 (", StringComparison.Ordinal)));
+        Assert.Single(prompt.Split('\n'), line => line.StartsWith("Image 1 (", StringComparison.Ordinal));
     }
 
     [Theory]

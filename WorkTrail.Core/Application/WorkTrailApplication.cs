@@ -521,7 +521,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             }
             catch (AiLiveAnalysisPreflightException exception)
             {
-                return OperationResult<ScreenshotCaptureResult>.Failure(exception.Code, exception.MessageKey);
+                return OperationResult<ScreenshotCaptureResult>.Failure(exception.Code, exception.MessageKey, exception.Issues);
             }
             catch (InvalidOperationException)
             {
@@ -713,7 +713,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 }
                 catch (AiLiveAnalysisPreflightException exception)
                 {
-                    return OperationResult<AiAnalysis>.Failure(exception.Code, exception.MessageKey);
+                    return OperationResult<AiAnalysis>.Failure(exception.Code, exception.MessageKey, exception.Issues);
                 }
                 catch (InvalidOperationException)
                 {
@@ -1803,7 +1803,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
         catch (AiLiveAnalysisPreflightException exception)
         {
-            return OperationResult<AiAnalysis>.Failure(exception.Code, exception.MessageKey);
+            return OperationResult<AiAnalysis>.Failure(exception.Code, exception.MessageKey, exception.Issues);
         }
         catch (InvalidOperationException)
         {
@@ -2642,6 +2642,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         ScreenshotCaptureDecision.UserIdle => OperationResult<T>.Failure("screenshot.idle", "SnapshotScheduleNotDue"),
         ScreenshotCaptureDecision.Unchanged => OperationResult<T>.Failure("screenshot.unchanged", "SnapshotScheduleNotDue"),
         ScreenshotCaptureDecision.Unstable => OperationResult<T>.Failure("screenshot.unstable", "SnapshotScheduleNotDue"),
+        ScreenshotCaptureDecision.ContentExcluded => OperationResult<T>.Failure("screenshot.excluded", "ScreenshotCaptureExcluded"),
         _ => throw new ArgumentOutOfRangeException(nameof(decision), decision, "Allowed capture cannot be mapped to a failure.")
     };
 
@@ -2718,9 +2719,9 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 current,
                 requireImageInput,
                 out var validated,
-                out _))
+                out var issue))
         {
-            throw new AiLiveAnalysisPreflightException("ai.configuration.invalid", "AiConfigurationInvalid");
+            throw new AiLiveAnalysisPreflightException("ai.configuration.invalid", "AiConfigurationInvalid", issue is null ? [] : [issue]);
         }
 
         if (!string.Equals(current.Model, validated.Model, StringComparison.Ordinal))
@@ -2820,7 +2821,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                         }, CancellationToken.None);
                         return;
                     }
-                    if (scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged") return;
+                    if (scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged" or "screenshot.excluded") return;
                     _logger.LogWarning("Scheduled screen capture failed. Code={Code}", scheduledCapture.Code);
                     return;
                 }
@@ -3259,14 +3260,17 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
 
     private sealed class AiLiveAnalysisPreflightException : InvalidOperationException
     {
-        internal AiLiveAnalysisPreflightException(string code, string messageKey)
+        internal AiLiveAnalysisPreflightException(string code, string messageKey, params ValidationIssue[] issues)
         {
             Code = code;
             MessageKey = messageKey;
+            Issues = issues;
         }
 
         internal string Code { get; }
 
         internal string MessageKey { get; }
+
+        internal ValidationIssue[] Issues { get; }
     }
 }

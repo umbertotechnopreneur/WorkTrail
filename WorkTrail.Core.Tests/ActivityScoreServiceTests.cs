@@ -46,7 +46,8 @@ public sealed class ActivityScoreServiceTests
         Assert.Equal(30, state.PreviousSnapshotInterval.MouseClicks);
         Assert.Equal(15, state.LatestSnapshotInterval.KeyPresses);
         Assert.Equal(30, state.LatestSnapshotInterval.MouseClicks);
-        Assert.True(state.CurrentScore > 20);
+        // One key, two clicks and active time contribute (0.55 + 7 + 8) / 94 * 100.
+        Assert.Equal(17, state.CurrentScore);
     }
 
     [Fact]
@@ -131,7 +132,8 @@ public sealed class ActivityScoreServiceTests
 
         Assert.Equal(previousCapture, telemetry.IntervalStartedAt);
         Assert.Equal(previousCapture.AddMinutes(3), telemetry.CapturedAt);
-        Assert.Throws<ArgumentException>(() => service.BuildScreenshotIntervalTelemetry(previousCapture, previousCapture));
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => service.BuildScreenshotIntervalTelemetry(previousCapture, previousCapture));
+        Assert.Equal("intervalStartedAt", exception.ParamName);
     }
 
     private static ActivitySample Sample(DateTimeOffset timestamp, long keys, long clicks) => new(
