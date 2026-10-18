@@ -157,7 +157,7 @@ public sealed partial class WorldClockWindow : Window
             _ => ElementTheme.Default
         };
         WindowContent.Opacity = settings.WorldClockWindowOpacityPercent / 100d;
-        _appWindow.IsShownInSwitchers = settings.WorldClockWindowShowInTaskbar;
+        _placement.ApplyTaskbarVisibility(settings.WorldClockWindowShowInTaskbar);
         UiLocalization.Apply(RootGrid, _strings);
         UiLocalization.Apply(ReferenceInstantFlyoutContent, _strings);
         Title = T("WorldClock.Landmark");

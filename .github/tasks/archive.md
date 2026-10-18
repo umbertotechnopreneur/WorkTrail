@@ -4,6 +4,24 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-19
 
+### Taskbar preference binding
+
+- Preserve the existing per-window taskbar settings. Apply them through the shared
+  window lifecycle when the native window is visible, including first activation
+  and later shows. Astronomy context menus read the last committed setting rather
+  than a potentially stale shell flag and refresh the checkmark after each command.
+  Keep that read valid when a pending command finishes after window closure.
+- Pass the strict Debug x64 build with zero warnings/errors and C# formatting
+  verification. Five existing preference cases pass. Three new restored-data
+  cases initially supplied noncanonical Boolean strings; their corrected fixtures
+  pass the owner-authorized three-case rerun. All eight targeted cases are covered.
+  No installation or visual validation is claimed.
+- Run explicit Defender scans on the SDK/runtime and cached NuGet archives and
+  extracted files before use, without detections. Restore from the scanned cache
+  with an empty package feed. Retain package sources/versions/SHA-256 values and
+  scan commands/results in the local verification record. Clarify the README's
+  future-import security requirement without certifying existing dependencies.
+
 ### Input hook ownership and structured activity confidence
 
 - Give keyboard/click hooks a dedicated Windows message-loop thread, with bounded

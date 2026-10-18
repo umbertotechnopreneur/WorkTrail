@@ -9,6 +9,16 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Validate the taskbar preference on first display, hide/show and restart for
+  clocks, maps, Moon and the main player. The shared window lifecycle now defers
+  shell visibility until the window is visible; context menus read the committed
+  preference, including after a pending command finishes following window closure.
+  The strict Debug x64 build, formatting checks and all eight targeted preference
+  cases pass. Three restored-data fixtures initially used noncanonical Boolean
+  strings; the corrected cases pass the owner-authorized rerun. Installation was
+  declined; installed 1.0.6.28 predates this fix. Keep actual shell behavior
+  separate from persistence checks.
+
 - [ ] After owner authorization, validate real
   keyboard/click increments, including pause/resume and runtime-command startup.
   Check a provider's actual structured continuation/ending response and passive

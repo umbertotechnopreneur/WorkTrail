@@ -61,6 +61,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Fixed
 
+- Restore each window's saved taskbar visibility when it becomes visible. Astronomy menu checkmarks use the committed preference after opening or changing the setting.
 - Keyboard and click hooks own a dedicated Windows message loop, so tracking started from runtime commands does not depend on the caller's thread to deliver input events. Input observation failures are logged and shown instead of silently becoming zero counts.
 - Skip the entire screenshot request when the active window is blacklisted or capture-excluded, including maximized Spotify. Other monitors and secondary windows no longer produce a fallback capture for that request.
 

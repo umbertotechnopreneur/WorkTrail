@@ -46,7 +46,7 @@ internal static class AstronomyWindowMenu
     /// <param name="getStrings">Provides the current localization service.</param>
     /// <param name="openWindow">Opens the requested astronomy window.</param>
     /// <param name="showMainWindow">Reveals and activates the main WorkTrail window.</param>
-    /// <param name="isShownInTaskbar">Gets whether the owning window is currently shown in the taskbar.</param>
+    /// <param name="isShownInTaskbar">Gets the owning window's last committed taskbar preference.</param>
     /// <param name="setShownInTaskbar">Persists a requested taskbar visibility change.</param>
     /// <param name="closeWindow">Closes only the owning window when supplied.</param>
     /// <returns>The configured shared context menu.</returns>
@@ -91,7 +91,7 @@ internal static class AstronomyWindowMenu
         menu.Items.Add(new MenuFlyoutSeparator());
         AddItem("WorldClock.Map.MenuLabel", "\uE707", () => openWindow(WindowStateKeys.WorldMap), Color.FromArgb(255, 113, 203, 183));
         ToggleMenuFlyoutItem? taskbarItem = null;
-        if (isShownInTaskbar is not null && setShownInTaskbar is { } persistTaskbarVisibility)
+        if (isShownInTaskbar is { } readTaskbarPreference && setShownInTaskbar is { } persistTaskbarVisibility)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
             var taskbarToggle = new ToggleMenuFlyoutItem
@@ -105,14 +105,12 @@ internal static class AstronomyWindowMenu
                 taskbarToggle.IsEnabled = false;
                 try
                 {
-                    if (!await persistTaskbarVisibility(requestedValue))
-                    {
-                        taskbarToggle.IsChecked = !requestedValue;
-                    }
+                    _ = await persistTaskbarVisibility(requestedValue);
                 }
                 finally
                 {
                     taskbarToggle.IsEnabled = true;
+                    taskbarToggle.IsChecked = readTaskbarPreference();
                 }
             };
             taskbarItem = taskbarToggle;

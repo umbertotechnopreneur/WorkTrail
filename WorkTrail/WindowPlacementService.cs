@@ -72,7 +72,36 @@ internal sealed class WindowPlacementService : IDisposable
     private bool _shutdownPrepared;
     private bool _failureNotificationPending;
     private bool _revealingOpenWindows;
+    private bool? _showInTaskbar;
     private readonly CancellationTokenSource _revealLifetime = new();
+
+    /// <summary>Binds a context menu to its owning window's last committed taskbar preference.</summary>
+    internal static Func<bool> GetTaskbarVisibilityReader(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        var placement = ActivePlacements.SingleOrDefault(placement => ReferenceEquals(placement._window, window))
+            ?? throw new InvalidOperationException("The window has no placement binding.");
+        // A pending menu command may finish after closure; its last committed preference remains readable.
+        return () => placement._showInTaskbar
+            ?? throw new InvalidOperationException("The window has no applied taskbar preference.");
+    }
+
+    /// <summary>Binds a committed setting and defers its shell presentation until the window is visible.</summary>
+    internal void ApplyTaskbarVisibility(bool showInTaskbar)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _showInTaskbar = showInTaskbar;
+        ApplyTaskbarVisibility();
+    }
+
+    private void ApplyTaskbarVisibility()
+    {
+        // Initial WinUI activation creates the shell button. Applying only while hidden can leave
+        // the AppWindow flag and the taskbar button out of sync even though settings were restored.
+        if (!_disposed && _appWindow.IsVisible && _showInTaskbar is { } showInTaskbar
+            && _appWindow.IsShownInSwitchers != showInTaskbar)
+            _appWindow.IsShownInSwitchers = showInTaskbar;
+    }
 
     /// <summary>Lets the composition root report recoverable persistence failures on the owning window.</summary>
     internal static event Func<Window, string, Exception, Task>? PersistenceFailed;
@@ -199,6 +228,8 @@ internal sealed class WindowPlacementService : IDisposable
 
     private async void Window_Activated(object sender, WindowActivatedEventArgs args)
     {
+        if (args.WindowActivationState != WindowActivationState.Deactivated)
+            ApplyTaskbarVisibility();
         if (args.WindowActivationState == WindowActivationState.Deactivated
             || _disposed || _closeSaveStarted || _shutdownPrepared || s_preservingWorkspace
             || _revealingOpenWindows)
@@ -248,6 +279,7 @@ internal sealed class WindowPlacementService : IDisposable
 
     private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
     {
+        if (args.DidVisibilityChange) ApplyTaskbarVisibility();
         QueueDpiRefresh();
         if (_placementReady && !_disposed && !_closeSaveStarted && !s_preservingWorkspace
             && (args.DidPositionChange || args.DidSizeChange || args.DidVisibilityChange))
