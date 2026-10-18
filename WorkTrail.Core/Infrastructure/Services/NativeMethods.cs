@@ -127,14 +127,55 @@ internal static class NativeMethods
     /// <summary>
     /// Installs a low-level Windows hook.
     /// </summary>
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr SetWindowsHookEx(int hookId, HookProc callback, IntPtr module, uint threadId);
 
     /// <summary>
     /// Removes a previously installed Windows hook.
     /// </summary>
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     internal static extern bool UnhookWindowsHookEx(IntPtr hook);
+
+    /// <summary>Describes a message owned by the dedicated input-hook thread.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ThreadMessage
+    {
+        internal IntPtr Window;
+        internal uint Message;
+        internal UIntPtr WParam;
+        internal IntPtr LParam;
+        internal uint Time;
+        internal int X;
+        internal int Y;
+        internal uint Private;
+    }
+
+    /// <summary>Creates or probes the current thread's native message queue.</summary>
+    [DllImport("user32.dll", EntryPoint = "PeekMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PeekMessage(out ThreadMessage message, IntPtr window, uint minimum, uint maximum, uint flags);
+
+    /// <summary>Waits for input-hook messages, returning zero on quit and minus one on failure.</summary>
+    [DllImport("user32.dll", EntryPoint = "GetMessageW", SetLastError = true)]
+    internal static extern int GetMessage(out ThreadMessage message, IntPtr window, uint minimum, uint maximum);
+
+    /// <summary>Translates messages on the input-hook thread.</summary>
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool TranslateMessage(ref ThreadMessage message);
+
+    /// <summary>Dispatches messages on the input-hook thread.</summary>
+    [DllImport("user32.dll", EntryPoint = "DispatchMessageW")]
+    internal static extern IntPtr DispatchMessage(ref ThreadMessage message);
+
+    /// <summary>Wakes the input-hook thread for an orderly stop.</summary>
+    [DllImport("user32.dll", EntryPoint = "PostThreadMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PostThreadMessage(uint threadId, uint message, UIntPtr wParam, IntPtr lParam);
+
+    /// <summary>Reads the native identity of the thread owning the hooks.</summary>
+    [DllImport("kernel32.dll")]
+    internal static extern uint GetCurrentThreadId();
 
     /// <summary>
     /// Forwards a hook event to the next hook in the Windows chain.
@@ -145,7 +186,7 @@ internal static class NativeMethods
     /// <summary>
     /// Reads the last user-input time through User32.
     /// </summary>
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     internal static extern bool GetLastInputInfo(ref LastInputInfo info);
 
     /// <summary>
