@@ -447,7 +447,8 @@ public sealed class TrackingDomainService : IDisposable
         sample.Context,
         sample.WindowTitle,
         sample.State,
-        FilterAnalysisAttributes(sample.Attributes));
+        FilterAnalysisAttributes(sample.Attributes),
+        InputEvidence: new InteractionSampleEvidence(sample.Timestamp, sample.DurationSeconds, sample.KeyPresses, sample.MouseClicks));
 
     internal static IReadOnlyDictionary<string, string>? FilterAnalysisAttributes(IReadOnlyDictionary<string, string>? attributes)
     {

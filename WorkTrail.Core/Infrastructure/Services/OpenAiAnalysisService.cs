@@ -301,7 +301,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 };
             }
             var context = (activity ?? new AnalysisContextSnapshot(
-                "not available", "not available", "not available", "active", null)) with
+                "not available", "not available", "not available", "unknown", null)) with
             {
                 DeviceContext = deviceContext,
                 InformationalSchedule = activity?.InformationalSchedule
@@ -347,7 +347,8 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 endpointHost,
                 captureResult.AnalysisScreenshotPaths.Count);
             // Submit the caller-owned analysis paths; live and historical callers have different retention behavior.
-            AiProviderResult providerResult;
+            AiProviderResult? providerResult = null;
+            ScreenshotAnalysisResponse response;
             try
             {
                 providerResult = await decoder.DecodeAsync(
@@ -359,6 +360,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     cancellationToken: cancellationToken);
                 // A provider that completes after policy cancellation must not persist returned content.
                 AiPolicyCancellation.ThrowIfRevoked();
+                response = ScreenshotAnalysisResponse.Parse(providerResult.Text);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -414,7 +416,7 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     decoder.Provider,
                     requestedModel,
                     endpointHost,
-                    "unexpected",
+                    providerResult is null ? "unexpected" : "invalid-response",
                     elapsed,
                     "unexpected_failed",
                     exception.GetType().Name);
@@ -428,8 +430,8 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                     captureResult.AnalysisScreenshotPaths.Count,
                     prompt.Length,
                     0,
-                    null,
-                    new AiProviderFailure("unexpected", null, elapsed)),
+                    providerResult,
+                    new AiProviderFailure(providerResult is null ? "unexpected" : "invalid-response", providerResult?.HttpStatusCode, elapsed)),
                     exception);
                 throw;
             }
@@ -440,13 +442,14 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 DateTimeOffset.Now,
                 context.Application,
                 context.Context,
-                providerResult.Text,
+                response.Summary,
                 settings.InstallationId,
                 keepCapture ? string.Join(";", captureResult.StoredScreenshotPaths) : null,
                 context.DeviceContext,
                 captureResult.CaptureId,
                 origin,
-                context.InformationalSchedule);
+                context.InformationalSchedule,
+                response.ActivityContinuity);
             var usage = CreateUsageRecord(
                 attemptId,
                 captureResult.CaptureId,
@@ -493,6 +496,8 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 AiProviderTelemetry.SafeToken(providerResult.ProviderRequestId, 80),
                 "succeeded");
 
+            if (includeCurrentSystemContext)
+                (_capture as IScreenshotActivityContinuityObserver)?.ObserveActivityContinuity(captureResult, response.ActivityContinuity);
             return result;
         }
         finally

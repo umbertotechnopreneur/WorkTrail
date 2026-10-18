@@ -177,7 +177,18 @@ public sealed record AiAnalysis(
     DeviceContextSnapshot? DeviceContext = null,
     string? CorrelationId = null,
     string? Origin = null,
-    string? InformationalSchedule = null);
+    string? InformationalSchedule = null,
+    ActivityContinuityAssessment? ActivityContinuity = null);
+
+/// <summary>Separate model estimates for continued and ended visible activity, never measured user presence.</summary>
+/// <param name="ContinuesConfidence">Confidence from zero to one that the visible activity can continue.</param>
+/// <param name="EndedConfidence">Confidence from zero to one that the visible activity has ended.</param>
+public sealed record ActivityContinuityAssessment(double ContinuesConfidence, double EndedConfidence)
+{
+    internal bool IsValid => double.IsFinite(ContinuesConfidence) && double.IsFinite(EndedConfidence)
+        && ContinuesConfidence is >= 0 and <= 1 && EndedConfidence is >= 0 and <= 1
+        && ContinuesConfidence + EndedConfidence <= 1.000000001;
+}
 
 /// <summary>
 /// Summarizes active time for one application.
@@ -279,4 +290,8 @@ public sealed record AnalysisContextSnapshot(
     string State,
     IReadOnlyDictionary<string, string>? Attributes,
     DeviceContextSnapshot? DeviceContext = null,
-    string? InformationalSchedule = null);
+    string? InformationalSchedule = null,
+    InteractionSampleEvidence? InputEvidence = null);
+
+/// <summary>Measured counts for one privacy-filtered sampling interval, without key contents or pointer coordinates.</summary>
+public sealed record InteractionSampleEvidence(DateTimeOffset SampledAt, int DurationSeconds, long KeyPresses, long MouseClicks);

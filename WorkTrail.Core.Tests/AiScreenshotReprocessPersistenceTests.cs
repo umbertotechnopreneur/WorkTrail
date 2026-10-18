@@ -32,6 +32,78 @@ namespace WorkTrail.Core.Tests;
 public sealed class AiScreenshotReprocessPersistenceTests
 {
     [Fact]
+    public void ContinuityAssessment_RoundtripsAndCascadesWithAnalysisDeletion()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var now = DateTimeOffset.UtcNow;
+            var captureId = Guid.NewGuid().ToString("N");
+            var assessment = new ActivityContinuityAssessment(0.85, 0.05);
+            store.AppendAiAnalysisAndUsage(SuccessfulUsage(captureId, now, 0),
+                SuccessfulAnalysis(captureId, now, []) with { ActivityContinuity = assessment });
+
+            var reopened = CreateStore(directory);
+            Assert.Equal(assessment, reopened.LoadLatestAnalysis()?.ActivityContinuity);
+            Assert.Equal(assessment, reopened.LoadAiAnalysis(captureId)?.ActivityContinuity);
+            var visited = new List<AiAnalysis>();
+            reopened.VisitAllAiAnalyses(visited.Add, CancellationToken.None);
+            Assert.Equal(assessment, Assert.Single(visited).ActivityContinuity);
+
+            using var database = OpenDatabase(directory);
+            using var delete = database.CreateCommand();
+            delete.CommandText = "DELETE FROM ai_analysis_results; SELECT COUNT(*) FROM ai_activity_continuity;";
+            Assert.Equal(0L, delete.ExecuteScalar());
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
+    public void MissingContinuityTable_IsCreatedWithoutReplacingHistoricalAnalysis()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var now = DateTimeOffset.UtcNow;
+            var captureId = Guid.NewGuid().ToString("N");
+            store.AppendAiAnalysisAndUsage(SuccessfulUsage(captureId, now, 0), SuccessfulAnalysis(captureId, now, []));
+            using (var database = OpenDatabase(directory))
+            using (var drop = database.CreateCommand())
+            {
+                drop.CommandText = "DROP TABLE ai_activity_continuity;";
+                drop.ExecuteNonQuery();
+            }
+
+            var reopened = CreateStore(directory);
+            var analysis = Assert.IsType<AiAnalysis>(reopened.LoadAiAnalysis(captureId));
+            Assert.Equal("Test summary", analysis.Summary);
+            Assert.Null(analysis.ActivityContinuity);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
+    public void InvalidContinuityAssessment_RollsBackUsageAndDescription()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            var now = DateTimeOffset.UtcNow;
+            var captureId = Guid.NewGuid().ToString("N");
+
+            Assert.Throws<InvalidDataException>(() => store.AppendAiAnalysisAndUsage(SuccessfulUsage(captureId, now, 0),
+                SuccessfulAnalysis(captureId, now, []) with { ActivityContinuity = new(0.9, 0.9) }));
+
+            Assert.Null(store.LoadAiAnalysis(captureId));
+            Assert.Equal(0, store.GetTodayAnalysisCount());
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
     public void CandidateCatalog_GroupsMonitorsAndExcludesDescribedCapture()
     {
         var directory = CreateTemporaryDirectory();

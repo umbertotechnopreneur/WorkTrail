@@ -11,6 +11,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
+- Structured AI confidence for continued and ended visible activity, stored with each screenshot description. Confident live assessments can extend passive screenshot eligibility for five minutes, capped at ten minutes since real input, without changing measured activity totals.
 - Direct window screenshots use Windows Graphics Capture to preserve covered content. Size checks and secondary-window visibility filters run before capture; auxiliary WorkTrail panels are excluded without moving them. Transparent areas use a neutral backing color instead of black when Windows omits the desktop Acrylic effect.
 - World Time menu in the player title bar, with a live saved-city preview and direct access to clocks, maps, the astronomical calendar, local sky and Moon windows.
 - Configurable automatic-capture stabilization for rapid window switching, with bounded quiet retries and no added wait for manual captures.

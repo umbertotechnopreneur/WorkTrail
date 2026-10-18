@@ -2,6 +2,35 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-19
+
+### Input hook ownership and structured activity confidence
+
+- Give keyboard/click hooks a dedicated Windows message-loop thread, with bounded
+  startup/shutdown and visible, durable failure reporting. Runtime command callers
+  no longer need to pump hook callbacks themselves. Unknown input observations
+  no longer silently become zero counts or a default active AI context.
+- Require screenshot analysis to return Markdown plus separate structured
+  continuation and ending confidence values. Persist the assessment in a child
+  table created without replacing existing history. Include timestamped measured
+  input counts in the prompt when available, without typed characters or coordinates.
+- Allow confident live assessments to extend screenshot eligibility for five
+  minutes from capture, capped at ten minutes since real Windows input. Require
+  the same foreground window/process/title and an analyzed active-window image.
+  New ended/uncertain assessments revoke the allowance; old responses and
+  historical reanalysis cannot restore it. Keep capture cadence, privacy gates
+  and measured active time independent from the estimates.
+- Pass 140 targeted Core checks and a strict Debug x64 WinUI build with zero
+  warnings/errors. C# formatting and verification pass. The owner authorized tests
+  and build but declined installation; real packaged input counts and actual
+  provider responses remain unverified. No provider image requests were made.
+- At the owner's later request, preserve and hash-check application data,
+  uninstall Debug 1.0.6.27, rebuild/sign Debug x64 1.0.6.28 and install it with
+  Windows package status `Ok`. Restore all 255 application-data files and verify
+  their SHA-256 hashes. Keep the latest installer and minimal metadata; remove
+  task-owned build output, the temporary data copy and the superseded installer.
+  This reinstall adds no UI tests or provider requests.
+
 ## 2026-10-18
 
 ### Excluded foreground screenshot veto

@@ -1118,7 +1118,7 @@ public sealed class ScreenshotDeletionTests
         {
             onDecode?.Invoke(screenshotPaths);
             return Task.FromResult(new AiProviderResult(
-                "## Activity\n\n- Coding.",
+                """{"summary":"## Activity\n\n- Coding.","activity_continuity":{"continues_confidence":0.1,"ended_confidence":0.1}}""",
                 new AiUsageMetrics(),
                 "response-id",
                 "request-id",

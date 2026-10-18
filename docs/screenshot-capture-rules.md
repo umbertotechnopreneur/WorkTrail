@@ -143,7 +143,30 @@ without extended idle timeouts or assumptions that a save, export or build succe
 
 `defaultIdleTimeoutSeconds` defaults to 60. Each application or context can override it with `idleTimeoutMinutes` (1 to 120). The shipped Teams profile uses 10 minutes and Zoom uses 15. These are total times since the last Windows user input, not extra active minutes. The profile must match the current foreground context; a background meeting app alone cannot keep captures alive indefinitely.
 
-Scheduled captures check the fresh foreground/input state at the native pixel boundary. At or beyond the timeout, the attempt is quietly skipped until a later configured interval. Missing or changing native context fails closed and is logged. Captures/analysis do not renew the budget. Capture cadence, pause, active-hours and privacy rules remain authoritative. This is not a video stream or call detector; a 15-minute capture cadence is not made more frequent by a 10-minute inactivity tolerance. Activity samples and report accounting are unchanged. Manual captures bypass the inactivity gate.
+Scheduled captures check the fresh foreground/input state at the native pixel boundary. At or beyond the timeout, the attempt is quietly skipped unless a valid live AI assessment grants the bounded passive eligibility described below. Missing or changing native context fails closed and is logged. Capture cadence, pause, active-hours and privacy rules remain authoritative. This is not a video stream or call detector; a 15-minute capture cadence is not made more frequent by a 10-minute inactivity tolerance. Activity samples and report accounting are unchanged. Manual captures bypass the inactivity gate.
+
+Screenshot analysis returns a JSON object containing `summary` (Markdown) and
+`activity_continuity`, with separate `continues_confidence` and `ended_confidence`
+numbers. Each value is between zero and one; their sum cannot exceed one. The
+remaining probability expresses uncertainty. Malformed responses fail analysis
+instead of supplying an implicit continuation decision. Both scores are stored
+with the description. Historical records without an assessment remain readable.
+
+A successfully stored live assessment with continuation confidence at least 0.8
+and ended confidence at most 0.2 can keep scheduled screenshots eligible for five
+minutes from capture time, capped at ten minutes since the last Windows input.
+It requires an analyzed active-window image and the same native window, process
+and title. A newer ended or uncertain result revokes that allowance; delayed older
+responses and historical reanalysis cannot revive it. Existing application timeout
+presets still apply independently. AI estimates never increase measured active
+time or keyboard/click totals, establish user presence, bypass exclusions or change
+the configured capture cadence.
+
+The prompt includes the latest privacy-filtered input sample's timestamp, interval
+and key/click counts when available. A missing sample is unknown, not zero. Zero
+input can mean reading; it does not establish that an activity ended. Counts contain
+no typed characters or pointer coordinates. Native input hooks run on a dedicated
+message-loop thread so runtime commands do not depend on their caller's UI thread.
 
 ## Sources and limits
 

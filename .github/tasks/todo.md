@@ -9,6 +9,15 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] After owner authorization, validate real
+  keyboard/click increments, including pause/resume and runtime-command startup.
+  Check a provider's actual structured continuation/ending response and passive
+  capture eligibility while reading. The implementation, 140 targeted Core checks,
+  strict Debug x64 build and formatting checks pass. Debug x64 1.0.6.28 is installed
+  with status `Ok`; all 255 preserved application-data files were restored and
+  SHA-256 verified after the owner-requested uninstall/reinstall. Native behavior
+  remains unverified. No images were sent to a provider during these checks.
+
 - [ ] Complete native screenshot coverage on the final Debug package: covered/partly
   off-screen windows across mixed-DPI gaps, secondary selection, minimized/protected
   targets and frame timeouts. Debug x64 1.0.6.26 passes installed-runtime captures of

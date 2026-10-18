@@ -31,6 +31,28 @@ public sealed class AiPromptAndPayloadTests
     [Theory]
     [InlineData("balanced")]
     [InlineData("complete")]
+    public void Prompt_SeparatesMeasuredInputFromStructuredContinuityEstimates(string profile)
+    {
+        var sampledAt = new DateTimeOffset(2026, 10, 19, 9, 30, 0, TimeSpan.Zero);
+        var context = new AnalysisContextSnapshot("Reader", "Document", "Notes", "idle", null,
+            InputEvidence: new InteractionSampleEvidence(sampledAt, 5, 0, 2));
+
+        var prompt = AiPromptCatalog.RenderScreenshotAnalysis(profile, context);
+
+        Assert.Contains("input_sampled_at=2026-10-19T09:30:00.0000000+00:00", prompt);
+        Assert.Contains("input_interval_seconds=5", prompt);
+        Assert.Contains("input_key_presses=0", prompt);
+        Assert.Contains("input_mouse_clicks=2", prompt);
+        Assert.Contains("continues_confidence", prompt);
+        Assert.Contains("ended_confidence", prompt);
+        Assert.Contains("Missing input evidence means unknown, never zero", prompt);
+        Assert.DoesNotContain("input_key_presses=", AiPromptCatalog.RenderScreenshotAnalysis(profile, null));
+        Assert.Contains("state=unknown", AiPromptCatalog.RenderScreenshotAnalysis(profile, null));
+    }
+
+    [Theory]
+    [InlineData("balanced")]
+    [InlineData("complete")]
     public void Prompt_PreservesDeviceContextAndRequestedLanguage(string profile)
     {
         var contextMetadata = new DeviceContextSnapshot(

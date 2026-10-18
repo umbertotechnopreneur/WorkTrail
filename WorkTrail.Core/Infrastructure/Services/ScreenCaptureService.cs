@@ -127,7 +127,7 @@ internal sealed class ScreenshotSceneChangedException(string message) : InvalidO
 /// <summary>
 /// Captures desktop images to WEBP for local history and AI context.
 /// </summary>
-public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCapturePublicationObserver
+public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCapturePublicationObserver, IScreenshotActivityContinuityObserver
 {
     private const int WebpQuality = 90;
     private static readonly Regex OwnedArtifactName = new(
@@ -135,6 +135,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.NonBacktracking);
     private readonly string _appVersion;
     private readonly SettingsSnapshot? _settingsSnapshot;
+    private readonly ScreenshotActivityContinuityPolicy _activityContinuity = new();
     private readonly ScreenshotSimilarityFilter _similarity = new();
     private readonly object _pendingGate = new();
     private readonly Dictionary<string, List<PendingFingerprint>> _pendingFingerprints = new(StringComparer.Ordinal);
@@ -166,6 +167,9 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         _settingsSnapshot = settingsSnapshot;
     }
 
+    void IScreenshotActivityContinuityObserver.ObserveActivityContinuity(ScreenshotCaptureResult capture, ActivityContinuityAssessment assessment)
+        => _activityContinuity.Observe(capture, assessment);
+
     /// <inheritdoc />
     public ScreenshotCaptureResult CaptureByMode(
         string directory,
@@ -192,13 +196,13 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
                 stability = capturePolicy.Stability ?? new ScreenshotStabilityOptions();
                 // Probe inside the native implementation so fake capture services remain desktop-independent.
                 // An unavailable/idle desktop is a skipped scheduled attempt, not a screenshot failure notice.
-                if (!ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value))
+                if (!ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value, _activityContinuity))
                     throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.UserIdle);
                 authorizeCapture = context =>
                 {
                     var decision = privacyPolicy(context);
                     return decision != ScreenshotCaptureDecision.Allowed ? decision
-                        : ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value)
+                        : ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value, _activityContinuity)
                             ? ScreenshotCaptureDecision.Allowed : ScreenshotCaptureDecision.UserIdle;
                 };
             }
@@ -353,7 +357,8 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
             validatedOrigin,
             FocusMetadata: focusMetadata,
             CapturedAt: capturedAt,
-            Images: images.AsReadOnly());
+            Images: images.AsReadOnly())
+        { ContinuityForeground = foreground };
     }
 
     internal static string CreateSimilarityKey(string directory, CaptureImageTarget target, string? processName,
@@ -791,6 +796,9 @@ public sealed record ScreenshotCaptureResult(
     DeviceContextSnapshot? DeviceContext = null,
     IReadOnlyList<ScreenshotImageMetadata>? Images = null)
 {
+    // Live-only provenance never crosses IPC or survives a historical/recovery roundtrip.
+    internal ForegroundCaptureTarget? ContinuityForeground { get; init; }
+
     /// <summary>
     /// Returns all generated files, used for retention and cleanup.
     /// </summary>
