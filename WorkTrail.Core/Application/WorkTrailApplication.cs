@@ -113,6 +113,9 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _windowSnapping.Register(windowHandle, reportFailure);
 
     /// <inheritdoc />
+    public void ExcludeAuxiliaryWindowFromCapture(long windowHandle) => AuxiliaryWindowCaptureService.Exclude(windowHandle);
+
+    /// <inheritdoc />
     public void ConfigureWindowSnapping(bool enabled) => _windowSnapping.Configure(enabled);
 
     private readonly LocalStore _store;
@@ -2643,6 +2646,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         ScreenshotCaptureDecision.Unchanged => OperationResult<T>.Failure("screenshot.unchanged", "SnapshotScheduleNotDue"),
         ScreenshotCaptureDecision.Unstable => OperationResult<T>.Failure("screenshot.unstable", "SnapshotScheduleNotDue"),
         ScreenshotCaptureDecision.ContentExcluded => OperationResult<T>.Failure("screenshot.excluded", "ScreenshotCaptureExcluded"),
+        ScreenshotCaptureDecision.InsufficientVisibleContent => OperationResult<T>.Failure("screenshot.insufficient-content", "ScreenshotInsufficientVisibleContent"),
         _ => throw new ArgumentOutOfRangeException(nameof(decision), decision, "Allowed capture cannot be mapped to a failure.")
     };
 
@@ -2821,7 +2825,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                         }, CancellationToken.None);
                         return;
                     }
-                    if (scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged" or "screenshot.excluded") return;
+                    if (scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged" or "screenshot.excluded" or "screenshot.insufficient-content") return;
                     _logger.LogWarning("Scheduled screen capture failed. Code={Code}", scheduledCapture.Code);
                     return;
                 }

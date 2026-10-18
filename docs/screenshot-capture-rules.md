@@ -14,17 +14,28 @@ Each item in `rules` has these fields:
 | `destination` | `analysis`, `gallery`, `both` |
 | `processNames` | Optional window-only list of exact process names, without `.exe`; case-insensitive, no wildcard or regex |
 | `requireSecondaryMatch` | For secondary-window rules only: require an eligible application or context profile |
-| `minimumVisibleFraction` | Number from 0 to 1; visible unoccluded pixels divided by the window area intersecting the displays |
+| `minimumVisibleFraction` | Secondary-window selection ratio from 0 to 1; visible desktop area divided by the entire window area, including off-screen parts |
+| `minimumWidthPixels`, `minimumHeightPixels` | Window-only minimum crop dimensions in physical pixels, each 0–32768 |
+| `minimumVisibleBoundsFraction` | Secondary-window selection ratio from 0 to 1; visible area divided by its desktop bounding rectangle |
+| `minimumContiguousFraction` | Secondary-window selection ratio from 0 to 1; largest edge-connected visible component divided by all visible pixels |
 
 An omitted or empty process list matches all processes. Unknown properties, invalid field combinations and duplicate IDs fail validation. A plan selecting no visible image fails explicitly.
 
-The defaults send the active crop and eligible secondary crops to AI and retain them in the gallery. Secondary crops need an eligible profile and at least 15% of their on-screen area visible. Unknown and low-attention background windows do not get separate crops by default. Monitor panoramas still go to the gallery only, including incidental visible windows. The user-facing active-window capture mode restricts the rules to `active-window`; it never expands capture to other subjects.
+The defaults send the active window and eligible secondary windows to AI and retain them in the gallery. Both require at least 240 by 160 physical pixels. The active window uses its complete compositor surface, including covered and partly off-screen content. Secondary windows still need an eligible profile, at least 90% desktop visibility, at least 90% visible area within their visible bounds, and at least 90% in one edge-connected component. Once selected, they also use their complete surface. Unknown and low-attention background windows do not get separate images by default. Monitor panoramas go to the gallery only. The active-window capture mode restricts selection to `active-window`.
 
-Rules are additive. Priority determines image order; equal priorities preserve rule order and desktop window order. Matching the same image through several rules unions its destinations and keeps its highest priority. Identical window and monitor pixels share one image while retaining the window identity. Different window identities are not merged.
+Secondary selection uses desktop geometry before pixel acquisition. These are relevance heuristics, not OCR or proof that content is useful. Adjacent monitor regions sharing an edge count as connected; gaps and corner-only contact do not. The same selection applies to manual and scheduled captures. With no usable selected image, scheduled capture skips quietly; manual capture reports the exclusion or suggests enlarging the active window or uncovering a background window. Panoramas remain independent gallery context and do not replace rejected windows in AI input. Existing history is unchanged.
 
-Window crops contain only visible desktop regions. Higher windows occlude lower windows even when they do not match a rule. Occluded areas and gaps between monitors are black; completely occluded windows are skipped. Shell and helper windows do not become secondary application targets, but still occlude other targets. A spanning window remains one image with its related monitor IDs. Monitor numbers are preserved rather than renumbered by priority.
+An active title-only or analysis-blacklisted process vetoes the entire request before pixel acquisition, including manual snapshots, secondary windows and monitor panoramas. An excluded auxiliary WorkTrail window in the foreground has the same veto. This applies whether the active window is maximized or restored and whether other monitors contain eligible content. Scheduled attempts skip quietly; manual requests report the existing capture-excluded message. Background exclusions still mask or restrict only their own content.
 
-Rules do not override capture privacy checks. Capture validates the desktop scene around pixel acquisition; a changed scene is rejected rather than retaining misleading visibility masks. Panoramas contain the visible monitor, so a process filter on a window rule is not a privacy exclusion for a separate monitor rule. Privacy exclusions remain the authority for both destinations.
+Rules are additive. Priority determines image order; equal priorities preserve rule order and desktop window order. Matching the same source through several rules unions its destinations and keeps its highest priority. Window and monitor sources remain distinct even when their bounds match: their pixels can differ because of overlays and capture exclusions. Different window identities are not merged.
+
+Window images use `Windows.Graphics.Capture` and `CreateForWindow`, with one frame from a free-threaded frame pool. Overlapping windows and monitor gaps do not punch black holes in that surface. The service does not call `PrintWindow`, activate windows, or ask them to redraw. It waits up to three seconds for a frame and separately bounds the GPU readback wait. A minimized, unavailable, resized or stalled surface follows the existing failure/retry path; there is no desktop-pixel fallback for window images. Protected content remains subject to Windows capture restrictions. Related monitor IDs retain their original numbers; stored dimensions come from the acquired frame.
+
+Auxiliary WorkTrail windows managed by the shared placement service, including clocks, maps and dialogs, use `WDA_EXCLUDEFROMCAPTURE` for their lifetime. The main player stays eligible. The flag leaves position, visibility and focus unchanged and also affects other capture tools that honor Windows display affinity. The frontend applies the flag through `IWorkTrailApplication` in the owning process, including when the runtime is remote. A native HWND property identifies these panels to the shared runtime so they are neither targets nor occluders. Native failures propagate to existing application error handling.
+
+Window capture preserves transparency but does not reconstruct Desktop Acrylic effects that sample behind the window ([capture maintainer explanation](https://github.com/robmikh/Win32CaptureSample/issues/41#issuecomment-1024991777)). Before WEBP encoding, Core composites premultiplied transparent pixels over neutral gray (`#757575`) to keep light and dark text readable. Opaque pixels, including actual black content, stay unchanged. This is a plain backing color, not a reconstruction of the desktop backdrop; no background windows are sampled for it.
+
+Rules do not override capture privacy checks. Direct capture authorizes the target and foreground before and after acquisition and rejects changes to the target's identity, title or bounds. Panoramas still read only allowed desktop regions with `CopyFromScreen`, validate all intersecting included windows and reject scene changes that invalidate masks. Title-only areas remain black in panoramas. A process filter on a window rule does not exclude that process from a separate panorama. Analysis blacklists apply to the captured window itself or to visible panorama pixels, never to an unrelated overlay absent from a direct window surface.
 
 ## Automatic foreground stability
 
@@ -150,14 +161,17 @@ These presets are engineering choices, informed by documented capabilities rathe
 
 `titleOnlyProcesses` lists exact case-insensitive process aliases without `.exe`.
 The shipped list contains `Spotify`. These applications never receive an image crop.
-Their visible regions are subtracted from every monitor panorama before pixels are
+When one is active, the entire request is excluded, even with other eligible windows
+or monitors. When they are in the background, their visible regions are subtracted
+from every monitor panorama before pixels are
 copied, leaving black areas rather than capturing content behind the excluded window.
-Covered title-only windows do not hide the unrelated windows above them. Monitor IDs
-and the other eligible crops are preserved, including across multiple monitors.
+Direct images of other windows contain only those windows' surfaces, so a title-only
+overlay does not remove their pixels. Monitor IDs and eligible window images are
+preserved, including across multiple monitors.
 
 This applies to scheduled and manual capture, regardless of priority, destination or
 Complete analysis. If nothing remains, automatic acquisition skips quietly; manual
-acquisition reports that the selected applications only allow window titles. No image,
+acquisition reports that the selected windows are excluded from screenshots. No image,
 AI request, preview or empty day folder is produced for that attempt.
 
 The existing foreground activity sampler keeps only the literal window title and
@@ -177,4 +191,4 @@ application. Existing retained history is not rewritten or deleted.
 
 `analysisBlacklist` is a separate list of exact process aliases. Unlike low attention, this is an absolute analysis veto applied after matching rules have merged their destinations. A matching window never goes to AI. A monitor panorama containing visible pixels from a blacklisted window also loses its analysis destination, preventing a panorama from bypassing the window veto. Fully covered blacklisted windows do not block unrelated visible content. Occlusion-masked crops do not contain the blocked overlay and can still be analyzed.
 
-The gallery destination remains allowed by this blacklist. Use `titleOnlyProcesses` to retain foreground titles without images, or privacy exclusions to reject the context entirely. Analysis-only targets that become blocked are discarded from the plan. The shipped blacklist contains `SearchHost`, `SearchApp`, `StartMenuExperienceHost` and `LockApp`. Generic hosts such as `ApplicationFrameHost` and `msedgewebview2` are deliberately not blacklisted because unrelated applications share them.
+An active blacklisted process vetoes the entire request, including the gallery. Background blacklisted windows can still be retained in the gallery while remaining excluded from analysis. Use `titleOnlyProcesses` to retain foreground titles without images, or privacy exclusions to reject the context entirely. Analysis-only targets that become blocked are discarded from the plan. The shipped blacklist contains `SearchHost`, `SearchApp`, `StartMenuExperienceHost` and `LockApp`. Generic hosts such as `ApplicationFrameHost` and `msedgewebview2` are deliberately not blacklisted because unrelated applications share them.

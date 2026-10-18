@@ -335,6 +335,10 @@ public sealed class CliRouterTests
         public IWindowSnappingRegistration RegisterWindowSnapping(long windowHandle, Action<Exception> reportFailure) =>
             throw new NotSupportedException("The CLI does not register native windows.");
 
+        /// <inheritdoc />
+        public void ExcludeAuxiliaryWindowFromCapture(long windowHandle) =>
+            throw new NotSupportedException("The CLI does not own native windows.");
+
         public void ConfigureWindowSnapping(bool enabled) =>
             throw new NotSupportedException("The CLI does not configure native windows.");
 

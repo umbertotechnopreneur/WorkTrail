@@ -136,6 +136,9 @@ internal sealed class WindowPlacementService : IDisposable
         AttachXamlRoot();
         try
         {
+            if (_windowKey != WindowStateKeys.Main)
+                _application.ExcludeAuxiliaryWindowFromCapture(_windowHandle.ToInt64());
+
             // Only independent work surfaces participate, both as moving windows and alignment targets.
             // Dialogs, About, licenses and temporary operations retain native free movement.
             if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks

@@ -2,7 +2,64 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-18
+
+### Excluded foreground screenshot veto
+
+- Skip the entire request before pixel acquisition when the active process is
+  title-only or analysis-blacklisted, or the active window is an excluded auxiliary
+  panel. Other windows and monitors cannot produce a fallback image. The same gate
+  applies to manual and scheduled requests; background exclusions keep their existing
+  masking and destination behavior.
+- Pass 356 targeted Core checks, including maximized/restored Spotify, eligible
+  content on another monitor, blacklist destination unions and auxiliary panels.
+  Strict Debug x64 packaging and C# formatting/verification pass.
+- Install Debug x64 1.0.6.27 with status `Ok`. With real maximized Spotify active,
+  both active-window and all-screens requests return `screenshot.excluded`, return
+  no images and leave all 175 gallery files unchanged. Diagnostic AI analysis is
+  deferred. Restore tracking; the owner reopens clocks and map after updating.
+
 ## 2026-10-17
+
+### Direct window screenshots
+
+- Replace desktop crops for selected windows with one Windows Graphics Capture frame.
+  Preserve complete active surfaces behind overlaps and across monitor gaps; retain
+  visibility-based secondary selection and masked desktop panoramas.
+- Exclude auxiliary WorkTrail windows through the owning-process application facade
+  without hiding, minimizing or restoring them. Keep native failures on existing error paths.
+- Update regression cases for full surfaces, source separation, title-only masks and
+  auxiliary panels. Debug x64 Core, CLI and WinUI builds pass with warnings-as-errors.
+- Run 346 targeted Core cases: 344 pass initially; two old crop-bound expectations
+  are corrected and pass in the owner-authorized rerun. All 26 CLI router cases pass.
+  Six encoding checks also pass, including four compositor-alpha cases. Composite
+  premultiplied transparent pixels over neutral gray before WEBP encoding; preserve
+  opaque pixels, including real black content.
+- Compare raw GPU pixels with all three SoftwareBitmap alpha modes on active
+  VoiceDucker: the pixels match, and Windows omits the Desktop Acrylic backdrop.
+  The neutral backing keeps the foreground readable without reading desktop pixels
+  or requesting target-window redraws; it does not recreate the original Acrylic.
+- Install Debug x64 1.0.6.26 with package status `Ok`. Verify the final capture
+  backend on active VoiceDucker; its assembly hash matches the installed package.
+  Resume native validation on October 18: startup succeeds, installed-runtime
+  captures of active WorkTrail and VoiceDucker are readable, and both monitor
+  panoramas omit clocks and map while the panels remain open at unchanged bounds.
+  Confirm auxiliary affinity/markers and reject an active clock target before
+  capture. A separate backend check captures the full covered Vibe Panel window
+  without changing the foreground. Defer AI analysis, delete diagnostic gallery
+  entries and restore tracking. C# whitespace verification and scoped diff checks pass.
+
+### Window-crop quality filtering
+
+- Reject heavily occluded, mostly off-screen, tiny and disconnected window crops
+  before pixel acquisition, gallery publication or AI submission. Use configurable
+  full-window visibility, minimum physical size, bounding-box density and connected-area
+  thresholds; manual Complete requests obey the same quality/privacy rules.
+- Keep monitor panoramas as independent gallery-only context. Skip quietly when no
+  usable image remains and explain manual skips in all ten languages. Preserve history.
+- Debug x64 Core.Tests build passes with analyzers and warnings-as-errors; all 1082
+  Core tests pass, including 33 additional quality/quiet-skip cases. C# formatting
+  and verification pass. No installation, native validation or Git delivery for this change.
 
 ### PR validation regressions
 

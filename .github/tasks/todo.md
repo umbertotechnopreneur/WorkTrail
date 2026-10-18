@@ -9,6 +9,14 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Complete native screenshot coverage on the final Debug package: covered/partly
+  off-screen windows across mixed-DPI gaps, secondary selection, minimized/protected
+  targets and frame timeouts. Debug x64 1.0.6.26 passes installed-runtime captures of
+  active WorkTrail and VoiceDucker, auxiliary-panel exclusion and two-monitor
+  panoramas with unchanged panel bounds. Covered-window backend capture also passes.
+  Preserve the no-redraw/no-desktop-fallback boundary and the documented neutral
+  backing for transparent areas whose Acrylic Windows omits.
+
 - [ ] After owner authorization, validate the native World Time menu in the app.
   Check opening, Escape/light dismiss,
   all six existing destinations, saved-city preview refresh, rapid close/reopen,
