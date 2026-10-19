@@ -4,6 +4,17 @@ This is a compact historical index of durable WorkTrail milestones. It intention
 
 ## 2026-10-19
 
+### CI dependency security gates
+
+- Stage the official .NET SDK archive, verify its published hash and scan it before
+  extraction. Scan the extracted toolchain and isolated NuGet archives/files before
+  formatting, builds and tests. Fail on unavailable,
+  failed or unfinished scans. Record sources, versions, hashes and scan results in
+  the job summary. Keep project discovery limited to tracked project files.
+- Centralize CI build output under `artifacts/`, clean the matching configuration
+  after use, and remove job-owned caches and intermediates. Native application
+  validation remains separate; CI results belong in the pull request.
+
 ### Taskbar preference binding
 
 - Preserve the existing per-window taskbar settings. Apply them through the shared

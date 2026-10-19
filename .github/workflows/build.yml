@@ -34,6 +34,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}\artifacts\ci\nuget
+  UseArtifactsOutput: 'true'
+  ArtifactsPath: ${{ github.workspace }}\artifacts\ci\build
+
 jobs:
   lint:
     name: lint
@@ -47,10 +52,13 @@ jobs:
         shell: pwsh
         run: .\scripts\Test-SourceLicenseHeaders.ps1
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          global-json-file: global.json
+      - name: Stage and scan official .NET SDK archive
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Initialize-CiDotNet.ps1
+
+      - name: Scan .NET toolchain
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Test-DependencySecurity.ps1 -Stage DotNet -OutputDirectory artifacts/ci/security
 
       - name: Verify code formatting
         shell: pwsh -NoProfile -File {0}
@@ -67,22 +75,31 @@ jobs:
       - name: Restore and audit NuGet dependencies
         shell: pwsh
         run: |
-          Get-ChildItem -Recurse -Filter *.csproj | ForEach-Object {
-            dotnet restore $_.FullName -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=low -p:WarningsAsErrors=NU1901%3BNU1902%3BNU1903%3BNU1904
+          git ls-files -- '*.csproj' | ForEach-Object {
+            dotnet restore $_ -p:Platform=x64 -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=low -p:WarningsAsErrors=NU1901%3BNU1902%3BNU1903%3BNU1904
             if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
             }
           }
 
+      - name: Scan restored packages and extracted dependencies
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Test-DependencySecurity.ps1 -Stage NuGet -OutputDirectory artifacts/ci/security
+
       - name: Test with code analyzers
         shell: pwsh
         run: |
-          Get-ChildItem -Recurse -Filter *.Tests.csproj | ForEach-Object {
-            dotnet test $_.FullName -p:Platform=x64 --no-restore -p:EnableNETAnalyzers=true -p:EnforceCodeStyleInBuild=true -p:TreatWarningsAsErrors=true --blame-hang-timeout 5m --blame-hang-dump-type none --results-directory "artifacts/test-results/analyzers/$($_.BaseName)"
+          git ls-files -- '*.Tests.csproj' | ForEach-Object {
+            dotnet test $_ -p:Platform=x64 --no-restore -p:EnableNETAnalyzers=true -p:EnforceCodeStyleInBuild=true -p:TreatWarningsAsErrors=true --blame-hang-timeout 5m --blame-hang-dump-type none --results-directory "artifacts/ci/test-results/analyzers/$([IO.Path]::GetFileNameWithoutExtension($_))"
             if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
             }
           }
+
+      - name: Clean CI output
+        if: always()
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Clear-CiOutput.ps1 -Configuration Debug -Platform x64
 
   build:
     name: release build (${{ matrix.platform }})
@@ -96,17 +113,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          global-json-file: global.json
+      - name: Stage and scan official .NET SDK archive
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Initialize-CiDotNet.ps1
+
+      - name: Scan .NET toolchain
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Test-DependencySecurity.ps1 -Stage DotNet -OutputDirectory artifacts/ci/security
 
       - name: Restore Release solution
         run: dotnet restore .\WorkTrail.slnx -p:Configuration=Release-Unpackaged -p:Platform=${{ matrix.platform }}
+
+      - name: Scan restored packages and extracted dependencies
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Test-DependencySecurity.ps1 -Stage NuGet -OutputDirectory artifacts/ci/security
 
       - name: Build Release solution
         run: dotnet build .\WorkTrail.slnx --configuration Release-Unpackaged -p:Platform=${{ matrix.platform }} --no-restore -p:ContinuousIntegrationBuild=true -p:EnableNETAnalyzers=true -p:EnforceCodeStyleInBuild=true -p:TreatWarningsAsErrors=true
 
       - name: Test Release solution
         if: matrix.platform == 'x64'
-        run: dotnet test .\WorkTrail.slnx --configuration Release-Unpackaged -p:Platform=x64 --no-build --no-restore -m:1 --blame-hang-timeout 5m --blame-hang-dump-type none --results-directory artifacts/test-results/release
+        run: dotnet test .\WorkTrail.slnx --configuration Release-Unpackaged -p:Platform=x64 --no-build --no-restore -m:1 --blame-hang-timeout 5m --blame-hang-dump-type none --results-directory artifacts/ci/test-results/release
+
+      - name: Clean CI output
+        if: always()
+        shell: pwsh -NoProfile -File {0}
+        run: ./scripts/Clear-CiOutput.ps1 -Configuration Release-Unpackaged -Platform ${{ matrix.platform }}
