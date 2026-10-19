@@ -40,8 +40,19 @@ foreach ($stage in @('Archive', 'DotNet', 'NuGet')) {
 $cleanFailed = $false
 if ($clearedStages.Archive -and $clearedStages.DotNet -and $clearedStages.NuGet) {
     # Never invoke MSBuild targets from dependencies that failed their security gate.
-    dotnet clean (Join-Path $repositoryRoot 'WorkTrail.slnx') --configuration $Configuration "-p:Platform=$Platform"
-    $cleanFailed = $LASTEXITCODE -ne 0
+    $cleanTargets = @((Join-Path $repositoryRoot 'WorkTrail.slnx'))
+    if ($Configuration -eq 'Debug') {
+        # The lint job builds test projects directly; the solution has no Debug|x64 configuration.
+        $cleanTargets = @(git -C $repositoryRoot ls-files -- '*.Tests.csproj')
+        if ($LASTEXITCODE -ne 0 -or $cleanTargets.Count -eq 0) {
+            $cleanFailed = $true
+            $cleanTargets = @()
+        }
+    }
+    foreach ($projectPath in $cleanTargets) {
+        dotnet clean $projectPath --configuration $Configuration "-p:Platform=$Platform"
+        $cleanFailed = $cleanFailed -or $LASTEXITCODE -ne 0
+    }
     dotnet build-server shutdown
     $cleanFailed = $cleanFailed -or $LASTEXITCODE -ne 0
 }
