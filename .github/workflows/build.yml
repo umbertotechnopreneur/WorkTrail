@@ -75,11 +75,9 @@ jobs:
       - name: Restore and audit NuGet dependencies
         shell: pwsh
         run: |
-          git ls-files -- '*.csproj' | ForEach-Object {
-            dotnet restore $_ -p:Platform=x64 -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=low -p:WarningsAsErrors=NU1901%3BNU1902%3BNU1903%3BNU1904
-            if ($LASTEXITCODE -ne 0) {
-              exit $LASTEXITCODE
-            }
+          dotnet restore ./WorkTrail.slnx -p:Platform=x64 -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=low -p:WarningsAsErrors=NU1901%3BNU1902%3BNU1903%3BNU1904
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
           }
 
       - name: Scan restored packages and extracted dependencies
