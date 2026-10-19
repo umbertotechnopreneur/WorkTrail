@@ -54,7 +54,8 @@ elseif ($Stage -eq 'DotNet') {
     if ([string]::IsNullOrWhiteSpace($env:DOTNET_ROOT)) { throw 'DOTNET_ROOT must identify the staged CI SDK.' }
     $dotnetRoot = [IO.Path]::GetFullPath($env:DOTNET_ROOT)
     $expectedHost = Join-Path $dotnetRoot 'dotnet.exe'
-    if ((Get-Command dotnet.exe -CommandType Application).Source -ne $expectedHost) {
+    $selectedHost = Get-Command dotnet.exe -CommandType Application | Select-Object -First 1
+    if ($selectedHost.Source -ne $expectedHost) {
         throw 'The selected dotnet host does not match the staged CI SDK.'
     }
     $requestedSdk = [version](Get-Content -LiteralPath (Join-Path $repositoryRoot 'global.json') -Raw | ConvertFrom-Json).sdk.version
