@@ -33,6 +33,68 @@ public sealed class OpenAiAnalysisCleanupTests
 {
     private const string TestApiKeyVariable = "WORKTRAIL_OPENAI_APIKEY";
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StructuredAssessment_PersistsButOnlyLiveAnalysisUpdatesCapturePolicy(bool historical)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable(TestApiKeyVariable, "test-only-key", EnvironmentVariableTarget.Process);
+        try
+        {
+            var store = CreateStore(dataDirectory, openAiEnabled: true);
+            var capture = CreateDistinctArtifactCapture(dataDirectory);
+            var observer = new ObservingCaptureService();
+            var service = new OpenAiAnalysisService(store, observer, decoder: new SuccessfulDecoder());
+            var context = new AnalysisContextSnapshot("Reader", "Document", "Notes", "idle", null);
+
+            var analysis = historical
+                ? await service.AnalyzeHistoricalCapturedScreenAsync(context, capture, "snapshot.reprocess", CancellationToken.None)
+                : await service.AnalyzeCapturedScreenAsync(context, capture, true, "snapshot.manual", CancellationToken.None);
+
+            Assert.Equal("analyzed", analysis.Summary);
+            Assert.Equal(new ActivityContinuityAssessment(0.1, 0.1), analysis.ActivityContinuity);
+            Assert.Equal(analysis.ActivityContinuity, store.LoadLatestAnalysis()?.ActivityContinuity);
+            Assert.Equal(historical ? 0 : 1, observer.Observations);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(TestApiKeyVariable, previousApiKey, EnvironmentVariableTarget.Process);
+            Directory.Delete(dataDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InvalidStructuredResponse_DoesNotPersistOrGrantGrace_AndRetainsUsage()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable(TestApiKeyVariable, "test-only-key", EnvironmentVariableTarget.Process);
+        try
+        {
+            var store = CreateStore(dataDirectory, openAiEnabled: true);
+            var capture = CreateDistinctArtifactCapture(dataDirectory);
+            var observer = new ObservingCaptureService();
+            var logger = new RecordingLogger<OpenAiAnalysisService>();
+            var service = new OpenAiAnalysisService(store, observer, decoder: new SuccessfulDecoder("invalid"), logger: logger);
+
+            await Assert.ThrowsAnyAsync<System.Text.Json.JsonException>(() => service.AnalyzeCapturedScreenAsync(
+                null, capture, false, "snapshot.manual", CancellationToken.None));
+
+            Assert.Null(store.LoadLatestAnalysis());
+            Assert.Equal(0, observer.Observations);
+            Assert.Equal(1, store.GetTodayAnalysisCount());
+            Assert.Contains(logger.Messages, line => line.Contains("FailureCategory=invalid-response", StringComparison.Ordinal));
+            Assert.All(capture.AllScreenshotPaths, path => Assert.False(File.Exists(path)));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(TestApiKeyVariable, previousApiKey, EnvironmentVariableTarget.Process);
+            Directory.Delete(dataDirectory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task RetainedCapture_WithDistinctAnalysisArtifact_DeletesOnlyAnalysisArtifact()
     {
@@ -258,7 +320,19 @@ public sealed class OpenAiAnalysisCleanupTests
             throw new InvalidOperationException("The supplied capture must be reused.");
     }
 
-    private sealed class SuccessfulDecoder : IAIDecoder
+    private sealed class ObservingCaptureService : IScreenCaptureService, IScreenshotActivityContinuityObserver
+    {
+        internal int Observations { get; private set; }
+
+        public void ObserveActivityContinuity(ScreenshotCaptureResult capture, ActivityContinuityAssessment assessment)
+            => Observations++;
+
+        public ScreenshotCaptureResult CaptureByMode(string directory, string captureMode, string captureOrigin,
+            Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
+            => throw new InvalidOperationException("The supplied capture must be reused.");
+    }
+
+    private sealed class SuccessfulDecoder(string? response = null) : IAIDecoder
     {
         public string Provider => "openai";
 
@@ -271,7 +345,7 @@ public sealed class OpenAiAnalysisCleanupTests
             AiProviderRequestOptions? requestOptions = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new AiProviderResult(
-                "analyzed",
+                response ?? """{"summary":"analyzed","activity_continuity":{"continues_confidence":0.1,"ended_confidence":0.1}}""",
                 new AiUsageMetrics(),
                 "response-id",
                 "request-id",
@@ -330,7 +404,7 @@ public sealed class OpenAiAnalysisCleanupTests
         {
             cancellation.Cancel();
             return Task.FromResult(new AiProviderResult(
-                "analyzed",
+                """{"summary":"analyzed","activity_continuity":{"continues_confidence":0.1,"ended_confidence":0.1}}""",
                 new AiUsageMetrics(),
                 "response-id",
                 "request-id",

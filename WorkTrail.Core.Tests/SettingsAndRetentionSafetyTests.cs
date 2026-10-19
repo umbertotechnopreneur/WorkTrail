@@ -34,6 +34,49 @@ namespace WorkTrail.Core.Tests;
 public sealed class SettingsAndRetentionSafetyTests
 {
     [Theory]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, false, true, false)]
+    public void TaskbarPreferences_SurviveRestoredApplicationData(bool main, bool clocks, bool map, bool moon)
+    {
+        var directory = Path.GetFullPath(Path.Combine("artifacts", "taskbar-settings-tests", Guid.NewGuid().ToString("N")));
+        try
+        {
+            var originalDirectory = Path.Combine(directory, "original");
+            var restoredDirectory = Path.Combine(directory, "restored");
+            var original = new LocalStore(originalDirectory);
+            var values = new Dictionary<string, string?>
+            {
+                ["window.main.show_in_taskbar"] = main ? "true" : "false",
+                ["window.world_clocks.show_in_taskbar"] = clocks ? "true" : "false",
+                ["window.world_map.show_in_taskbar"] = map ? "true" : "false",
+                ["window.lunar_phase.show_in_taskbar"] = moon ? "true" : "false"
+            };
+            var patched = SettingsCatalog.Apply(original.LoadSettings(), new SettingsPatch(values));
+            Assert.True(patched.Succeeded);
+            original.SaveSettings(Assert.IsType<AppSettings>(patched.Value));
+            Directory.CreateDirectory(restoredDirectory);
+            File.Copy(Path.Combine(originalDirectory, "appsettings.json"), Path.Combine(restoredDirectory, "appsettings.json"));
+
+            var restored = new LocalStore(restoredDirectory).LoadSettings();
+            Assert.Equal(main, restored.MainWindowShowInTaskbar);
+            Assert.Equal(clocks, restored.WorldClockWindowShowInTaskbar);
+            Assert.Equal(map, restored.WorldMapWindowShowInTaskbar);
+            Assert.Equal(moon, restored.LunarPhaseWindowShowInTaskbar);
+            Assert.Equal(original.LoadSettings().InstallationId, restored.InstallationId);
+            foreach (var (key, value) in values)
+            {
+                Assert.True(SettingsCatalog.TryGetValue(restored, key, out var shown));
+                Assert.Equal(bool.Parse(value!), Assert.IsType<bool>(shown));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(false, false)]

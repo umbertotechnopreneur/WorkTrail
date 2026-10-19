@@ -325,7 +325,7 @@ public sealed class ScheduledSnapshotStateTests
             AiProviderRequestOptions? requestOptions = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new AiProviderResult(
-                "## Activity\n\n- Scheduled work.",
+                """{"summary":"## Activity\n\n- Scheduled work.","activity_continuity":{"continues_confidence":0.1,"ended_confidence":0.1}}""",
                 new AiUsageMetrics(),
                 "response-id",
                 "request-id",

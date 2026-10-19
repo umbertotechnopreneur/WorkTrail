@@ -2,7 +2,122 @@
 
 This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
 
+## 2026-10-19
+
+### CI dependency security gates
+
+- Stage the official .NET SDK archive, verify its published hash and scan it before
+  extraction. Scan the extracted toolchain and isolated NuGet archives/files before
+  formatting, builds and tests. Fail on unavailable,
+  failed or unfinished scans. Record sources, versions, hashes and scan results in
+  the job summary. Keep project discovery limited to tracked project files.
+- Centralize CI build output under `artifacts/`, clean the matching configuration
+  after use, and remove job-owned caches and intermediates. Native application
+  validation remains separate; CI results belong in the pull request.
+
+### Taskbar preference binding
+
+- Preserve the existing per-window taskbar settings. Apply them through the shared
+  window lifecycle when the native window is visible, including first activation
+  and later shows. Astronomy context menus read the last committed setting rather
+  than a potentially stale shell flag and refresh the checkmark after each command.
+  Keep that read valid when a pending command finishes after window closure.
+- Pass the strict Debug x64 build with zero warnings/errors and C# formatting
+  verification. Five existing preference cases pass. Three new restored-data
+  cases initially supplied noncanonical Boolean strings; their corrected fixtures
+  pass the owner-authorized three-case rerun. All eight targeted cases are covered.
+  No installation or visual validation is claimed.
+- Run explicit Defender scans on the SDK/runtime and cached NuGet archives and
+  extracted files before use, without detections. Restore from the scanned cache
+  with an empty package feed. Retain package sources/versions/SHA-256 values and
+  scan commands/results in the local verification record. Clarify the README's
+  future-import security requirement without certifying existing dependencies.
+
+### Input hook ownership and structured activity confidence
+
+- Give keyboard/click hooks a dedicated Windows message-loop thread, with bounded
+  startup/shutdown and visible, durable failure reporting. Runtime command callers
+  no longer need to pump hook callbacks themselves. Unknown input observations
+  no longer silently become zero counts or a default active AI context.
+- Require screenshot analysis to return Markdown plus separate structured
+  continuation and ending confidence values. Persist the assessment in a child
+  table created without replacing existing history. Include timestamped measured
+  input counts in the prompt when available, without typed characters or coordinates.
+- Allow confident live assessments to extend screenshot eligibility for five
+  minutes from capture, capped at ten minutes since real Windows input. Require
+  the same foreground window/process/title and an analyzed active-window image.
+  New ended/uncertain assessments revoke the allowance; old responses and
+  historical reanalysis cannot restore it. Keep capture cadence, privacy gates
+  and measured active time independent from the estimates.
+- Pass 140 targeted Core checks and a strict Debug x64 WinUI build with zero
+  warnings/errors. C# formatting and verification pass. The owner authorized tests
+  and build but declined installation; real packaged input counts and actual
+  provider responses remain unverified. No provider image requests were made.
+- At the owner's later request, preserve and hash-check application data,
+  uninstall Debug 1.0.6.27, rebuild/sign Debug x64 1.0.6.28 and install it with
+  Windows package status `Ok`. Restore all 255 application-data files and verify
+  their SHA-256 hashes. Keep the latest installer and minimal metadata; remove
+  task-owned build output, the temporary data copy and the superseded installer.
+  This reinstall adds no UI tests or provider requests.
+
+## 2026-10-18
+
+### Excluded foreground screenshot veto
+
+- Skip the entire request before pixel acquisition when the active process is
+  title-only or analysis-blacklisted, or the active window is an excluded auxiliary
+  panel. Other windows and monitors cannot produce a fallback image. The same gate
+  applies to manual and scheduled requests; background exclusions keep their existing
+  masking and destination behavior.
+- Pass 356 targeted Core checks, including maximized/restored Spotify, eligible
+  content on another monitor, blacklist destination unions and auxiliary panels.
+  Strict Debug x64 packaging and C# formatting/verification pass.
+- Install Debug x64 1.0.6.27 with status `Ok`. With real maximized Spotify active,
+  both active-window and all-screens requests return `screenshot.excluded`, return
+  no images and leave all 175 gallery files unchanged. Diagnostic AI analysis is
+  deferred. Restore tracking; the owner reopens clocks and map after updating.
+
 ## 2026-10-17
+
+### Direct window screenshots
+
+- Replace desktop crops for selected windows with one Windows Graphics Capture frame.
+  Preserve complete active surfaces behind overlaps and across monitor gaps; retain
+  visibility-based secondary selection and masked desktop panoramas.
+- Exclude auxiliary WorkTrail windows through the owning-process application facade
+  without hiding, minimizing or restoring them. Keep native failures on existing error paths.
+- Update regression cases for full surfaces, source separation, title-only masks and
+  auxiliary panels. Debug x64 Core, CLI and WinUI builds pass with warnings-as-errors.
+- Run 346 targeted Core cases: 344 pass initially; two old crop-bound expectations
+  are corrected and pass in the owner-authorized rerun. All 26 CLI router cases pass.
+  Six encoding checks also pass, including four compositor-alpha cases. Composite
+  premultiplied transparent pixels over neutral gray before WEBP encoding; preserve
+  opaque pixels, including real black content.
+- Compare raw GPU pixels with all three SoftwareBitmap alpha modes on active
+  VoiceDucker: the pixels match, and Windows omits the Desktop Acrylic backdrop.
+  The neutral backing keeps the foreground readable without reading desktop pixels
+  or requesting target-window redraws; it does not recreate the original Acrylic.
+- Install Debug x64 1.0.6.26 with package status `Ok`. Verify the final capture
+  backend on active VoiceDucker; its assembly hash matches the installed package.
+  Resume native validation on October 18: startup succeeds, installed-runtime
+  captures of active WorkTrail and VoiceDucker are readable, and both monitor
+  panoramas omit clocks and map while the panels remain open at unchanged bounds.
+  Confirm auxiliary affinity/markers and reject an active clock target before
+  capture. A separate backend check captures the full covered Vibe Panel window
+  without changing the foreground. Defer AI analysis, delete diagnostic gallery
+  entries and restore tracking. C# whitespace verification and scoped diff checks pass.
+
+### Window-crop quality filtering
+
+- Reject heavily occluded, mostly off-screen, tiny and disconnected window crops
+  before pixel acquisition, gallery publication or AI submission. Use configurable
+  full-window visibility, minimum physical size, bounding-box density and connected-area
+  thresholds; manual Complete requests obey the same quality/privacy rules.
+- Keep monitor panoramas as independent gallery-only context. Skip quietly when no
+  usable image remains and explain manual skips in all ten languages. Preserve history.
+- Debug x64 Core.Tests build passes with analyzers and warnings-as-errors; all 1082
+  Core tests pass, including 33 additional quality/quiet-skip cases. C# formatting
+  and verification pass. No installation, native validation or Git delivery for this change.
 
 ### PR validation regressions
 

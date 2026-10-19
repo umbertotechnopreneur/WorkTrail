@@ -10,7 +10,8 @@ namespace WorkTrail.Services;
 /// <summary>Gates scheduled screenshots without changing recorded user-activity state.</summary>
 internal static class ScreenshotIdlePolicy
 {
-    internal static bool CanCaptureNow(ScreenshotCaptureRules policy, AppSettings? settings = null)
+    internal static bool CanCaptureNow(ScreenshotCaptureRules policy, AppSettings? settings = null,
+        ScreenshotActivityContinuityPolicy? continuity = null)
     {
         try
         {
@@ -39,7 +40,8 @@ internal static class ScreenshotIdlePolicy
                 || (includeTitle && !string.Equals(title, ReadWindowTitle(window), StringComparison.Ordinal)))
                 throw new ScreenshotSceneChangedException("The foreground context changed while evaluating the scheduled capture policy.");
 
-            return IsWithinIdleTimeout(currentTickCount, info.Time, policy.GetIdleTimeoutSeconds(processName, title));
+            return IsWithinIdleTimeout(currentTickCount, info.Time, policy.GetIdleTimeoutSeconds(processName, title))
+                || continuity?.Allows(window, processName, title, unchecked(currentTickCount - info.Time), DateTimeOffset.UtcNow) == true;
         }
         catch (Exception exception) when (exception is not ScreenshotSceneChangedException
             && exception is (InvalidOperationException or ArgumentException

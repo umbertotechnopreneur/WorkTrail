@@ -205,6 +205,9 @@ public sealed class RuntimeClient : IWorkTrailApplication
         _windowSnapping.Register(windowHandle, reportFailure);
 
     /// <inheritdoc />
+    public void ExcludeAuxiliaryWindowFromCapture(long windowHandle) => AuxiliaryWindowCaptureService.Exclude(windowHandle);
+
+    /// <inheritdoc />
     public void ConfigureWindowSnapping(bool enabled) => _windowSnapping.Configure(enabled);
 
     private static readonly TimeSpan ReportQueryTimeout = TimeSpan.FromMinutes(2);

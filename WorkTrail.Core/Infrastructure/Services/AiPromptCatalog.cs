@@ -212,9 +212,16 @@ internal static partial class AiPromptCatalog
             $"application={Sanitize(activity?.Application)}",
             $"detail={Sanitize(activity?.Context)}",
             $"window={Sanitize(activity?.WindowTitle)}",
-            $"state={Sanitize(activity?.State, "active")}"
+            $"state={Sanitize(activity?.State, "unknown")}"
         };
         var schedule = activity?.InformationalSchedule;
+        if (activity?.InputEvidence is { } input)
+        {
+            context.Add(FormattableString.Invariant($"input_sampled_at={input.SampledAt:O}"));
+            context.Add(FormattableString.Invariant($"input_interval_seconds={input.DurationSeconds}"));
+            context.Add(FormattableString.Invariant($"input_key_presses={input.KeyPresses}"));
+            context.Add(FormattableString.Invariant($"input_mouse_clicks={input.MouseClicks}"));
+        }
         if (!string.IsNullOrWhiteSpace(schedule))
         {
             context.Add($"informational_schedule={Sanitize(schedule)}");

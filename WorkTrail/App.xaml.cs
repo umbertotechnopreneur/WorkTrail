@@ -698,13 +698,11 @@ public partial class App : Microsoft.UI.Xaml.Application
     /// <param name="windowKey">The persisted state key for the owning window.</param>
     private void AttachAstronomyContextMenu(Window window, string windowKey)
     {
-        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
-            Microsoft.UI.Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(window)));
         window.Content.ContextFlyout = AstronomyWindowMenu.Create(
             () => new LocalizationService(_uiLanguage),
             OpenAstronomyWindowFromMenu,
             () => _window?.ShowFlyout(),
-            () => appWindow.IsShownInSwitchers,
+            WindowPlacementService.GetTaskbarVisibilityReader(window),
             showInTaskbar => SetAstronomyWindowShownInTaskbarAsync(windowKey, showInTaskbar),
             window.Close);
     }

@@ -49,6 +49,11 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                 || rule.Priority is not ("primary" or "secondary" or "context")
                 || rule.Destination is not ("analysis" or "gallery" or "both")
                 || !double.IsFinite(rule.MinimumVisibleFraction) || rule.MinimumVisibleFraction is < 0 or > 1
+                || !double.IsFinite(rule.MinimumVisibleBoundsFraction) || rule.MinimumVisibleBoundsFraction is < 0 or > 1
+                || !double.IsFinite(rule.MinimumContiguousFraction) || rule.MinimumContiguousFraction is < 0 or > 1
+                || rule.MinimumWidthPixels is < 0 or > 32768 || rule.MinimumHeightPixels is < 0 or > 32768
+                || (!windowSubject && (rule.MinimumVisibleFraction > 0 || rule.MinimumVisibleBoundsFraction > 0
+                    || rule.MinimumContiguousFraction > 0 || rule.MinimumWidthPixels > 0 || rule.MinimumHeightPixels > 0))
                 || (rule.RequireSecondaryMatch && rule.Subject != "secondary-windows")
                 || (rule.ProcessNames is not null && (!windowSubject || rule.ProcessNames.Any(string.IsNullOrWhiteSpace))))
                 throw new InvalidDataException($"Screenshot capture rule '{rule.Id}' is invalid.");
@@ -120,13 +125,23 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
         ForegroundCaptureTarget foreground, IReadOnlyList<CaptureWindow> windows, bool activeWindowOnly)
     {
         Validate();
+        var foregroundWindow = windows.FirstOrDefault(window => window.WindowHandle == foreground.WindowHandle);
+        // An excluded foreground vetoes the whole request, including other windows and monitor panoramas.
+        // Apply this before planning or pixel acquisition, for both manual and scheduled captures.
+        if (IsAnalysisExcluded(foreground.ProcessName)
+            || foregroundWindow is not null && (foregroundWindow.IsCaptureExcluded || IsAnalysisExcluded(foregroundWindow.ProcessName)))
+            throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.ContentExcluded);
         if (displays.Count == 0) throw new InvalidOperationException("No displays are available for screenshot capture.");
         if (!displays.Any(display => HasArea(Intersect(display.Bounds, foreground.WindowBounds))))
             throw new InvalidOperationException("The active window is outside the visible desktop.");
         var focused = displays[ScreenCaptureService.SelectFocusedDisplayIndex(displays.Select(display => display.Bounds).ToArray(), foreground.WindowBounds)];
-        if (!windows.Any(window => window.WindowHandle == foreground.WindowHandle))
+        if (foregroundWindow is null)
             throw new InvalidOperationException("The active window is missing from screenshot visibility information.");
         var result = new List<CaptureImageTarget>();
+        var rejectedWindowQuality = false;
+        var captureBlockedRegions = windows.Select((window, index) => (window, index))
+            .Where(item => !item.window.IsCaptureExcluded && IsCaptureExcluded(item.window.ProcessName))
+            .SelectMany(item => VisibleRegions(displays, windows, item.index)).ToArray();
         foreach (var rule in Rules.Where(rule => rule.Enabled && (!activeWindowOnly || rule.Subject == "active-window")))
         {
             if (rule.Capture == "monitor")
@@ -142,7 +157,7 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
             for (var index = 0; index < windows.Count; index++)
             {
                 var window = windows[index];
-                if (IsCaptureExcluded(window.ProcessName)) continue;
+                if (window.IsCaptureExcluded || IsCaptureExcluded(window.ProcessName)) continue;
                 var active = window.WindowHandle == foreground.WindowHandle;
                 if (!active && !window.IsApplicationWindow) continue;
                 if ((rule.Subject == "active-window") != active ||
@@ -150,45 +165,54 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
                 var windowPolicy = ResolveWindowPolicy(window.ProcessName, window.WindowTitle);
                 if (!active && rule.RequireSecondaryMatch && !windowPolicy.CaptureSecondary) continue;
                 var regions = VisibleRegions(displays, windows, index);
-                if (regions.Count == 0) continue;
-                var onScreenArea = displays.Sum(display => Area(Intersect(display.Bounds, window.Bounds)));
-                if (onScreenArea == 0 || regions.Sum(Area) / (double)onScreenArea < rule.MinimumVisibleFraction) continue;
-                var bounds = new NativeMethods.Rect
+                // Foreground content comes directly from its compositor surface. Visibility thresholds
+                // still choose relevant secondary windows; they no longer punch holes in saved images.
+                if (!active && regions.Count == 0)
+                {
+                    rejectedWindowQuality = true;
+                    continue;
+                }
+                var bounds = active ? window.Bounds : new NativeMethods.Rect
                 {
                     Left = regions.Min(region => region.Left),
                     Top = regions.Min(region => region.Top),
                     Right = regions.Max(region => region.Right),
                     Bottom = regions.Max(region => region.Bottom)
                 };
-                var display = displays.OrderByDescending(item => regions.Sum(region => Area(Intersect(item.Bounds, region)))).First();
-                var related = displays.Where(item => regions.Any(region => HasArea(Intersect(item.Bounds, region))))
+                if (!HasUsableWindowContent(rule, window.Bounds, bounds, active ? [window.Bounds] : regions))
+                {
+                    rejectedWindowQuality = true;
+                    continue;
+                }
+                var display = displays.OrderByDescending(item => Area(Intersect(item.Bounds, window.Bounds))).First();
+                var related = displays.Where(item => HasArea(Intersect(item.Bounds, window.Bounds)))
                     .Select(item => item.Index).ToArray();
                 AddTarget(result, new CaptureImageTarget(active ? "active-window" : $"secondary-window-{index + 1}",
-                    active ? "active-window" : "secondary-window", display, bounds, regions.ToArray(), related,
+                    active ? "active-window" : "secondary-window", display, window.Bounds, [window.Bounds], related,
                     window.WindowHandle, window.ApplicationName, window.WindowTitle, rule.Priority,
                     rule.Destination != "gallery", rule.Destination != "analysis",
                     RuleReason: windowPolicy.Reason, MicroPromptIds: windowPolicy.MicroPromptIds));
             }
         }
-        // Subtract excluded pixels from every destination, including monitor panoramas, before acquisition.
-        // Excluded windows remain occluders: never expose the hidden content beneath them.
-        var captureBlockedRegions = windows.Select((window, index) => (window, index))
-            .Where(item => IsCaptureExcluded(item.window.ProcessName))
-            .SelectMany(item => VisibleRegions(displays, windows, item.index)).ToArray();
+        if (result.Count == 0 && rejectedWindowQuality)
+            throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.InsufficientVisibleContent);
+        // Desktop panoramas still read screen pixels and must mask title-only content before acquisition.
+        // Direct window surfaces contain no overlapping windows, including excluded applications.
         var selectedBeforeCaptureExclusion = result.Count;
         result = result.Select(target =>
         {
+            if (target.WindowHandle != IntPtr.Zero) return target;
             var regions = target.VisibleRegions.ToList();
             foreach (var blocked in captureBlockedRegions)
                 regions = regions.SelectMany(region => Subtract(region, blocked)).ToList();
             return target with { VisibleRegions = regions };
         }).Where(target => target.VisibleRegions.Count > 0).ToList();
-        if (result.Count == 0 && (selectedBeforeCaptureExclusion > 0 || IsCaptureExcluded(foreground.ProcessName)))
+        if (result.Count == 0 && selectedBeforeCaptureExclusion > 0)
             throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.ContentExcluded);
 
         // Apply vetoes after destination union: another matching rule must never restore AI access.
         var blockedRegions = windows.Select((window, index) => (window, index))
-            .Where(item => IsBlacklisted(item.window.ProcessName))
+            .Where(item => !item.window.IsCaptureExcluded && IsBlacklisted(item.window.ProcessName))
             .SelectMany(item => VisibleRegions(displays, windows, item.index)).ToArray();
         result = result.Select(target =>
         {
@@ -197,7 +221,8 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
             var attention = windowPolicy is null ? "normal" : target.WindowHandle == foreground.WindowHandle
                 ? windowPolicy.ActiveAttention : windowPolicy.BackgroundAttention;
             var blocked = (window is not null && IsBlacklisted(window.ProcessName))
-                || target.VisibleRegions.Any(region => blockedRegions.Any(blockedRegion => HasArea(Intersect(region, blockedRegion))));
+                || (target.WindowHandle == IntPtr.Zero
+                    && target.VisibleRegions.Any(region => blockedRegions.Any(blockedRegion => HasArea(Intersect(region, blockedRegion)))));
             return target with { Attention = attention, ForAnalysis = target.ForAnalysis && !blocked };
         }).Where(target => target.ForAnalysis || target.ForGallery).ToList();
         if (result.Count == 0) throw new InvalidOperationException("Screenshot capture rules select no visible images with an allowed destination.");
@@ -218,20 +243,69 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
     {
         var regions = displays.Select(display => Intersect(display.Bounds, windows[index].Bounds)).Where(HasArea).ToList();
         // Unmatched and blacklisted windows still occlude lower targets.
-        foreach (var above in windows.Take(index))
+        foreach (var above in windows.Take(index).Where(window => !window.IsCaptureExcluded))
             regions = regions.SelectMany(region => Subtract(region, above.Bounds)).ToList();
         return regions;
     }
 
+    private static bool HasUsableWindowContent(ScreenshotCaptureRule rule, NativeMethods.Rect windowBounds,
+        NativeMethods.Rect cropBounds, IReadOnlyList<NativeMethods.Rect> regions)
+    {
+        var visibleArea = regions.Sum(Area);
+        var windowArea = Area(windowBounds);
+        // Use the whole window: a sliver left on a monitor is not a fully visible window.
+        if (windowArea == 0 || visibleArea / (double)windowArea < rule.MinimumVisibleFraction
+            || cropBounds.Right - cropBounds.Left < rule.MinimumWidthPixels
+            || cropBounds.Bottom - cropBounds.Top < rule.MinimumHeightPixels
+            || visibleArea / (double)Area(cropBounds) < rule.MinimumVisibleBoundsFraction)
+            return false;
+
+        // Require one substantial connected surface, not disconnected strips around an occluder.
+        // Adjacent monitor regions share an edge and count as one surface; corner-only contact does not.
+        return rule.MinimumContiguousFraction == 0
+            || LargestConnectedArea(regions) / (double)visibleArea >= rule.MinimumContiguousFraction;
+    }
+
+    private static long LargestConnectedArea(IReadOnlyList<NativeMethods.Rect> regions)
+    {
+        var visited = new bool[regions.Count];
+        var pending = new Queue<int>();
+        long largest = 0;
+        for (var start = 0; start < regions.Count; start++)
+        {
+            if (visited[start]) continue;
+            visited[start] = true;
+            pending.Enqueue(start);
+            long area = 0;
+            while (pending.TryDequeue(out var current))
+            {
+                area += Area(regions[current]);
+                for (var next = 0; next < regions.Count; next++)
+                {
+                    if (visited[next] || !SharesVisibleEdge(regions[current], regions[next])) continue;
+                    visited[next] = true;
+                    pending.Enqueue(next);
+                }
+            }
+            largest = Math.Max(largest, area);
+        }
+        return largest;
+    }
+
+    private static bool SharesVisibleEdge(NativeMethods.Rect first, NativeMethods.Rect second) =>
+        (Math.Max(first.Left, second.Left) < Math.Min(first.Right, second.Right)
+            && Math.Max(first.Top, second.Top) <= Math.Min(first.Bottom, second.Bottom))
+        || (Math.Max(first.Top, second.Top) < Math.Min(first.Bottom, second.Bottom)
+            && Math.Max(first.Left, second.Left) <= Math.Min(first.Right, second.Right));
+
     private static void AddTarget(List<CaptureImageTarget> targets, CaptureImageTarget candidate)
     {
         var index = targets.FindIndex(target =>
-            (target.WindowHandle == candidate.WindowHandle || target.WindowHandle == IntPtr.Zero || candidate.WindowHandle == IntPtr.Zero)
+            target.WindowHandle == candidate.WindowHandle
             && SameBounds(target.Bounds, candidate.Bounds) && SameRegions(target.VisibleRegions, candidate.VisibleRegions));
         if (index < 0) { targets.Add(candidate); return; }
         var existing = targets[index];
-        var identity = existing.WindowHandle == IntPtr.Zero && candidate.WindowHandle != IntPtr.Zero ? candidate : existing;
-        targets[index] = identity with
+        targets[index] = existing with
         {
             Priority = PriorityRank(existing.Priority) <= PriorityRank(candidate.Priority) ? existing.Priority : candidate.Priority,
             ForAnalysis = existing.ForAnalysis || candidate.ForAnalysis,
@@ -268,7 +342,9 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
 
 internal sealed record ScreenshotCaptureRule(string Id, bool Enabled, string Subject, string Capture,
     string Priority, string Destination, IReadOnlyList<string>? ProcessNames = null,
-    bool RequireSecondaryMatch = false, double MinimumVisibleFraction = 0);
+    bool RequireSecondaryMatch = false, double MinimumVisibleFraction = 0,
+    int MinimumWidthPixels = 0, int MinimumHeightPixels = 0,
+    double MinimumVisibleBoundsFraction = 0, double MinimumContiguousFraction = 0);
 
 internal sealed record ScreenshotApplicationProfile(string Id, string Label, IReadOnlyList<string> ProcessNames,
     string ActiveAttention, string BackgroundAttention, int? IdleTimeoutMinutes = null, bool? CaptureSecondary = null,
@@ -286,7 +362,7 @@ internal sealed record ScreenshotWindowPolicy(string ActiveAttention, string Bac
 
 /// <summary>Visible top-level window facts in desktop z order, before selecting policy subjects.</summary>
 internal sealed record CaptureWindow(IntPtr WindowHandle, NativeMethods.Rect Bounds, string ProcessName,
-    string ApplicationName, string WindowTitle, bool IsApplicationWindow = true);
+    string ApplicationName, string WindowTitle, bool IsApplicationWindow = true, bool IsCaptureExcluded = false);
 
 internal sealed record CaptureImageTarget(string Stem, string Role, CaptureDisplay Display,
     NativeMethods.Rect Bounds, IReadOnlyList<NativeMethods.Rect> VisibleRegions, IReadOnlyList<int> RelatedScreenIndices,

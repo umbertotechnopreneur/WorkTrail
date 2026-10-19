@@ -9,6 +9,33 @@ the action needs authorization. Remove the item when it is complete.
 
 ## Active now: startup and restored-data recovery
 
+- [ ] Validate the taskbar preference on first display, hide/show and restart for
+  clocks, maps, Moon and the main player. The shared window lifecycle now defers
+  shell visibility until the window is visible; context menus read the committed
+  preference, including after a pending command finishes following window closure.
+  The strict Debug x64 build, formatting checks and all eight targeted preference
+  cases pass. Three restored-data fixtures initially used noncanonical Boolean
+  strings; the corrected cases pass the owner-authorized rerun. Installation was
+  declined; installed 1.0.6.28 predates this fix. Keep actual shell behavior
+  separate from persistence checks.
+
+- [ ] After owner authorization, validate real
+  keyboard/click increments, including pause/resume and runtime-command startup.
+  Check a provider's actual structured continuation/ending response and passive
+  capture eligibility while reading. The implementation, 140 targeted Core checks,
+  strict Debug x64 build and formatting checks pass. Debug x64 1.0.6.28 is installed
+  with status `Ok`; all 255 preserved application-data files were restored and
+  SHA-256 verified after the owner-requested uninstall/reinstall. Native behavior
+  remains unverified. No images were sent to a provider during these checks.
+
+- [ ] Complete native screenshot coverage on the final Debug package: covered/partly
+  off-screen windows across mixed-DPI gaps, secondary selection, minimized/protected
+  targets and frame timeouts. Debug x64 1.0.6.26 passes installed-runtime captures of
+  active WorkTrail and VoiceDucker, auxiliary-panel exclusion and two-monitor
+  panoramas with unchanged panel bounds. Covered-window backend capture also passes.
+  Preserve the no-redraw/no-desktop-fallback boundary and the documented neutral
+  backing for transparent areas whose Acrylic Windows omits.
+
 - [ ] After owner authorization, validate the native World Time menu in the app.
   Check opening, Escape/light dismiss,
   all six existing destinations, saved-city preview refresh, rapid close/reopen,

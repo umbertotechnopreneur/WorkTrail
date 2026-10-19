@@ -50,6 +50,7 @@ public sealed class ActivityMonitorService : IDisposable
     private int _sampleInProgress;
     private int _sampleThreadId;
     private bool _disposed;
+    private int _observationFailureReported;
 
     /// <summary>
     /// Creates a monitor service bound to a store and input counter source.
@@ -158,11 +159,15 @@ public sealed class ActivityMonitorService : IDisposable
                 ApplicationIconPixels = WindowIconService.ReadPixels(windowHandle)
             };
         }
-        catch
+        catch (Exception exception)
         {
+            // An unavailable input observation must not silently look like zero input or an active session.
+            if (Interlocked.Exchange(ref _observationFailureReported, 1) == 0)
+                ApplicationErrorService.Report(exception, "ActivityMonitor.Observation", deferDialog: true);
             return;
         }
 
+        Volatile.Write(ref _observationFailureReported, 0);
         _ = TryPersistSample(sample);
     }
 
@@ -306,7 +311,8 @@ public sealed class ActivityMonitorService : IDisposable
         var info = new NativeMethods.LastInputInfo { Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.LastInputInfo>() };
         if (!NativeMethods.GetLastInputInfo(ref info))
         {
-            return 0;
+            throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error(),
+                "Windows could not provide the last user-input time.");
         }
 
         return unchecked((uint)Environment.TickCount - info.Time) / 1000;

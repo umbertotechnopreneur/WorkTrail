@@ -2027,7 +2027,7 @@ public sealed partial class MainWindow : Window
         _hasAppliedSettings = true;
         _screenshotsEnabled = settings.ScreenshotsEnabled;
         WindowContent.Opacity = settings.MainWindowOpacityPercent / 100d;
-        _appWindow.IsShownInSwitchers = settings.MainWindowShowInTaskbar;
+        _placement.ApplyTaskbarVisibility(settings.MainWindowShowInTaskbar);
 
         RootGrid.RequestedTheme = _theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
         _titleBar.ApplyTheme(RootGrid.RequestedTheme == ElementTheme.Default ? RootGrid.ActualTheme : RootGrid.RequestedTheme);

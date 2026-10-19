@@ -3,8 +3,8 @@
   "stability": { "enabled": true, "settleMilliseconds": 1000, "maximumWaitMilliseconds": 3000, "pollMilliseconds": 100, "retrySeconds": 3, "maxRetries": 2 },
   "similarity": { "enabled": true, "sampleWidth": 128, "sampleHeight": 96, "maxMeanDifference": 0.25, "maxChangedPixelFraction": 0.0001, "pixelDifferenceThreshold": 6, "maxPixelDifference": 24, "forceRefreshMinutes": 15, "maxEntries": 128 },
   "rules": [
-    { "id": "active-content", "enabled": true, "subject": "active-window", "capture": "window", "priority": "primary", "destination": "both" },
-    { "id": "secondary-content", "enabled": true, "subject": "secondary-windows", "capture": "window", "priority": "secondary", "destination": "both", "requireSecondaryMatch": true, "minimumVisibleFraction": 0.15 },
+    { "id": "active-content", "enabled": true, "subject": "active-window", "capture": "window", "priority": "primary", "destination": "both", "minimumWidthPixels": 240, "minimumHeightPixels": 160 },
+    { "id": "secondary-content", "enabled": true, "subject": "secondary-windows", "capture": "window", "priority": "secondary", "destination": "both", "requireSecondaryMatch": true, "minimumVisibleFraction": 0.90, "minimumWidthPixels": 240, "minimumHeightPixels": 160, "minimumVisibleBoundsFraction": 0.90, "minimumContiguousFraction": 0.90 },
     { "id": "active-overview", "enabled": true, "subject": "active-monitor", "capture": "monitor", "priority": "context", "destination": "gallery" },
     { "id": "secondary-overviews", "enabled": true, "subject": "secondary-monitors", "capture": "monitor", "priority": "context", "destination": "gallery" }
   ],

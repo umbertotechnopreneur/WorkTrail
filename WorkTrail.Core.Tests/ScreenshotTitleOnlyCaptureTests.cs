@@ -46,23 +46,58 @@ public sealed class ScreenshotTitleOnlyCaptureTests
                 rules.Plan([new CaptureDisplay(1, Full)], Focus(spotify), [spotify], true)).Decision);
     }
 
-    /// <summary>Visible title-only pixels are absent from both crops and monitor acquisition regions.</summary>
-    /// <param name="spotifyIsForeground">Whether the title-only application has foreground focus.</param>
+    /// <summary>An excluded foreground vetoes other monitors and eligible windows, even when not maximized.</summary>
+    /// <param name="activeWindowOnly">Whether capture is restricted to the active window.</param>
+    /// <param name="maximized">Whether Spotify covers its entire display.</param>
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public void ForegroundSpotify_WithOtherEligibleContent_RejectsEntireCapture(bool activeWindowOnly, bool maximized)
+    {
+        var second = Rect(100, 0, 200, 100);
+        var spotify = Window(1, maximized ? Full : Rect(0, 0, 40, 100), "sPoTiFy");
+        var word = Window(2, second, "winword");
+        var failure = Assert.Throws<ScreenshotCapturePreconditionException>(() => Rules().Plan(
+            [new CaptureDisplay(1, Full), new CaptureDisplay(2, second)], Focus(spotify), [spotify, word], activeWindowOnly));
+
+        Assert.Equal(ScreenshotCaptureDecision.ContentExcluded, failure.Decision);
+    }
+
+    /// <summary>An analysis-blacklisted foreground also vetoes gallery and other-monitor fallback.</summary>
+    /// <param name="activeWindowOnly">Whether capture is restricted to the active window.</param>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void VisibleSpotify_IsMaskedInPanoramasAndNeverGetsACrop(bool spotifyIsForeground)
+    public void ForegroundAnalysisBlacklist_WithOtherEligibleContent_RejectsEntireCapture(bool activeWindowOnly)
+    {
+        var second = Rect(100, 0, 200, 100);
+        var blocked = Window(1, Full, "blacklisted-app");
+        var word = Window(2, second, "winword");
+        var rules = Rules() with { AnalysisBlacklist = ["BLACKLISTED-APP"] };
+
+        var failure = Assert.Throws<ScreenshotCapturePreconditionException>(() => rules.Plan(
+            [new CaptureDisplay(1, Full), new CaptureDisplay(2, second)], Focus(blocked), [blocked, word], activeWindowOnly));
+
+        Assert.Equal(ScreenshotCaptureDecision.ContentExcluded, failure.Decision);
+    }
+
+    /// <summary>Background title-only pixels are masked without blocking the eligible foreground.</summary>
+    [Fact]
+    public void BackgroundSpotify_IsMaskedInPanoramasAndNeverGetsACrop()
     {
         var spotify = Window(1, Rect(0, 0, 40, 100), "Spotify");
         var word = Window(2, Full, "winword");
-        var targets = Rules().Plan([new CaptureDisplay(1, Full)], Focus(spotifyIsForeground ? spotify : word), [spotify, word], false);
+        var targets = Rules().Plan([new CaptureDisplay(1, Full)], Focus(word), [spotify, word], false);
 
         Assert.DoesNotContain(targets, target => target.WindowHandle == spotify.WindowHandle);
         Assert.Contains(targets, target => target.WindowHandle == word.WindowHandle);
         var panorama = Assert.Single(targets, target => target.Role == "monitor-context");
         Assert.True(panorama.ForGallery);
         Assert.True(panorama.ForAnalysis);
-        Assert.All(targets, target => Assert.All(target.VisibleRegions, region => Assert.True(region.Left >= 40)));
+        Assert.All(panorama.VisibleRegions, region => Assert.True(region.Left >= 40));
+        Assert.Equal(10000, Area(Assert.Single(targets, target => target.WindowHandle == word.WindowHandle).VisibleRegions));
         Assert.Equal(6000, Area(panorama.VisibleRegions));
     }
 
@@ -117,7 +152,9 @@ public sealed class ScreenshotTitleOnlyCaptureTests
         var word = Window(2, Full, "winword");
         var targets = Rules().Plan([new CaptureDisplay(1, Full)], Focus(word), [helper, word], false);
 
-        Assert.All(targets, target => Assert.All(target.VisibleRegions, region => Assert.True(region.Left >= 20)));
+        var panorama = Assert.Single(targets, target => target.WindowHandle == IntPtr.Zero);
+        Assert.All(panorama.VisibleRegions, region => Assert.True(region.Left >= 20));
+        Assert.Equal(10000, Area(Assert.Single(targets, target => target.WindowHandle == word.WindowHandle).VisibleRegions));
     }
 
     /// <summary>Image focus metadata does not misattribute another screenshot to Spotify.</summary>

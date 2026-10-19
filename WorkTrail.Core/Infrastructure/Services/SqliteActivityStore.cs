@@ -1295,8 +1295,10 @@ internal sealed partial class SqliteActivityStore
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT correlation_id, timestamp_utc_ticks, application, context, summary, installation_id,
-                   screenshot_paths, origin, informational_schedule
+                   screenshot_paths, origin, informational_schedule,
+                   continuity.continues_confidence, continuity.ended_confidence
             FROM ai_analysis_results
+            LEFT JOIN ai_activity_continuity AS continuity USING (correlation_id)
             ORDER BY timestamp_utc_ticks DESC, correlation_id DESC
             LIMIT 1;
             """;
@@ -1317,8 +1319,10 @@ internal sealed partial class SqliteActivityStore
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT correlation_id, timestamp_utc_ticks, application, context, summary, installation_id,
-                   screenshot_paths, origin, informational_schedule
+                   screenshot_paths, origin, informational_schedule,
+                   continuity.continues_confidence, continuity.ended_confidence
             FROM ai_analysis_results
+            LEFT JOIN ai_activity_continuity AS continuity USING (correlation_id)
             WHERE correlation_id = $correlationId;
             """;
         command.Parameters.AddWithValue("$correlationId", correlationId);
@@ -1334,8 +1338,10 @@ internal sealed partial class SqliteActivityStore
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT correlation_id, timestamp_utc_ticks, application, context, summary, installation_id,
-                   screenshot_paths, origin, informational_schedule
+                   screenshot_paths, origin, informational_schedule,
+                   continuity.continues_confidence, continuity.ended_confidence
             FROM ai_analysis_results
+            LEFT JOIN ai_activity_continuity AS continuity USING (correlation_id)
             ORDER BY timestamp_utc_ticks, correlation_id;
             """;
         using var reader = command.ExecuteReader();
@@ -1363,8 +1369,10 @@ internal sealed partial class SqliteActivityStore
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT correlation_id, timestamp_utc_ticks, application, context, summary, installation_id,
-                   screenshot_paths, origin, informational_schedule
+                   screenshot_paths, origin, informational_schedule,
+                   continuity.continues_confidence, continuity.ended_confidence
             FROM ai_analysis_results
+            LEFT JOIN ai_activity_continuity AS continuity USING (correlation_id)
             WHERE screenshot_paths IS NOT NULL
             ORDER BY timestamp_utc_ticks DESC, correlation_id DESC;
             """;
@@ -2173,6 +2181,8 @@ internal sealed partial class SqliteActivityStore
 
     private static void InsertAiAnalysisResult(SqliteConnection connection, SqliteTransaction transaction, AiRequestUsageRecord request, AiAnalysis analysis)
     {
+        if (analysis.ActivityContinuity is { IsValid: false })
+            throw new InvalidDataException("AI activity continuity confidences are invalid.");
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
@@ -2198,6 +2208,19 @@ internal sealed partial class SqliteActivityStore
         Add(command, "$screenshotPaths", analysis.ScreenshotPaths);
         Add(command, "$imageCount", request.ImageCount);
         command.ExecuteNonQuery();
+        if (analysis.ActivityContinuity is { } continuity)
+        {
+            using var assessment = connection.CreateCommand();
+            assessment.Transaction = transaction;
+            assessment.CommandText = """
+                INSERT INTO ai_activity_continuity (correlation_id, continues_confidence, ended_confidence)
+                VALUES ($correlationId, $continues, $ended);
+                """;
+            Add(assessment, "$correlationId", analysis.CorrelationId);
+            Add(assessment, "$continues", continuity.ContinuesConfidence);
+            Add(assessment, "$ended", continuity.EndedConfidence);
+            assessment.ExecuteNonQuery();
+        }
     }
 
     private static void InsertAiAnalysisArtifacts(
@@ -2351,7 +2374,9 @@ internal sealed partial class SqliteActivityStore
         DeviceContext: null,
         CorrelationId: reader.GetString(0),
         Origin: reader.GetString(7),
-        InformationalSchedule: ReadNullableString(reader, 8));
+        InformationalSchedule: ReadNullableString(reader, 8),
+        ActivityContinuity: reader.IsDBNull(9) || reader.IsDBNull(10) ? null
+            : new ActivityContinuityAssessment(reader.GetDouble(9), reader.GetDouble(10)));
 
     private static long? ReadNullableLong(SqliteDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
 
@@ -2445,6 +2470,14 @@ internal sealed partial class SqliteActivityStore
             FOREIGN KEY (attempt_id) REFERENCES ai_request_usage(attempt_id) ON DELETE CASCADE
         );
         CREATE INDEX ix_ai_analysis_results_timestamp ON ai_analysis_results (timestamp_utc_ticks);
+
+        CREATE TABLE ai_activity_continuity (
+            correlation_id TEXT PRIMARY KEY,
+            continues_confidence REAL NOT NULL CHECK (continues_confidence >= 0 AND continues_confidence <= 1),
+            ended_confidence REAL NOT NULL CHECK (ended_confidence >= 0 AND ended_confidence <= 1),
+            CHECK (continues_confidence + ended_confidence <= 1.000000001),
+            FOREIGN KEY (correlation_id) REFERENCES ai_analysis_results(correlation_id) ON DELETE CASCADE
+        );
 
         -- FTS provides local keyword candidate retrieval; synonym and typo resolution remains an application-level future concern.
         CREATE VIRTUAL TABLE ai_analysis_search USING fts5(

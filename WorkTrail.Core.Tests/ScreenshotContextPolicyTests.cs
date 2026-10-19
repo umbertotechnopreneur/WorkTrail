@@ -99,7 +99,7 @@ public sealed class ScreenshotContextPolicyTests
     {
         var policy = ScreenshotCaptureRules.Load();
         var resolved = policy.ResolveWindowPolicy(processName, title);
-        var secondary = PlanSecondary(policy, processName, title, 50).Where(target => target.Role == "secondary-window").ToArray();
+        var secondary = PlanSecondary(policy, processName, title, 5).Where(target => target.Role == "secondary-window").ToArray();
 
         Assert.Equal(reason, resolved.Reason);
         Assert.Equal(included, resolved.CaptureSecondary);
@@ -120,15 +120,15 @@ public sealed class ScreenshotContextPolicyTests
         Assert.Equal(included, resolved.CaptureSecondary);
         Assert.Equal(included ? "high" : "normal", resolved.ActiveAttention);
         Assert.Equal(included ? "title-hint:java-sql-developer" : "default", resolved.Reason);
-        Assert.Equal(included ? 1 : 0, PlanSecondary(policy, processName, title, 50).Count(target => target.Role == "secondary-window"));
+        Assert.Equal(included ? 1 : 0, PlanSecondary(policy, processName, title, 5).Count(target => target.Role == "secondary-window"));
     }
 
     [Theory]
-    [InlineData(84, true)]
-    [InlineData(85, true)]
-    [InlineData(86, false)]
+    [InlineData(9, true)]
+    [InlineData(10, true)]
+    [InlineData(11, false)]
     [InlineData(100, false)]
-    public void SecondarySelection_RequiresAtLeastFifteenPercentVisible(int foregroundWidth, bool included)
+    public void SecondarySelection_RequiresAtLeastNinetyPercentVisible(int foregroundWidth, bool included)
     {
         var secondary = PlanSecondary(ScreenshotCaptureRules.Load(), "Code", "Project", foregroundWidth)
             .Where(target => target.Role == "secondary-window").ToArray();
@@ -136,9 +136,9 @@ public sealed class ScreenshotContextPolicyTests
         Assert.Equal(included ? 1 : 0, secondary.Length);
         if (!included) return;
         var target = Assert.Single(secondary);
-        Assert.Equal(foregroundWidth, target.Bounds.Left);
-        Assert.All(target.VisibleRegions, region => Assert.True(region.Left >= foregroundWidth));
-        Assert.Equal((100 - foregroundWidth) * 100, target.VisibleRegions.Sum(region =>
+        Assert.Equal(0, target.Bounds.Left);
+        Assert.Single(target.VisibleRegions);
+        Assert.Equal(1000000, target.VisibleRegions.Sum(region =>
             (region.Right - region.Left) * (region.Bottom - region.Top)));
     }
 
@@ -268,5 +268,5 @@ public sealed class ScreenshotContextPolicyTests
              new CaptureWindow((IntPtr)2, full, processName, processName, title)], false);
     }
 
-    private static NativeMethods.Rect Bounds(int right) => new() { Left = 0, Top = 0, Right = right, Bottom = 100 };
+    private static NativeMethods.Rect Bounds(int right) => new() { Left = 0, Top = 0, Right = right * 10, Bottom = 1000 };
 }

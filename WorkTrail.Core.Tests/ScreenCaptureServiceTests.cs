@@ -35,12 +35,12 @@ public sealed class ScreenCaptureServiceTests
     {
         var displays = new[]
         {
-            new CaptureDisplay(1, new NativeMethods.Rect { Left = -100, Top = 0, Right = 0, Bottom = 100 }),
-            new CaptureDisplay(2, new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 }),
-            new CaptureDisplay(3, new NativeMethods.Rect { Left = 100, Top = 0, Right = 200, Bottom = 100 })
+            new CaptureDisplay(1, new NativeMethods.Rect { Left = -1000, Top = 0, Right = 0, Bottom = 1000 }),
+            new CaptureDisplay(2, new NativeMethods.Rect { Left = 0, Top = 0, Right = 1000, Bottom = 1000 }),
+            new CaptureDisplay(3, new NativeMethods.Rect { Left = 1000, Top = 0, Right = 2000, Bottom = 1000 })
         };
         var targets = Plan(ScreenshotCaptureRules.Load(), displays,
-            new NativeMethods.Rect { Left = 110, Top = 10, Right = 190, Bottom = 90 }, false);
+            new NativeMethods.Rect { Left = 1100, Top = 100, Right = 1900, Bottom = 900 }, false);
 
         Assert.Equal(4, targets.Count);
         Assert.Equal("active-window", targets[0].Role);
@@ -51,32 +51,36 @@ public sealed class ScreenCaptureServiceTests
     }
 
     [Fact]
-    public void CaptureRules_SpanningWindowIsOneCropWithOnlyVisibleRegions()
+    public void CaptureRules_SpanningWindowIsOneCompleteSurface()
     {
         var displays = new[]
         {
             new CaptureDisplay(1, new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 }),
             new CaptureDisplay(2, new NativeMethods.Rect { Left = 120, Top = 0, Right = 220, Bottom = 100 })
         };
-        var targets = Plan(ScreenshotCaptureRules.Load(), displays,
+        // Direct window capture includes its surface across monitor gaps and offscreen edges.
+        var geometry = new ScreenshotCaptureRules([new("active", true, "active-window", "window", "primary", "both")]);
+        var targets = Plan(geometry, displays,
             new NativeMethods.Rect { Left = 90, Top = -10, Right = 200, Bottom = 80 }, true);
 
         var target = Assert.Single(targets);
         Assert.Equal(2, target.Display.Index);
         Assert.Equal(new[] { 1, 2 }, target.RelatedScreenIndices);
-        Assert.Equal(2, target.VisibleRegions.Count);
-        Assert.Equal(0, target.Bounds.Top);
+        Assert.Single(target.VisibleRegions);
+        Assert.Equal(-10, target.Bounds.Top);
         Assert.Equal(90, target.Bounds.Left);
         Assert.Equal(200, target.Bounds.Right);
     }
 
     [Fact]
-    public void CaptureRules_DoNotDuplicateFullscreenCropAsMonitorContext()
+    public void CaptureRules_KeepFullscreenWindowAndDesktopAsDistinctSources()
     {
-        var bounds = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
+        var bounds = new NativeMethods.Rect { Left = 0, Top = 0, Right = 1000, Bottom = 1000 };
         var targets = Plan(ScreenshotCaptureRules.Load(), [new CaptureDisplay(1, bounds)], bounds, false);
 
-        Assert.Equal("active-window", Assert.Single(targets).Role);
+        Assert.Equal(2, targets.Count);
+        Assert.Equal("active-window", targets[0].Role);
+        Assert.Equal("monitor-context", targets[1].Role);
     }
 
     [Fact]
@@ -96,7 +100,17 @@ public sealed class ScreenCaptureServiceTests
         Assert.Equal("secondary-windows", rules.Rules[1].Subject);
         Assert.All(rules.Rules.Skip(2), rule => Assert.Equal("gallery", rule.Destination));
         Assert.True(rules.Rules[1].RequireSecondaryMatch);
-        Assert.Equal(0.15, rules.Rules[1].MinimumVisibleFraction);
+        Assert.Equal(0, rules.Rules[0].MinimumVisibleFraction);
+        Assert.Equal(0, rules.Rules[0].MinimumVisibleBoundsFraction);
+        Assert.Equal(0, rules.Rules[0].MinimumContiguousFraction);
+        Assert.Equal(0.90, rules.Rules[1].MinimumVisibleFraction);
+        Assert.Equal(0.90, rules.Rules[1].MinimumVisibleBoundsFraction);
+        Assert.Equal(0.90, rules.Rules[1].MinimumContiguousFraction);
+        Assert.All(rules.Rules.Take(2), rule =>
+        {
+            Assert.Equal(240, rule.MinimumWidthPixels);
+            Assert.Equal(160, rule.MinimumHeightPixels);
+        });
         var profiles = rules.ApplicationProfiles!;
         foreach (var id in new[] { "word", "excel", "teams", "visual-studio", "visual-studio-code", "notepad",
             "windows-terminal", "console-host", "ssms", "oracle-sql-developer", "datagrip", "jetbrains" })
@@ -122,7 +136,7 @@ public sealed class ScreenCaptureServiceTests
     [InlineData("unknown-editor", "normal")]
     public void CaptureRules_ApplicationAttentionDoesNotDisableAnalysis(string processName, string attention)
     {
-        var bounds = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
+        var bounds = new NativeMethods.Rect { Left = 0, Top = 0, Right = 1000, Bottom = 1000 };
         var foreground = new ForegroundCaptureTarget((IntPtr)1, bounds, processName, "Application", "Topic", "Window");
         var target = Assert.Single(ScreenshotCaptureRules.Load().Plan([new CaptureDisplay(1, bounds)], foreground,
             [new CaptureWindow((IntPtr)1, bounds, processName, "Application", "Window")], true));
@@ -133,8 +147,8 @@ public sealed class ScreenCaptureServiceTests
     [Fact]
     public void CaptureRules_BackgroundHighApplicationUsesNormalAttention()
     {
-        var full = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
-        var front = new NativeMethods.Rect { Left = 0, Top = 0, Right = 50, Bottom = 100 };
+        var full = new NativeMethods.Rect { Left = 0, Top = 0, Right = 4000, Bottom = 1000 };
+        var front = new NativeMethods.Rect { Left = 0, Top = 0, Right = 300, Bottom = 1000 };
         var foreground = new ForegroundCaptureTarget((IntPtr)1, front, "chat", "Chat", "Topic", "Chat");
         var targets = ScreenshotCaptureRules.Load().Plan([new CaptureDisplay(1, full)], foreground,
             [new CaptureWindow((IntPtr)1, front, "chat", "Chat", "Chat"),
@@ -143,15 +157,15 @@ public sealed class ScreenCaptureServiceTests
     }
 
     [Fact]
-    public void CaptureRules_BlacklistVetoSurvivesRuleUnionAndKeepsGallery()
+    public void CaptureRules_ForegroundBlacklistVetoSurvivesRuleUnion()
     {
         var bounds = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
         var rules = new ScreenshotCaptureRules([
             new("gallery", true, "active-window", "window", "primary", "gallery"),
             new("analysis", true, "active-window", "window", "primary", "analysis")], AnalysisBlacklist: ["TEST"]);
-        var target = Assert.Single(Plan(rules, [new CaptureDisplay(1, bounds)], bounds, true));
-        Assert.False(target.ForAnalysis);
-        Assert.True(target.ForGallery);
+        var failure = Assert.Throws<ScreenshotCapturePreconditionException>(() =>
+            Plan(rules, [new CaptureDisplay(1, bounds)], bounds, true));
+        Assert.Equal(ScreenshotCaptureDecision.ContentExcluded, failure.Decision);
     }
 
     [Fact]
@@ -160,7 +174,9 @@ public sealed class ScreenCaptureServiceTests
         var bounds = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
         var rules = new ScreenshotCaptureRules([
             new("analysis", true, "active-window", "window", "primary", "analysis")], AnalysisBlacklist: ["test"]);
-        Assert.Throws<InvalidOperationException>(() => Plan(rules, [new CaptureDisplay(1, bounds)], bounds, true));
+        Assert.Equal(ScreenshotCaptureDecision.ContentExcluded,
+            Assert.Throws<ScreenshotCapturePreconditionException>(() =>
+                Plan(rules, [new CaptureDisplay(1, bounds)], bounds, true)).Decision);
     }
 
     [Theory]
@@ -182,7 +198,7 @@ public sealed class ScreenCaptureServiceTests
     }
 
     [Fact]
-    public void CaptureRules_BlacklistedOverlayDoesNotBlockMaskedActiveCrop()
+    public void CaptureRules_BlacklistedOverlayIsAbsentFromDirectActiveSurface()
     {
         var full = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
         var overlay = new NativeMethods.Rect { Left = 0, Top = 0, Right = 10, Bottom = 100 };
@@ -193,7 +209,7 @@ public sealed class ScreenCaptureServiceTests
             [new CaptureWindow((IntPtr)2, overlay, "blocked", "Blocked", "Overlay", false),
              new CaptureWindow((IntPtr)1, full, "chat", "Chat", "Chat")], true));
         Assert.True(target.ForAnalysis);
-        Assert.Equal(10, target.Bounds.Left);
+        Assert.Equal(0, target.Bounds.Left);
     }
 
     [Fact]
@@ -214,22 +230,24 @@ public sealed class ScreenCaptureServiceTests
     }
 
     [Fact]
-    public void CaptureRules_SecondaryWindowExcludesOccludedPixels()
+    public void CaptureRules_SelectedSecondaryWindowKeepsItsEntireSurface()
     {
         var full = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
         var front = new NativeMethods.Rect { Left = 20, Top = 20, Right = 80, Bottom = 80 };
         var foreground = new ForegroundCaptureTarget((IntPtr)1, front, "chat", "Chat", "Topic", "Chat");
-        var targets = ScreenshotCaptureRules.Load().Plan([new CaptureDisplay(1, full)], foreground,
+        // Isolate occlusion geometry from quality eligibility, covered by ScreenshotCaptureQualityTests.
+        var geometry = new ScreenshotCaptureRules([new("secondary", true, "secondary-windows", "window", "secondary", "both")]);
+        var targets = geometry.Plan([new CaptureDisplay(1, full)], foreground,
             [new CaptureWindow((IntPtr)1, front, "chat", "Chat", "Chat"), new CaptureWindow((IntPtr)2, full, "winword", "Word", "Document")], false);
         var secondary = Assert.Single(targets, target => target.Role == "secondary-window");
-        Assert.Equal(4, secondary.VisibleRegions.Count);
-        Assert.Equal(6400, secondary.VisibleRegions.Sum(region => (region.Right - region.Left) * (region.Bottom - region.Top)));
+        Assert.Single(secondary.VisibleRegions);
+        Assert.Equal(10000, secondary.VisibleRegions.Sum(region => (region.Right - region.Left) * (region.Bottom - region.Top)));
         Assert.Equal("Word", secondary.ApplicationName);
         Assert.True(secondary.ForAnalysis);
     }
 
     [Fact]
-    public void CaptureRules_ProcessFilterDoesNotRemoveOccluders()
+    public void CaptureRules_ProcessFilterSelectsCompleteWindowSurface()
     {
         var full = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
         var front = new NativeMethods.Rect { Left = 0, Top = 0, Right = 50, Bottom = 100 };
@@ -237,7 +255,7 @@ public sealed class ScreenCaptureServiceTests
         var rules = new ScreenshotCaptureRules([new("word-only", true, "secondary-windows", "window", "secondary", "analysis", ["WORD"])]);
         var target = Assert.Single(rules.Plan([new CaptureDisplay(1, full)], foreground,
             [new CaptureWindow((IntPtr)1, front, "chat", "Chat", "Chat"), new CaptureWindow((IntPtr)2, full, "word", "Word", "Document")], false));
-        Assert.Equal(50, target.Bounds.Left);
+        Assert.Equal(0, target.Bounds.Left);
         Assert.True(target.ForAnalysis);
         Assert.False(target.ForGallery);
     }
@@ -245,8 +263,8 @@ public sealed class ScreenCaptureServiceTests
     [Fact]
     public void CaptureRules_SkipShellTargetsAndFullyOccludedApplications()
     {
-        var full = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 };
-        var overlay = new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 10 };
+        var full = new NativeMethods.Rect { Left = 0, Top = 0, Right = 1000, Bottom = 1000 };
+        var overlay = new NativeMethods.Rect { Left = 0, Top = 0, Right = 1000, Bottom = 100 };
         var foreground = new ForegroundCaptureTarget((IntPtr)1, full, "chat", "Chat", "Topic", "Chat");
         var targets = ScreenshotCaptureRules.Load().Plan([new CaptureDisplay(1, full)], foreground,
             [new CaptureWindow((IntPtr)9, overlay, "shell", "Shell", "", false),
@@ -254,8 +272,8 @@ public sealed class ScreenCaptureServiceTests
              new CaptureWindow((IntPtr)2, full, "winword", "Word", "Document")], false);
         Assert.DoesNotContain(targets, target => target.Role == "secondary-window");
         var active = Assert.Single(targets, target => target.Role == "active-window");
-        Assert.Equal(10, active.Bounds.Top);
-        Assert.Equal(9000, active.VisibleRegions.Sum(region => (region.Right - region.Left) * (region.Bottom - region.Top)));
+        Assert.Equal(0, active.Bounds.Top);
+        Assert.Equal(1000000, active.VisibleRegions.Sum(region => (region.Right - region.Left) * (region.Bottom - region.Top)));
     }
 
     [Fact]
@@ -274,9 +292,9 @@ public sealed class ScreenCaptureServiceTests
     [Fact]
     public void CaptureRules_ActiveOnlyModeDoesNotExpandToOtherSubjects()
     {
-        var bounds = new NativeMethods.Rect { Left = 10, Top = 10, Right = 90, Bottom = 90 };
+        var bounds = new NativeMethods.Rect { Left = 100, Top = 100, Right = 900, Bottom = 900 };
         var target = Assert.Single(Plan(ScreenshotCaptureRules.Load(),
-            [new CaptureDisplay(1, new NativeMethods.Rect { Left = 0, Top = 0, Right = 100, Bottom = 100 })], bounds, true));
+            [new CaptureDisplay(1, new NativeMethods.Rect { Left = 0, Top = 0, Right = 1000, Bottom = 1000 })], bounds, true));
         Assert.Equal("active-window", target.Role);
     }
 
@@ -373,6 +391,40 @@ public sealed class ScreenCaptureServiceTests
             Assert.NotNull(decoded);
             Assert.Equal(64, decoded.Width);
             Assert.Equal(32, decoded.Height);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0, 0, 117, 117, 117)]
+    [InlineData(20, 40, 60, 128, 118, 98, 78)]
+    [InlineData(160, 80, 24, 255, 24, 80, 160)]
+    [InlineData(0, 0, 0, 255, 0, 0, 0)]
+    public void CapturedCompositorPixels_CompositeOnlyTransparencyBeforeWebp(
+        byte blue, byte green, byte red, byte alpha, byte expectedRed, byte expectedGreen, byte expectedBlue)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"worktrail-capture-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var screenshotPath = Path.Combine(directory, "capture.webp");
+        try
+        {
+            var pixels = Enumerable.Range(0, 64 * 32)
+                .SelectMany(_ => new byte[] { blue, green, red, alpha }).ToArray();
+            using var bitmap = WindowsGraphicsCaptureService.CreateOpaqueBitmap(pixels, 64, 32);
+            Assert.Equal(Color.FromArgb(expectedRed, expectedGreen, expectedBlue), bitmap.GetPixel(32, 16));
+
+            ScreenCaptureService.EncodeBitmapAsWebp(bitmap, screenshotPath);
+
+            using var decoded = SKBitmap.Decode(screenshotPath);
+            Assert.NotNull(decoded);
+            var pixel = decoded.GetPixel(32, 16);
+            Assert.Equal(byte.MaxValue, pixel.Alpha);
+            Assert.InRange((int)pixel.Red, Math.Max(0, expectedRed - 8), Math.Min(255, expectedRed + 8));
+            Assert.InRange((int)pixel.Green, Math.Max(0, expectedGreen - 8), Math.Min(255, expectedGreen + 8));
+            Assert.InRange((int)pixel.Blue, Math.Max(0, expectedBlue - 8), Math.Min(255, expectedBlue + 8));
         }
         finally
         {

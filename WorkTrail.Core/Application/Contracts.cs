@@ -681,6 +681,9 @@ public interface IWorkTrailApplication : IAsyncDisposable
     /// <summary>Registers local native drag handling on the window's UI thread; the returned registration must be disposed on that thread.</summary>
     IWindowSnappingRegistration RegisterWindowSnapping(long windowHandle, Action<Exception> reportFailure);
 
+    /// <summary>Excludes an auxiliary window owned by this frontend from system capture for its lifetime.</summary>
+    void ExcludeAuxiliaryWindowFromCapture(long windowHandle);
+
     /// <summary>Applies the persisted snapping preference to this frontend's windows without starting a second tracking runtime.</summary>
     void ConfigureWindowSnapping(bool enabled);
 
