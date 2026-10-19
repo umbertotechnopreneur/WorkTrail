@@ -51,7 +51,12 @@ if ($Stage -eq 'Archive') {
 }
 elseif ($Stage -eq 'DotNet') {
     # Resolve the installed SDK without executing its binaries before the scan.
-    $dotnetRoot = Split-Path -Parent (Get-Command dotnet.exe -CommandType Application).Source
+    if ([string]::IsNullOrWhiteSpace($env:DOTNET_ROOT)) { throw 'DOTNET_ROOT must identify the staged CI SDK.' }
+    $dotnetRoot = [IO.Path]::GetFullPath($env:DOTNET_ROOT)
+    $expectedHost = Join-Path $dotnetRoot 'dotnet.exe'
+    if ((Get-Command dotnet.exe -CommandType Application).Source -ne $expectedHost) {
+        throw 'The selected dotnet host does not match the staged CI SDK.'
+    }
     $requestedSdk = [version](Get-Content -LiteralPath (Join-Path $repositoryRoot 'global.json') -Raw | ConvertFrom-Json).sdk.version
     # global.json allows the latest patch in this feature band, not necessarily its base version.
     $sdkVersion = Get-ChildItem -LiteralPath (Join-Path $dotnetRoot 'sdk') -Directory |

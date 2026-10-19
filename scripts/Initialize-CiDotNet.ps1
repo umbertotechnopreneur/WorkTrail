@@ -46,6 +46,10 @@ if ((Get-FileHash -LiteralPath $archivePath -Algorithm SHA512).Hash -ne $archive
 # Do not expand or expose the downloaded binaries until their archive scan has succeeded.
 $sdkRoot = Join-Path $stagingRoot 'sdk'
 Expand-Archive -LiteralPath $archivePath -DestinationPath $sdkRoot
+if (-not (Test-Path -LiteralPath (Join-Path $sdkRoot 'dotnet.exe') -PathType Leaf)) {
+    throw 'The extracted SDK does not contain its Windows host.'
+}
 @("DOTNET_ROOT=$sdkRoot", "DOTNET_ROOT_X64=$sdkRoot") | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8NoBOM
+Add-Content -LiteralPath $env:GITHUB_ENV -Value "PATH=$sdkRoot;$env:PATH" -Encoding utf8NoBOM
 Add-Content -LiteralPath $env:GITHUB_PATH -Value $sdkRoot -Encoding utf8NoBOM
 Write-Output "Staged .NET SDK $($sdk.version); extracted-file scan is required before use."
