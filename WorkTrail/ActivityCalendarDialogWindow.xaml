@@ -205,8 +205,8 @@ VBWR E -->
                         <Grid RowSpacing="10">
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button x:Name="PreviousActivityDay" Click="PreviousActivityDay_Click"><FontIcon Glyph="&#xE76B;" /></Button>
-                                <Button x:Name="NextActivityDay" Click="NextActivityDay_Click"><FontIcon Glyph="&#xE76C;" /></Button>
+                                <Button x:Name="PreviousActivityDay" AutomationProperties.Name="Previous day" ToolTipService.ToolTip="Previous day" Click="PreviousActivityDay_Click"><FontIcon Glyph="&#xE76B;" /></Button>
+                                <Button x:Name="NextActivityDay" AutomationProperties.Name="Next day" ToolTipService.ToolTip="Next day" Click="NextActivityDay_Click"><FontIcon Glyph="&#xE76C;" /></Button>
                                 <Button x:Name="RefreshActivityDay" Click="RefreshActivityDay_Click" />
                             </StackPanel>
                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
