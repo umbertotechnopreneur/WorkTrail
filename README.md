@@ -1,5 +1,10 @@
 # WorkTrail — Track your time. Find what you worked on.
 
+[![Build status](https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml)
+![Platform: Windows 11](https://img.shields.io/badge/platform-Windows_11-0078D4)
+![Status: pre-production](https://img.shields.io/badge/status-pre--production-F9665B)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2EA44F)](LICENSE)
+
 Search your Windows activity and optional screenshots, with history stored on your PC by default. Find an app or document from earlier in your day and see where your time went.
 
 **[Get started](#get-worktrail)** · [See what it does](#remember-the-moment-not-the-tab) · [Sky and weather extras](#extras-sky-weather-and-world-clocks) · [Privacy](docs/PRIVACY.md)
@@ -54,13 +59,6 @@ Open `WorkTrail.exe` from the folder created under `artifacts/unpackaged/<versio
 > **MSIX installers are temporarily unavailable.** I'm working on the code-signing certificate needed to distribute them. Use an unpackaged build for now.
 
 Portable executables can run directly. MSIX packages require signing before installation. See the [release guide](docs/RELEASING.md) for package details.
-
-<p align="center">
-  <a href="https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml"><img src="https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml/badge.svg?branch=main" alt="Build status" /></a>
-  <img src="https://img.shields.io/badge/platform-Windows-0078D4?logo=windows11&amp;logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/status-pre--production-F9665B" alt="Pre-production" />
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT License" /></a>
-</p>
 
 > [!IMPORTANT]
 > **The first public beta is in preparation.** I'm checking how the app handles AI and private data before publishing it.
