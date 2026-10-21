@@ -71,7 +71,6 @@
   "Report.SummaryTextBox": "Export.Editable.Header",
   "Report.MoreInformation": "Export.MoreInformation",
   "Report.GenerateButton": "Export.Generate",
-  "Report.TimesheetMergeCheck": "Timesheet.Merge",
   "Report.TimesheetMonthsCheck": "Timesheet.Months",
   "Report.TimesheetConsultant": "Timesheet.Consultant.Header",
   "Report.TimesheetClient": "Timesheet.Client.Header",
