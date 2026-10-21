@@ -126,7 +126,12 @@ public sealed partial class WorkTrailApplication
 
     private void OnDashboardStateChanged(DashboardState state) => RuntimeStateChanged?.Invoke(this, new RuntimeStateChangedEventArgs(EnrichDashboardState(state), "runtime.dashboard.changed"));
 
-    private void OnTrackingStateChanged(bool isTracking) => RuntimeStateChanged?.Invoke(this, new RuntimeStateChangedEventArgs(LoadDashboardState(), isTracking ? "tracking.started" : "tracking.paused"));
+    private void OnTrackingStateChanged(bool isTracking)
+    {
+        // Tracking commands already run inside the application mutation boundary.
+        PersistTimesheetSessionSignal(isTracking ? "started" : "paused", DateTimeOffset.UtcNow);
+        RuntimeStateChanged?.Invoke(this, new RuntimeStateChangedEventArgs(LoadDashboardState(), isTracking ? "tracking.started" : "tracking.paused"));
+    }
 
     private void OnTrackingRuntimeHealthChanged(TrackingRuntimeHealth health)
     {

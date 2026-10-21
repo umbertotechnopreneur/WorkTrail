@@ -28,6 +28,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SkiaSharp;
 using WorkTrail.Application;
 using WorkTrail.Providers;
@@ -102,6 +104,7 @@ public sealed record ScreenshotCaptureContext(
 /// <summary>Stops screenshot acquisition when application policy changes before pixels are read.</summary>
 public sealed class ScreenshotCapturePreconditionException : InvalidOperationException
 {
+    internal TimesheetUnchangedEvidence? UnchangedEvidence { get; init; }
     /// <summary>Creates a capture precondition failure for the supplied policy decision.</summary>
     /// <param name="decision">Non-allowed decision returned by the application policy.</param>
     public ScreenshotCapturePreconditionException(ScreenshotCaptureDecision decision)
@@ -127,7 +130,7 @@ internal sealed class ScreenshotSceneChangedException(string message) : InvalidO
 /// <summary>
 /// Captures desktop images to WEBP for local history and AI context.
 /// </summary>
-public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCapturePublicationObserver, IScreenshotActivityContinuityObserver
+public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCapturePublicationObserver
 {
     private const int WebpQuality = 90;
     private static readonly Regex OwnedArtifactName = new(
@@ -135,7 +138,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.NonBacktracking);
     private readonly string _appVersion;
     private readonly SettingsSnapshot? _settingsSnapshot;
-    private readonly ScreenshotActivityContinuityPolicy _activityContinuity = new();
+    private readonly ILogger<ScreenCaptureService> _logger;
     private readonly ScreenshotSimilarityFilter _similarity = new();
     private readonly object _pendingGate = new();
     private readonly Dictionary<string, List<PendingFingerprint>> _pendingFingerprints = new(StringComparer.Ordinal);
@@ -161,14 +164,15 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
     /// Creates capture service.
     /// </summary>
     /// <param name="appVersion">Optional version suffix used in file naming.</param>
-    public ScreenCaptureService(string? appVersion = null, SettingsSnapshot? settingsSnapshot = null)
+    /// <param name="settingsSnapshot">Current runtime settings used at the capture boundary.</param>
+    /// <param name="logger">Durable diagnostics for skipped automatic images.</param>
+    public ScreenCaptureService(string? appVersion = null, SettingsSnapshot? settingsSnapshot = null,
+        ILogger<ScreenCaptureService>? logger = null)
     {
         _appVersion = string.IsNullOrWhiteSpace(appVersion) ? "0.0.0" : appVersion;
         _settingsSnapshot = settingsSnapshot;
+        _logger = logger ?? NullLogger<ScreenCaptureService>.Instance;
     }
-
-    void IScreenshotActivityContinuityObserver.ObserveActivityContinuity(ScreenshotCaptureResult capture, ActivityContinuityAssessment assessment)
-        => _activityContinuity.Observe(capture, assessment);
 
     /// <inheritdoc />
     public ScreenshotCaptureResult CaptureByMode(
@@ -186,57 +190,33 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         }
 
         var scheduled = validatedOrigin == ScreenshotCaptureOrigins.Scheduled;
+        var correlation = captureId[..12];
+        _logger.LogInformation("Screenshot capture started. Correlation={Correlation} Origin={Origin} Mode={Mode}",
+            correlation, validatedOrigin, captureMode);
         try
         {
-            ScreenshotStabilityOptions? stability = null;
-            if (scheduled)
-            {
-                var privacyPolicy = authorizeCapture;
-                var capturePolicy = ScreenshotCaptureRules.Load();
-                stability = capturePolicy.Stability ?? new ScreenshotStabilityOptions();
-                // Probe inside the native implementation so fake capture services remain desktop-independent.
-                // An unavailable/idle desktop is a skipped scheduled attempt, not a screenshot failure notice.
-                if (!ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value, _activityContinuity))
-                    throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.UserIdle);
-                authorizeCapture = context =>
-                {
-                    var decision = privacyPolicy(context);
-                    return decision != ScreenshotCaptureDecision.Allowed ? decision
-                        : ScreenshotIdlePolicy.CanCaptureNow(capturePolicy, _settingsSnapshot?.Value, _activityContinuity)
-                            ? ScreenshotCaptureDecision.Allowed : ScreenshotCaptureDecision.UserIdle;
-                };
-            }
-            var foreground = stability is { Enabled: true }
-                ? WaitForStableForeground(stability, authorizeCapture) : CaptureForegroundTarget();
+            // The configured timer is sufficient: reading without input and normal window
+            // changes do not veto screenshots. Explicit privacy still surrounds acquisition.
+            var foreground = CaptureForegroundTarget();
             EnsureCaptureAllowed(authorizeCapture(foreground.ToCaptureContext()));
-            // Timestamp the settled scene, not the start of its waiting period (including midnight boundaries).
+            // Timestamp the selected scene, including midnight boundaries.
             var capturedAt = DateTimeOffset.Now;
             return CaptureTargets(directory, captureId, validatedOrigin, capturedAt, foreground, captureMode == "active-window", authorizeCapture);
         }
-        catch (ScreenshotSceneChangedException) when (scheduled)
+        catch (ScreenshotSceneChangedException exception) when (scheduled)
         {
+            _logger.LogInformation("Scheduled screenshot scene changed. Correlation={Correlation} Reason={Reason}", correlation, exception.Message);
             throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unstable);
         }
-    }
-
-    private static ForegroundCaptureTarget WaitForStableForeground(ScreenshotStabilityOptions options,
-        Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
-    {
-        var policy = new ScreenshotStabilityPolicy(options);
-        var started = Stopwatch.GetTimestamp();
-        while (true)
+        catch (ScreenshotCapturePreconditionException exception)
         {
-            // This bounded wait runs on the serialized capture worker, never on WinUI. Read no pixels yet.
-            var foreground = CaptureForegroundTarget();
-            EnsureCaptureAllowed(authorizeCapture(foreground.ToCaptureContext()));
-            var elapsed = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-            var bounds = foreground.WindowBounds;
-            if (policy.Observe(new ScreenshotForegroundIdentity(foreground.WindowHandle, foreground.ProcessName,
-                    foreground.WindowTitle, bounds.Left, bounds.Top, bounds.Right, bounds.Bottom), elapsed))
-                return foreground;
-            if (policy.IsExpired(elapsed))
-                throw new ScreenshotSceneChangedException("The foreground window did not settle before automatic capture.");
-            Thread.Sleep(options.PollMilliseconds);
+            _logger.LogInformation("Screenshot capture rejected. Correlation={Correlation} Decision={Decision}", correlation, exception.Decision);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("Screenshot capture failed. Correlation={Correlation} ExceptionType={ExceptionType}", correlation, exception.GetType().Name);
+            throw;
         }
     }
 
@@ -274,6 +254,10 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
             window.IsApplicationWindow, window.IsCaptureExcluded)).ToArray();
         var policy = ScreenshotCaptureRules.Load();
         var targets = policy.Plan(displays, foreground, windows, activeWindowOnly);
+        var correlation = captureId[..12];
+        _logger.LogInformation(
+            "Screenshot selection completed. Correlation={Correlation} Displays={Displays} VisibleWindows={VisibleWindows} Targets={Targets}",
+            correlation, displays.Count, visibleWindows.Count, targets.Count);
         var foregroundAuxiliary = visibleWindows.Any(window => window.WindowHandle == foreground.WindowHandle && window.IsCaptureExcluded);
         var foregroundExcluded = foregroundAuxiliary || policy.IsAnalysisExcluded(foreground.ProcessName);
         var activeTarget = targets.FirstOrDefault(target => target.Role == "active-window");
@@ -286,10 +270,15 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         var analysis = new List<string>(displays.Count);
         var images = new List<ScreenshotImageMetadata>(targets.Count);
         var pending = new List<PendingFingerprint>(targets.Count);
+        var unstableTargets = 0;
+        TimesheetUnchangedEvidence? unchangedEvidence = null;
         try
         {
             foreach (var target in targets)
             {
+                _logger.LogInformation(
+                    "Screenshot target selected. Correlation={Correlation} Role={Role} Rule={Rule} Attention={Attention} ForGallery={ForGallery} ForAnalysis={ForAnalysis} VisibleRegions={VisibleRegions}",
+                    correlation, target.Role, target.RuleReason, target.Attention, target.ForGallery, target.ForAnalysis, target.VisibleRegions.Count);
                 var processName = windows.FirstOrDefault(window => window.WindowHandle == target.WindowHandle)?.ProcessName;
                 var similarityOptions = target.WindowHandle == IntPtr.Zero
                     ? policy.Similarity ?? new ScreenshotSimilarityOptions()
@@ -297,27 +286,64 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
                 var similarityKey = validatedOrigin == ScreenshotCaptureOrigins.Scheduled && similarityOptions.Enabled
                     ? CreateSimilarityKey(directory, target, processName,
                         visibleWindows.Where(window => !window.IsCaptureExcluded && !policy.IsCaptureExcluded(window.Context.ProcessName)).ToArray()) : string.Empty;
-                var paths = CaptureRect(
-                    captureDirectory,
-                    target.Bounds,
-                    target.WindowHandle,
-                    target.Stem,
-                    captureId,
-                    validatedOrigin,
-                    capturedAt,
-                    authorizeCapture,
-                    foreground,
-                    target.VisibleRegions,
-                    visibleWindows,
-                    similarityKey,
-                    similarityOptions,
-                    target.ForGallery,
-                    pending);
+                (IReadOnlyList<string> Analysis, IReadOnlyList<string> Stored, int Width, int Height) paths;
+                try
+                {
+                    paths = CaptureRect(
+                        captureDirectory,
+                        target.Bounds,
+                        target.WindowHandle,
+                        target.Stem,
+                        captureId,
+                        validatedOrigin,
+                        capturedAt,
+                        authorizeCapture,
+                        target.VisibleRegions,
+                        policy,
+                        target.ForAnalysis,
+                        similarityKey,
+                        similarityOptions,
+                        target.ForGallery,
+                        pending,
+                        out var matchedPath);
+                    if (matchedPath is not null && target.ForAnalysis && target.Role == "active-window"
+                        && target.WindowHandle == foreground.WindowHandle)
+                    {
+                        var current = CaptureForegroundTarget();
+                        if (current.WindowHandle == foreground.WindowHandle && current.ProcessName == foreground.ProcessName
+                            && current.WindowTitle == foreground.WindowTitle)
+                        {
+                            var retainCheckpointTitle = _settingsSnapshot is null || ActivityContextProviderRegistry.IsDetailEnabled(current.ProcessName, _settingsSnapshot.Value);
+                            unchangedEvidence = new(captureId, capturedAt, matchedPath, current.ApplicationName,
+                                retainCheckpointTitle ? current.WindowTitle : null);
+                        }
+                    }
+                }
+                catch (ScreenshotSceneChangedException exception) when (
+                    validatedOrigin == ScreenshotCaptureOrigins.Scheduled && target.Role != "active-window")
+                {
+                    // A closed, minimized or resized optional surface does not erase valid images.
+                    AuthorizeCurrentForeground(authorizeCapture);
+                    unstableTargets++;
+                    _logger.LogInformation(
+                        "Scheduled screenshot target skipped. Correlation={Correlation} Role={Role} Code={Code} Reason={Reason}",
+                        correlation, target.Role, "screenshot.unstable", exception.Message);
+                    continue;
+                }
 
-                if (paths.Stored.Count == 0) continue;
+                if (paths.Stored.Count == 0)
+                {
+                    _logger.LogInformation("Screenshot target skipped. Correlation={Correlation} Role={Role} Code={Code}",
+                        correlation, target.Role, "screenshot.unchanged");
+                    continue;
+                }
 
                 if (target.ForAnalysis) analysis.AddRange(paths.Analysis);
                 if (target.ForGallery) storage.AddRange(paths.Stored);
+                _logger.LogInformation(
+                    "Screenshot target acquired. Correlation={Correlation} Role={Role} Width={Width} Height={Height} GalleryImages={GalleryImages} AnalysisImages={AnalysisImages}",
+                    correlation, target.Role, paths.Width, paths.Height,
+                    target.ForGallery ? paths.Stored.Count : 0, target.ForAnalysis ? paths.Analysis.Count : 0);
                 var screen = target.Display;
                 var isWindow = target.WindowHandle != IntPtr.Zero;
                 var retainTitle = _settingsSnapshot is null || string.IsNullOrWhiteSpace(processName)
@@ -331,7 +357,9 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
                     target.RelatedScreenIndices, target.Priority, target.ForAnalysis, target.ForGallery, target.Attention, target.RuleReason, target.MicroPromptIds));
             }
             if (targets.Count > 0 && images.Count == 0)
-                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.Unchanged);
+                throw new ScreenshotCapturePreconditionException(unstableTargets > 0
+                    ? ScreenshotCaptureDecision.Unstable : ScreenshotCaptureDecision.Unchanged)
+                { UnchangedEvidence = unstableTargets == 0 ? unchangedEvidence : null };
         }
         catch
         {
@@ -358,7 +386,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
             FocusMetadata: focusMetadata,
             CapturedAt: capturedAt,
             Images: images.AsReadOnly())
-        { ContinuityForeground = foreground };
+        { ContinuityForeground = foreground, UnchangedEvidence = unchangedEvidence };
     }
 
     internal static string CreateSimilarityKey(string directory, CaptureImageTarget target, string? processName,
@@ -539,14 +567,16 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         string captureOrigin,
         DateTimeOffset capturedAt,
         Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture,
-        ForegroundCaptureTarget expectedForeground,
         IReadOnlyList<NativeMethods.Rect> visibleRegions,
-        IReadOnlyList<VisibleCaptureWindow> expectedWindows,
+        ScreenshotCaptureRules policy,
+        bool forAnalysis,
         string similarityKey,
         ScreenshotSimilarityOptions similarityOptions,
         bool retainBaseline,
-        List<PendingFingerprint> pending)
+        List<PendingFingerprint> pending,
+        out string? matchedPath)
     {
+        matchedPath = null;
         var width = rect.Right - rect.Left;
         var height = rect.Bottom - rect.Top;
         var validatedOrigin = ScreenshotCaptureOrigins.Validate(captureOrigin);
@@ -558,27 +588,24 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         {
             // Authorization surrounds both acquisition paths and precedes encoding, disk and AI access.
             AuthorizeCurrentForeground(authorizeCapture);
-            EnsureForegroundUnchanged(expectedForeground);
             var before = ReadVisibleWindows();
-            EnsureWindowSceneUnchanged(expectedWindows, before, windowHandle);
-            AuthorizeVisibleWindows(rect, CaptureSources(before, windowHandle), authorizeCapture);
+            AuthorizeCaptureSources(rect, visibleRegions, before, windowHandle, policy, forAnalysis, authorizeCapture);
             using var bitmap = windowHandle != IntPtr.Zero
                 ? WindowsGraphicsCaptureService.Capture(windowHandle)
                 : CaptureDesktopRegions(rect, visibleRegions);
             width = bitmap.Width;
             height = bitmap.Height;
             var after = ReadVisibleWindows();
-            EnsureWindowSceneUnchanged(expectedWindows, after, windowHandle);
-            AuthorizeVisibleWindows(rect, CaptureSources(after, windowHandle), authorizeCapture);
+            AuthorizeCaptureSources(rect, visibleRegions, after, windowHandle, policy, forAnalysis, authorizeCapture);
             AuthorizeCurrentForeground(authorizeCapture);
-            EnsureForegroundUnchanged(expectedForeground);
 
             ScreenshotVisualFingerprint? fingerprint = null;
             if (validatedOrigin == ScreenshotCaptureOrigins.Scheduled && similarityOptions.Enabled)
             {
-                // Compare only after privacy/scene checks, before encoding, disk writes or provider submission.
+                // Compare only after privacy checks, before encoding, disk writes or provider submission.
                 fingerprint = ScreenshotVisualFingerprint.Create(bitmap, similarityOptions);
-                if (_similarity.IsUnchanged(similarityKey, fingerprint, capturedAt, similarityOptions, File.Exists))
+                matchedPath = _similarity.FindMatch(similarityKey, fingerprint, capturedAt, similarityOptions, File.Exists);
+                if (matchedPath is not null)
                     return (Array.Empty<string>(), Array.Empty<string>(), width, height);
             }
 
@@ -598,8 +625,28 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
         return (new[] { screenshotPath }, new[] { screenshotPath }, width, height);
     }
 
-    private static IEnumerable<VisibleCaptureWindow> CaptureSources(IEnumerable<VisibleCaptureWindow> windows, IntPtr windowHandle) =>
-        windowHandle == IntPtr.Zero ? windows : windows.Where(window => window.WindowHandle == windowHandle);
+    private static void AuthorizeCaptureSources(NativeMethods.Rect area, IReadOnlyList<NativeMethods.Rect> regions,
+        IReadOnlyList<VisibleCaptureWindow> windows, IntPtr windowHandle, ScreenshotCaptureRules policy, bool forAnalysis,
+        Func<ScreenshotCaptureContext, ScreenshotCaptureDecision> authorizeCapture)
+    {
+        if (windowHandle != IntPtr.Zero)
+        {
+            var source = windows.FirstOrDefault(window => window.WindowHandle == windowHandle)
+                ?? throw new ScreenshotSceneChangedException("The selected window is no longer available.");
+            EnsureCaptureAllowed(authorizeCapture(source.Context));
+            if (source.IsCaptureExcluded || policy.IsCaptureExcluded(source.Context.ProcessName)
+                || forAnalysis && policy.IsAnalysisExcluded(source.Context.ProcessName))
+                throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.ContentExcluded);
+            return;
+        }
+
+        AuthorizeVisibleWindows(area, windows, authorizeCapture);
+        var current = windows.Select(window => new CaptureWindow(window.WindowHandle, window.Bounds,
+            window.Context.ProcessName, window.Context.ApplicationName, window.Context.WindowTitle,
+            window.IsApplicationWindow, window.IsCaptureExcluded)).ToArray();
+        if (policy.HasExcludedPixels(area, regions, current, forAnalysis))
+            throw new ScreenshotCapturePreconditionException(ScreenshotCaptureDecision.ContentExcluded);
+    }
 
     private static Bitmap CaptureDesktopRegions(NativeMethods.Rect rect, IReadOnlyList<NativeMethods.Rect> visibleRegions)
     {
@@ -619,15 +666,6 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
             bitmap.Dispose();
             throw;
         }
-    }
-
-    private static void EnsureForegroundUnchanged(ForegroundCaptureTarget expected)
-    {
-        var current = CaptureForegroundTarget();
-        if (current.WindowHandle != expected.WindowHandle || current.WindowTitle != expected.WindowTitle ||
-            current.WindowBounds.Left != expected.WindowBounds.Left || current.WindowBounds.Top != expected.WindowBounds.Top ||
-            current.WindowBounds.Right != expected.WindowBounds.Right || current.WindowBounds.Bottom != expected.WindowBounds.Bottom)
-            throw new ScreenshotSceneChangedException("The active window changed during screenshot capture; retry the capture.");
     }
 
     private static void AuthorizeCurrentForeground(
@@ -657,24 +695,6 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IScreenshotCap
 
     internal sealed record VisibleCaptureWindow(NativeMethods.Rect Bounds, ScreenshotCaptureContext Context,
         IntPtr WindowHandle = default, bool IsApplicationWindow = true, bool IsCaptureExcluded = false);
-
-    private static void EnsureWindowSceneUnchanged(IReadOnlyList<VisibleCaptureWindow> expected,
-        IReadOnlyList<VisibleCaptureWindow> actual, IntPtr windowHandle = default)
-    {
-        // A direct surface is independent of unrelated z-order changes. Desktop masks are not.
-        if (windowHandle != IntPtr.Zero)
-        {
-            expected = expected.Where(window => window.WindowHandle == windowHandle).ToArray();
-            actual = actual.Where(window => window.WindowHandle == windowHandle).ToArray();
-        }
-        if (expected.Count != actual.Count || expected.Where((window, index) =>
-            window.WindowHandle != actual[index].WindowHandle
-            || window.Bounds.Left != actual[index].Bounds.Left || window.Bounds.Top != actual[index].Bounds.Top
-            || window.Bounds.Right != actual[index].Bounds.Right || window.Bounds.Bottom != actual[index].Bounds.Bottom
-            || window.Context != actual[index].Context
-            || window.IsCaptureExcluded != actual[index].IsCaptureExcluded).Any())
-            throw new ScreenshotSceneChangedException("Visible windows changed during screenshot capture; retry the capture.");
-    }
 
     /// <summary>Rejects the entire capture when any potentially visible intersecting window is private.</summary>
     internal static void AuthorizeVisibleWindows(NativeMethods.Rect area,
@@ -798,6 +818,7 @@ public sealed record ScreenshotCaptureResult(
 {
     // Live-only provenance never crosses IPC or survives a historical/recovery roundtrip.
     internal ForegroundCaptureTarget? ContinuityForeground { get; init; }
+    internal TimesheetUnchangedEvidence? UnchangedEvidence { get; init; }
 
     /// <summary>
     /// Returns all generated files, used for retention and cleanup.
@@ -805,6 +826,9 @@ public sealed record ScreenshotCaptureResult(
     public IReadOnlyList<string> AllScreenshotPaths
         => AnalysisScreenshotPaths.Concat(StoredScreenshotPaths).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 }
+
+internal sealed record TimesheetUnchangedEvidence(string AttemptId, DateTimeOffset At, string SourcePath,
+    string Application, string? WindowTitle);
 
 /// <summary>Describes the screen and foreground app associated with one screenshot pass.</summary>
 /// <param name="ScreenName">Stable display label resolved during monitor enumeration.</param>

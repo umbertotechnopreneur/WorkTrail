@@ -33,7 +33,7 @@ namespace WorkTrail.Services;
 /// <summary>
 /// Handles current-format SQLite activity history and local settings persistence.
 /// </summary>
-public sealed class LocalStore
+public sealed partial class LocalStore
 {
     private readonly UtilityService _utilities = new();
     private readonly SqliteActivityStore _activity;

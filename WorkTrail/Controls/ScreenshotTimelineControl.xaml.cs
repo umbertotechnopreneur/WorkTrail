@@ -43,6 +43,8 @@ public sealed partial class ScreenshotTimelineControl : UserControl
     private int _thumbnailGeneration;
     private bool _updatingSelection;
     private LocalizationService _strings = new("system");
+    private IReadOnlyList<ScreenshotGalleryItem> _sourceItems = [];
+    private IReadOnlyList<ActivitySpan> _activitySpans = [];
 
     /// <summary>Creates the timeline control.</summary>
     public ScreenshotTimelineControl() => InitializeComponent();
@@ -83,6 +85,8 @@ public sealed partial class ScreenshotTimelineControl : UserControl
         CancelAllThumbnailLoads();
         _thumbnailGeneration++;
         _strings = new LocalizationService(language);
+        _sourceItems = items;
+        FilmstripStrip.Height = _activitySpans.Count > 0 ? 136 : 112;
         if (items.Count == 0 && selectedIndex != -1)
         {
             throw new ArgumentOutOfRangeException(nameof(selectedIndex), selectedIndex, "An empty timeline must use selection index -1.");
@@ -112,6 +116,13 @@ public sealed partial class ScreenshotTimelineControl : UserControl
         QueueNavigationAvailabilityUpdate();
     }
 
+    /// <summary>Labels the existing thumbnails with saved intervals without triggering inference.</summary>
+    public void SetActivities(IReadOnlyList<ActivitySpan> spans)
+    {
+        _activitySpans = spans;
+        SetItems(_sourceItems, FilmstripList.SelectedIndex, _strings.Language);
+    }
+
     // item supplies the persisted capture provenance and importance.
     // index identifies the item in this displayed strip.
     private ScreenshotTimelineEntry CreateEntry(ScreenshotGalleryItem item, int index)
@@ -124,15 +135,20 @@ public sealed partial class ScreenshotTimelineControl : UserControl
         var localTime = item.CapturedAt.ToLocalTime();
         var installation = item.Installation
             ?? throw new InvalidDataException("Screenshot installation provenance is required by the timeline.");
+        var span = _activitySpans.FirstOrDefault(s => item.CapturedAt >= s.Start && item.CapturedAt < s.End);
+        var activity = span is null ? "" : span.Title.Length > 0 ? span.Title : _strings.Translate("Timesheet.Basis." + span.Basis);
+        var activityDetail = span is null ? "" : $"{activity} · {span.Project} · {span.Start:HH:mm}–{span.End:HH:mm} · "
+            + _strings.Translate(span.Confirmed ? "Timesheet.Confirmed" : "Timesheet.Draft");
         return new ScreenshotTimelineEntry(
             item.Path,
             _strings.Format("Screenshots.Timeline.Time", localTime),
             $"{_strings.Format("Screenshots.Timeline.ItemAccessible", index + 1, localTime)} · {installation.FriendlyName} · {installation.MachineName}" +
-                (item.IsVip ? " · " + _strings.Translate("Snapshot.Vip.Badge") : string.Empty),
+                (item.IsVip ? " · " + _strings.Translate("Snapshot.Vip.Badge") : string.Empty) + (span is null ? "" : " · " + activityDetail),
             InstallationAppearance.CreateAccentBrush(installation.Color),
             InstallationAppearance.GetIconGlyph(installation.Icon),
             item.IsVip ? Visibility.Visible : Visibility.Collapsed,
-            _strings.Translate("Snapshot.Vip.Badge"));
+            _strings.Translate("Snapshot.Vip.Badge"), activity, activityDetail,
+            span is null ? Visibility.Collapsed : Visibility.Visible);
     }
 
     /// <summary>Reflects the full gallery's selection without issuing a second selection request.</summary>
@@ -638,7 +654,10 @@ public sealed partial class ScreenshotTimelineControl : UserControl
         SolidColorBrush InstallationBrush,
         string InstallationGlyph,
         Visibility VipVisibility,
-        string VipLabel);
+        string VipLabel,
+        string ActivityLabel,
+        string ActivityDetail,
+        Visibility ActivityVisibility);
 
     private sealed record ThumbnailLoadRegistration(
         ScreenshotTimelineEntry Entry,

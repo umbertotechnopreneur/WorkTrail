@@ -238,6 +238,18 @@ internal sealed record ScreenshotCaptureRules(IReadOnlyList<ScreenshotCaptureRul
 
     private bool IsBlacklisted(string processName) => AnalysisBlacklist?.Contains(processName, StringComparer.OrdinalIgnoreCase) == true;
 
+    /// <summary>Checks only explicit exclusions that would expose pixels through an existing desktop mask.</summary>
+    internal bool HasExcludedPixels(NativeMethods.Rect area, IReadOnlyList<NativeMethods.Rect> capturedRegions,
+        IReadOnlyList<CaptureWindow> windows, bool forAnalysis)
+    {
+        var displays = new[] { new CaptureDisplay(1, area) };
+        return windows.Select((window, index) => (window, index))
+            .Where(item => !item.window.IsCaptureExcluded
+                && (IsCaptureExcluded(item.window.ProcessName) || forAnalysis && IsAnalysisExcluded(item.window.ProcessName)))
+            .SelectMany(item => VisibleRegions(displays, windows, item.index))
+            .Any(excluded => capturedRegions.Any(region => HasArea(Intersect(region, excluded))));
+    }
+
     private static List<NativeMethods.Rect> VisibleRegions(IReadOnlyList<CaptureDisplay> displays,
         IReadOnlyList<CaptureWindow> windows, int index)
     {

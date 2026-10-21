@@ -303,6 +303,9 @@ public sealed partial class ScreenshotWindow : Window
         _galleryCancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
         var cancellationToken = _galleryCancellation.Token;
         SetLoading(true);
+        _activityRailGeneration++;
+        TimelineSection.SetActivities([]);
+        ActivityRail.ShowMessage(T("ActivityCalendar.Loading"));
 
         try
         {
@@ -316,6 +319,7 @@ public sealed partial class ScreenshotWindow : Window
 
             if (!result.Succeeded || result.Value is null)
             {
+                ActivityRail.ShowMessage(T("ActivityCalendar.Unavailable"));
                 _items = Array.Empty<ScreenshotGalleryItem>();
                 RenderGallery(_strings.Format("Screenshots.Error.UnavailableWithCode", result.Code));
                 return false;
@@ -331,6 +335,7 @@ public sealed partial class ScreenshotWindow : Window
             _items = result.Value.Items;
             SelectRequestedScreenshot();
             RenderGallery(null);
+            await LoadActivityRailAsync(cancellationToken);
             return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -341,6 +346,7 @@ public sealed partial class ScreenshotWindow : Window
         catch (Exception)
         {
             _items = Array.Empty<ScreenshotGalleryItem>();
+            ActivityRail.ShowMessage(T("ActivityCalendar.Unavailable"));
             RenderGallery(T("Screenshots.Error.Unavailable"));
             return false;
         }
@@ -528,6 +534,7 @@ public sealed partial class ScreenshotWindow : Window
         }
 
         var selected = _items[_selectedIndex];
+        ActivityRail.SelectTime(selected.CapturedAt);
         var featuredIndex = -1;
         for (var index = 0; index < _featuredVipItems.Count; index++)
             if (string.Equals(_featuredVipItems[index].Path, selected.Path, StringComparison.OrdinalIgnoreCase)) featuredIndex = index;

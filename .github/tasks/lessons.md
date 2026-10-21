@@ -1,32 +1,49 @@
-# Lessons
+# Engineering lessons
 
-These are current, durable engineering lessons for WorkTrail. Task-specific commands, temporary package details, and superseded pre-rebrand advice belong in neither this file nor the active task list.
+Keep reusable failure mechanisms here, not task transcripts or copies of
+[AGENTS.md](../../AGENTS.md). Add a lesson only when it changes a future decision.
 
-## Startup and runtime
+## Startup and windows
 
-- Anything constructed before `MainWindow` can prevent both the window and the tray from existing. Changes to localization, persistence, search, or runtime composition need a cold-launch check in addition to unit or build validation.
-- A Start-menu activation may be redirected to an existing background instance. Preserve activation requests during startup and explicitly show and foreground a hidden main window; `Activate()` alone is not a reliable visibility transition.
-- Register and verify the notification-area icon before hiding the window. Recover after Explorer recreation, and restore the main window on registration failure so the application cannot become unreachable.
-- Keep one runtime owner per installation through the shared mutex/named-pipe facade. A newly built executable may route into an older running instance, so source or package validation is not installed-runtime evidence.
+- A service constructed before MainWindow can prevent both the window and tray
+  from existing. Localization, storage, search and runtime composition need a
+  cold-launch check; a successful build cannot establish startup behavior.
+- Redirected activation can reach a hidden background instance. Preserve requests
+  during startup and explicitly show the window; Activate alone may not restore it.
+- Verify tray registration before hiding Main. Recover after Explorer restarts and
+  keep Main reachable if registration fails.
+- A new executable can route to an older running runtime. Check the actual installed
+  version and runtime when investigating behavior.
+- Transient dialogs must not share workspace-window restoration semantics. Otherwise
+  stale visibility state can reopen dialogs or strand hidden owners.
 
-## Contracts, access, and data integrity
+## Persistence and contracts
 
-- Keep application operations typed and versioned across local, CLI, and IPC callers. Update the catalog, request/response contracts, dispatch, client, and test doubles as one change; unsupported versions should fail explicitly.
-- Enforce feature access and destructive-operation authorization inside Core, not only in UI controls. Debug simulation must be non-persisted and absent from release contracts.
-- Serialize persistence mutations and commit related data, ledger, and search invalidation atomically. Report post-commit cleanup failures without claiming that durable work was rolled back.
-- Treat legacy storage as an explicit migration: preserve provenance and timestamps, reject unknown layouts, and remove obsolete compatibility paths once the migration contract is replaced.
-- Export to temporary destinations and replace atomically. Protect spreadsheet formulas, bound previews and AI input, and keep ordinary export local unless the user explicitly requests an AI summary.
+- Commit related data, deletion intent and search invalidation together. A cleanup
+  failure after commit does not mean the durable operation rolled back.
+- Database opening and archive validation are different boundaries. Best-effort beta
+  opening adds missing objects without resetting history; explicit archive operations
+  still validate their supported input before writing to the destination.
+- Change typed contracts, dispatch, clients and test doubles together. A protocol
+  version change must prevent an older runtime from returning stale semantics.
+- UI restrictions do not secure CLI/IPC calls. Enforce feature access and destructive
+  authorization in Core; keep Debug access simulation non-persisted and out of Release.
+- Treat exported text as untrusted spreadsheet cells. Protect formulas, bound previews
+  and replace destinations atomically so a failed export cannot destroy an existing file.
+- Localization keys and placeholders are startup dependencies. Keep locale parity
+  and a diagnostic path that works even when localization initialization fails.
 
-## UI, localization, and search
+## Evidence and projections
 
-- Strict localization is a startup dependency. Keep key and placeholder parity across every supported locale and retain a recoverable diagnostic path when catalog validation fails.
-- Keep WinUI surfaces passive and application-facade driven. Static contracts and automated checks do not replace installed checks for visibility, activation, theme, high contrast, DPI, touch, and window restoration.
-- Classify transient dialogs separately from restorable workspace windows; stale visibility state must not reopen dialogs or strand hidden owners at startup.
-- For multilingual search, preserve literal paths, filenames, addresses, and URLs; prefer longest phrases and the best synonym variant within a deterministic expansion budget. Catalog-only synonym updates should not force an index rebuild.
-
-## Providers, hardware, and delivery
-
-- Keep provider secrets in the environment-variable flow, return only masked presence, and never place secret values in state, IPC diagnostics, history, or logs.
-- Treat optional hardware helpers as explicit, consented dependencies. Pin and verify their signed payloads, keep unsupported architectures excluded, and report cancellation, elevation, or restart requirements clearly.
-- WorkTrail ships on Windows 11 as MSIX for x64 and ARM64. Package signature and payload equality prove packaging integrity, not successful startup or user-visible behavior; verify those stages separately and report only what was observed.
-- Keep private commercial, Store-account, roadmap, and design material outside the public repository. Public docs should contain current behavior, limitations, licenses, attribution, setup, and reproducible technical guidance.
+- Screenshot count and input activity do not measure task duration. Estimate spans
+  from adjacent UTC observations, retain unknown gaps and overlaps, and preserve the
+  original reconstruction separately from corrections.
+- Calendar/gallery reads must use saved reconstructions. A failed regeneration must
+  not erase the preceding result; clip midnight spans without duplicating duration
+  and reject mixed revisions when assembling paged results.
+- Preserve literal paths, filenames, addresses and URLs in multilingual search.
+  Prefer longest phrases and the best bounded synonym variant. Catalog-only changes
+  should not force an index rebuild.
+- Capture-policy checks with synthetic rectangles cannot prove native composition,
+  privacy masking or image quality. Package registration likewise does not prove
+  startup, visual behavior or successful provider work.

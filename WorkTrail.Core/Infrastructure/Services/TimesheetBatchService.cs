@@ -19,13 +19,16 @@
 
 using System.Net.Http;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using WorkTrail.Application;
 
 namespace WorkTrail.Services;
 
 /// <summary>Persists remote job identities and results independently of the export window lifetime.</summary>
-internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transport = null)
+internal sealed partial class TimesheetBatchService(LocalStore store, HttpClient? transport = null, ILogger? logger = null)
 {
+    private readonly ILogger _logger = logger ?? NullLogger.Instance;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private const int PageSize = 30;
     private readonly Dictionary<Guid, (DateTime LastWrite, long Length, TimesheetJobInfo Info)> _catalog = [];
@@ -41,27 +44,49 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         Func<TimesheetJob, CancellationToken, Task> reserve,
         Func<TimesheetJob, CancellationToken, Task> saveUsage, CancellationToken token)
     {
-        if (!Enum.IsDefined(command.Action) || command.Page < 0 || command.Page > int.MaxValue / PageSize)
+        if (!Enum.IsDefined(command.Action) || command.Page < 0 || command.Page > int.MaxValue / PageSize
+            || command.SegmentPage < 0 || command.SegmentPage > 100_000)
             throw new ArgumentException("Invalid timesheet command.");
-        if (command.Action == TimesheetBatchAction.Start)
+        if (command.Action == TimesheetBatchAction.Timeline) return ReadTimeline(command, token);
+        if (command.Action is TimesheetBatchAction.Start or TimesheetBatchAction.Retry)
         {
-            var options = command.Options ?? throw new ArgumentException("Timesheet options are required.");
+            var original = command.Action == TimesheetBatchAction.Retry
+                ? Load(command.JobId ?? throw new ArgumentException("A saved job is required.")) : null;
+            if (original is not null && (!original.ResultsSaved || original.Version < 3)) throw new ReportExportValidationException("Timesheet.Unconfirmed");
+            var options = original?.Options ?? command.Options ?? throw new ArgumentException("Timesheet options are required.");
+            var rows = TimesheetProjection.Build(store, options, token);
+            if (original is not null)
+            {
+                var failed = original.Rows.Where(r => r.Row.State != "completed").Select(r => r.Row.Date).ToHashSet();
+                rows.RemoveAll(r => !failed.Contains(r.Row.Date));
+                if (rows.Count == 0) throw new ReportExportValidationException("Timesheet.NoRetry");
+            }
             var job = new TimesheetJob
             {
                 Id = Guid.NewGuid(),
                 CreatedAt = DateTimeOffset.UtcNow,
                 Options = options,
-                Rows = TimesheetProjection.Build(store, options, token),
+                Rows = rows,
                 ApiKeyName = settings.AiApiKeyName
             };
-            if (!job.Rows.Any(row => row.Prompt is not null)) throw new ReportExportValidationException("Export.NoSources");
-            ValidateProvider(settings, requireEnabled: true);
-            var client = Client(job);
+            foreach (var row in job.Rows)
+                _logger.LogInformation("Timesheet prepared. Job={Job} Day={Day} Observations={Count} Checkpoints={Checkpoints} InputBytes={Bytes} TokenCeiling={Tokens} State={State} From={From} To={To}",
+                    job.Id, row.Row.Date, row.Evidence.Count, row.Evidence.Count(o => o.SourceKind == "unchanged_checkpoint"), row.InputBytes, row.EstimatedInputTokens, row.Row.State,
+                    row.Evidence.MinBy(o => o.ObservedAt)?.ObservedAt, row.Evidence.MaxBy(o => o.ObservedAt)?.ObservedAt);
+            if (!job.Rows.Any(row => row.Prompt is not null))
+            {
+                job.State = "failed"; job.ResultsSaved = true; job.UsageSaved = true;
+                Save(job);
+                return View(Info(job), 0, token) with { WarningKey = job.Rows.Any(r => r.Row.State == "input_limit") ? "Timesheet.DayLimit" : "Export.NoSources" };
+            }
             // An unresolved submission must be reconciled before another paid batch can be sent.
             if (List(token).Any(item => item.State == "submitting")) throw new ReportExportValidationException("Timesheet.Unconfirmed");
             Save(job);
             try
             {
+                ValidateProvider(settings, requireEnabled: true);
+                var client = Client(job);
+                job.Rows.ForEach(row => row.Submitted = row.Prompt is not null);
                 await reserve(job, token).ConfigureAwait(false);
                 job.Reserved = true;
                 Save(job);
@@ -76,11 +101,14 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
             }
             catch (Exception exception)
             {
+                var warning = exception is TimesheetSubmissionRejectedException rejected ? rejected.MessageKey
+                    : exception is ReportExportValidationException invalid ? invalid.MessageKey : "Timesheet.RemoteError";
                 if (job.State == "prepared" || exception is TimesheetSubmissionRejectedException)
                 {
                     job.State = "failed";
                     job.Rows.ForEach(row => row.Row = row.Row with { State = row.Row.State == "pending" ? "failed" : row.Row.State });
                     job.ResultsSaved = true;
+                    foreach (var row in job.Rows.Where(r => r.Row.State == "failed")) row.FailureCode = warning;
                 }
                 job.Rows.ForEach(row => row.Prompt = null);
                 Save(job);
@@ -91,11 +119,11 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
                     job.UsageSaved = true;
                     Save(job);
                 }
-                if (exception is TimesheetSubmissionRejectedException rejected)
-                    throw new ReportExportValidationException(rejected.MessageKey);
-                throw;
+                if (exception is OperationCanceledException && token.IsCancellationRequested) throw;
+                _logger.LogWarning("Timesheet submission failed. Job={Job} State={State} Code={Code}", job.Id, job.State, warning);
+                return View(Info(job), 0, token) with { WarningKey = warning };
             }
-            return View(Info(job), 0, token);
+            return View(Info(job), 0, token) with { WarningKey = job.Rows.Any(r => r.Row.State == "input_limit") ? "Timesheet.DayLimit" : null };
         }
         if (command.Action == TimesheetBatchAction.List)
         {
@@ -105,19 +133,37 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
             var selected = command.JobId is { } id
                 ? jobs.SingleOrDefault(job => job.Id == id) ?? throw new ArgumentException("The saved timesheet job does not exist.")
                 : offset < jobs.Count ? jobs[offset] : null;
-            return View(selected, page, token);
+            return View(selected, page, token, command.SegmentPage);
         }
         var current = Load(command.JobId ?? throw new ArgumentException("A saved timesheet job is required."));
+        if (command.Action is TimesheetBatchAction.Edit or TimesheetBatchAction.Split or TimesheetBatchAction.Merge or TimesheetBatchAction.Confirm)
+        {
+            if (current.Version < 3) throw new ReportExportValidationException("Timesheet.Historical");
+            TimesheetReview.Apply(current, command);
+            Save(current);
+            _logger.LogInformation("Timesheet correction saved. Job={Job} Segment={Segment} Action={Action} Revision={Revision}", current.Id, command.Edit?.SegmentId, command.Action, current.Revision);
+            return View(Info(current), command.Page, token, command.SegmentPage);
+        }
+        if (command.Action == TimesheetBatchAction.Evidence)
+        {
+            var ids = command.SegmentId is { } segmentId
+                ? current.Segments.Single(s => s.Id == segmentId).SourceObservationIds.ToHashSet(StringComparer.Ordinal) : null;
+            var evidence = current.Rows.SelectMany(r => r.Evidence).Where(o => ids is null || ids.Contains(o.Id)).Take(512).ToArray();
+            var captures = store.GetScreenshotGalleryItemsForCaptures(evidence.Select(o => o.CaptureId).Distinct(StringComparer.Ordinal).ToArray(), token);
+            return View(Info(current), command.Page, token, command.SegmentPage) with { Evidence = evidence, SupportingCaptures = captures };
+        }
         if (command.Action == TimesheetBatchAction.Export)
         {
             if (!current.ResultsSaved) throw new ReportExportValidationException("Timesheet.NotReady");
+            if (current.Version < 3) throw new ReportExportValidationException("Timesheet.Historical");
             // Presentation changes reuse the paid snapshot; there is nothing to resubmit or persist.
             if (command.Theme is { } theme)
                 current.Options = current.Options with { Sources = current.Options.Sources with { Options = current.Options.Sources.Options with { Theme = theme } } };
-            var archive = new ReportExportService(store).Build(current.Options.Sources.Options, null, token);
-            var path = TimesheetExcelWriter.Write(current, command.DestinationPath ?? "", command.Overwrite, token, archive: archive);
-            return View(Info(current), command.Page, token) with { ExportedPath = path };
+            var path = TimesheetExcelWriter.Write(current, command.DestinationPath ?? "", command.Overwrite, token);
+            _logger.LogInformation("Timesheet exported. Job={Job} Revision={Revision} Segments={Count}", current.Id, current.Revision, current.Segments.Count);
+            return View(Info(current), command.Page, token, command.SegmentPage) with { ExportedPath = path };
         }
+        if (current.Version < 3) return View(Info(current), command.Page, token) with { WarningKey = "Timesheet.Historical" };
         // Saved jobs belong to their original OpenAI connection, even after the selected provider changes.
         OpenAiTimesheetBatchClient? api = null;
         OpenAiTimesheetBatchClient Api() => api ??= Client(current);
@@ -146,9 +192,26 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
             {
                 var output = current.OutputFile is null ? "" : await Api().DownloadAsync(current.OutputFile, token).ConfigureAwait(false);
                 var errors = current.ErrorFile is null ? "" : await Api().DownloadAsync(current.ErrorFile, token).ConfigureAwait(false);
-                ReadResults(current, output, errors);
+                try { ReadResults(current, output, errors); }
+                catch (Exception exception) when (exception is InvalidDataException or JsonException or KeyNotFoundException or InvalidOperationException)
+                {
+                    foreach (var row in current.Rows.Where(r => r.Submitted))
+                    {
+                        row.Row = row.Row with { State = "failed" };
+                        row.FailureCode = "Timesheet.InvalidResult"; row.Inference = null; row.Segments.Clear();
+                    }
+                    current.Segments.Clear(); current.Tasks.Clear();
+                }
+                current.Segments = TimesheetIntervalCalculator.Combine(current.Rows.SelectMany(r => r.Segments).ToArray());
+                current.Tasks = current.Rows.SelectMany(r => r.Inference?.Tasks ?? []).ToList();
                 current.ResultsSaved = true;
+                foreach (var row in current.Rows)
+                    _logger.LogInformation("Timesheet validation completed. Job={Job} Day={Day} State={State} Tasks={Tasks} Segments={Segments} Failure={Failure} ParseCode={ParseCode}",
+                        current.Id, row.Row.Date, row.Row.State, row.Inference?.Tasks.Count ?? 0, row.Segments.Count, row.FailureCode, row.ValidationCode);
+                foreach (var group in current.Segments.GroupBy(s => s.Basis))
+                    _logger.LogInformation("Timesheet coverage calculated. Job={Job} Basis={Basis} Seconds={Seconds}", current.Id, group.Key, group.Sum(s => s.Seconds));
                 Save(current);
+                _logger.LogInformation("Timesheet reconstruction persisted. Job={Job} Revision={Revision} Segments={Segments}", current.Id, current.Revision, current.Segments.Count);
             }
         }
         if (current.ResultsSaved)
@@ -177,7 +240,7 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
                 return View(Info(current), command.Page, token) with { WarningKey = exception.MessageKey };
             }
         }
-        return View(Info(current), command.Page, token);
+        return View(Info(current), command.Page, token, command.SegmentPage);
     }
 
     // settings determines whether this connection is an actual OpenAI API connection.
@@ -215,7 +278,8 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
     // errors contains provider failures; free-form provider messages are not displayed or persisted.
     internal static void ReadResults(TimesheetJob job, string output, string errors)
     {
-        var expected = job.Rows.Where(row => row.Row.State != "no_sources").ToDictionary(row => row.Row.Id, StringComparer.Ordinal);
+        if (job.ResultsSaved) return;
+        var expected = job.Rows.Where(row => row.Submitted).ToDictionary(row => row.Row.Id, StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in (output + "\n" + errors).Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -252,31 +316,61 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
                         }
                     }
                     text = string.Join("\n", parts).Trim();
-                    valid = !refused && text.Length is > 0 and <= 6_000;
+                    valid = !refused && text.Length is > 0 and <= 2_000_000;
                 }
             }
-            row.Row = row.Row with { Description = valid ? text : "", State = valid ? "completed" : "failed" };
+            if (valid)
+            {
+                try
+                {
+                    row.Inference = TimesheetInferenceParser.Parse(text, row.Evidence, row.Row.Id + ".");
+                    row.Segments = TimesheetIntervalCalculator.Calculate(row.Evidence, row.Inference, row.SessionEvents,
+                        TimeZoneInfo.FindSystemTimeZoneById(job.Options.Sources.Options.TimeZoneId));
+                }
+                catch (Exception exception) when (exception is InvalidDataException or JsonException or KeyNotFoundException or InvalidOperationException or ArgumentException)
+                {
+                    valid = false; row.Inference = null; row.Segments.Clear();
+                    row.ValidationCode = exception is InvalidDataException && exception.Message.StartsWith("timesheet.parse.", StringComparison.Ordinal)
+                        ? exception.Message : exception.GetType().Name;
+                }
+            }
+            row.FailureCode = valid ? null : "Timesheet.InvalidResult";
+            row.Row = row.Row with { Description = "", State = valid ? "completed" : "failed" };
         }
         foreach (var row in expected.Values.Where(row => !seen.Contains(row.Row.Id)))
+        {
             row.Row = row.Row with { State = "failed", Description = "" };
+            row.FailureCode = "Timesheet.MissingResult";
+        }
     }
 
     // selected is cached safe metadata, independent of which archive page is displayed.
     // page selects thirty metadata entries without putting report rows on IPC.
     // token cancels catalog enumeration before returning a page.
-    private TimesheetBatchView View(TimesheetJobInfo? selected, int page, CancellationToken token)
+    private TimesheetBatchView View(TimesheetJobInfo? selected, int page, CancellationToken token, int segmentPage = 0)
     {
         var jobs = List(token);
         var lastPage = jobs.Count == 0 ? 0 : (jobs.Count - 1) / PageSize;
         page = Math.Min(page, lastPage);
+        var job = selected is null ? null : Load(selected.Id);
+        var slice = job?.Segments.Skip(segmentPage * 200).Take(200).ToArray() ?? [];
+        var taskIds = slice.Select(s => s.TaskId).Concat(slice.SelectMany(s => s.Alternatives ?? []).Select(s => s.TaskId)).OfType<string>().ToHashSet(StringComparer.Ordinal);
         return new(jobs.Skip(page * PageSize).Take(PageSize).ToArray(), selected,
-            Page: page, HasPreviousPage: page > 0, HasNextPage: page < lastPage);
+            Page: page, HasPreviousPage: page > 0, HasNextPage: page < lastPage,
+            Segments: slice, Tasks: job?.Tasks.Where(t => taskIds.Contains(t.Id)).ToArray(), Revision: job?.Revision ?? 0,
+            Confirmed: job?.Confirmed ?? false, TimeZoneId: job?.Options.Sources.Options.TimeZoneId,
+            Days: job?.Rows.Select(r => new TimesheetDayStatus(r.Row.Date, r.Row.State, r.Evidence.Count, r.FailureCode, r.Evidence.Any(o => o.AssumedCadence))).ToArray(),
+            Historical: job is not null && job.Version < 3, SegmentPage: segmentPage, SegmentCount: job?.Segments.Count ?? 0,
+            Coverage: job is null ? null : new(job.Segments.Where(s => s.Allocated).Sum(s => s.Seconds),
+                job.Segments.Where(s => s.Basis == "unallocated").Sum(s => s.Seconds), job.Segments.Where(s => s.Basis == "unavailable").Sum(s => s.Seconds),
+                job.Segments.Where(s => s.Basis == "overlap").Sum(s => s.Seconds), job.Rows.SelectMany(r => r.Evidence).MinBy(o => o.ObservedAt)?.ObservedAt,
+                job.Rows.SelectMany(r => r.Evidence).MaxBy(o => o.ObservedAt)?.ObservedAt));
     }
 
     // token cancels a bounded recovery selection; oldest attempted jobs rotate fairly after errors.
     internal IReadOnlyList<Guid> RecoveryCandidates(CancellationToken token)
     {
-        var selected = List(token).Where(job => !job.ResultsSaved || job.CleanupPending)
+        var selected = List(token).Where(job => job.State != "historical" && (!job.ResultsSaved || job.CleanupPending))
             .OrderBy(job => _recoveryAttempts.GetValueOrDefault(job.Id))
             .ThenBy(job => job.CreatedAt).Take(8).Select(job => job.Id).ToArray();
         foreach (var id in selected) _recoveryAttempts[id] = DateTimeOffset.UtcNow;
@@ -285,8 +379,10 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
 
     // job contains measured rows and remote status, never credentials.
     private static TimesheetJobInfo Info(TimesheetJob job) => new(job.Id, job.CreatedAt, job.Options.Sources.Options.From,
-        job.Options.Sources.Options.ToInclusive, job.State, job.Rows.Count, job.Rows.Count(row => row.Row.State == "completed"),
-        job.Rows.Count(row => row.Row.State is "failed" or "no_sources"), job.ResultsSaved,
+        job.Options.Sources.Options.ToInclusive, job.Version < 3 ? "historical"
+            : job.ResultsSaved && job.Rows.Any(r => r.Row.State != "completed") ? job.Rows.Any(r => r.Row.State == "completed") ? "partial" : "failed" : job.State,
+        job.Rows.Count, job.Rows.Count(row => row.Row.State == "completed"),
+        job.Rows.Count(row => row.Row.State is "failed" or "no_sources" or "input_limit"), job.ResultsSaved,
         !job.UsageSaved || new[] { job.InputFile, job.OutputFile, job.ErrorFile }
             .OfType<string>().Any(file => !job.DeletedFiles.Contains(file)));
 
@@ -302,21 +398,10 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
         var path = JobPath(id);
         if (new FileInfo(path).Length > 64_000_000) throw new InvalidDataException("Timesheet snapshot is too large.");
         var job = JsonSerializer.Deserialize<TimesheetJob>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Missing timesheet snapshot.");
-        if (job.Version is not (1 or 2) || job.Id != id || job.Rows.Count > TimesheetProjection.MaximumRows
+        if (job.Version is not (1 or 2 or 3) || job.Id != id || job.Rows.Count > TimesheetProjection.MaximumRows
             || !Enum.IsDefined(job.Options.Grouping)) throw new InvalidDataException("Invalid timesheet snapshot.");
-        if (job.Version == 1)
-        {
-            // Version one stored an exact day/project row. Promote that measured snapshot once,
-            // preserving paid descriptions without submitting another request or inventing sources.
-            if (job.Options.Grouping != TimesheetGrouping.Day) throw new InvalidDataException("Version one has no weekly snapshot.");
-            foreach (var row in job.Rows)
-                row.Observations = [row.Row with { Description = "", State = "measured", SourceCount = 0 }];
-            job.Version = 2;
-            Save(job);
-        }
-        if (job.Rows.Any(row => row.Observations.Count == 0) || job.Rows.Sum(row => row.Observations.Count) > TimesheetProjection.MaximumRows
-            || job.Rows.Select(row => row.Row.Id).Distinct(StringComparer.Ordinal).Count() != job.Rows.Count)
-            throw new InvalidDataException("Missing or invalid measured timesheet detail.");
+        if (job.Rows.Select(row => row.Row.Id).Distinct(StringComparer.Ordinal).Count() != job.Rows.Count)
+            throw new InvalidDataException("Invalid daily timesheet identities.");
         return job;
     }
 
@@ -361,7 +446,7 @@ internal sealed class TimesheetBatchService(LocalStore store, HttpClient? transp
 
 internal sealed class TimesheetJob
 {
-    public int Version { get; set; } = 2;
+    public int Version { get; set; } = 3;
     public Guid Id { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public required TimesheetOptions Options { get; set; }
@@ -376,4 +461,9 @@ internal sealed class TimesheetJob
     public bool Reserved { get; set; }
     public bool UsageSaved { get; set; }
     public List<string> DeletedFiles { get; set; } = [];
+    public string RuleRevision { get; set; } = TimesheetIntervalCalculator.RuleRevision;
+    public int Revision { get; set; }
+    public bool Confirmed { get; set; }
+    public List<TimesheetSegment> Segments { get; set; } = [];
+    public List<TimesheetTask> Tasks { get; set; } = [];
 }

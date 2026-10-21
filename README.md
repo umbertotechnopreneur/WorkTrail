@@ -191,7 +191,7 @@ Keep a few useful views beside your work. Open and arrange them as separate desk
 - **Earth views:** follow daylight on a globe or a separate flat day/night map.
 - **Space weather:** read NOAA SWPC forecasts and alerts in the agenda, including geomagnetic storms. Eligible cities can also show an approximate aurora annotation alongside local weather.
 
-Weather and space-weather updates need network access. Aurora annotations don't guarantee visibility; clouds, terrain, and other conditions still matter. These views are in the current development build; public-release checks are still pending.
+Weather and space-weather updates need network access. Aurora annotations don't guarantee visibility; clouds, terrain, and other conditions still matter. These views are in the current development build.
 
 <table>
   <tr>
@@ -356,15 +356,13 @@ provenance file before redistributing repository material or packaged binaries.
 
 <p align="center">I’m Umberto Giacobbi. I built and maintain WorkTrail with help from contributors.<br />Find me on <a href="https://www.linkedin.com/in/umbertogiacobbi/">LinkedIn</a> or at <a href="https://umbertogiacobbi.biz/">umbertogiacobbi.biz</a>.</p>
 
----
+## A note on security
 
-<p align="right">
-  <a href="https://umbertogiacobbi.biz/vibeware/manifesto">
-    <img src="https://raw.githubusercontent.com/umbertotechnopreneur/VibeWare/main/Branding/vibeware-logo.png" alt="VibeWare floppy logo" width="160">
-  </a><br>
-  <strong>VibeWare</strong><br>
-  <em>Human intent, AI execution, and plenty of tokens</em>
-</p>
+I care about what goes into this project. Before I add a third-party library or prebuilt binary, including files supplied without source code, I scan the downloaded package, its extracted files and any dependencies with Microsoft Windows Defender. I keep new imports aside until the scan finishes without detections.
+
+I keep a record of where each new import came from and the scan result. If a scan cannot finish or flags something, I leave it out.
+
+---
 
 ### What is VibeWare?
 
@@ -374,8 +372,11 @@ I coined the term [VibeWare](https://umbertogiacobbi.biz) and started an open in
 
 *You are welcome to explore, adapt and reuse the open-source VibeWare materials under the project license — my contribution to the developer community.*
 
-## External binary security policy
+[Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
 
-Before importing, integrating, copying or running an external library or prebuilt binary for this repository or a deliverable, including NuGet packages and components supplied without source code, run an explicit targeted Microsoft Windows Defender scan on the downloaded package or archive and the extracted files to be used, including required third-party dependencies. Keep the files staged until scanning finishes; real-time protection alone is not sufficient. This requirement applies to future imports and does not certify existing dependencies.
-
-Proceed only after the scan completes without detections. Record the official source, version or SHA-256, scan command and result. An unavailable, disabled, failed or unfinished scan, or any detection, blocks the import. Do not bypass detections with exclusions, allowlisting, restored quarantine items or disabled protection. Any exception requires separate explicit owner approval.
+<p align="right">
+  <a href="https://umbertogiacobbi.biz/vibeware/manifesto">
+    <img src="https://raw.githubusercontent.com/umbertotechnopreneur/VibeWare/main/Branding/vibeware-logo.png" alt="VibeWare floppy logo" width="160">
+  </a><br>
+  <em>Human Intent, AI Execution, Plenty of Token</em>
+</p>

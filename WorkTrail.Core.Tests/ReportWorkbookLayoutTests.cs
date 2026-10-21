@@ -46,15 +46,13 @@ public sealed class ReportWorkbookLayoutTests : IDisposable
     [Fact]
     public void WeekGrouping_CombinesProjectsAppsAndDates_WithoutChangingMeasuredTime()
     {
-        var details = Observations();
-        var weeks = TimesheetProjection.Group(details, TimesheetGrouping.Week);
-        Assert.Equal(2, weeks.Count);
-        Assert.Equal(new DateOnly(2026, 9, 28), weeks[0].Date);
-        Assert.Equal("Project A; Project B", weeks[0].Project);
-        Assert.Equal("Browser; Editor", weeks[0].Applications);
-        Assert.Equal(details.Sum(row => row.ActiveSeconds), weeks.Sum(row => row.ActiveSeconds));
-        Assert.Equal(details.Sum(row => row.IdleSeconds), weeks.Sum(row => row.IdleSeconds));
-        Assert.Equal(10, TimesheetProjection.Group(details, TimesheetGrouping.Day).Count);
+        var job = Job(TimesheetGrouping.Week);
+        var details = TimesheetExcelWriter.Details(job);
+        var weeks = details.GroupBy(d => TimesheetProjection.GroupDate(d.Date, TimesheetGrouping.Week)).ToArray();
+        Assert.Equal(2, weeks.Length);
+        Assert.Equal(new DateOnly(2026, 9, 28), weeks[0].Key);
+        Assert.Equal(job.Segments.Sum(s => s.Seconds), weeks.SelectMany(g => g).Sum(d => d.Seconds));
+        Assert.Equal(10, details.Select(d => d.Date).Distinct().Count());
     }
 
     /// <summary>The print layout, cross-sheet formulas and source snapshot reconcile for every locale.</summary>
@@ -83,18 +81,18 @@ public sealed class ReportWorkbookLayoutTests : IDisposable
         Assert.Equal(names.Length * 2 - 1, workbook.Descendants(Ns + "definedName").Count());
         Assert.All(workbook.Descendants(Ns + "definedName"), name => Assert.DoesNotContain("XFD", name.Value));
         var report = Xml(zip, "xl/worksheets/sheet2.xml");
-        Assert.Equal(7, report.Descendants(Ns + "row").Single(row => row.Attribute("r")!.Value == "7").Elements(Ns + "c").Count());
+        Assert.Equal(13, report.Descendants(Ns + "row").Single(row => row.Attribute("r")!.Value == "7").Elements(Ns + "c").Count());
         Assert.Equal("7", report.Descendants(Ns + "pane").Single().Attribute("ySplit")!.Value);
         var cells = report.Descendants(Ns + "c").ToDictionary(cell => cell.Attribute("r")!.Value);
-        Assert.Equal(job.Rows[0].Row.ActiveSeconds / 86400d, Number(cells["B8"]), 10);
+        Assert.Equal(job.Segments[0].Seconds / 86400d, Number(cells["H8"]), 10);
         Assert.Contains("What I worked on", cells["D8"].Value);
-        var details = Xml(zip, "xl/worksheets/sheet4.xml");
-        var amounts = details.Descendants(Ns + "c").Where(cell => cell.Attribute("r")!.Value.StartsWith("K", StringComparison.Ordinal) && cell.Element(Ns + "v") is not null).Select(Number).Sum();
-        Assert.Equal(amounts, Number(cells["F8"]) + Number(cells["F9"]), 8);
-        var monthly = Xml(zip, "xl/worksheets/sheet5.xml");
-        Assert.Equal(amounts, monthly.Descendants(Ns + "c").Where(cell => cell.Attribute("r")!.Value.StartsWith("E", StringComparison.Ordinal) && cell.Element(Ns + "v") is not null).Select(Number).Sum(), 8);
-        Assert.All(monthly.Descendants(Ns + "f"), formula => Assert.Contains("SUMIFS(", formula.Value));
-        Assert.All(details.Descendants(Ns + "f"), formula => Assert.Contains("$B$8", formula.Value));
+        var amounts = job.Segments.Sum(s => (double)decimal.Round((decimal)s.Seconds / 3600m * 60m, 2, MidpointRounding.AwayFromZero));
+        var monthly = Xml(zip, "xl/worksheets/sheet4.xml");
+        var monthlyAmounts = monthly.Descendants(Ns + "row").Where(r => int.Parse(r.Attribute("r")!.Value) is >= 8 and < 12)
+            .SelectMany(r => r.Elements(Ns + "c")).Where(c => c.Attribute("r")!.Value.StartsWith("H", StringComparison.Ordinal)).Select(Number).Sum();
+        Assert.Equal(amounts, monthlyAmounts, 8);
+        Assert.Contains(monthly.Descendants(Ns + "f"), formula => formula.Value.Contains("SUMIFS(", StringComparison.Ordinal));
+        Assert.Contains(report.Descendants(Ns + "f"), formula => formula.Value.Contains("$B$8", StringComparison.Ordinal));
         Assert.All(report.Descendants(Ns + "f"), formula => Assert.DoesNotContain("Client", formula.Value));
     }
 
@@ -104,39 +102,38 @@ public sealed class ReportWorkbookLayoutTests : IDisposable
     {
         var job = Job(TimesheetGrouping.Day);
         job.Options = job.Options with { HourlyRate = 0.2m };
-        var detail = job.Rows[0].Observations[0] with { ActiveSeconds = 90 };
-        job.Rows = [new() { Row = detail with { State = "completed" }, Observations = [detail] }];
+        var detail = job.Segments[0];
+        job.Segments = [detail with { End = detail.Start.AddSeconds(90) }];
         var path = TimesheetExcelWriter.Write(job, Path.Combine(_directory, "rounding.xlsx"), false, CancellationToken.None);
         using (var zip = ZipFile.OpenRead(path))
         {
-            var cell = Xml(zip, "xl/worksheets/sheet4.xml").Descendants(Ns + "c").Single(cell => cell.Attribute("r")!.Value == "K8");
+            var cell = Xml(zip, "xl/worksheets/sheet2.xml").Descendants(Ns + "c").Single(cell => cell.Attribute("r")!.Value == "M8");
             Assert.Equal(0.01, Number(cell));
         }
         job.Options = job.Options with { HourlyRate = null };
         TimesheetExcelWriter.Write(job, Path.Combine(_directory, "no-billing.xlsx"), false, CancellationToken.None);
         using var plain = ZipFile.OpenRead(Path.Combine(_directory, "no-billing.xlsx"));
-        Assert.Equal(6, Xml(plain, "xl/worksheets/sheet2.xml").Descendants(Ns + "row").Single(row => row.Attribute("r")!.Value == "7").Elements(Ns + "c").Count());
-        Assert.Empty(Xml(plain, "xl/worksheets/sheet4.xml").Descendants(Ns + "f"));
+        Assert.Equal(12, Xml(plain, "xl/worksheets/sheet2.xml").Descendants(Ns + "row").Single(row => row.Attribute("r")!.Value == "7").Elements(Ns + "c").Count());
+        Assert.DoesNotContain(Xml(plain, "xl/worksheets/sheet2.xml").Descendants(Ns + "f"), f => f.Value.Contains("ROUND(", StringComparison.Ordinal));
     }
 
     /// <summary>V1 paid reports are migrated once without changing descriptions or making provider calls.</summary>
     [Fact]
-    public void SavedVersionOneReport_IsExplicitlyMigratedWithItsOriginalMeasuredTime()
+    public void SavedVersionOneReport_IsIdentifiedWithoutReinterpretingOrChangingIt()
     {
         var store = new LocalStore(Path.Combine(_directory, "store"));
         var job = Job(TimesheetGrouping.Day);
         job.Version = 1;
-        foreach (var row in job.Rows) row.Observations.Clear();
         var directory = Path.Combine(store.DataDirectory, "timesheet-batches");
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, job.Id.ToString("N") + ".json");
         File.WriteAllText(path, JsonSerializer.Serialize(job, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         var migrated = new TimesheetBatchService(store).Load(job.Id);
-        Assert.Equal(2, migrated.Version);
+        Assert.Equal(1, migrated.Version);
         Assert.Equal(job.Rows.Select(row => row.Row.Description), migrated.Rows.Select(row => row.Row.Description));
-        Assert.All(migrated.Rows, row => Assert.Equal(row.Row.ActiveSeconds, Assert.Single(row.Observations).ActiveSeconds));
+        Assert.Throws<ReportExportValidationException>(() => TimesheetExcelWriter.Write(migrated, Path.Combine(_directory, "historical.xlsx"), false, default));
         using var saved = JsonDocument.Parse(File.ReadAllText(path));
-        Assert.Equal(2, saved.RootElement.GetProperty("version").GetInt32());
+        Assert.Equal(1, saved.RootElement.GetProperty("version").GetInt32());
         Assert.DoesNotContain("prompt", File.ReadAllText(path));
     }
 
@@ -147,14 +144,15 @@ public sealed class ReportWorkbookLayoutTests : IDisposable
         var job = Job(TimesheetGrouping.Day);
         job.Options = job.Options with { Sources = job.Options.Sources with { IncludeWindowTitles = true } };
         foreach (var row in job.Rows)
-            row.Observations = row.Observations.Select(observation => observation with { References = "PRIVATE-TITLE" }).ToList();
+            row.Evidence = [new("obs-" + row.Row.Id, "device", row.Row.FirstObserved, row.Row.Id, row.Row.Id, "capture", "Reading", "Editor", "PRIVATE-TITLE", "")];
         var path = TimesheetExcelWriter.Write(job, Path.Combine(_directory, "privacy.xlsx"), false, CancellationToken.None);
         using (var zip = ZipFile.OpenRead(path))
             Assert.DoesNotContain("PRIVATE-TITLE", Xml(zip, "xl/worksheets/sheet4.xml").ToString());
         job.Options = job.Options with { Sources = job.Options.Sources with { Options = job.Options.Sources.Options with { IncludeWindowTitles = true } } };
         TimesheetExcelWriter.Write(job, Path.Combine(_directory, "titles.xlsx"), false, CancellationToken.None);
         using var selected = ZipFile.OpenRead(Path.Combine(_directory, "titles.xlsx"));
-        Assert.Contains("PRIVATE-TITLE", Xml(selected, "xl/worksheets/sheet4.xml").ToString());
+        Assert.DoesNotContain("PRIVATE-TITLE", string.Join("", selected.Entries.Where(e => e.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal))
+            .Select(e => Xml(selected, e.FullName).ToString())));
     }
 
     /// <summary>Presentation presets use native themes and leave measured values and formulas unchanged.</summary>
@@ -262,7 +260,6 @@ public sealed class ReportWorkbookLayoutTests : IDisposable
     private static TimesheetJob Job(TimesheetGrouping grouping, string language = "en-US")
     {
         var details = Observations();
-        var rows = TimesheetProjection.Group(details, grouping);
         return new()
         {
             Id = Guid.NewGuid(),
@@ -270,10 +267,11 @@ public sealed class ReportWorkbookLayoutTests : IDisposable
             State = "completed",
             ResultsSaved = true,
             Options = new(new(new(new(2026, 9, 28), new(2026, 10, 9), "UTC", Language: language)), Consultant: "Example consultant", Client: "Example client", HourlyRate: 60m, Grouping: grouping),
-            Rows = rows.Select(row => new TimesheetWorkRow
+            Tasks = details.Select((row, i) => new TimesheetTask("task-" + i, "What I worked on: reviewed the integration.", row.Project, "Observed synthetic work", [])).ToList(),
+            Segments = details.Select((row, i) => new TimesheetSegment(row.Id, row.FirstObserved, row.FirstObserved.AddSeconds(row.ActiveSeconds), "task-" + i, row.Project, [], "continuous")).ToList(),
+            Rows = details.Select(row => new TimesheetWorkRow
             {
                 Row = row with { Description = "What I worked on: reviewed the integration, fixed a validation error, and checked the deployment. Used Editor for code and Browser for the documentation. All text in this sample is fictional.", State = "completed", SourceCount = 3 },
-                Observations = details.Where(detail => TimesheetProjection.GroupDate(detail.Date, grouping) == row.Date).ToList()
             }).ToList()
         };
     }

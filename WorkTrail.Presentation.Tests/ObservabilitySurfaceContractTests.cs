@@ -55,8 +55,8 @@ public sealed class ObservabilitySurfaceContractTests
         Assert.Contains("options.ShutdownTimeout = ShutdownTimeout", source, StringComparison.Ordinal);
         Assert.Contains("options.SetBeforeSend(SentryEventSanitizer.Sanitize)", source, StringComparison.Ordinal);
         Assert.Contains("options.SetBeforeBreadcrumb(SentryEventSanitizer.SanitizeBreadcrumb)", source, StringComparison.Ordinal);
-        Assert.Contains("private const int RetainedFileCount = 15;", source, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromDays(15)", source, StringComparison.Ordinal);
+        Assert.Contains("private const int RetainedFileCount = 7;", source, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromDays(7)", source, StringComparison.Ordinal);
         Assert.Contains("rollingInterval: RollingInterval.Day", source, StringComparison.Ordinal);
         Assert.Contains("retainedFileCountLimit: RetainedFileCount", source, StringComparison.Ordinal);
         Assert.Contains("retainedFileTimeLimit: RetainedFileTime", source, StringComparison.Ordinal);

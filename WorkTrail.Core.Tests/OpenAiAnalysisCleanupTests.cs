@@ -33,6 +33,50 @@ public sealed class OpenAiAnalysisCleanupTests
 {
     private const string TestApiKeyVariable = "WORKTRAIL_OPENAI_APIKEY";
 
+    [Fact]
+    public async Task AnalysisDiagnostics_DescribeSentImagesAndInputWithoutContentOrSecrets()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        var previousApiKey = Environment.GetEnvironmentVariable(TestApiKeyVariable, EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable(TestApiKeyVariable, "test-only-key", EnvironmentVariableTarget.Process);
+        try
+        {
+            var store = CreateStore(dataDirectory, openAiEnabled: true);
+            var capture = CreateDistinctArtifactCapture(dataDirectory);
+            capture = capture with
+            {
+                Images =
+                [
+                    new ScreenshotImageMetadata(capture.AnalysisScreenshotPaths[0], "active-window", 1, "screen",
+                        0, 0, 1920, 1080, 0, 0, 1280, 720, true, "private-app", "private-window", [1]),
+                    new ScreenshotImageMetadata(capture.StoredScreenshotPaths[0], "monitor-1", 1, "screen",
+                        0, 0, 1920, 1080, 0, 0, 1920, 1080, true, "private-app", "private-window", [1], ForAnalysis: false)
+                ]
+            };
+            var logger = new RecordingLogger<OpenAiAnalysisService>();
+            var service = new OpenAiAnalysisService(store, new ObservingCaptureService(), decoder: new SuccessfulDecoder(), logger: logger);
+            var context = new AnalysisContextSnapshot("private-app", "private-context", "private-window", "active",
+                new Dictionary<string, string> { ["private-attribute"] = "private-value" },
+                InputEvidence: new InteractionSampleEvidence(DateTimeOffset.UtcNow, 5, 12, 3));
+
+            await service.AnalyzeCapturedScreenAsync(context, capture, true, "snapshot.manual", CancellationToken.None);
+
+            Assert.Contains(logger.Messages, line => line.Contains("AnalysisImages=1", StringComparison.Ordinal)
+                && line.Contains("InputSampleSeconds=5 KeyPresses=12 MouseClicks=3", StringComparison.Ordinal));
+            var imageLine = Assert.Single(logger.Messages, line => line.Contains("AI analysis package image.", StringComparison.Ordinal));
+            Assert.Contains("Role=active-window Screen=1 Width=1280 Height=720", imageLine, StringComparison.Ordinal);
+            Assert.Contains(logger.Messages, line => line.Contains("AI activity assessment persisted.", StringComparison.Ordinal));
+            var logged = string.Join("\n", logger.Messages);
+            foreach (var sensitive in new[] { "private-app", "private-context", "private-window", "private-attribute", "private-value", "test-only-key", dataDirectory, "\"summary\"" })
+                Assert.DoesNotContain(sensitive, logged, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(TestApiKeyVariable, previousApiKey, EnvironmentVariableTarget.Process);
+            Directory.Delete(dataDirectory, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

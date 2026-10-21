@@ -42,6 +42,7 @@
   "Report.ContentsTab": "Export.Contents",
   "Report.SummaryTab": "Export.AiSummary",
   "Report.TimesheetTab": "Timesheet.Title",
+  "Report.TimesheetSegments": "Timesheet.Segments",
   "Report.TodayButton": "Export.Today",
   "Report.WeekButton": "Export.Week",
   "Report.MonthButton": "Export.Month",

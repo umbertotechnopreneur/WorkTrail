@@ -45,7 +45,8 @@ public static class WorkTrailApplicationFactory
         var settings = store.LoadSettings();
         var settingsSnapshot = new SettingsSnapshot(settings);
         var tracking = new TrackingDomainService(store, settingsSnapshot);
-        var capture = new ScreenCaptureService(utilities.GetAppVersion(), settingsSnapshot);
+        var capture = new ScreenCaptureService(utilities.GetAppVersion(), settingsSnapshot,
+            loggerFactory?.CreateLogger<ScreenCaptureService>());
         var deviceContext = new DeviceContextService();
         var buildInformation = new BuildInformationService();
         var aiModelCatalog = AiModelCatalog.LoadDefault();
@@ -164,6 +165,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private int _lastAiDailyLimitNotificationDateStamp;
     private DateTimeOffset _lastScreenshotStorageWarningAt = DateTimeOffset.MinValue;
     private const int ManualScreenshotDeletionWindowSeconds = 30;
+    private const int ScheduledSnapshotRecoverySeconds = 30;
     private const int MaximumPendingNotifications = 32;
     private const int MaximumScreenshotImageBytes = 10 * 1024 * 1024;
     private const long MinimumScreenshotFreeBytes = 512L * 1024 * 1024;
@@ -201,7 +203,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         IScreenshotNotificationService? screenshotNotifications = null)
     {
         _store = store;
-        _timesheetService = new TimesheetBatchService(store);
+        _timesheetService = new TimesheetBatchService(store, logger: logger);
         _settingsSnapshot = settingsSnapshot ?? new SettingsSnapshot(store.LoadSettings());
         _featureAccess = new FeatureAccessPolicy(featureLicenseSource);
         _ = _featureAccess.Snapshot;
@@ -247,6 +249,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _tracking.DashboardStateChanged += OnDashboardStateChanged;
         _tracking.TrackingStateChanged += OnTrackingStateChanged;
         _tracking.RuntimeHealthChanged += OnTrackingRuntimeHealthChanged;
+        InitializeTimesheetSessionEvents(startScheduledSnapshotTimer);
         ConfigureScheduledSnapshots(_settingsSnapshot.Value, restartCountdown: true);
         _runtimeTimerTask = startScheduledSnapshotTimer
             ? RunRuntimeTimerLoopAsync(_runtimeTimerCancellation.Token)
@@ -440,6 +443,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         }
         catch (ScreenshotCapturePreconditionException exception)
         {
+            PersistTimesheetCheckpoint(exception.UnchangedEvidence, settings);
             // Settings and foreground privacy are re-evaluated inside the worker immediately before pixels.
             return CapturePreconditionFailure<ScreenshotCaptureResult>(exception.Decision);
         }
@@ -481,12 +485,15 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return OperationResult<ScreenshotCaptureResult>.Failure("screenshot.telemetry.persistence.failed", "ScreenshotCaptureFailed");
         }
         long persistenceElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(persistenceStartedTimestamp).TotalMilliseconds;
+        if (request.Keep) PersistTimesheetCaptureEvidence(result, settings);
 
         await NotifyScreenshotCaptureAsync(result, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Local screenshot pipeline completed. Origin={Origin} Mode={Mode} Artifacts={ArtifactCount} ContextMs={ContextMilliseconds} CaptureMs={CaptureMilliseconds} PersistenceMs={PersistenceMilliseconds} TotalMs={TotalMilliseconds}",
+            "Local screenshot pipeline completed. Correlation={Correlation} Origin={Origin} Mode={Mode} StoredImages={StoredImageCount} AnalysisImages={AnalysisImageCount} ContextMs={ContextMilliseconds} CaptureMs={CaptureMilliseconds} PersistenceMs={PersistenceMilliseconds} TotalMs={TotalMilliseconds}",
+            result.CaptureId[..Math.Min(12, result.CaptureId.Length)],
             request.CaptureOrigin,
             mode,
+            result.StoredScreenshotPaths.Count,
             result.AnalysisScreenshotPaths.Count,
             telemetryElapsedMilliseconds,
             captureElapsedMilliseconds,
@@ -1727,6 +1734,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     }
                     catch (ScreenshotCapturePreconditionException exception)
                     {
+                        PersistTimesheetCheckpoint(exception.UnchangedEvidence, settings);
                         return CapturePreconditionFailure<AiAnalysis>(exception.Decision);
                     }
                     catch (ScreenshotIdlePolicyException exception)
@@ -1757,6 +1765,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     }
 
                     await NotifyScreenshotCaptureAsync(capture, cancellationToken).ConfigureAwait(false);
+                    if (settings.KeepScreenshots) PersistTimesheetCaptureEvidence(capture, settings);
                     var pipeline = await AnalyzeLiveCaptureAsync(
                         capture,
                         settings.KeepScreenshots,
@@ -2786,8 +2795,12 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             }
 
             var settings = _settingsSnapshot.Value;
+            _logger.LogInformation("Scheduled screenshot timer fired. IntervalMinutes={IntervalMinutes} StabilityRetry={StabilityRetry} NextAttemptAt={NextAttemptAt}",
+                settings.ScreenshotIntervalMinutes, stabilityRetryAttempt, reservedNextSnapshotAt);
             if (!ActiveHoursSchedule.IsWithinActiveHours(settings.ActiveHours, DateTimeOffset.Now))
             {
+                _logger.LogInformation("Scheduled screenshot skipped. Code={Code} NextAttemptAt={NextAttemptAt}",
+                    "screenshot.outside-active-hours", reservedNextSnapshotAt);
                 return;
             }
 
@@ -2803,7 +2816,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                     CancellationToken.None);
                 if (!scheduledCapture.Succeeded || scheduledCapture.Value is not { } retainedCapture)
                 {
-                    if (scheduledCapture.Code == "screenshot.unstable")
+                    var nextAttemptAt = reservedNextSnapshotAt;
+                    // Unchanged pixels deliberately keep the normal cadence. Other unsuccessful
+                    // attempts must recover promptly when input, foreground or storage becomes usable.
+                    if (scheduledCapture.Code is not ("screenshot.unchanged" or "screenshot.disabled" or "operation.cancelled"))
                     {
                         await MutateAsync(async () =>
                         {
@@ -2813,32 +2829,48 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                                 && current == settings && _nextScheduledSnapshotAt == reservedNextSnapshotAt
                                 && ActiveHoursSchedule.IsWithinActiveHours(current.ActiveHours, DateTimeOffset.Now))
                             {
-                                var stability = ScreenshotCaptureRules.Load().Stability ?? new ScreenshotStabilityOptions();
-                                if (stabilityRetryAttempt < stability.MaxRetries)
+                                var retrySeconds = ScheduledSnapshotRecoverySeconds;
+                                if (scheduledCapture.Code == "screenshot.unstable")
                                 {
-                                    _nextScheduledSnapshotAt = DateTimeOffset.Now.AddSeconds(stability.RetrySeconds);
-                                    _scheduledSnapshotStabilityRetries = stabilityRetryAttempt + 1;
+                                    var stability = ScreenshotCaptureRules.Load().Stability ?? new ScreenshotStabilityOptions();
+                                    if (stabilityRetryAttempt < stability.MaxRetries)
+                                    {
+                                        retrySeconds = stability.RetrySeconds;
+                                        _scheduledSnapshotStabilityRetries = stabilityRetryAttempt + 1;
+                                    }
                                 }
+                                _nextScheduledSnapshotAt = DateTimeOffset.Now.AddSeconds(retrySeconds);
                             }
+                            nextAttemptAt = _nextScheduledSnapshotAt;
                             await Task.CompletedTask;
                             return OperationResult<bool>.Success("snapshot.schedule.retry", "SnapshotScheduleNotDue", false);
                         }, CancellationToken.None);
-                        return;
                     }
-                    if (scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged" or "screenshot.excluded" or "screenshot.insufficient-content") return;
-                    _logger.LogWarning("Scheduled screen capture failed. Code={Code}", scheduledCapture.Code);
+                    var expectedSkip = scheduledCapture.Code is "screenshot.idle" or "screenshot.unchanged"
+                        or "screenshot.unstable" or "screenshot.excluded" or "screenshot.insufficient-content"
+                        or "privacy.blocked" or "screenshot.disabled" or "operation.cancelled";
+                    _logger.Log(expectedSkip ? LogLevel.Information : LogLevel.Warning,
+                        "Scheduled screenshot not retained. Code={Code} NextAttemptAt={NextAttemptAt}",
+                        scheduledCapture.Code, nextAttemptAt);
                     return;
                 }
 
-                if (retainedCapture.AnalysisScreenshotPaths.Count == 0) return;
+                if (retainedCapture.AnalysisScreenshotPaths.Count == 0)
+                {
+                    _logger.LogInformation("Scheduled snapshot AI analysis skipped. Correlation={Correlation} Code={Code}",
+                        retainedCapture.CaptureId[..Math.Min(12, retainedCapture.CaptureId.Length)], "ai.no-eligible-images");
+                    return;
+                }
 
                 var analysis = await AnalyzeCapturedScreenshotAsync(
                     new AnalyzeCapturedScreenshotRequest(retainedCapture, KeepCapture: true, Origin: "snapshot.scheduled"),
                     CancellationToken.None);
-                if (!analysis.Succeeded && analysis.Code != "ai.disabled")
+                if (!analysis.Succeeded)
                 {
                     // Missing keys, request limits, and provider failures never remove the already retained snapshot.
-                    _logger.LogWarning("Scheduled snapshot retained without AI analysis. Code={Code}", analysis.Code);
+                    _logger.Log(analysis.Code == "ai.disabled" ? LogLevel.Information : LogLevel.Warning,
+                        "Scheduled snapshot retained without AI analysis. Correlation={Correlation} Code={Code}",
+                        retainedCapture.CaptureId[..Math.Min(12, retainedCapture.CaptureId.Length)], analysis.Code);
                 }
             }
         }

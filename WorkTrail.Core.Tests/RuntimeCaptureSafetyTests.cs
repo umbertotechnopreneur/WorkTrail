@@ -24,6 +24,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using WorkTrail.Application;
 using WorkTrail.Services;
 using Xunit;
@@ -239,7 +240,7 @@ public sealed class RuntimeCaptureSafetyTests
         finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
     }
 
-    /// <summary>Continuous window changes receive two short retries, then return to the normal capture interval.</summary>
+    /// <summary>Continuous window changes receive two short retries, then a short recovery cooldown.</summary>
     [Fact]
     public async Task ScheduledCapture_UnstableRetriesAreBounded()
     {
@@ -276,11 +277,72 @@ public sealed class RuntimeCaptureSafetyTests
                 Assert.Equal(attempt, attempts);
                 Assert.Equal(attempt <= 2 ? attempt : 0, Assert.IsType<int>(retries.GetValue(application)));
                 Assert.InRange(next,
-                    startedAt.AddSeconds(attempt <= 2 ? 2 : 55),
-                    DateTimeOffset.Now.AddSeconds(attempt <= 2 ? 5 : 65));
+                    startedAt.AddSeconds(attempt <= 2 ? 2 : 29),
+                    DateTimeOffset.Now.AddSeconds(attempt <= 2 ? 5 : 31));
             }
             Assert.Equal(0, capture.PixelReadCount);
             Assert.Empty(capture.PublicationCalls);
+        }
+        finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
+    }
+
+    /// <summary>A missed snapshot recovers promptly, logs its reason and resumes normal cadence after publication.</summary>
+    /// <param name="decision">The first capture's policy rejection.</param>
+    /// <param name="code">The diagnostic reason expected in the durable logging pipeline.</param>
+    /// <param name="delaySeconds">Recovery delay, or normal cadence for intentional duplicate suppression.</param>
+    [Theory]
+    [InlineData(ScreenshotCaptureDecision.UserIdle, "screenshot.idle", 30)]
+    [InlineData(ScreenshotCaptureDecision.ContentExcluded, "screenshot.excluded", 30)]
+    [InlineData(ScreenshotCaptureDecision.InsufficientVisibleContent, "screenshot.insufficient-content", 30)]
+    [InlineData(ScreenshotCaptureDecision.PrivacyBlocked, "privacy.blocked", 30)]
+    [InlineData(ScreenshotCaptureDecision.Unchanged, "screenshot.unchanged", 900)]
+    public async Task ScheduledCapture_SkipRecoversAndThenResumesCadence(
+        ScreenshotCaptureDecision decision, string code, int delaySeconds)
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var settings = store.LoadSettings() with
+            {
+                ScreenshotsEnabled = true,
+                ScreenshotDirectory = dataDirectory,
+                ScreenshotIntervalMinutes = 15,
+                OpenAiEnabled = false
+            };
+            store.SaveSettings(settings);
+            var attempts = 0;
+            var capture = new BoundaryCaptureService(dataDirectory, beforeAuthorization: () =>
+            {
+                if (++attempts == 1) throw new ScreenshotCapturePreconditionException(decision);
+            });
+            var logger = new RecordingRuntimeLogger();
+            await using var application = CreateApplication(store, new SettingsSnapshot(settings), capture,
+                startTimer: false, logger: logger);
+            Assert.True((await application.StartTrackingAsync(new StartTrackingRequest(), CancellationToken.None)).Succeeded);
+            var deadline = RuntimeField("_nextScheduledSnapshotAt");
+            deadline.SetValue(application, DateTimeOffset.Now.AddSeconds(-1));
+            var startedAt = DateTimeOffset.Now;
+
+            await RunScheduledSnapshotAsync(application);
+
+            Assert.Equal(0, capture.PixelReadCount);
+            Assert.Empty(capture.PublicationCalls);
+            Assert.InRange(Assert.IsType<DateTimeOffset>(deadline.GetValue(application)),
+                startedAt.AddSeconds(delaySeconds - 1), DateTimeOffset.Now.AddSeconds(delaySeconds + 1));
+            Assert.Contains(logger.Messages, message => message.Contains(code, StringComparison.Ordinal));
+
+            deadline.SetValue(application, DateTimeOffset.Now.AddSeconds(-1));
+            startedAt = DateTimeOffset.Now;
+            await RunScheduledSnapshotAsync(application);
+
+            Assert.Equal(1, capture.PixelReadCount);
+            Assert.True(Assert.Single(capture.PublicationCalls).Retained);
+            Assert.True(File.Exists(capture.OutputPath));
+            Assert.InRange(Assert.IsType<DateTimeOffset>(deadline.GetValue(application)),
+                startedAt.AddMinutes(15), DateTimeOffset.Now.AddMinutes(15));
+            await RunScheduledSnapshotAsync(application);
+            Assert.Equal(2, attempts);
         }
         finally { await DeleteTemporaryDirectoryAsync(dataDirectory); }
     }
@@ -720,7 +782,8 @@ public sealed class RuntimeCaptureSafetyTests
         bool startTimer,
         TrackingDomainService? tracking = null,
         IScreenshotNotificationService? screenshotNotifications = null,
-        IAiAnalysisService? analysis = null)
+        IAiAnalysisService? analysis = null,
+        ILogger<WorkTrailApplication>? logger = null)
     {
         var utilities = new UtilityService();
         return new WorkTrailApplication(
@@ -731,6 +794,7 @@ public sealed class RuntimeCaptureSafetyTests
             analysis ?? new OpenAiAnalysisService(store, capture),
             new StartupService(),
             new BuildInformationService(),
+            logger: logger,
             settingsSnapshot: settings,
             startScheduledSnapshotTimer: startTimer,
             screenshotNotifications: screenshotNotifications);
@@ -783,6 +847,21 @@ public sealed class RuntimeCaptureSafetyTests
 
         /// <inheritdoc />
         public void Dispose() { }
+    }
+
+    private sealed class RecordingRuntimeLogger : ILogger<WorkTrailApplication>
+    {
+        internal List<string> Messages { get; } = [];
+
+        /// <inheritdoc />
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        /// <inheritdoc />
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        /// <inheritdoc />
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
     }
 
     private sealed class RecordingAiAnalysisService : IAiAnalysisService

@@ -13,6 +13,45 @@ public sealed class ScreenshotTitleOnlyCaptureTests
 {
     private static readonly NativeMethods.Rect Full = Rect(0, 0, 100, 100);
 
+    /// <summary>Ordinary window changes do not become a desktop capture veto.</summary>
+    [Fact]
+    public void DesktopPrivacy_AllowsChangedTitlesGeometryAndWindowOrder()
+    {
+        var word = Window(1, Rect(0, 0, 60, 100), "winword");
+        var browser = Window(2, Rect(40, 0, 100, 100), "browser") with { WindowTitle = "Changed tab" };
+        var clock = Window(3, Rect(80, 0, 100, 20), "clock");
+
+        Assert.False(Rules().HasExcludedPixels(Full, [Full], [clock, browser, word], forAnalysis: true));
+        Assert.False(Rules().HasExcludedPixels(Full, [Full], [word, browser], forAnalysis: true));
+    }
+
+    /// <summary>A stale mask cannot expose excluded content after it moves or becomes visible.</summary>
+    [Fact]
+    public void DesktopPrivacy_RejectsNewlyVisibleExcludedPixelsButAllowsExistingMask()
+    {
+        var spotify = Window(1, Rect(0, 0, 40, 100), "Spotify");
+        var word = Window(2, Full, "winword");
+        var capturedRegions = new[] { Rect(40, 0, 100, 100) };
+
+        Assert.False(Rules().HasExcludedPixels(Full, capturedRegions, [spotify, word], forAnalysis: false));
+        var moved = spotify with { Bounds = Rect(20, 0, 60, 100) };
+        Assert.True(Rules().HasExcludedPixels(Full, capturedRegions, [moved, word], forAnalysis: false));
+        Assert.False(Rules().HasExcludedPixels(Full, [Full], [word, spotify], forAnalysis: false));
+        Assert.True(Rules().HasExcludedPixels(Full, [Full], [spotify, word], forAnalysis: false));
+    }
+
+    /// <summary>An analysis-only exclusion still permits the same desktop pixels in the local gallery.</summary>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void DesktopPrivacy_AnalysisBlacklistPreservesDestination(bool forAnalysis, bool blocked)
+    {
+        var rules = Rules() with { AnalysisBlacklist = ["private-app"] };
+        var window = Window(1, Full, "private-app");
+
+        Assert.Equal(blocked, rules.HasExcludedPixels(Full, [Full], [window], forAnalysis));
+    }
+
     /// <summary>Image-only and desktop modes both reject an entirely title-only selection.</summary>
     /// <param name="activeWindowOnly">Whether capture is restricted to the foreground crop.</param>
     [Theory]

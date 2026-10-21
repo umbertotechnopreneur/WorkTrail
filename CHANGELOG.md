@@ -11,13 +11,14 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Added
 
-- Structured AI confidence for continued and ended visible activity, stored with each screenshot description. Confident live assessments can extend passive screenshot eligibility for five minutes, capped at ten minutes since real input, without changing measured activity totals.
+- Structured AI confidence for continued and ended visible activity, stored separately from measured input.
+- Observation-based daily AI timesheets with validated task assignments, locally calculated estimated intervals, explicit gaps and device conflicts, persistent corrections, and segment-based Excel export.
+- Saved activity spans in week/day calendars and the screenshot gallery, with draft provenance, a selectable timeline and thumbnail labels. Viewing saved spans works offline.
 - Direct window screenshots use Windows Graphics Capture to preserve covered content. Size checks and secondary-window visibility filters run before capture; auxiliary WorkTrail panels are excluded without moving them. Transparent areas use a neutral backing color instead of black when Windows omits the desktop Acrylic effect.
 - World Time menu in the player title bar, with a live saved-city preview and direct access to clocks, maps, the astronomical calendar, local sky and Moon windows.
-- Configurable automatic-capture stabilization for rapid window switching, with bounded quiet retries and no added wait for manual captures.
 - Configurable near-duplicate filtering for automatic screenshots, with conservative visual comparison and periodic refresh; manual captures bypass similarity filtering.
 - Title-only application rules: Spotify keeps its literal foreground title in existing activity data, without image crops; its visible background area is masked in monitor panoramas, including manual captures.
-- Context-specific screenshot micro-prompts, process-scoped title hints, selected secondary-window crops and configurable inactivity timeouts, including Teams and Zoom presets. Browser titles remain heuristic hints, not verified domains; low-attention analysis reads titles only.
+- Context-specific screenshot micro-prompts, process-scoped title hints and selected secondary-window crops. Browser titles remain heuristic hints, not verified domains; low-attention analysis reads titles only.
 - Internal screenshot capture rules with active/secondary window crops, monitor identities, separate AI/gallery destinations, application attention presets and an analysis blacklist.
 - Codex CLI screenshot descriptions using ChatGPT sign-in, with installation detection, setup guidance and actionable connection errors.
 - Inline history settings with a configurable storage warning (1 GB by default) and confirmed deletion of an inclusive date range.
@@ -26,7 +27,6 @@ the first public preview defines what later versions need to stay compatible wit
 - VIP snapshots with a cancellable countdown, optional notes, a featured gallery strip, gold crown badges, and calendar indicators.
 - Windows screenshot notifications with image previews and a saved opt-out available in Settings or in the notification itself.
 - Stable UI automation selectors, localized accessible names, and a conversion register organized by screen.
-- Excel timesheets with daily, morning/afternoon or weekly rows, measured monthly totals, and optional summaries processed through OpenAI Batch.
 - Three Excel report themes selectable in the export wizard and editable through Excel's native themes, including for saved batches.
 - Temporary Excel previews limited to ten records per worksheet.
 - In-app help explaining the available AI-summary grouping options.
@@ -38,6 +38,9 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Changed
 
+- Scheduled screenshots remain eligible while reading without input; ordinary foreground/title changes no longer discard a capture. Privacy and similarity checks remain in force.
+- Timesheet reconstruction uses independent daily requests; daily/weekly grouping affects presentation. Local review, corrections, evidence lookup and export reuse saved results without AI calls.
+- Repository task records retain concise open outcomes, milestones and engineering lessons. Generated output cleanup keeps only the latest validated package and minimal current metadata.
 - Screenshot descriptions use Balanced or Complete profiles, inspect visible content by monitor and omit application-imposed response caps. Manual captures request Complete analysis with high attention without changing the saved preference or privacy exclusions.
 - Activating any WorkTrail window brings the other open app windows forward while keeping focus on the selected window.
 - AI settings offer CLI or API connections through Codex CLI or an OpenAI API key; switching connections requires explicit AI activation.
@@ -50,7 +53,7 @@ the first public preview defines what later versions need to stay compatible wit
 - Premium restrictions across exports, labels, clocks, schedules, data transfer, and retention share a localized upgrade prompt with a Microsoft Store action.
 - The tray menu provides notification and tracking toggles, VIP capture, clocks, astronomical views, Settings, About, and a command to reveal all already-open WorkTrail windows.
 - In-app toasts use compact severity-colored surfaces with icons and no countdown progress bar.
-- Excel exports share a branded A4 introduction, worksheet navigation, readable supporting tables, and a full-text appendix. Timesheets combine projects and apps in each daily or weekly row while retaining dated measured details.
+- Excel exports share a branded A4 introduction, worksheet navigation, readable supporting tables, and a full-text appendix. Timesheets use the reviewed estimated intervals for detail, summaries and provisional billing.
 - Export screens use compact option grids, explain the four report tabs, and provide a collapsible Excel preview card with artwork for light and dark themes.
 - AI summaries remain visible in an editable text area, and ordinary file-format or column changes preserve the draft.
 - Excel preview generation now shows progress and the completed file path below the card, with separate commands to open the workbook or copy its absolute path.
@@ -82,6 +85,7 @@ the first public preview defines what later versions need to stay compatible wit
 
 ### Removed
 
+- Copilot instructions and repository prompt files; development rules live in AGENTS.md.
 - Monthly AI spending, price-list downloads, pricing dialogs and cost estimates in settings, storage and exports. Request and token counts remain available.
 - Hardware sensor collection, CPU/GPU readings, the sensor window, LibreHardwareMonitor and bundled PawnIO installation.
 - OCR capture processing, refinement calls, stored OCR text, controls, search fields, export columns and the obsolete adapter test project/documentation. AI visual descriptions remain available through CLI or API.

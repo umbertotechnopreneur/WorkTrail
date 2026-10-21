@@ -90,6 +90,7 @@ VBWR E -->
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border
@@ -153,6 +154,9 @@ VBWR E -->
             Grid.ColumnSpan="2"
             Canvas.ZIndex="2"
             Margin="0" />
+
+        <controls:ActivitySpanTimeline x:Name="ActivityRail" Grid.Row="6" Grid.ColumnSpan="2"
+                                       Margin="32,4,32,12" />
 
         <Border
             x:Name="DetailsPane"
