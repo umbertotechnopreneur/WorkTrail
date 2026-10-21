@@ -265,7 +265,6 @@ VBWR E -->
                             <TextBlock x:Name="TimesheetRange" TextWrapping="Wrap" />
                             <ComboBox x:Name="TimesheetGroupingCombo" AutomationProperties.AutomationId="Report.TimesheetGrouping"
                                       Tag="Timesheet.Grouping" HorizontalAlignment="Stretch" SelectionChanged="TimesheetGrouping_SelectionChanged" />
-                            <CheckBox AutomationProperties.AutomationId="Report.TimesheetMergeCheck" x:Name="TimesheetMergeCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Merge" IsChecked="True" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                             <CheckBox AutomationProperties.AutomationId="Report.TimesheetMonthsCheck" x:Name="TimesheetMonthsCheck" Click="TimesheetOptionsChanged" Tag="Timesheet.Months" Style="{StaticResource ReportOptionCheckBoxStyle}" />
                             <Grid ColumnSpacing="14" RowSpacing="14">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -321,6 +320,49 @@ VBWR E -->
                                     </Button>
                                 </StackPanel>
                                 <TextBlock x:Name="TimesheetStatus" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                <TextBlock x:Name="TimesheetDayStatus" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button AutomationProperties.AutomationId="Report.TimesheetRetryButton" x:Name="TimesheetRetryButton" Tag="Timesheet.Retry" Content="Retry failed dates (paid)" Click="TimesheetRetry_Click" />
+                                    <Button AutomationProperties.AutomationId="Report.TimesheetConfirmButton" x:Name="TimesheetConfirmButton" Tag="Timesheet.Confirm" Content="Confirm reviewed draft" Click="TimesheetConfirm_Click" />
+                                    <Button AutomationProperties.AutomationId="Report.Timesheet_ShowEvidence" Tag="Timesheet.ShowEvidence" Content="Show source captures" Click="TimesheetEvidence_Click" />
+                                </StackPanel>
+                                <TextBlock Tag="Timesheet.EstimateHelp" TextWrapping="Wrap" />
+                                <TextBlock x:Name="TimesheetTotals" TextWrapping="Wrap" />
+                                <ListView x:Name="TimesheetSegments" MaxHeight="340" SelectionMode="Single" SelectionChanged="TimesheetSegments_SelectionChanged"
+                                          AutomationProperties.AutomationId="Report.TimesheetSegments" Tag="Timesheet.Segments">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Spacing="3" Padding="0,4">
+                                                <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button AutomationProperties.AutomationId="Report.TimesheetSegmentsPrevious" x:Name="TimesheetSegmentsPrevious" Tag="Timesheet.SegmentPrevious" Content="Previous intervals" Click="TimesheetSegmentsPrevious_Click" />
+                                    <Button AutomationProperties.AutomationId="Report.TimesheetSegmentsNext" x:Name="TimesheetSegmentsNext" Tag="Timesheet.SegmentNext" Content="Next intervals" Click="TimesheetSegmentsNext_Click" />
+                                    <Button AutomationProperties.AutomationId="Report.TimesheetAddButton" x:Name="TimesheetAddButton" Tag="Timesheet.AddSegment" Content="Add missing work or break" Click="TimesheetAdd_Click" />
+                                </StackPanel>
+                                <StackPanel x:Name="TimesheetEditor" Spacing="8" Visibility="Collapsed">
+                                    <TextBlock Tag="Timesheet.EditHelp" TextWrapping="Wrap" />
+                                    <TextBox AutomationProperties.AutomationId="Report.TimesheetEditStart" x:Name="TimesheetEditStart" Tag="Timesheet.Start" />
+                                    <TextBox AutomationProperties.AutomationId="Report.TimesheetEditEnd" x:Name="TimesheetEditEnd" Tag="Timesheet.End" />
+                                    <TextBox AutomationProperties.AutomationId="Report.TimesheetEditTask" x:Name="TimesheetEditTask" Tag="Timesheet.Task" MaxLength="160" />
+                                    <TextBox AutomationProperties.AutomationId="Report.TimesheetEditProject" x:Name="TimesheetEditProject" Tag="Timesheet.Project" MaxLength="120" />
+                                    <TextBox AutomationProperties.AutomationId="Report.TimesheetEditNote" x:Name="TimesheetEditNote" Tag="Timesheet.Notes" MaxLength="1000" />
+                                    <ComboBox AutomationProperties.AutomationId="Report.TimesheetEditBasis" x:Name="TimesheetEditBasis" Tag="Timesheet.Basis" HorizontalAlignment="Stretch" />
+                                    <ComboBox AutomationProperties.AutomationId="Report.TimesheetAlternatives" x:Name="TimesheetAlternatives" Tag="Timesheet.Attribution" HorizontalAlignment="Stretch" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button AutomationProperties.AutomationId="Report.Timesheet_SaveEdit" Tag="Timesheet.SaveEdit" Content="Save correction" Click="TimesheetSaveEdit_Click" />
+                                        <Button AutomationProperties.AutomationId="Report.Timesheet_Split" Tag="Timesheet.Split" Content="Split interval" Click="TimesheetSplit_Click" />
+                                        <Button AutomationProperties.AutomationId="Report.Timesheet_MergeNext" Tag="Timesheet.MergeNext" Content="Merge with next matching interval" Click="TimesheetMerge_Click" />
+                                        <Button AutomationProperties.AutomationId="Report.Timesheet_CancelEdit" Tag="Timesheet.CancelEdit" Content="Close editor" Click="TimesheetCancelEdit_Click" />
+                                    </StackPanel>
+                                    <TextBox AutomationProperties.AutomationId="Report.TimesheetSplitAt" x:Name="TimesheetSplitAt" Tag="Timesheet.SplitAt" />
+                                </StackPanel>
+                                <ListView AutomationProperties.AutomationId="Report.TimesheetEvidenceList" x:Name="TimesheetEvidenceList" MaxHeight="220" SelectionMode="Single"
+                                          Tag="Timesheet.EvidenceSheet" IsItemClickEnabled="True" ItemClick="TimesheetEvidence_ItemClick" />
                                 <Button AutomationProperties.AutomationId="Report.Timesheet_Refresh" Tag="Timesheet.Refresh" Click="TimesheetRefresh_Click">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{ThemeResource WeekActionIconBrush}" AutomationProperties.AccessibilityView="Raw" />

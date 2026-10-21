@@ -138,6 +138,7 @@ VBWR E -->
                     <Grid.RowDefinitions>
                         <RowDefinition Height="69" />
                         <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid
                         x:Name="TimelineThumbnailVisual"
@@ -231,6 +232,11 @@ VBWR E -->
                             LineHeight="16"
                             Text="{Binding TimeText}" />
                     </StackPanel>
+                    <Border Grid.Row="2" Margin="0,3,0,0" BorderThickness="0,2,0,0"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" Padding="2,2,2,0"
+                            Visibility="{Binding ActivityVisibility}" ToolTipService.ToolTip="{Binding ActivityDetail}">
+                        <TextBlock Text="{Binding ActivityLabel}" FontSize="10" TextTrimming="CharacterEllipsis" />
+                    </Border>
                 </Grid>
             </DataTemplate>
         </ResourceDictionary>

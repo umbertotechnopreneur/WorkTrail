@@ -28,8 +28,8 @@ namespace WorkTrail.Runtime;
 /// <summary>Creates the process-wide logging pipeline used by both packaged and unpackaged launches.</summary>
 internal static class LoggingBootstrapper
 {
-    private const int RetainedFileCount = 15;
-    private static readonly TimeSpan RetainedFileTime = TimeSpan.FromDays(15);
+    private const int RetainedFileCount = 7;
+    private static readonly TimeSpan RetainedFileTime = TimeSpan.FromDays(7);
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(2);
     private static int _shutdownStarted;
 

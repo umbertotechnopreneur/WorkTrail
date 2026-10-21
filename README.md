@@ -1,5 +1,10 @@
 # WorkTrail — Track your time. Find what you worked on.
 
+[![Build status](https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml)
+![Platform: Windows 11](https://img.shields.io/badge/platform-Windows_11-0078D4)
+![Status: pre-production](https://img.shields.io/badge/status-pre--production-F9665B)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2EA44F)](LICENSE)
+
 Search your Windows activity and optional screenshots, with history stored on your PC by default. Find an app or document from earlier in your day and see where your time went.
 
 **[Get started](#get-worktrail)** · [See what it does](#remember-the-moment-not-the-tab) · [Sky and weather extras](#extras-sky-weather-and-world-clocks) · [Privacy](docs/PRIVACY.md)
@@ -54,13 +59,6 @@ Open `WorkTrail.exe` from the folder created under `artifacts/unpackaged/<versio
 > **MSIX installers are temporarily unavailable.** I'm working on the code-signing certificate needed to distribute them. Use an unpackaged build for now.
 
 Portable executables can run directly. MSIX packages require signing before installation. See the [release guide](docs/RELEASING.md) for package details.
-
-<p align="center">
-  <a href="https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml"><img src="https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml/badge.svg?branch=main" alt="Build status" /></a>
-  <img src="https://img.shields.io/badge/platform-Windows-0078D4?logo=windows11&amp;logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/status-pre--production-F9665B" alt="Pre-production" />
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT License" /></a>
-</p>
 
 > [!IMPORTANT]
 > **The first public beta is in preparation.** I'm checking how the app handles AI and private data before publishing it.
@@ -191,7 +189,7 @@ Keep a few useful views beside your work. Open and arrange them as separate desk
 - **Earth views:** follow daylight on a globe or a separate flat day/night map.
 - **Space weather:** read NOAA SWPC forecasts and alerts in the agenda, including geomagnetic storms. Eligible cities can also show an approximate aurora annotation alongside local weather.
 
-Weather and space-weather updates need network access. Aurora annotations don't guarantee visibility; clouds, terrain, and other conditions still matter. These views are in the current development build; public-release checks are still pending.
+Weather and space-weather updates need network access. Aurora annotations don't guarantee visibility; clouds, terrain, and other conditions still matter. These views are in the current development build.
 
 <table>
   <tr>
@@ -356,15 +354,13 @@ provenance file before redistributing repository material or packaged binaries.
 
 <p align="center">I’m Umberto Giacobbi. I built and maintain WorkTrail with help from contributors.<br />Find me on <a href="https://www.linkedin.com/in/umbertogiacobbi/">LinkedIn</a> or at <a href="https://umbertogiacobbi.biz/">umbertogiacobbi.biz</a>.</p>
 
----
+## A note on security
 
-<p align="right">
-  <a href="https://umbertogiacobbi.biz/vibeware/manifesto">
-    <img src="https://raw.githubusercontent.com/umbertotechnopreneur/VibeWare/main/Branding/vibeware-logo.png" alt="VibeWare floppy logo" width="160">
-  </a><br>
-  <strong>VibeWare</strong><br>
-  <em>Human intent, AI execution, and plenty of tokens</em>
-</p>
+I care about what goes into this project. Before I add a third-party library or prebuilt binary, including files supplied without source code, I scan the downloaded package, its extracted files and any dependencies with Microsoft Windows Defender. I keep new imports aside until the scan finishes without detections.
+
+I keep a record of where each new import came from and the scan result. If a scan cannot finish or flags something, I leave it out.
+
+---
 
 ### What is VibeWare?
 
@@ -374,8 +370,11 @@ I coined the term [VibeWare](https://umbertogiacobbi.biz) and started an open in
 
 *You are welcome to explore, adapt and reuse the open-source VibeWare materials under the project license — my contribution to the developer community.*
 
-## External binary security policy
+[Terms](https://umbertogiacobbi.biz/terms/) · [Privacy](https://umbertogiacobbi.biz/privacy/)
 
-Before importing, integrating, copying or running an external library or prebuilt binary for this repository or a deliverable, including NuGet packages and components supplied without source code, run an explicit targeted Microsoft Windows Defender scan on the downloaded package or archive and the extracted files to be used, including required third-party dependencies. Keep the files staged until scanning finishes; real-time protection alone is not sufficient. This requirement applies to future imports and does not certify existing dependencies.
-
-Proceed only after the scan completes without detections. Record the official source, version or SHA-256, scan command and result. An unavailable, disabled, failed or unfinished scan, or any detection, blocks the import. Do not bypass detections with exclusions, allowlisting, restored quarantine items or disabled protection. Any exception requires separate explicit owner approval.
+<p align="right">
+  <a href="https://umbertogiacobbi.biz/vibeware/manifesto">
+    <img src="https://raw.githubusercontent.com/umbertotechnopreneur/VibeWare/main/Branding/vibeware-logo.png" alt="VibeWare floppy logo" width="160">
+  </a><br>
+  <em>Human Intent, AI Execution, Plenty of Token</em>
+</p>

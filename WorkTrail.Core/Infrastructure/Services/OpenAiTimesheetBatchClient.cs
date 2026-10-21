@@ -45,10 +45,13 @@ internal sealed class OpenAiTimesheetBatchClient(string apiKey, HttpClient? tran
             body = new
             {
                 model = ReportSummaryModelPolicy.OpenAiModel,
-                input = row.Prompt,
+                input = new[] { new { role = "developer", content = TimesheetProjection.Instructions }, new { role = "user", content = row.Prompt! } },
                 store = false,
                 reasoning = new { effort = "none" },
-                max_output_tokens = 1_000
+                max_output_tokens = TimesheetProjection.OutputTokens,
+                // Responses uses text.format; Batch accepts the same strict JSON-schema contract.
+                // https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses
+                text = new { format = new { type = "json_schema", name = "worktrail_daily_tasks", strict = true, schema = TimesheetInferenceParser.Schema } }
             }
         }));
         content.Add(new StringContent(string.Join('\n', lines) + "\n", Encoding.UTF8, "application/jsonl"), "file", "timesheet.jsonl");

@@ -346,6 +346,24 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 requestedModel,
                 endpointHost,
                 captureResult.AnalysisScreenshotPaths.Count);
+            // Record packet shape and measured input, never prompt text, titles, paths or image contents.
+            _logger.LogInformation(
+                "AI analysis package prepared. Attempt={Attempt} Correlation={Correlation} Detail={Detail} PromptCharacters={PromptCharacters} GalleryImages={GalleryImages} AnalysisImages={AnalysisImages} ActivityState={ActivityState} InputSampleAt={InputSampleAt} InputSampleSeconds={InputSampleSeconds} KeyPresses={KeyPresses} MouseClicks={MouseClicks} ContextAttributes={ContextAttributes} HasDeviceContext={HasDeviceContext} HasSchedule={HasSchedule}",
+                attemptToken, captureToken, settings.AiOutputDetail, prompt.Length,
+                captureResult.StoredScreenshotPaths.Count, captureResult.AnalysisScreenshotPaths.Count,
+                context.State, context.InputEvidence?.SampledAt, context.InputEvidence?.DurationSeconds,
+                context.InputEvidence?.KeyPresses, context.InputEvidence?.MouseClicks,
+                context.Attributes?.Count ?? 0, context.DeviceContext is not null, context.InformationalSchedule is not null);
+            for (var index = 0; index < captureResult.AnalysisScreenshotPaths.Count; index++)
+            {
+                var path = captureResult.AnalysisScreenshotPaths[index];
+                var image = images.FirstOrDefault(candidate => string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase));
+                _logger.LogInformation(
+                    "AI analysis package image. Attempt={Attempt} Correlation={Correlation} ImageIndex={ImageIndex} Role={Role} Screen={Screen} Width={Width} Height={Height} Attention={Attention} Rule={Rule} MicroPrompts={MicroPrompts} HasApplication={HasApplication} HasWindowTitle={HasWindowTitle}",
+                    attemptToken, captureToken, index + 1, image?.Role ?? "unknown", image?.ScreenIndex,
+                    image?.ImageWidth, image?.ImageHeight, image?.Attention, image?.RuleReason,
+                    image?.MicroPromptIds?.Count ?? 0, !string.IsNullOrEmpty(image?.ApplicationName), !string.IsNullOrEmpty(image?.WindowTitle));
+            }
             // Submit the caller-owned analysis paths; live and historical callers have different retention behavior.
             AiProviderResult? providerResult = null;
             ScreenshotAnalysisResponse response;
@@ -495,6 +513,10 @@ public sealed class OpenAiAnalysisService : IAiAnalysisService
                 providerResult.ElapsedMilliseconds,
                 AiProviderTelemetry.SafeToken(providerResult.ProviderRequestId, 80),
                 "succeeded");
+            _logger.LogInformation(
+                "AI activity assessment persisted. Attempt={Attempt} Correlation={Correlation} SummaryCharacters={SummaryCharacters} ContinuesConfidence={ContinuesConfidence} EndedConfidence={EndedConfidence}",
+                attemptToken, captureToken, response.Summary.Length,
+                response.ActivityContinuity.ContinuesConfidence, response.ActivityContinuity.EndedConfidence);
 
             if (includeCurrentSystemContext)
                 (_capture as IScreenshotActivityContinuityObserver)?.ObserveActivityContinuity(captureResult, response.ActivityContinuity);

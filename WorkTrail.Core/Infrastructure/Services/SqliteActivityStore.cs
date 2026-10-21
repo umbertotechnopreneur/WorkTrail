@@ -2035,7 +2035,7 @@ internal sealed partial class SqliteActivityStore
         command.CommandText = ActivitySchemaSql + AiSchemaSql
             + ScreenshotIntervalTelemetrySchemaSql + AiReprocessingSchemaSql + InstallationArchiveSchemaSql
             + SearchRevisionSchemaSql
-            + CalendarSchemaSql + VipScreenshotSchemaSql;
+            + CalendarSchemaSql + VipScreenshotSchemaSql + TimesheetEvidenceSchemaSql;
         command.CommandText = command.CommandText
             .Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", StringComparison.Ordinal)
             .Replace("CREATE VIRTUAL TABLE ", "CREATE VIRTUAL TABLE IF NOT EXISTS ", StringComparison.Ordinal)

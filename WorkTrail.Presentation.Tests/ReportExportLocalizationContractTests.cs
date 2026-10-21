@@ -112,4 +112,23 @@ public sealed class ReportExportLocalizationContractTests
                 return Path.Combine(new[] { directory.FullName }.Concat(segments).ToArray());
         throw new DirectoryNotFoundException("Could not locate the WorkTrail repository root.");
     }
+
+    /// <summary>Every saved-activity state remains understandable in all supported languages.</summary>
+    [Fact]
+    public void ActivityTimelineCaptions_CoverEmptyAndSavedStatesInEveryLanguage()
+    {
+        string[] suffixes = ["Title", "Empty", "Hint", "Day", "OpenDay", "PreviousDay", "NextDay", "Source", "NoIntervals"];
+        var directory = Path.GetDirectoryName(RepositoryFile("WorkTrail.Core", "Localization", "en-US.json"))!;
+        foreach (var file in Directory.EnumerateFiles(directory, "*.json"))
+        {
+            using var strings = JsonDocument.Parse(File.ReadAllText(file));
+            foreach (var suffix in suffixes)
+            {
+                var key = "ActivityTimeline." + suffix;
+                Assert.True(strings.RootElement.TryGetProperty(key, out var value), $"{Path.GetFileName(file)} is missing {key}.");
+                Assert.False(string.IsNullOrWhiteSpace(value.GetString()));
+            }
+            Assert.Contains("{0}", strings.RootElement.GetProperty("ActivityTimeline.Source").GetString());
+        }
+    }
 }

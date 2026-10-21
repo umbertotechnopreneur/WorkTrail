@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using WorkTrail.Providers;
 
 namespace WorkTrail.Services;
@@ -11,7 +12,7 @@ namespace WorkTrail.Services;
 internal static class ScreenshotIdlePolicy
 {
     internal static bool CanCaptureNow(ScreenshotCaptureRules policy, AppSettings? settings = null,
-        ScreenshotActivityContinuityPolicy? continuity = null)
+        ScreenshotActivityContinuityPolicy? continuity = null, ILogger? logger = null, string? correlation = null)
     {
         try
         {
@@ -40,8 +41,15 @@ internal static class ScreenshotIdlePolicy
                 || (includeTitle && !string.Equals(title, ReadWindowTitle(window), StringComparison.Ordinal)))
                 throw new ScreenshotSceneChangedException("The foreground context changed while evaluating the scheduled capture policy.");
 
-            return IsWithinIdleTimeout(currentTickCount, info.Time, policy.GetIdleTimeoutSeconds(processName, title))
-                || continuity?.Allows(window, processName, title, unchecked(currentTickCount - info.Time), DateTimeOffset.UtcNow) == true;
+            var timeoutSeconds = policy.GetIdleTimeoutSeconds(processName, title);
+            var idleMilliseconds = unchecked(currentTickCount - info.Time);
+            var recentInput = IsWithinIdleTimeout(currentTickCount, info.Time, timeoutSeconds);
+            var continuityAllowed = !recentInput
+                && continuity?.Allows(window, processName, title, idleMilliseconds, DateTimeOffset.UtcNow) == true;
+            logger?.LogInformation(
+                "Screenshot activity decision. Correlation={Correlation} IdleMs={IdleMs} TimeoutSeconds={TimeoutSeconds} ContinuityAllowed={ContinuityAllowed} Allowed={Allowed}",
+                correlation, idleMilliseconds, timeoutSeconds, continuityAllowed, recentInput || continuityAllowed);
+            return recentInput || continuityAllowed;
         }
         catch (Exception exception) when (exception is not ScreenshotSceneChangedException
             && exception is (InvalidOperationException or ArgumentException

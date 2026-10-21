@@ -52,50 +52,13 @@ public sealed class TimesheetBatchTests : IDisposable
             new Dictionary<string, string> { [ActivityAttributeKeys.SpanLabel] = project });
 
     [Fact]
-    public void DayParts_SplitAtNoon_UnionOverlaps_AndExcludeUnobservedGaps()
-    {
-        var samples = new[] { Sample(Day.AddHours(11.5), 60), Sample(Day.AddHours(11.75), 30),
-            Sample(Day.AddHours(13), 30, state: "idle"), Sample(Day.AddHours(14), 60) };
-        var split = TimesheetProjection.Aggregate(samples, Day, Day.AddDays(1), TimeZoneInfo.Utc, false, false, CancellationToken.None);
-        Assert.Equal(2, split.Count);
-        Assert.Equal(1800, split.Single(row => row.Part == "morning").ActiveSeconds);
-        Assert.Equal(5400, split.Single(row => row.Part == "afternoon").ActiveSeconds);
-        Assert.Equal(1800, split.Sum(row => row.IdleSeconds));
-        Assert.All(split, row => Assert.Empty(row.References));
-        var merged = Assert.Single(TimesheetProjection.Aggregate(samples, Day, Day.AddDays(1), TimeZoneInfo.Utc, true, true, CancellationToken.None));
-        Assert.Equal(split.Sum(row => row.ActiveSeconds), merged.ActiveSeconds);
-        Assert.Equal(split.Sum(row => row.IdleSeconds), merged.IdleSeconds);
-        Assert.Equal("private title", merged.References);
-    }
-
-    [Fact]
-    public void MidnightAndDaylightSaving_AllocateActualElapsedSeconds()
-    {
-        var midnight = TimesheetProjection.Aggregate([Sample(Day.AddHours(23.5), 60)], Day, Day.AddDays(2), TimeZoneInfo.Utc, true, false, CancellationToken.None);
-        Assert.Equal(new[] { 1800d, 1800d }, midnight.Select(row => row.ActiveSeconds));
-        var zone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-        var dst = new DateTimeOffset(2026, 11, 1, 5, 30, 0, TimeSpan.Zero);
-        var repeated = Assert.Single(TimesheetProjection.Aggregate([Sample(dst, 120)], dst.AddHours(-5), dst.AddHours(20), zone, false, false, CancellationToken.None));
-        Assert.Equal(7200, repeated.ActiveSeconds);
-        Assert.Equal("morning", repeated.Part);
-    }
-
-    [Fact]
-    public void ConflictingProjects_AreRejectedInsteadOfDoubleBilled()
-    {
-        var error = Assert.Throws<ReportExportValidationException>(() => TimesheetProjection.Aggregate(
-            [Sample(Day.AddHours(9), 60, "A"), Sample(Day.AddHours(9.5), 60, "B")], Day, Day.AddDays(1), TimeZoneInfo.Utc, true, false, CancellationToken.None));
-        Assert.Equal("Timesheet.Overlap", error.MessageKey);
-    }
-
-    [Fact]
     public void BatchResults_MapUnorderedCustomIds_AndKeepPartialFailuresVisible()
     {
         var job = Job(3);
         TimesheetBatchService.ReadResults(job, Result("row-00002", "Second") + "\n" + Result("row-00001", "First"),
             "{\"custom_id\":\"row-00003\",\"response\":null,\"error\":{\"code\":\"batch_expired\"}}");
-        Assert.Equal("First", job.Rows[0].Row.Description);
-        Assert.Equal("Second", job.Rows[1].Row.Description);
+        Assert.Equal("First", job.Rows[0].Inference!.Tasks.Single().Title);
+        Assert.Equal("Second", job.Rows[1].Inference!.Tasks.Single().Title);
         Assert.Equal("failed", job.Rows[2].Row.State);
         Assert.Equal(12, job.Rows[0].Usage!.InputTokens);
         Assert.Throws<InvalidDataException>(() => TimesheetBatchService.ReadResults(Job(1), Result("unknown", "Wrong"), ""));
@@ -166,7 +129,10 @@ public sealed class TimesheetBatchTests : IDisposable
     public void Excel_UsesNumericDurations_TrustedFormulas_InertText_AndTenRowsPerPreviewSheet()
     {
         var job = Job(14); job.Options = Options with { Client = "=HYPERLINK(\"bad\")", SeparateMonths = true };
-        job.Rows[0].Row = job.Rows[0].Row with { Description = "=1+1", State = "completed" };
+        TimesheetBatchService.ReadResults(job, string.Join('\n', job.Rows.Select((r, i) => Result(r.Row.Id, i == 0 ? "=1+1" : "Reading"))), "");
+        job.ResultsSaved = true;
+        job.Segments = TimesheetIntervalCalculator.Combine(job.Rows.SelectMany(r => r.Segments).ToArray());
+        job.Tasks = job.Rows.SelectMany(r => r.Inference!.Tasks).ToList();
         var path = TimesheetExcelWriter.Write(job, Path.Combine(_directory, "preview.xlsx"), false, CancellationToken.None, 10);
         using var zip = ZipFile.OpenRead(path);
         XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
@@ -181,10 +147,10 @@ public sealed class TimesheetBatchTests : IDisposable
         var cells = XDocument.Load(sheet).Descendants(ns + "c").ToDictionary(cell => cell.Attribute("r")!.Value);
         Assert.Contains("=HYPERLINK(\"bad\")", cells["A5"].Descendants(ns + "t").Single().Value);
         Assert.Equal("=1+1", cells["D8"].Descendants(ns + "t").Single().Value);
-        Assert.Equal(1d / 24d, double.Parse(cells["B8"].Element(ns + "v")!.Value, System.Globalization.CultureInfo.InvariantCulture), 10);
-        Assert.Equal("SUM(B8:B17)", cells["B18"].Element(ns + "f")!.Value);
-        Assert.Contains("SUM('Details'!K8:K8)", cells["F8"].Element(ns + "f")!.Value);
-        Assert.Contains("ISNUMBER('Source guide'!$B$8)", cells["F8"].Element(ns + "f")!.Value);
+        Assert.Equal(300d / 86400d, double.Parse(cells["H8"].Element(ns + "v")!.Value, System.Globalization.CultureInfo.InvariantCulture), 10);
+        Assert.Equal("SUM(H8:H17)", cells["H18"].Element(ns + "f")!.Value);
+        Assert.Contains("ROUND(H8*24*", cells["M8"].Element(ns + "f")!.Value);
+        Assert.Contains("ISNUMBER('Source guide'!$B$8)", cells["M8"].Element(ns + "f")!.Value);
     }
 
     [Fact]
@@ -245,8 +211,8 @@ public sealed class TimesheetBatchTests : IDisposable
             store.ReleaseTimesheetReservations(job.Rows.Select(row => job.Id.ToString("N") + "." + row.Row.Id).ToArray(), token);
             return Task.CompletedTask;
         }
-        await Assert.ThrowsAsync<ReportExportValidationException>(() => service.ExecuteAsync(
-            new(TimesheetBatchAction.Start, TextSources()), settings, Reserve, Reconcile, CancellationToken.None));
+        var rejected = await service.ExecuteAsync(new(TimesheetBatchAction.Start, TextSources()), settings, Reserve, Reconcile, CancellationToken.None);
+        Assert.NotNull(rejected.WarningKey);
         var listed = await service.ExecuteAsync(new(TimesheetBatchAction.List), settings, Reserve, Reconcile, CancellationToken.None);
         Assert.Equal("failed", listed.Selected!.State);
         Assert.True(listed.Selected.ResultsSaved);
@@ -273,8 +239,8 @@ public sealed class TimesheetBatchTests : IDisposable
         using var http = new HttpClient(handler);
         var service = new TimesheetBatchService(store, http);
         var settings = new AppSettings(OpenAiEnabled: true, AiApiKeyName: credential.Name);
-        await Assert.ThrowsAsync<ReportExportValidationException>(() => service.ExecuteAsync(
-            new(TimesheetBatchAction.Start, TextSources()), settings, NoUsageChanges, NoUsageChanges, CancellationToken.None));
+        var uncertain = await service.ExecuteAsync(new(TimesheetBatchAction.Start, TextSources()), settings, NoUsageChanges, NoUsageChanges, CancellationToken.None);
+        Assert.NotNull(uncertain.WarningKey);
         var listed = await service.ExecuteAsync(new(TimesheetBatchAction.List), settings, NoUsageChanges, NoUsageChanges, CancellationToken.None);
         Assert.Equal("submitting", listed.Selected!.State);
         Assert.False(listed.Selected.ResultsSaved);
@@ -494,16 +460,11 @@ public sealed class TimesheetBatchTests : IDisposable
         AddCapture(store, Day.AddHours(11.5));
         store.AppendSample(Sample(Day.AddHours(14), 60) with { WindowTitle = "Afternoon observation", InstallationId = store.LoadSettings().InstallationId });
         AddCapture(store, Day.AddHours(14.5));
-        var rows = TimesheetProjection.Build(store, TextSources() with { MergeDayParts = false }, CancellationToken.None);
-        Assert.Equal(2, rows.Count);
-        var morning = rows.Single(row => row.Row.Part == "morning");
-        Assert.Contains("private title", morning.Prompt);
-        Assert.Contains("Other project observation", morning.Prompt);
-        Assert.DoesNotContain("Afternoon observation", morning.Prompt);
-        Assert.Equal("Project A; Project B", morning.Row.Project);
-        Assert.Contains("Afternoon observation", rows.Single(row => row.Row.Part == "afternoon").Prompt);
-        Assert.Equal(2, morning.Row.SourceCount);
-        Assert.Equal(1, rows.Single(row => row.Row.Part == "afternoon").Row.SourceCount);
+        var row = Assert.Single(TimesheetProjection.Build(store, TextSources(), CancellationToken.None));
+        Assert.Equal(3, row.Evidence.Count);
+        Assert.NotNull(row.Prompt);
+        Assert.Equal(0, row.Row.ActiveSeconds);
+        Assert.Equal(3, row.Row.SourceCount);
     }
 
     /// <summary>Partial weeks clip prompt dates and keep unrelated days outside their requests.</summary>
@@ -521,11 +482,10 @@ public sealed class TimesheetBatchTests : IDisposable
             Sources = TextSources().Sources with { Options = Options.Sources.Options with { From = new(2026, 9, 23), ToInclusive = new(2026, 10, 2) } }
         };
         var rows = TimesheetProjection.Build(store, options, CancellationToken.None);
-        Assert.Equal(2, rows.Count);
-        Assert.Contains("2026-09-23 through 2026-09-27", rows[0].Prompt);
-        Assert.Contains("2026-09-28 through 2026-10-02", rows[1].Prompt);
-        Assert.All(rows, row => Assert.Equal(1, row.Row.SourceCount));
-        Assert.All(rows, row => Assert.Equal(3600, row.Row.ActiveSeconds));
+        Assert.Equal(10, rows.Count);
+        Assert.Equal(2, rows.Count(row => row.Prompt is not null));
+        Assert.All(rows.Where(row => row.Prompt is not null), row => Assert.Equal(1, row.Row.SourceCount));
+        Assert.All(rows, row => Assert.Equal(0, row.Row.ActiveSeconds));
     }
 
     private LocalStore SourceStore()
@@ -537,6 +497,30 @@ public sealed class TimesheetBatchTests : IDisposable
         return store;
     }
 
+    /// <summary>Local corrections survive refresh and export without touching the paid transport or AI draft.</summary>
+    [Fact]
+    public async Task LocalCorrectionRefreshAndExport_KeepTheSameRevisionAndMakeNoProviderCall()
+    {
+        var store = new LocalStore(Path.Combine(_directory, "review-store"));
+        var job = Job(1);
+        TimesheetBatchService.ReadResults(job, Result(job.Rows[0].Row.Id, "Reading"), "");
+        job.ResultsSaved = true; job.UsageSaved = true; job.BatchId = "batch_test"; job.State = "completed";
+        job.Segments = job.Rows.SelectMany(r => r.Segments).ToList(); job.Tasks = job.Rows.SelectMany(r => r.Inference!.Tasks).ToList();
+        SaveJob(store, job);
+        var handler = new Transport(); using var http = new HttpClient(handler);
+        var service = new TimesheetBatchService(store, http);
+        var segment = job.Segments[0];
+        await service.ExecuteAsync(new(TimesheetBatchAction.Edit, JobId: job.Id, ExpectedRevision: 0,
+            Edit: new(segment.Id, segment.Start, segment.End, "Reviewed reading", "WorkTrail")), new(), NoUsageChanges, NoUsageChanges, default);
+        var refreshed = await service.ExecuteAsync(new(TimesheetBatchAction.Refresh, JobId: job.Id), new(), NoUsageChanges, NoUsageChanges, default);
+        Assert.Equal(1, refreshed.Revision); Assert.Equal("Reviewed reading", Assert.Single(refreshed.Tasks!).Title);
+        var path = Path.Combine(_directory, "reviewed.xlsx");
+        await service.ExecuteAsync(new(TimesheetBatchAction.Export, JobId: job.Id, DestinationPath: path), new(), NoUsageChanges, NoUsageChanges, default);
+        var saved = service.Load(job.Id);
+        Assert.Equal(1, saved.Revision); Assert.Equal("Reading", saved.Rows[0].Inference!.Tasks[0].Title);
+        Assert.Empty(handler.Paths); Assert.True(File.Exists(path));
+    }
+
     // store supplies synthetic provenance; capturedAt determines the owned calendar directory.
     private static void AddCapture(LocalStore store, DateTimeOffset capturedAt)
     {
@@ -545,7 +529,11 @@ public sealed class TimesheetBatchTests : IDisposable
         store.RegisterScreenshotCapture(id, settings.InstallationId, capturedAt, "manual");
         var directory = ScreenshotStorageLayout.GetDayDirectory(settings.ScreenshotDirectory, capturedAt);
         Directory.CreateDirectory(directory);
-        File.WriteAllBytes(Path.Combine(directory, id + "_1.0.0_manual_active-window.webp"), [0]);
+        var path = Path.Combine(directory, id + "_1.0.0_manual_active-window.webp");
+        File.WriteAllBytes(path, [0]);
+        File.SetLastWriteTimeUtc(path, capturedAt.UtcDateTime);
+        store.AppendAiAnalysisAndUsage(Usage("analysis-" + id) with { CorrelationId = id, Success = true, ImageCount = 1, RequestKind = "analysis", CompletedAt = capturedAt },
+            new(capturedAt, "Editor", "Reading", "Reading saved source material.", settings.InstallationId, path, CorrelationId: id));
     }
 
     private static TimesheetOptions TextSources() => Options with
@@ -569,7 +557,7 @@ public sealed class TimesheetBatchTests : IDisposable
     {
         var rows = new List<AiRequestUsageRecord>();
         store.VisitAiUsage(Day.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1), rows.Add, CancellationToken.None);
-        return rows;
+        return rows.Where(r => r.RequestKind != "analysis").ToList();
     }
 
     // job and token intentionally produce no quota mutations in transport-only scenarios.
@@ -593,12 +581,17 @@ public sealed class TimesheetBatchTests : IDisposable
         Rows = Enumerable.Range(1, count).Select(i => new TimesheetWorkRow
         {
             Row = new($"row-{i:D5}", DateOnly.FromDateTime(Day.DateTime), "day", "Project A", Day.AddHours(9), Day.AddHours(10), 3600, 0, "Editor", "", 1),
-            Observations = [new($"source-{i:D5}", DateOnly.FromDateTime(Day.DateTime), "day", "Project A", Day.AddHours(9), Day.AddHours(10), 3600, 0, "Editor", "", 0)],
+            Evidence = FixtureEvidence($"row-{i:D5}", i),
+            Submitted = true,
             Prompt = "Summarize synthetic test observations."
         }).ToList()
     };
 
     // id identifies a fake request; text supplies its synthetic Responses output.
+    private static List<TimesheetObservation> FixtureEvidence(string id, int index = 1) =>
+        Enumerable.Range(0, 2).Select(i => new TimesheetObservation("obs-" + id + "-" + i, "device", Day.AddMinutes(index * 10 + i * 5),
+            "capture-" + id, "analysis-" + id, "capture", "Reading", "Editor", null, "Project A")).ToList();
+
     private static string Result(string id, string text) => JsonSerializer.Serialize(new
     {
         custom_id = id,
@@ -609,7 +602,12 @@ public sealed class TimesheetBatchTests : IDisposable
             {
                 id = "resp_test",
                 status = "completed",
-                output = new[] { new { type = "message", content = new[] { new { type = "output_text", text } } } },
+                output = new[] { new { type = "message", content = new[] { new { type = "output_text", text = JsonSerializer.Serialize(new
+                {
+                    tasks = new[] { new { id = "task-1", title = text, project = "Project A", summary = "Reading", evidenceObservationIds = FixtureEvidence(id).Select(o => o.Id).ToArray() } },
+                    assignments = FixtureEvidence(id).Select(o => new { observationId = o.Id, taskId = "task-1" }).ToArray(),
+                    transitions = new[] { new { fromObservationId = "obs-" + id + "-0", toObservationId = "obs-" + id + "-1", relation = "continuous" } }
+                }) } } } },
                 usage = new { input_tokens = 12, output_tokens = 8, total_tokens = 20 }
             }
         }

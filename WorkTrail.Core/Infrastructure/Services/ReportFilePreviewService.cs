@@ -46,16 +46,9 @@ internal static class ReportFilePreviewService
         if (request.Timesheet is not null || request.TimesheetJobId is not null)
         {
             var job = request.TimesheetJobId is { } id ? new TimesheetBatchService(store).Load(id)
-                : new TimesheetJob
-                {
-                    Id = Guid.NewGuid(),
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    Options = request.Timesheet!,
-                    Rows = TimesheetProjection.Build(store, request.Timesheet!, token)
-                };
+                : throw new ReportExportValidationException("Timesheet.NotReady");
             job.Options = job.Options with { Sources = job.Options.Sources with { Options = job.Options.Sources.Options with { Theme = request.Options.Theme } } };
-            var archive = new ReportExportService(store).Build(job.Options.Sources.Options, null, token);
-            TimesheetExcelWriter.Write(job, path, false, token, rowLimit: 10, archive: archive);
+            TimesheetExcelWriter.Write(job, path, false, token, rowLimit: 10);
             using var package = System.IO.Compression.ZipFile.OpenRead(path);
             return new(path, new FileInfo(path).Length, package.Entries.Count(entry => entry.FullName.StartsWith("xl/worksheets/sheet", StringComparison.Ordinal) && entry.FullName.EndsWith(".xml", StringComparison.Ordinal)));
         }

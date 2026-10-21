@@ -7,7 +7,7 @@ WorkTrail is an open-source Windows app that keeps your history on your PC by de
 ## Before you start
 
 - Read the [README](README.md) and [privacy guide](docs/PRIVACY.md).
-- Check [AGENTS.md](AGENTS.md) and the [repository instructions](.github/copilot-instructions.md) for development rules.
+- Read [AGENTS.md](AGENTS.md) for the repository's development rules.
 - Search existing issues and pull requests before opening a new one.
 - Keep credentials, API keys, tokens, personal data, and private local paths out of commits, logs, screenshots, and issue reports.
 - If you've found a security problem, follow [SECURITY.md](SECURITY.md) and report it privately.

@@ -533,9 +533,9 @@ public sealed class RuntimeProtocolTests
 
     /// <summary>Verifies that screenshot-analysis deletion round-trips through protocol version 4.</summary>
     [Fact]
-    public async Task ScreenshotAnalysisDeletionV1_RoundTripsThroughProtocolVersion5RuntimeFacade()
+    public async Task ScreenshotAnalysisDeletionV1_RoundTripsThroughProtocolVersion7RuntimeFacade()
     {
-        Assert.Equal(5, RuntimeProtocol.ProtocolVersion);
+        Assert.Equal(7, RuntimeProtocol.ProtocolVersion);
         var application = DispatchProxy.Create<IWorkTrailApplication, ScreenshotAnalysisDeletionRuntimeProxy>();
         var proxy = (ScreenshotAnalysisDeletionRuntimeProxy)(object)application;
         var installationId = $"screenshot-analysis-deletion-test-{Guid.NewGuid():N}";

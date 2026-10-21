@@ -134,6 +134,10 @@ internal sealed class ScreenshotSimilarityFilter
     private readonly Dictionary<string, RetainedFingerprint> _retained = new(StringComparer.Ordinal);
 
     internal bool IsUnchanged(string key, ScreenshotVisualFingerprint candidate,
+        DateTimeOffset now, ScreenshotSimilarityOptions options, Func<string, bool> retainedFileExists) =>
+        FindMatch(key, candidate, now, options, retainedFileExists) is not null;
+
+    internal string? FindMatch(string key, ScreenshotVisualFingerprint candidate,
         DateTimeOffset now, ScreenshotSimilarityOptions options, Func<string, bool> retainedFileExists)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -143,7 +147,7 @@ internal sealed class ScreenshotSimilarityFilter
         options.Validate();
         if (!options.Enabled)
         {
-            return false;
+            return null;
         }
 
         lock (_gate)
@@ -153,17 +157,17 @@ internal sealed class ScreenshotSimilarityFilter
                 || now < retained.RetainedAt
                 || now - retained.RetainedAt >= TimeSpan.FromMinutes(options.ForceRefreshMinutes))
             {
-                return false;
+                return null;
             }
 
             if (!retainedFileExists(retained.Path))
             {
                 _retained.Remove(key);
-                return false;
+                return null;
             }
 
             // Reading or rejecting a candidate never advances the baseline or its refresh deadline.
-            return candidate.IsSimilarTo(retained.Fingerprint, options);
+            return candidate.IsSimilarTo(retained.Fingerprint, options) ? retained.Path : null;
         }
     }
 

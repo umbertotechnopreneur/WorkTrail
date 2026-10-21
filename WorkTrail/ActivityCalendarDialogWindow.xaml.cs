@@ -292,6 +292,12 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
     private async void ActivityTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_calendarReady) return;
+        if (ReferenceEquals(ActivityTabs.SelectedItem, DayTab))
+        {
+            _weekCancellation?.Cancel();
+            UpdateSelectedDay(_selectedDate);
+            return;
+        }
         if (ReferenceEquals(ActivityTabs.SelectedItem, WeekTab))
         {
             _weekStart = ActivityWeekProjection.MondayOf(_selectedDate);
@@ -328,6 +334,8 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
         PreviousWeekButton.IsEnabled = monday > ActivityWeekProjection.MondayOf(_firstDate);
         NextWeekButton.IsEnabled = sunday < _lastDate;
         WeekHeatmap.Visibility = Visibility.Collapsed;
+        WeekActivitiesViewport.Visibility = Visibility.Collapsed;
+        WeekActivitiesGrid.Children.Clear();
         DayDetailsBorder.Visibility = Visibility.Collapsed;
         WeekStatusPanel.Visibility = Visibility.Visible;
         WeekLoadingRing.IsActive = true;
@@ -354,6 +362,7 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
                 ?? _weekCells.FirstOrDefault(cell => cell.Activity.HasData)
                 ?? _weekCells.First(cell => cell.IsAvailable);
             UpdateSelectedHour(selected);
+            await LoadWeekActivitiesAsync(monday, request.Token);
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested)
         {
@@ -407,6 +416,7 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
     private void UpdateSelectedHour(ActivityWeekCell selected)
     {
         _selectedDate = selected.Date;
+        _ = LoadDayActivitiesAsync(selected.Date);
         _selectedHour = selected.Hour;
         WeekHeatmap.Select(selected.Date, selected.Hour);
         var cell = selected.Activity;
@@ -579,6 +589,7 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
     private void UpdateSelectedDay(DateOnly date)
     {
         _selectedDate = date;
+        _ = LoadDayActivitiesAsync(date);
         _selectedHour = null;
         DayDetailsBorder.Visibility = Visibility.Visible;
         InstallationLegendSection.Visibility = Visibility.Visible;
@@ -635,6 +646,7 @@ internal sealed partial class ActivityCalendarDialogWindow : Window
         DialogSubtitleText.Text = T("ActivityCalendar.RecordedActivity");
         CalendarTab.Header = T("ActivityCalendar.CalendarTab");
         WeekTab.Header = T("ActivityCalendar.WeekTab");
+        InitializeActivityViews();
         TodayButton.Content = T("ActivityCalendar.Today");
         CurrentWeekButton.Content = T("ActivityCalendar.CurrentWeek");
         WeekRetryButton.Content = T("ActivityCalendar.Retry");

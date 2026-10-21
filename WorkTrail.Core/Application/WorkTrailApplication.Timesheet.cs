@@ -39,8 +39,7 @@ public sealed partial class WorkTrailApplication
             if (request.Action == ReportFilePreviewAction.Generate)
             {
                 if (request.TimesheetJobId is null) return ReportFilePreviewService.Create(_store, request, token);
-                // Reading a V1 job can migrate it. Share the recovery gate so an older snapshot
-                // cannot overwrite results arriving while the preview is being generated.
+                // Preview uses the same serialized job snapshot as recovery and local corrections.
                 await _timesheetGate.WaitAsync(token).ConfigureAwait(false);
                 try { return ReportFilePreviewService.Create(_store, request, token); }
                 finally { _timesheetGate.Release(); }
@@ -70,7 +69,7 @@ public sealed partial class WorkTrailApplication
             await _timesheetGate.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                var requiresPremiumAccess = command.Action is TimesheetBatchAction.Start or TimesheetBatchAction.Export;
+                var requiresPremiumAccess = command.Action is TimesheetBatchAction.Start or TimesheetBatchAction.Retry or TimesheetBatchAction.Export;
                 var hasPremiumAccess = FeatureCatalog.IsAllowed(ProductFeature.ReportExport, _featureAccess.Snapshot);
                 if (requiresPremiumAccess && !hasPremiumAccess)
                 {
@@ -96,11 +95,11 @@ public sealed partial class WorkTrailApplication
             TimesheetBatchService.ValidateProvider(settings, requireEnabled: true);
             if (!FeatureCatalog.IsAllowed(ProductFeature.ReportExport, _featureAccess.Snapshot))
                 throw new ReportExportValidationException("Premium.Required");
-            var count = job.Rows.Count(row => row.Row.State != "no_sources");
+            var count = job.Rows.Count(row => row.Submitted);
             if (!BuildRequestGate(settings).Allowed
                 || (settings.OpenAiDailyLimit > 0 && (long)_store.GetTodayAnalysisCount() + count > settings.OpenAiDailyLimit))
                 throw new ReportExportValidationException("Export.AiDailyLimit");
-            _store.SaveTimesheetUsage(job.Rows.Where(row => row.Row.State != "no_sources")
+            _store.SaveTimesheetUsage(job.Rows.Where(row => row.Submitted)
                 .Select(row => TimesheetUsage(job, row)).ToArray(), token);
             return Task.FromResult(OperationResult<bool>.Success("timesheet.reserved", "Export.Completed", true));
         }, token).ConfigureAwait(false);
@@ -116,7 +115,7 @@ public sealed partial class WorkTrailApplication
             if (job.BatchId is null)
                 _store.ReleaseTimesheetReservations(job.Rows.Select(row => $"{job.Id:N}.{row.Row.Id}").ToArray(), token);
             else
-                _store.SaveTimesheetUsage(job.Rows.Where(row => row.Row.State != "no_sources")
+                _store.SaveTimesheetUsage(job.Rows.Where(row => row.Submitted)
                     .Select(row => TimesheetUsage(job, row)).ToArray(), token);
             return Task.FromResult(OperationResult<bool>.Success("timesheet.usage.saved", "Export.Completed", true));
         }, token).ConfigureAwait(false);
@@ -129,7 +128,7 @@ public sealed partial class WorkTrailApplication
         $"{job.Id:N}.{row.Row.Id}", job.Id.ToString("N"), job.CreatedAt, job.ResultsSaved ? DateTimeOffset.UtcNow : null,
         "report.timesheet", "report_timesheet_batch", "openai", "api.openai.com", ReportSummaryModelPolicy.OpenAiModel,
         ReportSummaryModelPolicy.OpenAiModel, row.ResponseId, null, row.Row.State == "completed" ? 200 : null,
-        null, null, 0, row.Prompt?.Length ?? 0, 1_000, row.Usage ?? new AiUsageMetrics(),
+        null, null, 0, row.InputBytes, TimesheetProjection.OutputTokens, row.Usage ?? new AiUsageMetrics(),
         job.ResultsSaved ? row.Row.State : null, row.Row.State == "completed", row.Row.State == "completed" ? null : "batch_" + row.Row.State);
 
     /// <summary>

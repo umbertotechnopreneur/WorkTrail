@@ -53,6 +53,7 @@ internal sealed partial class ReportExportWindow
     private void ResetTimesheetSelection()
     {
         if (_applyingTimesheet || _timesheetView is null) return;
+        ResetTimesheetReview();
         _timesheetView = _timesheetView with { Selected = null };
         _applyingTimesheet = true;
         TimesheetJobs.SelectedIndex = -1;
@@ -72,8 +73,6 @@ internal sealed partial class ReportExportWindow
     /// </summary>
     private void TimesheetGrouping_SelectionChanged(object sender, SelectionChangedEventArgs args)
     {
-        if (TimesheetMergeCheck is null) return;
-        TimesheetMergeCheck.IsEnabled = TimesheetGroupingCombo.SelectedIndex != 1;
         ResetTimesheetSelection();
     }
 
@@ -157,7 +156,6 @@ internal sealed partial class ReportExportWindow
     {
         var reportOptions = CollectOptions() with { Format = ReportExportFormat.Excel };
         var isWeeklyGrouping = TimesheetGroupingCombo.SelectedIndex == 1;
-        var mergeMorningAndAfternoon = isWeeklyGrouping || TimesheetMergeCheck.IsChecked == true;
         var consultant = TimesheetConsultant.Text.Trim();
         var client = TimesheetClient.Text.Trim();
         var currency = TimesheetCurrency.Text.Trim().ToUpperInvariant();
@@ -169,7 +167,6 @@ internal sealed partial class ReportExportWindow
                 IncludeDescriptionExcerpt: false,
                 IncludeCompleteDescription: TimesheetDescriptions.IsChecked == true,
                 IncludeWindowTitles: TimesheetTitles.IsChecked == true),
-            mergeMorningAndAfternoon,
             consultant,
             client,
             TimesheetBillingCheck.IsChecked == true ? (decimal)TimesheetRate.Value : null,
@@ -183,6 +180,7 @@ internal sealed partial class ReportExportWindow
     /// </summary>
     private async Task LoadTimesheetJobsAsync()
     {
+        InitializeTimesheetReview();
         var result = await _application.ManageTimesheetBatchAsync(new(TimesheetBatchAction.List), _lifetime.Token);
         if (_closed) return;
         if (result.Succeeded && result.Value is { } view) RenderTimesheet(view);
@@ -199,7 +197,7 @@ internal sealed partial class ReportExportWindow
     private async void TimesheetTimer_Tick(object? sender, object args)
     {
         var previous = _timesheetView;
-        if (_busy || _closed || _refreshingTimesheet || TimesheetJobs.IsDropDownOpen
+        if (_busy || _closed || _refreshingTimesheet || _timesheetEditing || TimesheetJobs.IsDropDownOpen
             || !ReferenceEquals(Navigation.SelectedItem, TimesheetTab)
             || previous?.Selected is not { } selected) return;
 
@@ -207,7 +205,7 @@ internal sealed partial class ReportExportWindow
         try
         {
             var result = await _application.ManageTimesheetBatchAsync(
-                new(TimesheetBatchAction.List, JobId: selected.Id, Page: previous.Page), _lifetime.Token);
+                new(TimesheetBatchAction.List, JobId: selected.Id, Page: previous.Page, SegmentPage: previous.SegmentPage), _lifetime.Token);
             // A user action wins over an older poll, even if both complete on the UI thread.
             if (_closed || _busy || TimesheetJobs.IsDropDownOpen || !ReferenceEquals(_timesheetView, previous)
                 || !ReferenceEquals(Navigation.SelectedItem, TimesheetTab)) return;
@@ -248,7 +246,9 @@ internal sealed partial class ReportExportWindow
     /// </summary>
     private void RenderTimesheet(TimesheetBatchView view)
     {
+        if (_timesheetView?.Selected?.Id != view.Selected?.Id) ResetTimesheetReview();
         _timesheetView = view;
+        RenderTimesheetReview(view);
         UpdateTimesheetPanels();
         _applyingTimesheet = true;
         var jobLabels = view.Jobs.Select(job => $"{job.From:d} — {job.ToInclusive:d} · {job.CreatedAt.ToLocalTime():g} · {T("Timesheet.State." + job.State)}").ToArray();
@@ -257,8 +257,8 @@ internal sealed partial class ReportExportWindow
         TimesheetJobs.SelectedIndex = view.Selected is { } selected ? view.Jobs.ToList().FindIndex(job => job.Id == selected.Id) : -1;
         _applyingTimesheet = false;
         var current = view.Selected;
-        var terminal = current?.State is "completed" or "failed" or "expired" or "cancelled";
-        TimesheetExportButton.IsEnabled = current?.ResultsSaved == true;
+        var terminal = current?.State is "completed" or "failed" or "expired" or "cancelled" or "partial" or "historical";
+        TimesheetExportButton.IsEnabled = current?.ResultsSaved == true && !view.Historical;
         TimesheetCancelButton.IsEnabled = current is not null && !terminal && current.State != "prepared";
         TimesheetPreviousButton.IsEnabled = view.HasPreviousPage;
         TimesheetNextButton.IsEnabled = view.HasNextPage;
@@ -290,7 +290,7 @@ internal sealed partial class ReportExportWindow
     /// </summary>
     private async void TimesheetRefresh_Click(object sender, RoutedEventArgs args) =>
         await RunTimesheetAsync(new(_timesheetView?.Selected is not null ? TimesheetBatchAction.Refresh : TimesheetBatchAction.List,
-            JobId: _timesheetView?.Selected?.Id, Page: _timesheetView?.Page ?? 0));
+            JobId: _timesheetView?.Selected?.Id, Page: _timesheetView?.Page ?? 0, SegmentPage: _timesheetView?.SegmentPage ?? 0));
 
     /// <summary>
     /// Requests cancellation only for the currently selected durable batch job.

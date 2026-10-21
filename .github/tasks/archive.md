@@ -1,726 +1,222 @@
-# Task Archive
+# Implementation milestones
 
-This is a compact historical index of durable WorkTrail milestones. It intentionally omits command transcripts, temporary artifact paths, repeated test counts, intermediate package versions, and superseded pre-rebrand naming. Older entries may predate the WorkTrail name.
+A compact, dated index of completed changes, not a current feature specification
+or a validation ledger. Entries may describe behavior later replaced. Current rules
+live in [AGENTS.md](../../AGENTS.md); unresolved acceptance belongs in [todo.md](todo.md).
+Builds, package registration, synthetic tests, native behavior and provider results
+are separate evidence. Detailed historical commands belong in Git/PR history.
+
+## 2026-10-21
+
+- Added observation-based daily AI timesheets: strict task/assignment validation,
+  unchanged-image checkpoints, runtime availability signals, UTC interval estimates,
+  unknown gaps, overlap review, local corrections and Excel from the saved segments.
+  Historical input-based reports remain separate.
+- Added saved activity spans to week/day calendars and the screenshot gallery,
+  including thumbnail labels, local refresh, draft provenance and bounded paging.
+  Source builds and targeted synthetic checks passed; Debug x64 was installed.
+  Native visual acceptance and real timesheet reconstruction remain open.
+- Removed input-idle and foreground-settling gates from scheduled screenshots while
+  retaining privacy and similarity checks. Two real timer captures about five minutes
+  apart retained active-window/context images and AI results, including an idle period.
+- Consolidated repository task records and removed Copilot instructions/prompts.
+  Historical generated build/test output is discarded under the owner's cleanup rule.
+
+## 2026-10-20
+
+- Added scheduled-capture recovery and correlated diagnostics with seven-day local
+  logs. Optional-target failure no longer discards a valid foreground image. One real
+  timer capture, retained files/database record and AI response were observed; this
+  was not a long-running acceptance test. Idle/stability rules changed again on Oct 21.
 
 ## 2026-10-19
 
-### CI dependency security gates
-
-- Stage the official .NET SDK archive, verify its published hash and scan it before
-  extraction. Scan the extracted toolchain and isolated NuGet archives/files before
-  formatting, builds and tests. Fail on unavailable,
-  failed or unfinished scans. Record sources, versions, hashes and scan results in
-  the job summary. Keep project discovery limited to tracked project files.
-- Centralize CI build output under `artifacts/`, clean the matching configuration
-  after use, and remove job-owned caches and intermediates. Native application
-  validation remains separate; CI results belong in the pull request.
-
-### Taskbar preference binding
-
-- Preserve the existing per-window taskbar settings. Apply them through the shared
-  window lifecycle when the native window is visible, including first activation
-  and later shows. Astronomy context menus read the last committed setting rather
-  than a potentially stale shell flag and refresh the checkmark after each command.
-  Keep that read valid when a pending command finishes after window closure.
-- Pass the strict Debug x64 build with zero warnings/errors and C# formatting
-  verification. Five existing preference cases pass. Three new restored-data
-  cases initially supplied noncanonical Boolean strings; their corrected fixtures
-  pass the owner-authorized three-case rerun. All eight targeted cases are covered.
-  No installation or visual validation is claimed.
-- Run explicit Defender scans on the SDK/runtime and cached NuGet archives and
-  extracted files before use, without detections. Restore from the scanned cache
-  with an empty package feed. Retain package sources/versions/SHA-256 values and
-  scan commands/results in the local verification record. Clarify the README's
-  future-import security requirement without certifying existing dependencies.
-
-### Input hook ownership and structured activity confidence
-
-- Give keyboard/click hooks a dedicated Windows message-loop thread, with bounded
-  startup/shutdown and visible, durable failure reporting. Runtime command callers
-  no longer need to pump hook callbacks themselves. Unknown input observations
-  no longer silently become zero counts or a default active AI context.
-- Require screenshot analysis to return Markdown plus separate structured
-  continuation and ending confidence values. Persist the assessment in a child
-  table created without replacing existing history. Include timestamped measured
-  input counts in the prompt when available, without typed characters or coordinates.
-- Allow confident live assessments to extend screenshot eligibility for five
-  minutes from capture, capped at ten minutes since real Windows input. Require
-  the same foreground window/process/title and an analyzed active-window image.
-  New ended/uncertain assessments revoke the allowance; old responses and
-  historical reanalysis cannot restore it. Keep capture cadence, privacy gates
-  and measured active time independent from the estimates.
-- Pass 140 targeted Core checks and a strict Debug x64 WinUI build with zero
-  warnings/errors. C# formatting and verification pass. The owner authorized tests
-  and build but declined installation; real packaged input counts and actual
-  provider responses remain unverified. No provider image requests were made.
-- At the owner's later request, preserve and hash-check application data,
-  uninstall Debug 1.0.6.27, rebuild/sign Debug x64 1.0.6.28 and install it with
-  Windows package status `Ok`. Restore all 255 application-data files and verify
-  their SHA-256 hashes. Keep the latest installer and minimal metadata; remove
-  task-owned build output, the temporary data copy and the superseded installer.
-  This reinstall adds no UI tests or provider requests.
+- Added dependency-import security gates and isolated CI output/cleanup. Scan failures
+  stop imports; CI records their sources and evidence without certifying native behavior.
+- Applied taskbar preferences through visible-window lifecycle transitions and used
+  committed settings for context-menu state. Focused checks passed; native acceptance remained open.
+- Moved input hooks to a dedicated message-loop thread and saved structured activity
+  confidence separately from measured input. Added bounded confidence-based capture
+  allowances, later superseded by the Oct 21 idle-gate removal. Synthetic checks passed;
+  a later reinstall preserved and hash-verified the owner's data without testing live input.
 
 ## 2026-10-18
 
-### Excluded foreground screenshot veto
-
-- Skip the entire request before pixel acquisition when the active process is
-  title-only or analysis-blacklisted, or the active window is an excluded auxiliary
-  panel. Other windows and monitors cannot produce a fallback image. The same gate
-  applies to manual and scheduled requests; background exclusions keep their existing
-  masking and destination behavior.
-- Pass 356 targeted Core checks, including maximized/restored Spotify, eligible
-  content on another monitor, blacklist destination unions and auxiliary panels.
-  Strict Debug x64 packaging and C# formatting/verification pass.
-- Install Debug x64 1.0.6.27 with status `Ok`. With real maximized Spotify active,
-  both active-window and all-screens requests return `screenshot.excluded`, return
-  no images and leave all 175 gallery files unchanged. Diagnostic AI analysis is
-  deferred. Restore tracking; the owner reopens clocks and map after updating.
+- Vetoed image acquisition for excluded foreground applications and auxiliary panels.
+  A native Spotify check returned no images and preserved the existing gallery.
+  Background masking and gallery/analysis destination rules remained separate.
 
 ## 2026-10-17
 
-### Direct window screenshots
-
-- Replace desktop crops for selected windows with one Windows Graphics Capture frame.
-  Preserve complete active surfaces behind overlaps and across monitor gaps; retain
-  visibility-based secondary selection and masked desktop panoramas.
-- Exclude auxiliary WorkTrail windows through the owning-process application facade
-  without hiding, minimizing or restoring them. Keep native failures on existing error paths.
-- Update regression cases for full surfaces, source separation, title-only masks and
-  auxiliary panels. Debug x64 Core, CLI and WinUI builds pass with warnings-as-errors.
-- Run 346 targeted Core cases: 344 pass initially; two old crop-bound expectations
-  are corrected and pass in the owner-authorized rerun. All 26 CLI router cases pass.
-  Six encoding checks also pass, including four compositor-alpha cases. Composite
-  premultiplied transparent pixels over neutral gray before WEBP encoding; preserve
-  opaque pixels, including real black content.
-- Compare raw GPU pixels with all three SoftwareBitmap alpha modes on active
-  VoiceDucker: the pixels match, and Windows omits the Desktop Acrylic backdrop.
-  The neutral backing keeps the foreground readable without reading desktop pixels
-  or requesting target-window redraws; it does not recreate the original Acrylic.
-- Install Debug x64 1.0.6.26 with package status `Ok`. Verify the final capture
-  backend on active VoiceDucker; its assembly hash matches the installed package.
-  Resume native validation on October 18: startup succeeds, installed-runtime
-  captures of active WorkTrail and VoiceDucker are readable, and both monitor
-  panoramas omit clocks and map while the panels remain open at unchanged bounds.
-  Confirm auxiliary affinity/markers and reject an active clock target before
-  capture. A separate backend check captures the full covered Vibe Panel window
-  without changing the foreground. Defer AI analysis, delete diagnostic gallery
-  entries and restore tracking. C# whitespace verification and scoped diff checks pass.
-
-### Window-crop quality filtering
-
-- Reject heavily occluded, mostly off-screen, tiny and disconnected window crops
-  before pixel acquisition, gallery publication or AI submission. Use configurable
-  full-window visibility, minimum physical size, bounding-box density and connected-area
-  thresholds; manual Complete requests obey the same quality/privacy rules.
-- Keep monitor panoramas as independent gallery-only context. Skip quietly when no
-  usable image remains and explain manual skips in all ten languages. Preserve history.
-- Debug x64 Core.Tests build passes with analyzers and warnings-as-errors; all 1082
-  Core tests pass, including 33 additional quality/quiet-skip cases. C# formatting
-  and verification pass. No installation, native validation or Git delivery for this change.
-
-### PR validation regressions
-
-- Remove the orphan OCR test project and adapter README left after OCR removal.
-  Recursive CI test discovery still found the project outside the solution and
-  failed against its deleted production dependency; keep test discovery intact.
-- Preserve structured AI validation issues after gallery capture and before analysis.
-  Scheduled-capture fixtures explicitly start tracking with the background timer
-  disabled, and configuration failures assert retained images and zero analysis calls.
-- Replace hardware-era score/export expectations, keep Spotify image exclusion
-  covered by the title-only suite and restore the export AI-usage accessible name.
-- Strict Debug x64 solution compilation passes without warnings; Core, Presentation,
-  CLI and Search suites all pass. No checks are disabled. Native UI validation and
-  installation remain separate.
-
-### Native World Time launcher
-
-- Replace the player's icon-only clock command with a labelled acrylic flyout,
-  a three-city live preview and six direct links to the retained clocks, map,
-  astronomical calendar, local sky, day/night globe and Moon windows.
-- Use the saved clock selection and local weather-free projection only while the
-  menu is open; cancel stale results on dismissal and shutdown. Keep the tray's
-  direct clock command and the existing window instances and placement behavior.
-- Localize labels in all ten catalogs, register accessible selectors and update
-  Presentation surface contracts. Strict Debug x64 build and surface contracts pass;
-  native validation remains pending.
-
-### Strict local validation checkpoint
-
-- Correct twelve xUnit2031 assertion forms without changing their meaning.
-- Debug x64 solution build passes with analyzers and warnings-as-errors; C# formatting,
-  source-license checks, PowerShell parsing and script safeguard checks pass.
-- Presentation, CLI and Search suites pass. Core completes with ten failures covering
-  activity scoring, accessibility, capture flow, export and an obsolete Spotify expectation.
-  Native validation and installation remain pending; no checks are disabled.
-
-### Command Prompt capture profile
-
-- Add `cmd` to high-attention application profiles and terminal-status title hints.
-  Reuse terminal guidance for visible commands, output and errors while preserving
-  existing console-host profiles. Build, tests and native validation pending.
-
-### Creative and Android application guidance
-
-- Add high-attention Adobe Audition and Android Studio profiles with exact process
-  aliases; enrich existing Notepad and Photoshop profiles without duplicates.
-- Route focused instructions for text, image editing, audio editing and Android
-  development through the existing micro-prompt registry. Preserve background,
-  inactivity and privacy defaults; do not infer audible content from screenshots.
-- Configuration and documentation only. Build, tests and native validation pending.
-
-### Title-only application capture
-
-- Configure Spotify through `titleOnlyProcesses`: reuse literal foreground titles in
-  existing activity storage/exports, without OCR, audio inference or a new table.
-- Remove its similarity preset and prevent its pixels in crops and monitor panoramas,
-  including manual captures. Preserve unrelated windows and monitor identities.
-- Empty selections skip without AI; manual requests receive a localized explanation.
-  Regression cases are authored but not executed; native validation is pending.
-
-### Automatic capture stabilization
-
-- Wait for a configurable foreground quiet period before scheduled pixels, with a
-  bounded metadata-only worker delay. Manual captures bypass the wait.
-- Treat detected scene transitions as quiet retries, capped per scheduled capture;
-  preserve newer settings/deadlines and reset retry state on pause or reconfiguration.
-- Add timing, window-transition and scheduler regression cases. C# formatting and
-  verification passed; tests, build and native validation remain pending.
-
-### Automatic near-duplicate filtering
-
-- Compare in-memory RGB thumbnails after privacy checks and before encoding or AI.
-  Keep manual captures, changed identities and periodic refreshes; configure global,
-  application and context thresholds, including a more tolerant Spotify preset.
-- Advance the bounded cache only after retained publication, and quietly skip a
-  fully unchanged pass. C# formatting and verification passed; regression execution
-  and native validation remain pending.
-
-### Context-aware capture policy
-
-- Expand developer, terminal and database profiles; add process-scoped title hints,
-  deterministic precedence and a minimum visible fraction for selected secondary crops.
-- Add configurable input-idle capture limits (Teams 10 minutes, Zoom 15), checked at
-  the native pixel boundary without altering activity samples or report accounting.
-- Compose per-image micro-prompts from an internal registry. Low attention reads
-  titles only; manual Complete analysis remains an explicit override. Persist routing
-  IDs/reasons with image metadata, not arbitrary instruction text.
-- Browser rules use labeled title hints, not verified domains or inactive tabs.
-  Added regression coverage; C# formatting and verification passed. Tests, build
-  and native validation are pending.
-
-### Rule-driven capture and content-first descriptions
-
-- Add an internal embedded capture policy, active-window crops and optional monitor
-  panoramas, preserving native resolution and privacy checks before publication.
-- Make the policy an ordered rule list with subjects, priorities, exact process
-  filters and AI/gallery destinations. Capture secondary application windows with
-  conservative visible-region masks; keep shell windows as occluders, not subjects.
-- Keep AI-only images transient through journaled cleanup and restart recovery.
-  Exclude gallery-only images from reanalysis and AI-only images from archives.
-- Persist per-image monitor identities, roles and crop bounds; retain them through
-  historical analysis, gallery projection and archive roundtrips.
-- Replace Compact/Detailed with Balanced/Complete and remove application-imposed
-  screenshot response caps. Describe visible content with explicit monitor sections.
-- Add 23 high-attention and 23 low-attention application presets with independent
-  active/background attention. Keep unknown applications at normal attention.
-- Apply the analysis blacklist after destination merging, including panoramas with
-  visible excluded content, and omit excluded foreground identity from AI context.
-  Keep gallery retention separate from AI eligibility and privacy exclusions.
-- Manual captures request Complete analysis and high attention as an explicit
-  interest signal, without changing saved preferences or bypassing exclusions.
-- Add focused planning, persistence, payload and presentation coverage. Tests and
-  native validation remain pending. Debug x64 1.0.6.22 built and installed with
-  Windows package status Ok before the manual-capture override. C# formatting and
-  verification passed on 377 files before PR delivery; the final override has not
-  been built locally.
+- Added direct window capture without redraw or desktop fallback. Native checks covered
+  active WorkTrail/VoiceDucker, a covered target and monitor panoramas excluding auxiliary
+  panels. Transparent compositor output receives a neutral backing, not recreated Acrylic.
+- Added crop-quality gates, ordered capture rules, image roles/monitor provenance,
+  independent gallery/AI destinations and journaled transient cleanup. Balanced/Complete
+  descriptions use content-first, per-image instructions and explicit monitor sections.
+- Added application profiles, title hints and micro-prompts for terminal, text, image,
+  audio and Android tools. Spotify became title-only, with pixel exclusion. Manual
+  Complete capture preserves privacy exclusions.
+- Added automatic similarity filtering and bounded stabilization/idle policies; the
+  latter were superseded on Oct 21. The historical Spotify similarity preset was replaced
+  by title-only handling.
+- Removed orphan OCR test discovery, repaired capture/export/accessibility regressions
+  and completed strict solution validation. An earlier partial run was not a full pass.
+- Added the native World Time launcher with a saved-city preview and six destinations;
+  surface checks passed, with native menu acceptance still open.
 
 ## 2026-10-16
 
-### Shared activation for open windows
-
-- Move automatic peer reveal from the main player to the shared window lifecycle.
-  Activating an existing map, sky, lunar, clock or other app window raises its open
-  peers without moving them or transferring focus away from the selected window.
-- Reuse the application's visibility facade and native foreground/process guards.
-  Cancel pending reveals on close and report failures through the existing player banner.
-- C# whitespace checks and the Debug x64 package build passed. Version 1.0.6.21
-  was installed with Windows package status Ok. Native window-order behavior
-  remains owner-validation pending; tests were not run.
-
-### Remove AI spending estimates
-
-- Remove the monthly player total, preference, pricing window, background price-list
-  download, monetary telemetry, estimates, export columns and CLI pricing command.
-- Preserve model selection, request/token telemetry and the daily request limit.
-- Remove one-time schema cleanup code; database opening remains best effort and
-  does not migrate retired storage. The owner authorized resetting local history.
-- Build, tests, installation and Git delivery were not run for this cleanup.
-- C# whitespace formatting and verification passed on 374 source files. Syntax
-  inspection and diff whitespace checks found no errors; runtime behavior is unverified.
-
-### AI connection paths and display-aware window restore
-
-- End the owner-revoked feature freeze. Limit active AI choices to OpenAI API and
-  Codex CLI, with CLI/API radio buttons, installation detection and setup links.
-- Retain environment-only API-key storage. Route Codex image descriptions through
-  noninteractive, ephemeral execution using ChatGPT login, bounded output, timeout,
-  cancellation and categorized failures; never fall back to the API transport.
-- Keep shared capture/privacy/retention behavior. Skip the separate cloud OCR
-  refinement in CLI mode and do not represent subscription usage as an API price.
-- Persist window DPI, monitor interface identity and work-area-relative position.
-  Rebase saved geometry when display DPI/layout changes, use the primary display
-  when the saved monitor is absent, and avoid recentering already-restored dialogs.
-- Add the same CLI/API choice to guided setup and compact the history storage and
-  date-range rows. Keep API-key editing separate from the keyless CLI connection.
-- C# whitespace verification and 1,032 Core, 390 Presentation and 162 CLI tests
-  passed. Native guided-setup, provider and multi-monitor validation remain pending.
+- Added shared activation/reveal for already-open peer windows without moving them or
+  transferring focus from the selected window. Installed source build; native ordering unverified.
+- Removed AI spending estimates, price downloads and monetary UI/telemetry while keeping
+  request/token reporting, model selection and daily limits. Database opening performs no
+  retired-schema migration; source cleanup alone did not establish runtime behavior.
+- Added OpenAI API/Codex CLI selection and guided setup, environment-only API keys,
+  bounded ephemeral CLI execution and no API fallback. Ended the earlier feature freeze.
+- Made saved window placement display-aware using DPI, monitor identity and work-area
+  coordinates. Automated checks passed; native provider/setup/display acceptance remained open.
 
 ## 2026-10-15
 
-### Inline history retention and date-range cleanup
-
-- Keep Free retention at one calendar month and extend Premium selections through
-  twelve months, enforced by the shared application policy and settings validation.
-- Put history settings directly inside Settings, with measured local storage,
-  a configurable warning that defaults to 1 GB, and one review-and-delete action
-  for inclusive local calendar dates. Keep capture options in a collapsed section.
-- Reuse serialized cleanup, screenshot deletion recovery and search synchronization
-  for manual date ranges. Preserve data outside the range and the automatic cleanup
-  checkpoint; run automatic maintenance daily without a modal progress window.
-- Update shared runtime contracts, accessibility names, all supported locales and
-  focused retention/presentation tests. The final focused run passed 82 core tests,
-  60 presentation tests and 25 CLI tests. C# formatting and its verification passed;
-  the Debug Windows x64 build completed with zero warnings and zero errors.
-  Native UI validation and production automatic maintenance remain pending.
+- Consolidated inline history settings, storage warnings and inclusive date-range cleanup.
+  Extended Premium retention choices to twelve months; Free stayed at one month.
+  Reused serialized deletion/recovery/search synchronization and daily maintenance.
+  Focused checks and Debug x64 compilation passed; native/automatic-maintenance acceptance remained open.
 
 ## 2026-10-11
 
-### Debug MSIX 1.0.6.15 installed
-
-- Built and signed the Debug x64 MSIX with the world-clock ISO week and main-window
-  VibeWare signature changes, then installed it for the current Windows user.
-- Windows reported version 1.0.6.15, X64 architecture and Ok package status.
-- Retained the installer and completed Debug build cleanup. Automated tests, formatting,
-  manifesto-link interaction and native visual verification were not performed.
-
-### Main-window VibeWare signature
-
-- Add the existing VibeWare logo and the requested English signature, "This is VibeWare
-  · MANIFESTO", at the bottom right of the player surface, with a separate footer row.
-- Open the existing manifesto product link through the application service, reuse localized
-  accessibility and failure messages, and include the footer in responsive height calculations.
-- Source changes only; builds, tests, formatting and native UI verification were not run.
-
-### World-clock title-bar week
-
-- Show the reference date's ISO week number and ISO week-year beneath the existing date
-  and time, and include them in the window title, accessible name and tooltip.
-- Reuse the localized week label and refresh it with the selected reference clock;
-  clear it when no clocks remain. Keep the compact title-bar field within its existing width.
-- Source changes only; builds, tests, formatting and native UI verification were not run.
+- Added the main-player VibeWare signature and world-clock ISO week/year presentation.
+  Built and installed their Debug x64 package; link interaction and native visual acceptance were not claimed.
 
 ## 2026-10-10
 
-### First-person, problem-first README writing
-
-- Align the repository writing rule with AgentInbox and PromptMeUp: open with my concrete daily-work problem, explain how I solved it, and use first person in author copy, captions, and provenance notes.
-- Preserve contributor credits and distinguish implemented, tested, and planned behavior.
-- Documentation-only change; no tests, builds, packaging, installation, or Git delivery were performed.
+- Standardized first-person, problem-first README writing while preserving attribution
+  and the distinction between implemented, tested and planned behavior.
 
 ## 2026-10-09
 
-### Primary-window snap guides
-
-- Added transient, click-through desktop guides using the selected snap targets, with
-  DPI-scaled twenty/ten logical-pixel preview/snap distances for movement and resizing.
-- Resize snapping changes only dragged edges, retains opposite edges and respects native
-  minimum/maximum tracking dimensions. Pointer anchors prevent sticky snapped sizes.
-- Updated localized Settings guidance for movement, resizing and display-scaled thresholds.
-- Limited snap registration and peer references to primary work surfaces, including
-  clocks and astronomy views; dialogs, About, licenses and temporary operations are excluded.
-- Added synthetic coverage for all resize directions, display scaling and DPI changes,
-  size constraints, preview thresholds, signed coordinates, escape cleanup and peer order.
-  All 64 focused tests passed in Debug x64 with code analyzers and warnings as errors;
-  C# formatting and verification passed. The Debug x64 MSIX built and installed as
-  1.0.6.14 with Ok package status. Native interaction and visual behavior remain unverified.
-
-### One screenshot notification per snapshot
-
-- Reused the capture pipeline's focused-target ordering to show one Windows preview for
-  each snapshot. Multi-monitor captures still retain every requested monitor image.
-- Added synthetic regression coverage for multiple successive snapshots, active-window
-  captures, VIP captures, transient images and both notification preferences. All 19
-  targeted tests passed in Debug x64 with CI analyzers and warnings treated as errors.
-  C# formatting and verification passed; installed Windows behavior is unverified.
+- Added primary-window movement/resize snap guides with DPI-scaled thresholds, edge
+  constraints and dialog exclusions. Synthetic geometry checks passed; native acceptance remained open.
+- Reduced screenshot notifications to one preview per snapshot while retaining all
+  requested monitor images. Targeted checks passed; installed notification behavior was unverified.
 
 ## 2026-10-08
 
-### About layout contract checks
-
-- Updated the two existing About contract checks that failed in PR #58 after the compact
-  layout replaced the former fixed content, artwork and minimum bounds. Retained checks
-  for a fixed footer, disabled horizontal scrolling, diagnostics, licenses and product links.
-- Both targeted tests passed locally in Debug x64 with the CI analyzer and warning-as-error
-  settings. C# formatting and verification passed. Application code is unchanged.
-
-### Compact About layout and current branding
-
-- Replaced obsolete About artwork with an original trail illustration and a native
-  WorkTrail title. Reduced the default window and banner height, updated the minimum
-  bounds, adopted the compact size after placement restoration, and retained scrolling
-  and a single-column layout for constrained displays.
-- Added the owner's original transparent VibeWare master, localized GitHub and canonical
-  manifesto links, and artwork provenance. The press-kit dark/light symbols have opaque
-  backgrounds and are excluded. Removed duplicate report/repository actions and updated
-  About copy in every supported language.
-- Centered the artwork, reduced the default height to 520, displayed the full package
-  version and named the licenses action for accessibility. C# formatting and verification
-  passed. Built, signed and installed Debug x64 MSIX 1.0.6.11 with `Ok` registration.
-- Reviewed the installed About in Italian at 150% scale in both light and dark themes:
-  the trail, transparent logo, text, metadata, diagnostics actions and footer fit without
-  clipping. Confirmed accessible button names and retained placement at the compact size.
-  Restored the owner's System theme after the review. Other scales, constrained work
-  areas, long translations, high contrast and diagnostic failure states remain unverified.
-
-### Process memory recovery guard
-
-- Added a ten-second process sampler with a 1 GiB limit for private or resident memory,
-  periodic managed-memory/handle diagnostics, and one native Windows acknowledgement
-  before restart. Recovery preserves tracking state, safe mode and runtime launch mode,
-  bounds runtime shutdown, flushes logs and records the successor's recovery activation.
-- Added localized warning/failure copy. All 14 synthetic recovery cases passed, and C#
-  formatting and verification passed. Built, signed and installed Debug x64 MSIX 1.0.6.8;
-  verified package version, architecture and `Ok` registration status. Build/test output
-  was cleaned and the installer retained. Normal installed-app startup and periodic
-  memory logging were observed. Native warning/restart behavior remains unverified.
-  This protection does not establish or repair the original leak or explain OS-wide hangs.
+- Reworked About around the original transparent VibeWare logo, compact trail artwork,
+  localized links, diagnostics and licenses; updated the layout contracts. Installed
+  About was reviewed in Italian at 150% in light/dark only.
+- Added the process memory guard, bounded recovery and durable diagnostics. Synthetic
+  cases and ordinary startup/logging were observed; warning/restart behavior and the
+  original leak or OS-wide hang cause remained unproven.
 
 ## 2026-10-07
 
-### Repeated screenshot failure notifications
-
-- Report only the first capture failure until a complete capture succeeds. Scheduled,
-  manual, and AI capture paths share this notification state; retries and local error
-  logging continue, including while successful-capture notifications are disabled.
-- C# formatting and verification passed. Built, signed, and installed Debug x64 MSIX
-  1.0.6.7; verified current-user version, architecture, and `Ok` registration status.
-  Project build output was cleaned and the installer retained. Automated tests and
-  native notification behavior remain unverified.
+- Suppressed repeated screenshot failure notifications until a successful capture,
+  while retaining retries and local logs. Package installation did not establish native notification behavior.
 
 ## 2026-10-06
 
-### Tray menu shortcuts and open-window reveal
-
-- Added localized tray shortcuts for notification pause/resume, VIP capture, tracking
-  pause/resume, international clocks, the astronomical calendar, day/night map and globe,
-  Settings, and About, reusing existing application workflows.
-- Added Show all windows beside the visibility command. It restores the main window and
-  reveals its already-open peers through the existing facade, without creating windows.
-- Persisted global notification pause while preserving the screenshot-specific preference
-  and normal capture/tracking behavior. Native callbacks defer application work to the UI dispatcher.
-- Added a settings persistence regression case. C# formatting and verification passed.
-  Built, signed, and installed Debug x64 MSIX 1.0.6.6 with the expanded tray menu;
-  verified current-user version, architecture, and `Ok` registration status. Project
-  build output was cleaned and the installer retained. Tests and native interaction remain unverified.
-
-### Compact severity toasts
-
-- Removed the decorative countdown progress bar and compacted the shared toast surface.
-  Added green, amber, and red palettes for low-severity messages, warnings, and errors,
-  with native severity icons, matching borders and text, and high-contrast resources.
-- Preserved automatic dismissal, replacement protection, manual closing, and fade transitions;
-  the timeout no longer updates a visual progress indicator. Updated the existing surface
-  contract to reflect the new presentation. Included in built, signed, and installed
-  Debug x64 MSIX 1.0.6.6; tests and native interaction remain unverified.
-
-### VIP snapshots and capture notes
-
-- Moved label management into the player selector and used its second row for a VIP capture
-  button. Added a cancellable five-second Mica countdown and an Acrylic confirmation with preview
-  and an optional plain-text note, while reusing the existing multi-monitor capture pipeline.
-- Persisted VIP metadata by capture identity so all monitor artifacts share importance and
-  note. Archive transfer preserves it, and deleting the last retained artifact clears its
-  calendar indicator. Added dedicated runtime operations for VIP capture and metadata.
-- Added a featured VIP strip, separate gold borders and crown badges in the gallery, notes
-  in screenshot details, and calendar crowns even on dates with no recorded activity.
-- Added persistence/deletion regression cases and extended the multi-monitor archive case.
-- Debug x64 build passed with no warnings or errors; C# formatting and its verification passed.
-  The selected presentation checks passed 22 of 24 cases. The two failures match pre-existing
-  source inconsistencies on the base commit: duplicate report Premium badges and a missing
-  OCR action accessible name. Core validation awaits an approved retry after correcting a
-  dispatcher compilation error. Native Windows interaction remains unverified.
-- Built, signed, and installed Debug x64 MSIX version 1.0.6.4 with the VIP snapshot changes.
-  Verified current-user registration, version, architecture, and `Ok` package status;
-  the installer is retained and project build outputs were cleaned.
-- Refined both VIP dialog layouts and added localized explanations of immediate manual
-  capture and ordinary screenshot handling with VIP prominence in the gallery and calendar.
-  Built, signed, and installed these dialog refinements as Debug x64 MSIX 1.0.6.5.
-  Verified version, architecture, and `Ok` package status; native interaction remains unverified.
+- Expanded tray shortcuts, persistent notification pause and reveal of already-open
+  windows through the shared facade. Added compact severity toasts with accessible palettes.
+- Added VIP capture, cancellable countdown, notes, shared multi-monitor metadata,
+  featured gallery presentation, calendar crowns and archive persistence. Builds and
+  partial synthetic validation were recorded; native acceptance remained open.
 
 ## 2026-10-04
 
-### Shared Premium upgrade prompt
-
-- Replaced purchase and Full-edition wording with "Switch to Premium" across all supported languages.
-- Reused one localized dialog with a highlighted Store action for export, timesheet, label,
-  clock, schedule, data-transfer, and retention restrictions. Free retention choices and
-  the add-clock action now reach the prompt without unlocking the restricted operation.
-- Routed Store activation through the application facade using WorkTrail's package family
-  identity, with a visible localized error if Windows cannot open the Store.
-- C# whitespace formatting and verification passed. Runtime dialog presentation, Store
-  navigation, and build/test validation remain unverified.
+- Unified Premium wording and upgrade dialogs across restricted features. Routed the
+  Store action through the application facade with visible failure handling. This did
+  not implement or verify commercial entitlement.
 
 ## 2026-10-03
 
-### One-command Debug MSIX installation
-
-- Added `InstallDebugMsix` to the general script to clear `artifacts`, build, sign, install, and verify a local Debug MSIX. It requires an explicit four-part version, chooses a trusted matching certificate, and cleans project output while preserving the new package.
-- The owner granted a feature-freeze exception limited to this script command.
-- Built, signed, installed, and verified Debug x64 version 1.0.6.3 with a valid package signature and `Ok` registration status.
-
-### Create the screenshot folder before opening it
-
-- Create the configured screenshot directory before passing it to Windows Explorer. This covers both the maintenance action and the folder button in the screenshot gallery when no capture has created the directory yet.
-- The maintenance action creates and opens the configured directory; the gallery action opens the directory containing the selected screenshot.
-- Resolve MSIX LocalAppData virtualization to the shell-visible `LocalCache\Local` path before opening Explorer; retain the canonical configured path for unpackaged execution.
-- Included the fixes in installed Debug x64 package version 1.0.6.3. Verified that the resolved physical directory exists and contains the retained screenshots; native button clicks remain for owner confirmation.
-
-### Best-effort beta database opening and global error reporting
-
-- Removed exact schema/version preflights from activity database opening and archive
-  database access. Initialization adds missing objects without replacing existing
-  definitions or history; existing informational database versions are preserved.
-- Routed startup, repeated activation, WinUI, unobserved task and application-domain
-  exceptions through a shared reporter. It writes a synchronously flushed emergency
-  log and shows a localized native error dialog even before a main window exists.
-  Concurrent failures do not stack dialogs, and task acknowledgement does not block GC.
-- Updated the beta database agreement and existing regression cases for retained history,
-  old/unversioned databases, additional objects, missing objects and actual SQLite failures.
-- Reviewed source and focused diffs manually. Built and installed the signed Debug x64
-  MSIX 1.0.6.0; Windows reports the installed package status as Ok. Cleaned build output
-  while retaining the installer. Formatting, hooks, tests, application launch,
-  native-dialog interaction and the owner's actual database remain unverified.
+- Added the Debug MSIX install command. Its broad cleanup behavior remains a separate
+  correction in the backlog; current cleanup rules take precedence over this historical implementation.
+- Created screenshot directories before shell opening and resolved MSIX virtualization
+  to the physical shell path. Directory existence was checked; native clicks were not.
+- Replaced strict beta schema-opening preflights with best-effort creation of missing
+  objects. Added durable, visible error reporting that works before MainWindow exists.
 
 ## 2026-10-02
 
-### Explicit Excel preview actions
-
-- Replaced the faint preview action with a filled generation button and an inline
-  generation status beneath the card. Completed previews expose a selectable absolute
-  path, an explicit open command, and an accessible copy-path icon.
-- Kept workbook creation, validated file opening, and clipboard access behind the runtime
-  facade. Changing report options hides stale preview results; opening or copying reuses
-  the existing file without regenerating it or submitting AI work.
-- Updated all shipped languages and the UI automation register. Source review and C#
-  formatting verification passed; tests, a new build, and live interaction remain unverified.
-
-### Localized UI automation selectors
-
-- Registered stable selectors and localized accessible names for the main window,
-  reports, settings, retention, screenshot commands, sensors and maintenance navigation.
-- Added a dedicated control-name dictionary backed by the existing language catalogs
-  and a conversion register organized by UI surface. Kept state-dependent accessible
-  names and gave generated weekly schedule cells invariant selectors.
-- Included unopened menus, toolbar commands and expander headers in localization.
-  Validated selector coverage, every shipped language and export captions, and built
-  the Debug x64 UI. Live automation-tree inspection and interaction testing remain separate.
-
-### Grouped sensor details and visible-page rendering
-
-- Grouped every captured sensor reading by device, including zero and unavailable values,
-  with closed device sections instead of a flat expanded list.
-- Continued collecting all live trace samples while rendering and copying points only for
-  devices on the visible monitor page. Preserved capture timestamps and stored measurements.
-- Validated the hardware and sensor presentation checks with synthetic data and built the
-  Debug x64 UI. Visual acceptance and live memory profiling remain separate checkpoints.
-
-### Export reliability review
-
-- Distinguished rejected Batch creation from uncertain submissions, released unsubmitted
-  quota reservations atomically, and retained recovery identities without retrying paid work.
-- Added runtime recovery independent of export-window lifetime, durable result readiness,
-  retryable cloud cleanup, and a paged job catalog without the former 200-job cutoff.
-- Reconciled usage in one cancellable transaction and included consumed tokens from
-  incomplete responses in estimated costs.
-- Shared Excel package metadata, indexed day/project source selection, and removed the
-  full history projection previously used only to choose a save filename.
-- Added synthetic regression cases for rejection, uncertainty, archive paging, runtime
-  recovery, download/cleanup failure, quota transactions, source attribution, and costs.
-  Validated targeted export, aggregation, batch, and localization checks using simulated
-  provider responses, and built the Debug x64 UI. Live provider submission and visual
-  acceptance remain outside those checks.
-
-### Batch timesheets and Excel previews
-
-- Added a resumable OpenAI Batch timesheet report with measured day/project durations,
-  optional morning/afternoon rows, monthly sheets, billing fields, and source details.
-- Persisted job identities and partial results independently of the export window;
-  uncertain submissions are reconciled before another paid batch can be created.
-  Raw request prompts and API credentials are excluded from persisted job snapshots.
-- Replaced embedded export previews with a generated Excel-themed card that opens a
-  temporary workbook limited to ten records per sheet without calling AI.
-- Kept the export title bar and native close button visible, and added a localized
-  in-app explanation of daily, application, and whole-period summary grouping.
-- Validated batch transport and recovery with simulated responses, workbook structure,
-  measured interval projection, entitlement, and localization contracts.
-
-
-### Consolidated storage settings and v1 surface cleanup
-
-- Collected screenshot capture preferences, local OCR choices, and saved hardware metadata
-  under data retention, using the existing typed settings facade and automatic persistence.
-- Removed taskbar widget settings and activation paths from v1, rejected its withdrawn
-  catalog keys, and disabled saved visibility when loading settings.
-- Renamed the main-window position control consistently in every shipped UI language.
-- Removed the redundant separators above data tools and startup options, and unified
-  OCR/AI navigation with the existing settings links for consistent pointer feedback.
-- Centered the labels editor on its owner at each opening while retaining saved size,
-  and kept its title bar visible independently of the global auto-hide setting.
-- Reduced captured hardware summaries to CPU total, GPU load and temperature, physical
-  RAM capacity, disk space and transfers, and network throughput with compact units.
-  Retained unmodified sensor readings in the complete details and persisted snapshots.
-- Added colored day, week, and month icons to export-period shortcuts, preserving
-  localized labels and accessible names with high-contrast theme support.
-
-### Calendar-month retention refinement
-
-- Limited effective activity and screenshot retention to one month for Free and three
-  months for Premium, with matching guards in the shared settings facade.
-- Added monthly choices, shared Premium badges, an installation-anchored timeline,
-  separate preview counts, and moved the screenshot folder editor, open-folder action,
-  and keep-captures toggle out of general settings while preserving automatic persistence.
-- Queued due cleanup after workspace readiness and restoration, with hourly due-date checks
-  while the UI is running and the shared Mica progress surface for deletion.
-- Preserved owned-artifact checks and capture provenance; the monthly checkpoint advances
-  only after cleanup and local-search synchronization finish successfully.
+- Added explicit Excel preview generation/open/copy through the facade, localized
+  automation selectors and the UI-surface conversion register.
+- Hardened Batch rejection/uncertain-submission recovery, quota reconciliation, cloud
+  cleanup and catalog paging. Added simulated transport/export tests; real provider
+  submission remained separate. The original input-based timesheet projection was
+  replaced by observation-based reconstruction on Oct 21.
+- Consolidated storage controls and retired taskbar-widget entry points. Grouped the
+  then-supported sensor details and limited rendering to visible pages; hardware/OCR
+  records here are historical, not a claim of current product support.
+- Added calendar-month retention and shared cleanup progress. Its original Premium
+  three-month limit and monthly/modal behavior were replaced on Oct 15.
 
 ## 2026-09-24
 
-### Standalone Excel planner source snapshot
-
-- Added the owner-requested ExcelPlanner folder with the current workbook, six CSV
-  datasets, original authoring scripts, source provenance and third-party licenses.
-- Kept the template free of credentials and machine-specific data paths. The
-  existing launcher now uses an ignored local working copy.
-- Preserved the separate Obsidian copy; excluded private plans, keys, installed
-  dependencies, reference workbooks, backups and temporary QA output.
-- Checked script syntax, copy integrity and preservation of native query parts.
-  No app integration, build, test suite, API refresh, commit or push was performed.
-
-### Locale checks after private Store listing removal
-
-- Made repository discovery use the solution file and checked the canonical locale catalog
-  against shipped localization files, keeping manifest and duplicate-property validation
-  independent of the private Store listing.
-- Kept the public MIT contract and checks against automatic Store publication independent
-  of removed listing drafts and workflows.
-
-### Guided provider setup and About polish
-
-- Added reusable AI/OpenWeather credential sheets with masked examples, provider guides,
-  pricing links, localized validation feedback, and OK/Close outcomes without a step indicator.
-- Connected the AI sheet to Quick Setup and the weather sheet to world-clock options.
-  AI profiles require a successful check of the current provider configuration and credential;
-  rejected or rate-limited candidate keys do not replace the saved credential.
-- Made the About hero reach the content edges and replaced the unavailable Store invitation
-  with a short GitHub action. Visual acceptance and installer delivery remain separate.
+- Added the owner-requested standalone Excel planner sources, datasets and attribution,
+  preserving private notes and excluding credentials/generated working copies.
+- Decoupled locale/public-license checks from private Store listing drafts.
+- Added guided AI/OpenWeather key sheets and About hero refinements. Provider validation
+  gates candidate credentials; native acceptance and installation remained separate.
 
 ## 2026-09-23
 
-### App identity and Store notes
-
-- Replaced the generated Windows app identity assets with the owner-selected briefcase and trail mark, keeping small target-size icons legible and preserving the previous icon's provenance.
-- Moved Store listing drafts and screenshot planning into private MeUp notes, removed the repository listing workflow, and kept local listing validation available through an explicit path.
-- Restricted release CI to portable ZIPs for x64 and ARM64; Store MSIX packaging remains a local owner-controlled operation.
-
-### About links and alignment
-
-- Added allowlisted Privacy and Terms links to the About window and grouped the website, GitHub repository, and policy links on the left while retaining the centered Store/GitHub message.
+- Replaced app identity artwork with the approved briefcase/trail mark and retained
+  asset provenance. Moved Store listing drafts outside Git and added About policy links.
+  The temporary ZIP release route recorded then is superseded by today's MSIX-only rule.
 
 ## 2026-09-21
 
-### Reset confirmation reliability
-
-- Replaced the crash-prone illustrated reset confirmation with a dedicated, accessible red WinUI dialog and keep a confirmation-host failure inside the app without preparing a reset.
-
-### Store preparation and product boundaries
-
-- Established the September 21–27 maintenance freeze for Store preparation. Reliability fixes and polish remain in scope; new features require an explicit exception.
-- Separated public technical and user documentation from private pricing, launch, Store-account, roadmap, and design notes.
-- Standardized the public README around the activity-tracking benefit, source setup, material limitations, MeUp presentation, and solo-maintainer voice.
-
-### Feature access and commercial boundary
-
-- Introduced a runtime-owned feature catalog and Core-enforced Free/Premium policy shared by desktop, CLI, and IPC callers. Production defaults to unlicensed Free; the non-persisted profile simulator is Debug-only and excluded from release contracts.
-- Applied Free limits to saved labels, world clocks, screenshot schedules, and archive execution while preserving previews and user data across downgrade. Store purchase and entitlement integration remain deliberately separate.
-- Classified the operational CLI as Premium and kept destructive or replacing operations behind previews, confirmation, expiring plans, and runtime authorization.
-
-### Data transfer, export, and AI summaries
-
-- Added native activity export for Excel, zipped CSV, and typed JSON with bounded previews, saved field choices, atomic destination replacement, CSV formula protection, and continuation sheets for long text.
-- Kept AI summaries explicit and editable. Ordinary previews and exports remain local; sensitive text is opt-in, provider usage is accounted for, and measured activity stays distinct from screenshot interpretation.
-- Added typed archive progress across the facade and runtime protocol. Progress contains phases and counts but no local paths, remains observable outside the mutation lock, and is discarded after completion.
-- Made snapshot conflict checks semantic for JSON while retaining strict scalar conflicts and malformed-input rejection.
-
-### Labels, localization, and interface polish
-
-- Added validated saved labels with stable history semantics: renaming the selected label updates selection, while deletion clears selection without rewriting past activity.
-- Promoted the interface-language picker. System remains the default, explicit choices remain restart-required, and all user-facing changes continue across the ten supported locales.
-- Consolidated label management in a resizable queued dialog and kept export, maintenance, and player surfaces accessible across translated widths, themes, and high contrast.
-
-### AI, weather, and internal structure
-
-- Aligned screenshot prompts with the resolved app language and available context, bounded detail-specific input, and explicit separation between observation and inferred intent, duration, completion, or productivity.
-- Made significant NOAA space-weather forecasts global; coordinates and darkness remain relevant only to local astronomy and weather.
-- Split the application facade, runtime lifecycle, telemetry, capture, product-link, and CLI interactive responsibilities into focused partials without changing the shared facade contract.
-- Strengthened release-aware runtime-catalog checks so Debug-only operations cannot leak into production. Broad solution validation was completed during the PR #42 integration work.
+- Added a dedicated accessible reset confirmation and Core-enforced Free/Premium
+  feature access; production stayed Free pending commercial entitlement integration.
+- Added bounded Excel/CSV/JSON export, explicit editable AI summaries, typed archive
+  progress and semantic JSON conflict checks. Kept measured activity distinct from inference.
+- Added stable label management, ten-language UI selection and reusable preview/dialog
+  layouts. Split facade/runtime responsibilities and strengthened release-aware contracts.
+- Separated private business/Store plans from public product documentation. The temporary
+  Store-preparation feature freeze was explicitly ended on Oct 16.
 
 ## 2026-09-20
 
-- Repaired cold startup after strict localization validation rejected divergent catalogs. All locales were brought back to key and placeholder parity; cold launch, tray registration on minimize, and redirected Start-menu restoration were verified together.
-- Corrected shutdown ownership for celestial rendering and notification timers so late callbacks cannot update closed surfaces. The original crash relationship remained unproven without a complete exception record.
-- Restored celestial views by accepting valid faint catalog objects, made Search open compact and expand for results, and retained the shared thin material treatment.
-- Added a city-local current-time marker and interval state to the astronomical agenda, plus geographically bounded aurora advisories and separate weather/advisory rows.
-- Increased magnetic window-snapping tolerance while retaining intentional off-screen movement and monitor-boundary escape behavior.
-- Removed the public roadmap and completed the product-first documentation and author-voice refresh.
+- Repaired locale-parity startup failure; cold launch, tray registration and redirected
+  Main restoration were observed together. Improved celestial shutdown ownership without
+  proving the original crash cause. Refined Search, celestial views and current-time markers.
+- Removed the public roadmap and refreshed product-first documentation.
 
 ## 2026-09-19
 
-### Astronomy and desktop surfaces
-
-- Introduced one Core Astronomy Engine with bounded caches for world clocks, Moon, maps, local sky, agenda, and Earth views. Added versioned runtime operations, offline ephemerides, source-attributed catalogs, computed events, and independent window placement/restoration.
-- Moved sky facts and palettes into strict embedded data, expanded the attributed star/constellation subset, and added optional ISS/Tiangong projection from recent elements without compromising offline behavior.
-- Kept the globe and flat day/night map as distinct surfaces, simplified celestial controls, removed obsolete sky zoom, and used owner-provided screenshots for public product imagery.
-- Completed PR #39 through protected review and checks. The signed MSIX installations from this period were local development validation, not public releases.
-
-### Runtime, tray, hardware, and UI
-
-- Retired interactive/HTML activity reports and their build/runtime routes while preserving calendar aggregation and user data.
-- Added optional magnetic snapping through Core-owned geometry and owning-thread native registrations; the disabled setting leaves native movement untouched.
-- Classified the activity calendar as a transient dialog so stale open-state flags do not restore it at startup.
-- Hardened notification-area recovery: verify Explorer before hiding, use version-4 activation events, restore on `TaskbarCreated`, and keep the main window reachable when icon registration fails.
-- Bundled the signed, pinned PawnIO component only for x64 advanced sensors. Installation remains an explicit consented action; ARM64 stays excluded.
-- Consolidated compact, paged sensor rows with accessible unavailable states, textual disk capacity, battery level, and high-contrast-safe activity traces.
+- Introduced the shared astronomy engine, bounded caches, attributed catalogs, offline
+  ephemerides, optional orbital elements and independently restored celestial windows.
+  Completed the associated protected PR; local MSIX checks were not public releases.
+- Retired HTML reports, added native snapping/tray recovery and classified the calendar
+  as transient. Sensor/PawnIO work from this date is historical, not a current support statement.
 
 ## 2026-09-18
 
-- Established the current Sensors layout and replaced disk capacity bars with localized free/total text while preserving activity and battery information.
-- Consolidated repository guidance around scoped reads, bounded output, explicit validation authorization, and preservation of unrelated work.
+- Consolidated scoped working agreements and refined the then-current sensor layout.
 
 ## 2026-09-16
 
-- Made astronomical title bars reversible overlays that do not reserve content space and remain bounded for touch, theme, and DPI behavior.
-- Repaired archive handling for current screenshot-path storage and legacy missing artifacts. Import now commits data, ledger, and search invalidation together; cleanup failure is reported separately from durable transaction success.
-- Made screenshot migration explicit: preserve OCR/AI records and timestamps, use canonical dated storage, support metadata-only histories, and reject unknown layouts.
+- Added reversible astronomical title bars. Made archive data, ledger and search
+  invalidation commit together, with cleanup failures reported separately. Screenshot
+  migration was explicit at this stage; current beta-opening rules supersede old advice.
 
 ## 2026-09-15
 
-- Expanded search synonyms to a schema-2 catalog with 300 concepts per supported locale. Matching uses deterministic bounded variants, longest phrases, Unicode-aware boundaries, literal-token protection, and best-variant scoring rather than alias accumulation.
-- Kept synonym catalogs independent of the search index so catalog updates require restart, not index rebuild.
+- Added bounded multilingual synonym matching with literal-token protection, longest
+  phrases and best-variant scoring. Catalog changes do not require index rebuilds.
+
+## 2026-09-02
+
+- Completed the ten-finding audit against `c99ac63`: privacy before persistence/capture,
+  responsive cancellation, retryable deletion intents, transactional search updates,
+  incremental suggestions and bounded IPC clients/deadlines. Automated validation and
+  x64 compilation passed; native multi-monitor acceptance remained separate.
+- Pricing/OCR-specific remediation belongs to the retired implementations. The original
+  audit record was consolidated here rather than retained as a second completed task list.
 
 ## 2026-09-01
 
-- Added explicit loading, empty, and populated world-clock states and allowed an intentionally empty selection.
-- Kept weather credentials masked and out of returned state or logs. Provider validation stores only accepted or rate-limited keys through the environment-variable flow.
-- Versioned the changed world-clock and provider-probe runtime operations so older runtimes fail explicitly instead of returning stale semantics.
+- Added explicit world-clock loading/empty states, protected weather credentials and
+  versioned changed runtime operations to reject incompatible callers.

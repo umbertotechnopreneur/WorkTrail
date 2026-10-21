@@ -34,6 +34,7 @@ public sealed partial class WorkTrailApplication
         }
 
         _disposed = true;
+        StopTimesheetSessionEvents();
         CancelLiveWork();
         _runtimeTimerCancellation.Cancel();
         Task liveWorkDrained;
@@ -47,6 +48,8 @@ public sealed partial class WorkTrailApplication
         _liveWorkCancellation.Dispose();
         await _runtimeTimerTask.ConfigureAwait(false);
         await _timesheetRecoveryTask.ConfigureAwait(false);
+        await _timesheetSessionWork.ConfigureAwait(false);
+        PersistTimesheetSessionSignal("runtime_stop", DateTimeOffset.UtcNow);
         _runtimeTimerCancellation.Dispose();
         await _screenshotReprocessing.DisposeAsync().ConfigureAwait(false);
         _tracking.DashboardStateChanged -= OnDashboardStateChanged;
