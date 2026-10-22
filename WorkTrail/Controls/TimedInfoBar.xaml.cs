@@ -30,6 +30,8 @@ namespace WorkTrail.Controls;
 /// <summary>Renders one compact, closable toast with a severity icon.</summary>
 public sealed partial class TimedInfoBar : UserControl
 {
+    #region Fields
+
     private const float BannerElevation = 18f;
     private static readonly TimeSpan FadeDuration = TimeSpan.FromMilliseconds(80);
 
@@ -39,6 +41,10 @@ public sealed partial class TimedInfoBar : UserControl
     private bool _isDismissing;
     private bool _isPresented;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates an initially collapsed timed banner host.</summary>
     public TimedInfoBar()
     {
@@ -47,6 +53,10 @@ public sealed partial class TimedInfoBar : UserControl
         BannerSurface.Translation = new Vector3(0f, 0f, BannerElevation);
         Unloaded += TimedInfoBar_Unloaded;
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Occurs when the banner is closed manually, programmatically, or because its host unloads.</summary>
     internal event EventHandler? Dismissed;
@@ -105,6 +115,7 @@ public sealed partial class TimedInfoBar : UserControl
         }
     }
 
+    /// <summary>Intercepts dismissal so the banner can finish its closing transition.</summary>
     private void BannerInfoBar_Closing(InfoBar sender, InfoBarClosingEventArgs args)
     {
         if (_allowCloseCommit)
@@ -126,6 +137,7 @@ public sealed partial class TimedInfoBar : UserControl
         CompleteDismissal(generation);
     }
 
+    /// <summary>Stops active transitions when the banner leaves the visual tree.</summary>
     private void TimedInfoBar_Unloaded(object sender, RoutedEventArgs e)
     {
         if (!_isPresented)
@@ -136,6 +148,7 @@ public sealed partial class TimedInfoBar : UserControl
         DismissImmediately();
     }
 
+    /// <summary>Finalizes only the dismissal belonging to the current transition generation.</summary>
     private void CompleteDismissal(long generation)
     {
         if (!_isPresented || !_isDismissing || generation != _transitionGeneration)
@@ -161,6 +174,7 @@ public sealed partial class TimedInfoBar : UserControl
         Dismissed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Animates banner opacity and invokes completion only for the active transition.</summary>
     private void StartOpacityTransition(double targetOpacity, Action? completion, double? initialOpacity = null)
     {
         StopActiveTransition();
@@ -191,11 +205,15 @@ public sealed partial class TimedInfoBar : UserControl
         storyboard.Begin();
     }
 
+    /// <summary>Cancels the current banner opacity storyboard.</summary>
     private void StopActiveTransition()
     {
         _activeTransition?.Stop();
         _activeTransition = null;
     }
 
+    /// <summary>Reads the Windows animation preference for presentation transitions.</summary>
     private static bool AnimationsAreEnabled() => new UISettings().AnimationsEnabled;
+
+    #endregion
 }

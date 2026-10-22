@@ -29,12 +29,17 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks offline holiday coverage, local event times, and country selection validation.</summary>
 public sealed class CelestialCalendarTests
 {
+    #region Implementation
+
+    /// <summary>Keeps the reviewed country coverage and required holiday metadata in the offline catalog.</summary>
     [Fact]
     public void Catalog_ContainsReviewedOfflineCoverage()
     {
         var catalog = CelestialCalendarCatalog.Current;
+
         Assert.Equal(new DateOnly(2026, 1, 1), catalog.CoverageStart);
         Assert.Equal(new DateOnly(2028, 3, 31), catalog.CoverageEnd);
         Assert.Equal(17, catalog.Countries.Count);
@@ -46,6 +51,7 @@ public sealed class CelestialCalendarTests
             && saint.NameLatin.Contains("Francisci", StringComparison.Ordinal));
     }
 
+    /// <summary>Places holidays at nine in the observer time zone and removes duplicate selections.</summary>
     [Fact]
     public void Events_StartAtNineLocalAndDeduplicateSelectedHolidays()
     {
@@ -66,6 +72,7 @@ public sealed class CelestialCalendarTests
         };
         var saints = new[] { new CelestialCalendarSaint(9, 24, "OwnerOurLadyOfMercy", "Beatae Mariae Virginis de Mercede", "https://example.com") };
         var calendar = CelestialCalendarEventService.Build(snapshot, zone, holidays, saints, ["IT", "FR"], true, CancellationToken.None);
+
         Assert.Equal(2, calendar.Count);
         Assert.All(calendar,
             item => Assert.Equal(new TimeOnly(9, 0), TimeOnly.FromDateTime(item.StartLocal.DateTime)));
@@ -75,6 +82,7 @@ public sealed class CelestialCalendarTests
         Assert.Empty(CelestialCalendarEventService.Build(snapshot, zone, holidays, saints, [], false, CancellationToken.None));
     }
 
+    /// <summary>Rejects unsupported or malformed holiday country selections before saving settings.</summary>
     [Fact]
     public void Settings_RejectUnsupportedOrMalformedCountrySelections()
     {
@@ -85,9 +93,11 @@ public sealed class CelestialCalendarTests
             ["astronomy.agenda.country_codes"] = "IT,VN,JP",
             ["astronomy.agenda.show_saints"] = "false"
         }));
+
         Assert.True(valid.Succeeded);
         Assert.Equal(new[] { "IT", "VN", "JP" }, valid.Value!.AstronomyAgendaCountryCodes);
         Assert.False(valid.Value.AstronomyAgendaShowSaints);
+
         foreach (var malformed in new[] { "IT,,VN", "XX", "IT,IT" })
         {
             Assert.False(SettingsCatalog.Apply(initial, new SettingsPatch(new Dictionary<string, string?>
@@ -96,4 +106,6 @@ public sealed class CelestialCalendarTests
             })).Succeeded);
         }
     }
+
+    #endregion
 }

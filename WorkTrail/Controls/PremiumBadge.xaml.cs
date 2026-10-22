@@ -26,6 +26,7 @@ namespace WorkTrail.Controls;
 /// <summary>Renders the same localized, high-contrast-aware Premium marker on headers and commands.</summary>
 public sealed partial class PremiumBadge : UserControl
 {
+
     /// <summary>Creates a non-interactive entitlement marker.</summary>
     public PremiumBadge() => InitializeComponent();
 
@@ -33,6 +34,10 @@ public sealed partial class PremiumBadge : UserControl
     public string Text
     {
         get => Caption.Text;
-        set { Caption.Text = value; AutomationProperties.SetName(this, value); }
+        set
+        {
+            Caption.Text = value;
+            AutomationProperties.SetName(this, value);
+        }
     }
 }

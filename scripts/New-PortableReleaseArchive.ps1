@@ -32,6 +32,8 @@ param(
     [string]$OutputDirectory
 )
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($Version -cnotmatch '^[1-9][0-9]{0,4}\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$' -or
@@ -41,7 +43,11 @@ if ($Version -cnotmatch '^[1-9][0-9]{0,4}\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
-$Platform = if ($Platform -ieq 'x64') { 'x64' } else { 'ARM64' }
+$Platform = if ($Platform -ieq 'x64') {
+    'x64'
+} else {
+    'ARM64'
+}
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $artifactRoot "releases/$Version/$Platform/portable"
 }
@@ -115,25 +121,50 @@ if ($null -eq $runtimeOptions -or $runtimeOptions.ContainsKey('framework') -or $
     throw 'Portable runtime configuration must describe a self-contained .NET application.'
 }
 
+#endregion
+
+#region Implementation
+
 function Assert-PortableArchitecture {
+    <#
+    .SYNOPSIS
+    Validates that the published executable matches the requested architecture.
+    #>
+
     param([string]$FileName)
 
     $reader = [IO.BinaryReader]::new([IO.File]::OpenRead((Join-Path $publishRoot $FileName)))
     try {
-        if ($reader.BaseStream.Length -lt 64 -or $reader.ReadUInt16() -ne 0x5A4D) { throw "Invalid PE file: $FileName" }
+        if ($reader.BaseStream.Length -lt 64 -or $reader.ReadUInt16() -ne 0x5A4D) {
+            throw "Invalid PE file: $FileName"
+        }
         $reader.BaseStream.Position = 0x3C
         $headerOffset = $reader.ReadUInt32()
-        if ($headerOffset -lt 64 -or $headerOffset -gt ($reader.BaseStream.Length - 6)) { throw "Invalid PE header: $FileName" }
+        if ($headerOffset -lt 64 -or $headerOffset -gt ($reader.BaseStream.Length - 6)) {
+            throw "Invalid PE header: $FileName"
+        }
         $reader.BaseStream.Position = $headerOffset
-        if ($reader.ReadUInt32() -ne 0x00004550) { throw "Invalid PE signature: $FileName" }
-        $expectedMachine = if ($Platform -ceq 'x64') { 0x8664 } else { 0xAA64 }
+        if ($reader.ReadUInt32() -ne 0x00004550) {
+            throw "Invalid PE signature: $FileName"
+        }
+        $expectedMachine = if ($Platform -ceq 'x64') {
+            0x8664
+        } else {
+            0xAA64
+        }
         if ($reader.ReadUInt16() -ne $expectedMachine) {
             throw "Portable binary architecture does not match ${Platform}: $FileName"
         }
     }
-    finally { $reader.Dispose() }
+    finally {
+        $reader.Dispose()
+    }
 }
-foreach ($binary in @('WorkTrail.exe', 'hostfxr.dll', 'coreclr.dll')) { Assert-PortableArchitecture -FileName $binary }
+
+#endregion
+foreach ($binary in @('WorkTrail.exe', 'hostfxr.dll', 'coreclr.dll')) {
+    Assert-PortableArchitecture -FileName $binary
+}
 
 $archiveName = "WorkTrail-$Version-$Platform-portable-unsigned.zip"
 $zipPath = Join-Path $outputRoot $archiveName
@@ -189,12 +220,18 @@ try {
         $source = [IO.File]::OpenRead($file.FullName)
         try {
             $destination = $archive.CreateEntry($relativePath, [IO.Compression.CompressionLevel]::Optimal).Open()
-            try { $source.CopyTo($destination) } finally { $destination.Dispose() }
+            try {
+                $source.CopyTo($destination)
+            } finally {
+                $destination.Dispose()
+            }
             $source.Position = 0
             $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($source))
             $hashLines.Add("$hash  $relativePath")
         }
-        finally { $source.Dispose() }
+        finally {
+            $source.Dispose()
+        }
     }
     foreach ($directory in @($publishItems | Where-Object { $_.PSIsContainer })) {
         if (@(Get-ChildItem -LiteralPath $directory.FullName -Force).Count -eq 0) {
@@ -211,15 +248,25 @@ try {
     foreach ($name in @($documents.Keys | Sort-Object)) {
         $bytes = $documents[$name]
         $destination = $archive.CreateEntry($name, [IO.Compression.CompressionLevel]::Optimal).Open()
-        try { $destination.Write($bytes, 0, $bytes.Length) } finally { $destination.Dispose() }
+        try {
+            $destination.Write($bytes, 0, $bytes.Length)
+        } finally {
+            $destination.Dispose()
+        }
         $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
         $hashLines.Add("$hash  $name")
     }
     $checksums = $utf8.GetBytes(($hashLines -join "`n") + "`n")
     $destination = $archive.CreateEntry('SHA256SUMS.txt').Open()
-    try { $destination.Write($checksums, 0, $checksums.Length) } finally { $destination.Dispose() }
+    try {
+        $destination.Write($checksums, 0, $checksums.Length)
+    } finally {
+        $destination.Dispose()
+    }
 }
-finally { $archive.Dispose() }
+finally {
+    $archive.Dispose()
+}
 $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 [IO.File]::WriteAllText("$zipPath.sha256", "$zipHash  $archiveName`n", $utf8)
 Write-Host "Unsigned portable release archive ready: $zipPath"

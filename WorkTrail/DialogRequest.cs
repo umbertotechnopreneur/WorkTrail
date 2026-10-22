@@ -27,6 +27,7 @@ internal sealed record DialogRequest(
     string? CloseButtonText,
     string? SecondaryButtonText = null)
 {
+
     /// <summary>Creates a one-button acknowledgement request.</summary>
     internal static DialogRequest Informative(string title, string message, string primaryButtonText) =>
         new(title, message, primaryButtonText, CloseButtonText: null);

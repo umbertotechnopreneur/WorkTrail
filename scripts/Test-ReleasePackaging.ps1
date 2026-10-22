@@ -27,6 +27,8 @@ or change certificate trust. Fixtures remain under artifacts/release-tests/.
 [CmdletBinding()]
 param()
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -38,12 +40,28 @@ $installScript = Join-Path $PSScriptRoot 'Install-WorkTrailRelease.ps1'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $script:passed = 0
 
+#endregion
+
+#region Implementation
+
 function Assert-ReleaseTest {
+    <#
+    .SYNOPSIS
+    Reports a failed release-package contract assertion.
+    #>
+
     param([bool]$Condition, [string]$Message)
-    if (-not $Condition) { throw $Message }
+    if (-not $Condition) {
+        throw $Message
+    }
 }
 
 function Invoke-TestScript {
+    <#
+    .SYNOPSIS
+    Runs a packaging script in a child PowerShell process and captures its result.
+    #>
+
     param([string]$Path, [string[]]$Arguments, [hashtable]$Environment = @{})
 
     $start = [Diagnostics.ProcessStartInfo]::new((Get-Command pwsh -ErrorAction Stop).Source)
@@ -56,7 +74,9 @@ function Invoke-TestScript {
     }
     # Each fixture controls its own version; an enclosing build must not affect this test.
     [void]$start.Environment.Remove('WORKTRAIL_RELEASE_VERSION')
-    foreach ($key in $Environment.Keys) { $start.Environment[$key] = $Environment[$key] }
+    foreach ($key in $Environment.Keys) {
+        $start.Environment[$key] = $Environment[$key]
+    }
     $process = [Diagnostics.Process]::Start($start)
     try {
         $stdout = $process.StandardOutput.ReadToEndAsync()
@@ -64,10 +84,17 @@ function Invoke-TestScript {
         $process.WaitForExit()
         return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult() }
     }
-    finally { $process.Dispose() }
+    finally {
+        $process.Dispose()
+    }
 }
 
 function Assert-Rejected {
+    <#
+    .SYNOPSIS
+    Verifies that an invalid packaging fixture is rejected.
+    #>
+
     param([string]$Name, [string]$Path, [string[]]$Arguments, [string]$ExpectedMessage, [string]$ForbiddenOutput)
 
     $result = Invoke-TestScript -Path $Path -Arguments $Arguments
@@ -81,6 +108,11 @@ function Assert-Rejected {
 }
 
 function New-SyntheticPackage {
+    <#
+    .SYNOPSIS
+    Creates a minimal MSIX fixture for release packaging checks.
+    #>
+
     param([string]$Name, [string]$Architecture = 'x64', [string]$PackageVersion = '1.2.3.0', [string]$BuildVersion = '1.2.3', [switch]$RequireFramework)
 
     $directory = Join-Path $fixtureRoot $Name
@@ -89,19 +121,29 @@ function New-SyntheticPackage {
     $dependency = if ($RequireFramework) {
         '<Dependencies><PackageDependency Name="Microsoft.WindowsAppRuntime.Test" Publisher="CN=Microsoft Corporation" MinVersion="1.0.0.0" /></Dependencies>'
     }
-    else { '<Dependencies />' }
+    else {
+        '<Dependencies />'
+    }
     $manifest = '<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"><Identity Name="WorkTrail.ReleaseTest" Publisher="CN=ReleaseTest" Version="{0}" ProcessorArchitecture="{1}" />{2}</Package>' -f $PackageVersion, $Architecture, $dependency
     $buildInfo = @{ semVer = $BuildVersion; packageVersion = "$BuildVersion.0"; platform = $Architecture; gitCommit = ('1' * 40); gitDirty = $false } | ConvertTo-Json
     $archive = [IO.Compression.ZipFile]::Open($packagePath, [IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($entry in @{ 'AppxManifest.xml' = $manifest; 'BuildInfo.json' = $buildInfo }.GetEnumerator()) {
             $writer = [IO.StreamWriter]::new($archive.CreateEntry($entry.Key).Open(), $utf8)
-            try { $writer.Write($entry.Value) } finally { $writer.Dispose() }
+            try {
+                $writer.Write($entry.Value)
+            } finally {
+                $writer.Dispose()
+            }
         }
     }
-    finally { $archive.Dispose() }
+    finally {
+        $archive.Dispose()
+    }
     return $directory
 }
+
+#endregion
 
 $sourceManifest = Join-Path $fixtureRoot 'Source.appxmanifest'
 $statePath = Join-Path $fixtureRoot 'version-state.json'
@@ -116,8 +158,12 @@ foreach ($platform in @('x64', 'ARM64')) {
     $arguments = @('-Action', 'BuildInfo', '-VersionStatePath', $statePath, '-PackageManifestPath', $sourceManifest,
         '-PackageManifestOutputPath', $manifestPath, '-OutputPath', $buildInfoPath, '-Platform', $platform, '-Configuration', 'Release')
     $environment = @{}
-    if ($platform -eq 'x64') { $arguments += @('-ReleaseVersion', '1.2.3') }
-    else { $environment.WORKTRAIL_RELEASE_VERSION = '1.2.3' }
+    if ($platform -eq 'x64') {
+        $arguments += @('-ReleaseVersion', '1.2.3')
+    }
+    else {
+        $environment.WORKTRAIL_RELEASE_VERSION = '1.2.3'
+    }
     $result = Invoke-TestScript -Path $entryPoint -Arguments $arguments -Environment $environment
     Assert-ReleaseTest ($result.ExitCode -eq 0) "$platform release metadata failed: $($result.Output)"
     $info = Get-Content -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json

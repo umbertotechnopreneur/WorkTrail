@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -31,11 +30,22 @@ public sealed record CelestialSkyAppearance(
 /// <summary>Interpolates twenty-four artistic skies against actual solar elevation, including polar day/night.</summary>
 public static class CelestialSkyPalette
 {
+
+    #region Fields
     private static readonly Lazy<PaletteCatalog> Palette = new(LoadPalette);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Number of sky keyframes in the embedded palette.</summary>
     public static int PaletteCount => Palette.Value.Frames.Count;
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reads and validates ordered sky keyframes across the complete solar altitude range.</summary>
     private static PaletteCatalog LoadPalette()
     {
         // Missing product artwork data fails explicitly; no hard-coded color fallback is maintained.
@@ -49,7 +59,10 @@ public static class CelestialSkyPalette
         }) ?? throw new InvalidDataException("The embedded sky palette is empty.");
         if (palette.SchemaVersion != 1 || palette.Frames is null || palette.Frames.Count < 2
             || !ValidColor(palette.SunGlowCoreColor, 8) || !ValidColor(palette.SunGlowEdgeColor, 8))
+        {
             throw new InvalidDataException("The sky palette schema is unsupported.");
+        }
+
         var previousAltitude = double.NegativeInfinity;
         foreach (var frame in palette.Frames)
         {
@@ -58,29 +71,49 @@ public static class CelestialSkyPalette
                 || !ValidColor(frame.ZenithColor, 6) || !ValidColor(frame.UpperSkyColor, 6) || !ValidColor(frame.HorizonColor, 6)
                 || !double.IsFinite(frame.StarOpacity) || frame.StarOpacity is < 0 or > 1
                 || !double.IsFinite(frame.SunGlowOpacity) || frame.SunGlowOpacity is < 0 or > 1)
+            {
                 throw new InvalidDataException("The sky palette contains an invalid frame.");
+            }
+
             previousAltitude = frame.AltitudeDegrees;
         }
         if (palette.Frames[0].AltitudeDegrees != -90 || palette.Frames[^1].AltitudeDegrees != 90)
+        {
             throw new InvalidDataException("The sky palette must span the physical solar altitude range.");
+        }
+
         return palette;
     }
 
+    /// <summary>Checks the expected hexadecimal channel count.</summary>
     private static bool ValidColor(string? value, int length) => value is not null && value.Length == length
         && value.All(static character => char.IsAsciiHexDigit(character));
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Creates a continuous palette; invalid elevations fail instead of inventing a sky state.</summary>
     public static CelestialSkyAppearance Create(double solarAltitudeDegrees)
     {
         if (!double.IsFinite(solarAltitudeDegrees) || solarAltitudeDegrees is < -90 or > 90)
+        {
             throw new ArgumentOutOfRangeException(nameof(solarAltitudeDegrees), "Solar altitude must be finite and within the physical horizon range.");
+        }
 
         var frames = Palette.Value.Frames;
         var upperIndex = 0;
-        while (upperIndex < frames.Count - 1 && frames[upperIndex].AltitudeDegrees < solarAltitudeDegrees) upperIndex++;
+        while (upperIndex < frames.Count - 1 && frames[upperIndex].AltitudeDegrees < solarAltitudeDegrees)
+        {
+            upperIndex++;
+        }
+
         var lower = frames[Math.Max(0, upperIndex - 1)];
         var upper = frames[upperIndex];
-        var blend = upper.AltitudeDegrees == lower.AltitudeDegrees ? 0 : (solarAltitudeDegrees - lower.AltitudeDegrees) / (upper.AltitudeDegrees - lower.AltitudeDegrees);
+        var altitudeSpan = upper.AltitudeDegrees - lower.AltitudeDegrees;
+        var blend = upper.AltitudeDegrees == lower.AltitudeDegrees
+            ? 0
+            : (solarAltitudeDegrees - lower.AltitudeDegrees) / altitudeSpan;
         return new CelestialSkyAppearance(
             BlendColor(lower.Zenith, upper.Zenith, blend),
             BlendColor(lower.UpperSky, upper.UpperSky, blend),
@@ -90,6 +123,11 @@ public static class CelestialSkyPalette
             Palette.Value.SunGlowCoreColor, Palette.Value.SunGlowEdgeColor);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Interpolates RGB channels between adjacent sky keyframes.</summary>
     private static string BlendColor(string first, string second, double blend)
     {
         var channels = new byte[3];
@@ -102,7 +140,13 @@ public static class CelestialSkyPalette
         return $"#{channels[0]:X2}{channels[1]:X2}{channels[2]:X2}";
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Contains sky keyframes and shared solar glow colors.</summary>
     private sealed record PaletteCatalog(int SchemaVersion, string SunGlowCoreColor, string SunGlowEdgeColor, IReadOnlyList<Frame> Frames);
+    /// <summary>Defines sky colors and visibility weights at one solar altitude.</summary>
     private sealed record Frame(double AltitudeDegrees, string ZenithColor, string UpperSkyColor, string HorizonColor,
         double StarOpacity, double SunGlowOpacity)
     {
@@ -110,4 +154,7 @@ public static class CelestialSkyPalette
         internal string UpperSky => UpperSkyColor;
         internal string Horizon => HorizonColor;
     }
+
+    #endregion
+
 }

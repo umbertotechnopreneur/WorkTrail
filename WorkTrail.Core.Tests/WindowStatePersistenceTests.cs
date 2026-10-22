@@ -29,8 +29,11 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks saved placement and visibility without overwriting unrelated window state.</summary>
 public sealed class WindowStatePersistenceTests
 {
+    #region Implementation
+
     /// <summary>Verifies saving returns committed settings and restoring geometry cannot reveal a hidden window.</summary>
     [Fact]
     public void RestorePlacement_PreservesAHiddenNativeWindow()
@@ -49,8 +52,10 @@ public sealed class WindowStatePersistenceTests
             var service = new WindowStateService(store);
             handle = CreateWindowEx(0, "STATIC", "", 0x80000000, 160, 180, 960, 540,
                 IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+
             Assert.NotEqual(IntPtr.Zero, handle);
             Assert.False(IsWindowVisible(handle));
+
             var (savedState, savedSettings) = service.Save(WindowStateKeys.Main, handle.ToInt64());
 
             Assert.Equal(savedState, savedSettings.WindowStates![WindowStateKeys.Main]);
@@ -65,7 +70,10 @@ public sealed class WindowStatePersistenceTests
         }
         finally
         {
-            if (handle != IntPtr.Zero) Assert.True(DestroyWindow(handle));
+            if (handle != IntPtr.Zero)
+            {
+                Assert.True(DestroyWindow(handle));
+            }
             Directory.Delete(directory, recursive: true);
         }
     }
@@ -91,6 +99,7 @@ public sealed class WindowStatePersistenceTests
             service.SetOpenState(WindowStateKeys.WorldClocks, false);
 
             var restored = new LocalStore(directory).LoadSettings();
+
             Assert.NotNull(restored.WindowOpenStates);
             Assert.True(restored.WindowOpenStates[WindowStateKeys.WorldMap]);
             Assert.True(restored.WindowOpenStates[WindowStateKeys.LunarPhase]);
@@ -135,27 +144,36 @@ public sealed class WindowStatePersistenceTests
             var utilities = new UtilityService();
             await using var application = new WorkTrailApplication(store, utilities: utilities);
             var saved = SaveHiddenTestWindow(application);
+
             Assert.True(saved.Succeeded);
             Assert.NotNull(saved.Value);
+
             var savedGeometry = await application.GetSettingsAsync(CancellationToken.None);
+
             Assert.NotNull(savedGeometry.Value?.WindowStates);
             Assert.Equal(saved.Value, savedGeometry.Value.WindowStates[WindowStateKeys.WorldMap]);
             Assert.True((await application.SetWindowOpenStateAsync(WindowStateKeys.WorldMap, true, CancellationToken.None)).Succeeded);
             Assert.True((await application.SetWindowOpenStateAsync(WindowStateKeys.WorldClocks, false, CancellationToken.None)).Succeeded);
+
             var savedVisibility = await application.GetSettingsAsync(CancellationToken.None);
+
             Assert.NotNull(savedVisibility.Value?.WindowOpenStates);
             Assert.True(savedVisibility.Value.WindowOpenStates[WindowStateKeys.WorldMap]);
             Assert.False(savedVisibility.Value.WindowOpenStates[WindowStateKeys.WorldClocks]);
+
             var current = await application.GetSettingsAsync(CancellationToken.None);
+
             Assert.Equal(saved.Value, current.Value!.WindowStates![WindowStateKeys.WorldMap]);
             Assert.True(current.Value.WindowOpenStates![WindowStateKeys.WorldMap]);
 
             var patched = await application.PatchSettingsAsync(
                 new SettingsPatch(new Dictionary<string, string?> { ["theme"] = "dark" }),
                 CancellationToken.None);
+
             Assert.True(patched.Succeeded);
 
             var persisted = new LocalStore(directory).LoadSettings();
+
             Assert.Equal("dark", persisted.Theme);
             Assert.Equal(saved.Value, persisted.WindowStates![WindowStateKeys.WorldMap]);
             Assert.True(persisted.WindowOpenStates![WindowStateKeys.WorldMap]);
@@ -167,12 +185,15 @@ public sealed class WindowStatePersistenceTests
         }
     }
 
+    /// <summary>Creates a hidden native window, saves its placement, and destroys the native handle afterward.</summary>
     private static OperationResult<WindowState> SaveHiddenTestWindow(IWorkTrailApplication application)
     {
         // Keep native creation, capture, and destruction on one thread without displaying or activating the surface.
         var handle = CreateWindowEx(0, "STATIC", "", 0x80000000, 160, 180, 960, 540,
             IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+
         Assert.NotEqual(IntPtr.Zero, handle);
+
         try
         {
             return application.SaveWindowStateAsync(WindowStateKeys.WorldMap, handle.ToInt64(), CancellationToken.None).GetAwaiter().GetResult();
@@ -183,22 +204,29 @@ public sealed class WindowStatePersistenceTests
         }
     }
 
+    /// <summary>Creates an isolated directory for persistence fixtures owned by the current test.</summary>
     private static string CreateTemporaryDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "WorkTrail.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
+
         return path;
     }
 
+    /// <summary>Creates a native fixture window through Win32; the test owns and destroys the returned handle.</summary>
     [DllImport("user32.dll", EntryPoint = "CreateWindowExW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern IntPtr CreateWindowEx(uint extendedStyle, string className, string windowName, uint style,
         int x, int y, int width, int height, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr parameter);
 
+    /// <summary>Releases the native fixture window through Win32.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyWindow(IntPtr handle);
 
+    /// <summary>Queries actual native visibility so persistence tests can detect unintended activation.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr handle);
+
+    #endregion
 }

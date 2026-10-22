@@ -24,6 +24,8 @@ Exercises automatic formatting in a disposable Git index without creating commit
 [CmdletBinding()]
 param()
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -31,19 +33,42 @@ $fixtureParent = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts/fo
 $fixture = Join-Path $fixtureParent ([Guid]::NewGuid().ToString('N'))
 $utf8 = [Text.UTF8Encoding]::new($false)
 
+#endregion
+
+#region Implementation
+
 function Assert-Condition {
+    <#
+    .SYNOPSIS
+    Stops the current operation when a required condition is not satisfied.
+    #>
+
     param([bool]$Condition, [string]$Message)
-    if (-not $Condition) { throw $Message }
+    if (-not $Condition) {
+        throw $Message
+    }
 }
 
 function Invoke-FixtureGit {
+    <#
+    .SYNOPSIS
+    Runs Git inside the isolated formatting fixture and checks its exit status.
+    #>
+
     param([string[]]$Arguments)
     $result = & git -C $fixture @Arguments
-    if ($LASTEXITCODE -ne 0) { throw "Fixture Git command failed: $($Arguments[0])" }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Fixture Git command failed: $($Arguments[0])"
+    }
     return $result
 }
 
 function Get-FixtureBlobText {
+    <#
+    .SYNOPSIS
+    Reads the staged fixture blob so assertions inspect the index rather than the working file.
+    #>
+
     param([string]$Path)
     $start = [Diagnostics.ProcessStartInfo]::new('git')
     $start.WorkingDirectory = $fixture
@@ -51,7 +76,9 @@ function Get-FixtureBlobText {
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
     $start.StandardOutputEncoding = $utf8
-    foreach ($argument in @('show', ":$Path")) { $start.ArgumentList.Add($argument) }
+    foreach ($argument in @('show', ":$Path")) {
+        $start.ArgumentList.Add($argument)
+    }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $start
     try {
@@ -62,7 +89,9 @@ function Get-FixtureBlobText {
         $process.WaitForExit()
         $output = $outputTask.GetAwaiter().GetResult()
         $errorText = $errorTask.GetAwaiter().GetResult()
-        if ($process.ExitCode -ne 0) { throw "Could not read the fixture index blob: $errorText" }
+        if ($process.ExitCode -ne 0) {
+            throw "Could not read the fixture index blob: $errorText"
+        }
         return $output
     }
     finally {
@@ -71,6 +100,11 @@ function Get-FixtureBlobText {
 }
 
 function Assert-CSharpWhitespace {
+    <#
+    .SYNOPSIS
+    Checks the fixture text for the C# whitespace expected after formatting.
+    #>
+
     param([string]$Text, [string]$Description)
     Assert-Condition ($Text -match '(?m)^ {4}public int Value = 1;') "$Description does not use four-space indentation and C# token spacing."
     Assert-Condition (-not $Text.Contains("`t")) "$Description still contains indentation tabs."
@@ -78,6 +112,8 @@ function Assert-CSharpWhitespace {
     Assert-Condition ($Text.EndsWith("`n", [StringComparison]::Ordinal)) "$Description is missing its final newline."
     Assert-Condition ($Text -notmatch '(?m)[ \t]+$') "$Description still contains trailing whitespace."
 }
+
+#endregion
 
 try {
     [void][IO.Directory]::CreateDirectory((Join-Path $fixture 'scripts'))

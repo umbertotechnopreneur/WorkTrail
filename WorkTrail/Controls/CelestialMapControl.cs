@@ -30,14 +30,24 @@ namespace WorkTrail.Controls;
 /// <summary>Displays application-rendered Earth pixels without owning geographic calculations or asset I/O.</summary>
 public sealed class CelestialMapControl : UserControl
 {
+    #region Fields
+
     private readonly Image _image = new() { Stretch = Stretch.Uniform };
     private int _renderVersion;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates the passive Earth image surface.</summary>
     public CelestialMapControl()
     {
         Content = _image;
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Decodes the supplied in-memory PNG and ignores superseded asynchronous render completions.</summary>
     internal async Task ApplyAsync(CelestialMapImage image, LocalizationService strings, CancellationToken cancellationToken = default)
@@ -64,4 +74,6 @@ public sealed class CelestialMapControl : UserControl
             AutomationProperties.SetName(this, strings.Translate("Celestial.Map.Title"));
         }
     }
+
+    #endregion
 }

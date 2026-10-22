@@ -33,6 +33,8 @@ namespace WorkTrail.Controls;
 /// <summary>Renders one city in the detached world-clock comparison surface.</summary>
 public sealed partial class WorldClockColumnControl : UserControl
 {
+    #region Fields
+
     private const double SolarArcStartX = 32d;
     private const double SolarArcEndX = 272d;
     private const double SolarArcBaselineY = 138d;
@@ -45,8 +47,16 @@ public sealed partial class WorldClockColumnControl : UserControl
     private double _viewportWidth;
     private double _viewportHeight;
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Gets the measured height needed by the explicitly requested presentation, before window chrome.</summary>
     public double PreferredContentHeight { get; private set; }
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates one passive world-clock column.</summary>
     public WorldClockColumnControl()
@@ -54,8 +64,14 @@ public sealed partial class WorldClockColumnControl : UserControl
         InitializeComponent();
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Repositions city artwork after the clock column changes size.</summary>
     private void ColumnRoot_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateSceneLayout();
 
+    /// <summary>Adjusts the city scene layers to the available column viewport.</summary>
     private void UpdateSceneLayout()
     {
         if (XamlRoot is null)
@@ -178,6 +194,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         AutomationProperties.SetLocalizedLandmarkType(ColumnRoot, clock.CityName);
     }
 
+    /// <summary>Selects clock details appropriate to the current column size.</summary>
     private void ApplyPresentationMode()
     {
         if (_viewportWidth <= 0d)
@@ -205,6 +222,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         ApplyDetailLayout(detail, inlineWeather);
     }
 
+    /// <summary>Arranges clock detail sections for the selected density and weather layout.</summary>
     private void ApplyDetailLayout(WorldClockDetailLevel detail, bool inlineWeather)
     {
         var expanded = detail == WorldClockDetailLevel.Expanded;
@@ -252,6 +270,7 @@ public sealed partial class WorldClockColumnControl : UserControl
             ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>Updates and describes the clock's daylight-saving state.</summary>
     private string ApplyDaylightSaving(WorldClockItem clock, LocalizationService strings)
     {
         var summary = clock.IsDaylightSavingTime
@@ -272,6 +291,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return summary;
     }
 
+    /// <summary>Updates the lunar illustration and localized phase description.</summary>
     private string ApplyMoonPhase(
         WorldClockItem clock,
         LocalizationService strings,
@@ -300,6 +320,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return summary;
     }
 
+    /// <summary>Updates the solar arc and localized sunrise and sunset presentation.</summary>
     private string ApplySolarTimeline(WorldClockItem clock, LocalizationService strings)
     {
         if (clock.Sunrise is not { } sunrise || clock.Sunset is not { } sunset)
@@ -340,6 +361,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return summary;
     }
 
+    /// <summary>Builds the filled area beneath the clock's solar arc.</summary>
     private static PathGeometry BuildSolarFillGeometry()
     {
         var figure = new PathFigure
@@ -359,6 +381,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return new PathGeometry { Figures = { figure } };
     }
 
+    /// <summary>Builds a solar arc segment between normalized progress values.</summary>
     private static PathGeometry BuildSolarArcGeometry(double from, double to)
     {
         var figure = new PathFigure
@@ -377,6 +400,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return new PathGeometry { Figures = { figure } };
     }
 
+    /// <summary>Evaluates a point on the clock's quadratic solar arc.</summary>
     private static Point SolarArcPoint(double progress)
     {
         var remaining = 1d - progress;
@@ -389,6 +413,7 @@ public sealed partial class WorldClockColumnControl : UserControl
                 + (progress * progress * SolarArcBaselineY));
     }
 
+    /// <summary>Updates the weather details and returns their accessible description.</summary>
     private string ApplyWeather(WorldClockWeather? weather, LocalizationService strings)
     {
         if (weather is null || !weather.IsFresh)
@@ -428,6 +453,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return summary;
     }
 
+    /// <summary>Selects the weather illustration matching the supplied condition.</summary>
     private void ApplyWeatherIcon(string? condition)
     {
         WeatherAdornmentHost.Visibility = condition is null ? Visibility.Collapsed : Visibility.Visible;
@@ -442,6 +468,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         WeatherUnknownIcon.Visibility = condition is "unknown" ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>Updates the space-weather warning and its accessible description.</summary>
     private string ApplySpaceWeatherAlert(SpaceWeatherAlert? alert, LocalizationService strings)
     {
         if (alert is null)
@@ -494,6 +521,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return summary;
     }
 
+    /// <summary>Updates the packaged skyline when the city artwork changes.</summary>
     private void ApplySkyline(string assetPath)
     {
         if (string.Equals(_skylineAssetPath, assetPath, StringComparison.Ordinal))
@@ -505,6 +533,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         _skylineAssetPath = assetPath;
     }
 
+    /// <summary>Reuses matching image layers and replaces only changed packaged assets.</summary>
     private static string[] ApplyLayers(
         Grid host,
         IReadOnlyList<string> assetPaths,
@@ -535,6 +564,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         return assetPaths.ToArray();
     }
 
+    /// <summary>Creates a bitmap source for packaged city artwork.</summary>
     private static BitmapImage PackagedBitmap(string assetPath)
     {
         if (string.IsNullOrWhiteSpace(assetPath))
@@ -557,6 +587,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         };
     }
 
+    /// <summary>Formats the time-zone offset with its sign and minute component.</summary>
     private static string FormatOffset(TimeSpan offset)
     {
         var sign = offset < TimeSpan.Zero ? "−" : "+";
@@ -566,6 +597,7 @@ public sealed partial class WorldClockColumnControl : UserControl
             : $"{sign}{absolute.Hours + (absolute.Days * 24)}:{absolute.Minutes:00}";
     }
 
+    /// <summary>Describes how the city's calendar date relates to the reference date.</summary>
     private static string DateRelation(DateTime cityDate, DateTime referenceDate, LocalizationService strings) =>
         (cityDate.Date - referenceDate.Date).Days switch
         {
@@ -575,13 +607,17 @@ public sealed partial class WorldClockColumnControl : UserControl
             _ => cityDate.ToString("ddd d MMM", strings.Culture)
         };
 
+    /// <summary>Formats an optional local time for the active UI culture.</summary>
     private static string FormatTime(DateTimeOffset? value, LocalizationService strings) =>
         value?.ToString("HH:mm", strings.Culture) ?? strings.Translate("WorldClock.NoEvent");
+
+    #endregion
 }
 
 /// <summary>Identifies a city selected from the detached world-clock surface.</summary>
 public sealed class WorldClockCityEventArgs(string cityId, string cityName) : EventArgs
 {
+
     /// <summary>Gets the stable packaged city identifier.</summary>
     public string CityId { get; } = cityId;
 

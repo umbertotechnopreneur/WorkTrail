@@ -27,8 +27,11 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks that astronomy requests and results survive the shared runtime protocol.</summary>
 public sealed class CelestialRuntimeTests
 {
+    #region Implementation
+
     /// <summary>Preserves Earth viewpoint, requested instant, binary image bytes and explicit failures across the shared pipe.</summary>
     [Theory]
     [InlineData(false)]
@@ -40,7 +43,9 @@ public sealed class CelestialRuntimeTests
         proxy.Fail = fail;
         var installation = $"celestial-map-test-{Guid.NewGuid():N}";
         await using var host = new RuntimeHost(application, installation);
+
         Assert.True(host.TryStart());
+
         await using var client = new RuntimeClient(installation, TimeSpan.FromSeconds(5));
         var request = new CelestialMapRequest(
             new DateTimeOffset(2026, 9, 19, 12, 34, 56, TimeSpan.Zero),
@@ -51,6 +56,7 @@ public sealed class CelestialRuntimeTests
         Assert.Equal(request, proxy.MapRequest);
         Assert.Equal(!fail, result.Succeeded);
         Assert.Equal(fail ? "celestial.map.failed" : "celestial.map.loaded", result.Code);
+
         if (!fail)
         {
             Assert.Equal(new byte[] { 137, 80, 78, 71, 0, 255 }, result.Value!.PngBytes);
@@ -71,7 +77,9 @@ public sealed class CelestialRuntimeTests
         var proxy = (CelestialRuntimeProxy)application;
         var installation = $"celestial-sky-test-{Guid.NewGuid():N}";
         await using var host = new RuntimeHost(application, installation);
+
         Assert.True(host.TryStart());
+
         await using var client = new RuntimeClient(installation, TimeSpan.FromSeconds(5));
         var request = new CelestialRequest("ho-chi-minh-city", new DateTimeOffset(2026, 9, 19, 18, 0, 0, TimeSpan.Zero));
 
@@ -82,7 +90,9 @@ public sealed class CelestialRuntimeTests
         Assert.Equal(TimeSpan.FromHours(7), result.Value!.LocalTime.Offset);
         Assert.Equal(CelestialBodyKind.Moon, Assert.Single(result.Value.Bodies).Kind);
         Assert.Null(Assert.Single(result.Value.Stars).Magnitude);
+
         var agendaEvent = Assert.Single(result.Value.Agenda);
+
         Assert.Equal(CelestialEventKind.NewMoon, agendaEvent.Kind);
         Assert.Equal(TimeSpan.FromHours(7), agendaEvent.StartLocal.Offset);
         Assert.Null(agendaEvent.EndUtc);
@@ -92,11 +102,22 @@ public sealed class CelestialRuntimeTests
         Assert.Equal(CelestialSkyPalette.Create(-30), result.Value.SkyAppearance);
     }
 
+    #endregion
+
+    #region Test doubles
+
+    /// <summary>Supplies deterministic astronomy responses while recording requests sent through the runtime.</summary>
     public class CelestialRuntimeProxy : DispatchProxy
     {
+        #region Properties
+
         internal bool Fail { get; set; }
         internal CelestialMapRequest? MapRequest { get; private set; }
         internal CelestialRequest? SkyRequest { get; private set; }
+
+        #endregion
+
+        #region Implementation
 
         /// <summary>Provides inert typed astronomy results without opening assets or creating a second tracking runtime.</summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
@@ -104,6 +125,7 @@ public sealed class CelestialRuntimeTests
             if (targetMethod?.Name == nameof(IWorkTrailApplication.GetCelestialMapAsync))
             {
                 MapRequest = (CelestialMapRequest)args![0]!;
+
                 return Task.FromResult(Fail
                     ? OperationResult<CelestialMapImage>.Failure("celestial.map.failed", "Celestial.Unavailable")
                     : OperationResult<CelestialMapImage>.Success("celestial.map.loaded", "WorldClocksLoaded",
@@ -116,6 +138,7 @@ public sealed class CelestialRuntimeTests
                 SkyRequest = (CelestialRequest)args![0]!;
                 var instant = SkyRequest.InstantUtc;
                 var local = instant.ToOffset(TimeSpan.FromHours(7));
+
                 return Task.FromResult(OperationResult<CelestialSnapshot>.Success("celestial.loaded", "WorldClocksLoaded",
                     new CelestialSnapshot(SkyRequest.CityId, "Ho Chi Minh City", "SE Asia Standard Time",
                         instant, local, 10.82, 106.63, 0, -30,
@@ -129,9 +152,19 @@ public sealed class CelestialRuntimeTests
                     }));
             }
 
-            if (targetMethod?.Name == nameof(IAsyncDisposable.DisposeAsync)) return ValueTask.CompletedTask;
-            if (targetMethod?.Name is "add_RuntimeStateChanged" or "remove_RuntimeStateChanged") return null;
+            if (targetMethod?.Name == nameof(IAsyncDisposable.DisposeAsync))
+            {
+                return ValueTask.CompletedTask;
+            }
+            if (targetMethod?.Name is "add_RuntimeStateChanged" or "remove_RuntimeStateChanged")
+            {
+                return null;
+            }
             throw new NotSupportedException(targetMethod?.Name);
         }
+
+        #endregion
     }
+
+    #endregion
 }

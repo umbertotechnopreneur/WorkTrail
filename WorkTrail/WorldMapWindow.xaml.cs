@@ -28,8 +28,14 @@ namespace WorkTrail;
 /// <summary>Renders the shared astronomical projection in an independent Acrylic window.</summary>
 internal sealed partial class WorldMapWindow : Window
 {
+    #region Fields
+
     private readonly AstronomyWindowController _controller;
     private LocalizationService _strings = new("system");
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates the independently restorable map over the shared application facade.</summary>
     internal WorldMapWindow(IWorkTrailApplication application, MicaDialogService dialogs, AppSettings settings)
@@ -41,6 +47,10 @@ internal sealed partial class WorldMapWindow : Window
             WindowStateKeys.WorldMap, 1120, 608, RenderSnapshot);
         ApplySettings(settings);
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Applies the current theme and language without changing the selected reference instant.</summary>
     internal void ApplySettings(AppSettings settings)
@@ -62,6 +72,7 @@ internal sealed partial class WorldMapWindow : Window
     /// <summary>Releases a failed opening without overwriting the last valid window placement.</summary>
     internal void CloseAfterFailedOpening() => _controller.CloseAfterFailedOpening();
 
+    /// <summary>Adapts content layout and caption hit testing to the new viewport size.</summary>
     private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // Keep native caption space available even when only the compact logo fits beside it.
@@ -71,6 +82,7 @@ internal sealed partial class WorldMapWindow : Window
         ReferenceInstantText.Visibility = e.NewSize.Width < 640d ? Visibility.Collapsed : Visibility.Visible;
     }
 
+    /// <summary>Updates the window's passive presentation from an application-provided snapshot.</summary>
     private void RenderSnapshot(WorldClockSnapshot snapshot)
     {
         WorldMapControl.Apply(snapshot.Map, _strings);
@@ -80,4 +92,6 @@ internal sealed partial class WorldMapWindow : Window
         AutomationProperties.SetName(ReferenceInstantText, label);
         ToolTipService.SetToolTip(ReferenceInstantText, label);
     }
+
+    #endregion
 }

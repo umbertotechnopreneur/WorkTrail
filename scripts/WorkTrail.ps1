@@ -100,6 +100,8 @@ param(
     [string[]]$PassThruArguments = @()
 )
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -137,7 +139,16 @@ if ($SkipPackageBuild -and [string]::IsNullOrWhiteSpace($PackageOutputPath)) {
     throw 'SkipPackageBuild requires an explicit PackageOutputPath.'
 }
 
+#endregion
+
+#region Console and initialization helpers
+
 function Test-RunningInIdeTerminal {
+    <#
+    .SYNOPSIS
+    Detects an IDE terminal while allowing the standalone Windows Terminal path.
+    #>
+
     if ($env:WT_SESSION -or $env:WT_PROFILE_ID) {
         return $false
     }
@@ -150,6 +161,11 @@ function Test-RunningInIdeTerminal {
 }
 
 function Clear-TerminalFull {
+    <#
+    .SYNOPSIS
+    Clears terminal content and scrollback, with best-effort fallbacks for unsupported hosts.
+    #>
+
     [CmdletBinding()]
     param()
 
@@ -175,6 +191,11 @@ function Clear-TerminalFull {
 }
 
 function Initialize-SharedBootstrap {
+    <#
+    .SYNOPSIS
+    Configures console encoding and optionally clears the interactive screen.
+    #>
+
     [CmdletBinding()]
     param([switch]$ClearScreen)
 
@@ -187,6 +208,11 @@ function Initialize-SharedBootstrap {
 }
 
 function Get-BannerLine {
+    <#
+    .SYNOPSIS
+    Fits banner text within the requested width by truncating and padding it.
+    #>
+
     param(
         [string]$Text,
         [int]$Width = 76
@@ -201,6 +227,11 @@ function Get-BannerLine {
 }
 
 function Show-Banner {
+    <#
+    .SYNOPSIS
+    Prints the utility title and subtitle inside the shared console banner.
+    #>
+
     [CmdletBinding()]
     param(
         [string]$Title = 'Shared PowerShell Utility',
@@ -221,6 +252,11 @@ function Show-Banner {
 }
 
 function Write-Section {
+    <#
+    .SYNOPSIS
+    Prints a section heading for an interactive operation.
+    #>
+
     param([Parameter(Mandatory)][string]$Title)
 
     Write-Host $Title -ForegroundColor Yellow
@@ -228,6 +264,11 @@ function Write-Section {
 }
 
 function Show-Footer {
+    <#
+    .SYNOPSIS
+    Prints the completion status and elapsed time for the current operation.
+    #>
+
     [CmdletBinding()]
     param(
         [string]$ScriptName = 'Script',
@@ -248,6 +289,11 @@ function Show-Footer {
 }
 
 function Show-FooterError {
+    <#
+    .SYNOPSIS
+    Prints the failure details and elapsed time for the current operation.
+    #>
+
     [CmdletBinding()]
     param(
         [string]$ScriptName = 'Script',
@@ -269,6 +315,11 @@ function Show-FooterError {
 }
 
 function Read-MenuChoice {
+    <#
+    .SYNOPSIS
+    Repeats the prompt until the user selects an allowed menu entry.
+    #>
+
     param(
         [string]$Prompt = 'Select',
         [string[]]$AllowedChoices = @()
@@ -285,12 +336,22 @@ function Read-MenuChoice {
 }
 
 function Wait-ForEnter {
+    <#
+    .SYNOPSIS
+    Pauses interactive output until the user is ready to continue.
+    #>
+
     param([string]$Prompt = 'Press Enter to continue')
 
     [void](Read-Host $Prompt)
 }
 
 function Write-MenuItem {
+    <#
+    .SYNOPSIS
+    Prints one menu key and its action label.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$Key,
         [Parameter(Mandatory)][string]$Label
@@ -300,6 +361,11 @@ function Write-MenuItem {
 }
 
 function Invoke-CommonPreflight {
+    <#
+    .SYNOPSIS
+    Checks the host and repository prerequisites needed by the command-line utilities.
+    #>
+
     [CmdletBinding()]
     param(
         [string]$Title = 'Preflight',
@@ -312,7 +378,11 @@ function Invoke-CommonPreflight {
     $checks = [System.Collections.Generic.List[object]]::new()
     $checks.Add([pscustomobject]@{
         Check = 'PowerShell'
-        Status = if ($PSVersionTable.PSVersion.Major -ge 7) { 'OK' } else { 'FAIL' }
+        Status = if ($PSVersionTable.PSVersion.Major -ge 7) {
+            'OK'
+        } else {
+            'FAIL'
+        }
         Details = ("Detected {0}" -f $PSVersionTable.PSVersion)
     })
 
@@ -320,8 +390,16 @@ function Invoke-CommonPreflight {
         $command = Get-Command -Name $commandName -ErrorAction SilentlyContinue | Select-Object -First 1
         $checks.Add([pscustomobject]@{
             Check = "Command: $commandName"
-            Status = if ($command) { 'OK' } else { 'FAIL' }
-            Details = if ($command) { $command.Source } else { 'Not found' }
+            Status = if ($command) {
+                'OK'
+            } else {
+                'FAIL'
+            }
+            Details = if ($command) {
+                $command.Source
+            } else {
+                'Not found'
+            }
         })
     }
 
@@ -329,7 +407,11 @@ function Invoke-CommonPreflight {
         $exists = Test-Path -LiteralPath $filePath -PathType Leaf
         $checks.Add([pscustomobject]@{
             Check = "File: $(Split-Path -Leaf $filePath)"
-            Status = if ($exists) { 'OK' } else { 'FAIL' }
+            Status = if ($exists) {
+                'OK'
+            } else {
+                'FAIL'
+            }
             Details = $filePath
         })
     }
@@ -338,8 +420,16 @@ function Invoke-CommonPreflight {
         $clipboardCommand = Get-Command -Name Set-Clipboard -ErrorAction SilentlyContinue | Select-Object -First 1
         $checks.Add([pscustomobject]@{
             Check = 'Clipboard'
-            Status = if ($clipboardCommand) { 'OK' } else { 'FAIL' }
-            Details = if ($clipboardCommand) { $clipboardCommand.Source } else { 'Set-Clipboard not available' }
+            Status = if ($clipboardCommand) {
+                'OK'
+            } else {
+                'FAIL'
+            }
+            Details = if ($clipboardCommand) {
+                $clipboardCommand.Source
+            } else {
+                'Set-Clipboard not available'
+            }
         })
     }
 
@@ -367,7 +457,16 @@ function Invoke-CommonPreflight {
     return -not ($checks.Status -contains 'FAIL')
 }
 
+#endregion
+
+#region Build and packaging implementation
+
 function Resolve-WorkTrailPath {
+    <#
+    .SYNOPSIS
+    Expands environment variables and resolves relative paths against the repository.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$Path,
         [string]$BasePath = $script:RepositoryRoot
@@ -382,23 +481,48 @@ function Resolve-WorkTrailPath {
 }
 
 function Get-WorkTrailRuntimeIdentifier {
+    <#
+    .SYNOPSIS
+    Maps the selected architecture to its Windows runtime identifier.
+    #>
+
     param([Parameter(Mandatory)][string]$TargetPlatform)
 
     return "win-$($TargetPlatform.ToLowerInvariant())"
 }
 
 function Get-WorkTrailPackageConfiguration {
+    <#
+    .SYNOPSIS
+    Maps an unpackaged build configuration to the corresponding MSIX configuration.
+    #>
+
     # Packaging uses the MSIX configurations even when the general utility defaults to unpackaged builds.
     switch ($Configuration) {
-        'Debug' { return 'Debug' }
-        'Release' { return 'Release' }
-        'Debug-Unpackaged' { return 'Debug' }
-        'Release-Unpackaged' { return 'Release' }
-        default { throw "Unsupported MSIX package configuration: $Configuration" }
+        'Debug' {
+            return 'Debug'
+        }
+        'Release' {
+            return 'Release'
+        }
+        'Debug-Unpackaged' {
+            return 'Debug'
+        }
+        'Release-Unpackaged' {
+            return 'Release'
+        }
+        default {
+            throw "Unsupported MSIX package configuration: $Configuration"
+        }
     }
 }
 
 function Get-WorkTrailPackagePublisher {
+    <#
+    .SYNOPSIS
+    Reads the publisher identity from the source package manifest.
+    #>
+
     $manifestPath = Join-Path $script:RepositoryRoot 'WorkTrail\Package.appxmanifest'
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
         throw "Package manifest not found: $manifestPath"
@@ -414,6 +538,11 @@ function Get-WorkTrailPackagePublisher {
 }
 
 function Invoke-NativeCommand {
+    <#
+    .SYNOPSIS
+    Runs a native tool and reports a nonzero exit code as an operation failure.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$FilePath,
         [Parameter(Mandatory)][string[]]$Arguments
@@ -426,6 +555,11 @@ function Invoke-NativeCommand {
 }
 
 function Write-Utf8Json {
+    <#
+    .SYNOPSIS
+    Writes JSON with UTF-8 encoding after creating its destination directory.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][object]$Value
@@ -441,6 +575,11 @@ function Write-Utf8Json {
 }
 
 function Invoke-WorkTrailPreflight {
+    <#
+    .SYNOPSIS
+    Collects and reports the prerequisites for the selected repository operation.
+    #>
+
     $requiredFiles = @(
         (Join-Path $script:RepositoryRoot 'WorkTrail.slnx'),
         (Join-Path $script:RepositoryRoot 'WorkTrail\WorkTrail.csproj')
@@ -457,16 +596,31 @@ function Invoke-WorkTrailPreflight {
 }
 
 function Invoke-WorkTrailRestore {
+    <#
+    .SYNOPSIS
+    Restores the solution dependencies through the shared native-command runner.
+    #>
+
     Invoke-NativeCommand -FilePath 'dotnet' -Arguments @('restore', (Join-Path $script:RepositoryRoot 'WorkTrail.slnx'))
 }
 
 function Assert-WorkTrailSolutionConfiguration {
+    <#
+    .SYNOPSIS
+    Rejects a build configuration that the solution does not support.
+    #>
+
     if ($Configuration -notin @('Debug-Unpackaged', 'Release-Unpackaged')) {
         throw "Build and Test require a solution configuration: Debug-Unpackaged or Release-Unpackaged. Received: $Configuration"
     }
 }
 
 function Invoke-WorkTrailBuild {
+    <#
+    .SYNOPSIS
+    Builds the solution with the selected architecture and warning policy.
+    #>
+
     Assert-WorkTrailSolutionConfiguration
 
     $arguments = @(
@@ -484,6 +638,11 @@ function Invoke-WorkTrailBuild {
 }
 
 function Invoke-WorkTrailTest {
+    <#
+    .SYNOPSIS
+    Runs the repository tests with the selected build configuration.
+    #>
+
     Assert-WorkTrailSolutionConfiguration
 
     $arguments = @(
@@ -503,6 +662,11 @@ function Invoke-WorkTrailTest {
 
 
 function Assert-Condition {
+    <#
+    .SYNOPSIS
+    Stops the current operation when a required condition is not satisfied.
+    #>
+
     param(
         [Parameter(Mandatory)][bool]$Condition,
         [Parameter(Mandatory)][string]$Message
@@ -514,6 +678,11 @@ function Assert-Condition {
 }
 
 function Assert-Text {
+    <#
+    .SYNOPSIS
+    Requires a nonempty text value before further validation.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$Value,
         [Parameter(Mandatory)][string]$Name,
@@ -525,6 +694,11 @@ function Assert-Text {
 }
 
 function Assert-Url {
+    <#
+    .SYNOPSIS
+    Validates a URL required by the Store listing contract.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$Value,
         [Parameter(Mandatory)][string]$Name
@@ -536,6 +710,11 @@ function Assert-Url {
 }
 
 function Assert-UniqueJsonProperties {
+    <#
+    .SYNOPSIS
+    Walks JSON objects and arrays to reject duplicate property names.
+    #>
+
     param(
         [Parameter(Mandatory)][System.Text.Json.JsonElement]$Element,
         [Parameter(Mandatory)][string]$Path
@@ -562,6 +741,11 @@ function Assert-UniqueJsonProperties {
 }
 
 function Assert-ValidUniqueJsonDocument {
+    <#
+    .SYNOPSIS
+    Parses JSON and validates duplicate properties before consuming the document.
+    #>
+
     param([Parameter(Mandatory)][string]$Json)
 
     $document = $null
@@ -580,6 +764,11 @@ function Assert-ValidUniqueJsonDocument {
 }
 
 function Invoke-WorkTrailStoreListingValidation {
+    <#
+    .SYNOPSIS
+    Checks Store listing fields and referenced assets against the publishing contract.
+    #>
+
     Assert-Condition -Condition (-not [string]::IsNullOrWhiteSpace($ListingPath)) -Message 'Specify -ListingPath for the private Store listing outside this repository.'
     $pathToValidate = Resolve-WorkTrailPath -Path $ListingPath
     $resolvedPath = (Resolve-Path -LiteralPath $pathToValidate).Path
@@ -665,6 +854,11 @@ function Invoke-WorkTrailStoreListingValidation {
 }
 
 function Invoke-WorkTrailAssetGeneration {
+    <#
+    .SYNOPSIS
+    Generates package and Store artwork using the repository drawing definitions.
+    #>
+
     $python = Get-Command -Name 'python' -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $python) {
         $python = Get-Command -Name 'py' -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -874,9 +1068,18 @@ if __name__ == "__main__":
 
 
 function Invoke-WorkTrailUnpackagedPublish {
+    <#
+    .SYNOPSIS
+    Publishes the selected source configuration into the requested output directory.
+    #>
+
     $runtime = Get-WorkTrailRuntimeIdentifier -TargetPlatform $Platform
     $artifactsRoot = [System.IO.Path]::GetFullPath((Join-Path $script:RepositoryRoot 'artifacts'))
-    $versionDirectory = if ([string]::IsNullOrEmpty($ReleaseVersion)) { 'local' } else { $ReleaseVersion }
+    $versionDirectory = if ([string]::IsNullOrEmpty($ReleaseVersion)) {
+        'local'
+    } else {
+        $ReleaseVersion
+    }
     $candidate = if ([string]::IsNullOrWhiteSpace($PublishOutputPath)) {
         $invocationDirectory = '{0}-{1}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'), [Guid]::NewGuid().ToString('N')
         Join-Path $artifactsRoot "unpackaged\$versionDirectory\$Platform\$invocationDirectory"
@@ -929,6 +1132,11 @@ function Invoke-WorkTrailUnpackagedPublish {
 }
 
 function Resolve-WorkTrailPackageCertificate {
+    <#
+    .SYNOPSIS
+    Resolves the signing certificate required by the selected packaging mode.
+    #>
+
     if ([string]::IsNullOrWhiteSpace($PackageCertificateThumbprint)) {
         $publisher = Get-WorkTrailPackagePublisher
         throw "Signed MSIX packaging requires PackageCertificateThumbprint. Its certificate Subject must exactly match the manifest Publisher '$publisher'."
@@ -958,6 +1166,11 @@ function Resolve-WorkTrailPackageCertificate {
 }
 
 function Assert-WorkTrailPackageIntegrity {
+    <#
+    .SYNOPSIS
+    Validates the package contents and identity before accepting the generated MSIX.
+    #>
+
     param([Parameter(Mandatory)][System.IO.FileInfo]$PackageFile)
 
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -1003,7 +1216,11 @@ function Assert-WorkTrailPackageIntegrity {
             throw "MSIX manifest publisher does not match the tracked manifest publisher '$expectedPublisher': $($PackageFile.FullName)"
         }
 
-        $expectedPackageVersion = if ($ReleaseVersion -match '^\d+\.\d+\.\d+\.\d+$') { $ReleaseVersion } else { "$ReleaseVersion.0" }
+        $expectedPackageVersion = if ($ReleaseVersion -match '^\d+\.\d+\.\d+\.\d+$') {
+            $ReleaseVersion
+        } else {
+            "$ReleaseVersion.0"
+        }
         if ($identity.Version -ne $packageBuildInfo.packageVersion -or
             (-not [string]::IsNullOrEmpty($ReleaseVersion) -and $identity.Version -ne $expectedPackageVersion)) {
             throw "MSIX manifest/build information does not match the requested package version: $($PackageFile.FullName)"
@@ -1015,6 +1232,11 @@ function Assert-WorkTrailPackageIntegrity {
 }
 
 function Invoke-WorkTrailMsixPackage {
+    <#
+    .SYNOPSIS
+    Builds the requested MSIX with the selected identity and signing settings.
+    #>
+
     $packageDirectory = Get-WorkTrailPackageOutputDirectory
     $packageConfiguration = Get-WorkTrailPackageConfiguration
     if (Test-Path -LiteralPath $packageDirectory) {
@@ -1062,26 +1284,41 @@ function Invoke-WorkTrailMsixPackage {
 
     $packageFile = Get-WorkTrailPackageFile
     Assert-WorkTrailPackageIntegrity -PackageFile $packageFile
-    $signingState = if ($Unsigned) { 'Unsigned' } else { 'Signed' }
+    $signingState = if ($Unsigned) {
+        'Unsigned'
+    } else {
+        'Signed'
+    }
     Write-Host "$signingState MSIX package ready: $($packageFile.FullName)" -ForegroundColor Green
     Write-Host "Package dependency directory: $(Join-Path $packageFile.DirectoryName 'Dependencies')"
 }
 
 # Build, sign, install, and verify one local Debug MSIX without replacing existing artifacts.
 function Invoke-WorkTrailDebugMsixInstall {
-    if (-not $IsWindows) { throw 'Debug MSIX installation requires Windows.' }
+    <#
+    .SYNOPSIS
+    Builds and installs a Debug MSIX, then reports the installed package state.
+    #>
+
+    if (-not $IsWindows) {
+        throw 'Debug MSIX installation requires Windows.'
+    }
     if ((Get-WorkTrailPackageConfiguration) -ne 'Debug') {
         throw 'InstallDebugMsix requires a Debug configuration.'
     }
     if ($ReleaseVersion -cnotmatch '^\d+\.\d+\.\d+\.\d+$') {
         throw 'InstallDebugMsix requires a four-part -ReleaseVersion X.Y.Z.W.'
     }
-    if ($SkipPackageBuild) { throw 'InstallDebugMsix must build a fresh MSIX.' }
+    if ($SkipPackageBuild) {
+        throw 'InstallDebugMsix must build a fresh MSIX.'
+    }
 
     $packageName = 'UmbertoGiacobbiDotBiz.WorkTrail'
     $expectedVersion = [version]$ReleaseVersion
     $installed = @(Get-AppxPackage -Name $packageName)
-    if ($installed.Count -gt 1) { throw 'More than one current-user WorkTrail package was found.' }
+    if ($installed.Count -gt 1) {
+        throw 'More than one current-user WorkTrail package was found.'
+    }
     if ($installed.Count -eq 1 -and [version]$installed[0].Version -ge $expectedVersion) {
         throw "The installed version is $($installed[0].Version). Choose a higher Debug MSIX version."
     }
@@ -1138,21 +1375,38 @@ function Invoke-WorkTrailDebugMsixInstall {
         $runtime = Get-WorkTrailRuntimeIdentifier -TargetPlatform $Platform
         try {
             & dotnet clean $project --configuration Debug --runtime $runtime "-p:Platform=$Platform" --verbosity quiet
-            if ($LASTEXITCODE -ne 0) { Write-Warning 'WorkTrail Debug build cleanup failed.' }
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning 'WorkTrail Debug build cleanup failed.'
+            }
         }
-        catch { Write-Warning "WorkTrail Debug build cleanup failed: $($_.Exception.Message)" }
+        catch {
+            Write-Warning "WorkTrail Debug build cleanup failed: $($_.Exception.Message)"
+        }
     }
 }
 
 function Get-WorkTrailPackageOutputDirectory {
+    <#
+    .SYNOPSIS
+    Resolves the package output directory from the supplied options.
+    #>
+
     if ($null -ne $script:PackageOutputDirectory) {
         return $script:PackageOutputDirectory
     }
 
     $artifactsRoot = [System.IO.Path]::GetFullPath((Join-Path $script:RepositoryRoot 'artifacts'))
     $packageConfiguration = Get-WorkTrailPackageConfiguration
-    $channel = if ($packageConfiguration -eq 'Debug') { 'debug' } else { 'store' }
-    $versionDirectory = if ([string]::IsNullOrEmpty($ReleaseVersion)) { 'local' } else { $ReleaseVersion }
+    $channel = if ($packageConfiguration -eq 'Debug') {
+        'debug'
+    } else {
+        'store'
+    }
+    $versionDirectory = if ([string]::IsNullOrEmpty($ReleaseVersion)) {
+        'local'
+    } else {
+        $ReleaseVersion
+    }
     $candidate = if ([string]::IsNullOrWhiteSpace($PackageOutputPath)) {
         Join-Path $artifactsRoot "msix\$channel\$versionDirectory\$($Platform.ToLowerInvariant())"
     }
@@ -1182,6 +1436,11 @@ function Get-WorkTrailPackageOutputDirectory {
 }
 
 function Get-WorkTrailPackageFile {
+    <#
+    .SYNOPSIS
+    Locates the MSIX produced in the selected package directory.
+    #>
+
     $packageDirectory = Get-WorkTrailPackageOutputDirectory
     $files = @(if (Test-Path -LiteralPath $packageDirectory -PathType Container) {
         Get-ChildItem -LiteralPath $packageDirectory -Recurse -File -ErrorAction Stop |
@@ -1197,6 +1456,11 @@ function Get-WorkTrailPackageFile {
 }
 
 function Resolve-WorkTrailInstallerOutputPath {
+    <#
+    .SYNOPSIS
+    Resolves the final installer path for the requested version and architecture.
+    #>
+
     param([Parameter(Mandatory)][string]$DefaultExtension)
 
     $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -1222,6 +1486,11 @@ function Resolve-WorkTrailInstallerOutputPath {
 }
 
 function Assert-OutputFileCanBeWritten {
+    <#
+    .SYNOPSIS
+    Checks the destination before overwriting an installer output file.
+    #>
+
     param([Parameter(Mandatory)][string]$Path)
 
     if ((Test-Path -LiteralPath $Path -PathType Leaf) -and -not $Force) {
@@ -1230,6 +1499,11 @@ function Assert-OutputFileCanBeWritten {
 }
 
 function Invoke-WorkTrailInstallerCreation {
+    <#
+    .SYNOPSIS
+    Creates the requested installer from the selected package output.
+    #>
+
     if (-not $SkipPackageBuild) {
         Invoke-WorkTrailMsixPackage
     }
@@ -1256,17 +1530,38 @@ function Invoke-WorkTrailInstallerCreation {
 }
 
 function Invoke-WorkTrailBuildInfo {
-    $runtime = if ([string]::IsNullOrWhiteSpace($RuntimeIdentifier)) { Get-WorkTrailRuntimeIdentifier -TargetPlatform $Platform } else { $RuntimeIdentifier }
+    <#
+    .SYNOPSIS
+    Reports the resolved build, package, and output settings without building the application.
+    #>
+
+    $runtime = if ([string]::IsNullOrWhiteSpace($RuntimeIdentifier)) {
+        Get-WorkTrailRuntimeIdentifier -TargetPlatform $Platform
+    } else {
+        $RuntimeIdentifier
+    }
     $metadataDirectory = if ([string]::IsNullOrEmpty($ReleaseVersion)) {
         Join-Path $script:RepositoryRoot "artifacts\build-metadata\$Configuration\$Platform\$runtime"
     }
     else {
         Join-Path $script:RepositoryRoot "artifacts\build-metadata\release\$ReleaseVersion\$Platform"
     }
-    $statePath = if ([string]::IsNullOrWhiteSpace($VersionStatePath)) { Join-Path $script:RepositoryRoot 'artifacts\build-state\build-version.json' } else { Resolve-WorkTrailPath -Path $VersionStatePath }
+    $statePath = if ([string]::IsNullOrWhiteSpace($VersionStatePath)) {
+        Join-Path $script:RepositoryRoot 'artifacts\build-state\build-version.json'
+    } else {
+        Resolve-WorkTrailPath -Path $VersionStatePath
+    }
     $stateSeedPath = Join-Path $script:RepositoryRoot 'WorkTrail\build-version.json'
-    $buildInfoPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) { Join-Path $metadataDirectory 'BuildInfo.json' } else { Resolve-WorkTrailPath -Path $OutputPath }
-    $manifestPath = if ([string]::IsNullOrWhiteSpace($PackageManifestPath)) { Join-Path $script:RepositoryRoot 'WorkTrail\Package.appxmanifest' } else { Resolve-WorkTrailPath -Path $PackageManifestPath }
+    $buildInfoPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
+        Join-Path $metadataDirectory 'BuildInfo.json'
+    } else {
+        Resolve-WorkTrailPath -Path $OutputPath
+    }
+    $manifestPath = if ([string]::IsNullOrWhiteSpace($PackageManifestPath)) {
+        Join-Path $script:RepositoryRoot 'WorkTrail\Package.appxmanifest'
+    } else {
+        Resolve-WorkTrailPath -Path $PackageManifestPath
+    }
     $manifestOutputPath = if (-not [string]::IsNullOrWhiteSpace($PackageManifestOutputPath)) {
         Resolve-WorkTrailPath -Path $PackageManifestOutputPath
     }
@@ -1305,7 +1600,11 @@ function Invoke-WorkTrailBuildInfo {
         $semVer = ($releaseParts[0..2] -join '.')
     }
 
-    $packageVersion = if ($ReleaseVersion -match '^\d+\.\d+\.\d+\.\d+$') { $ReleaseVersion } else { "$semVer.0" }
+    $packageVersion = if ($ReleaseVersion -match '^\d+\.\d+\.\d+\.\d+$') {
+        $ReleaseVersion
+    } else {
+        "$semVer.0"
+    }
     $builtAtUtc = [DateTimeOffset]::UtcNow
     $builtAtLocal = [DateTimeOffset]::Now
 
@@ -1365,7 +1664,16 @@ function Invoke-WorkTrailBuildInfo {
     Write-Host "WorkTrail build $semVer ($($buildInfo.gitCommitShort)) generated at $buildInfoPath"
 }
 
+#endregion
+
+#region DPAPI secret implementation
+
 function ConvertTo-DpapiSecretPath {
+    <#
+    .SYNOPSIS
+    Normalizes the filename used to store a DPAPI-protected credential.
+    #>
+
     param([string]$PathText)
 
     $trimmed = ($PathText ?? '').Trim()
@@ -1377,6 +1685,11 @@ function ConvertTo-DpapiSecretPath {
 }
 
 function Resolve-DpapiSecretPath {
+    <#
+    .SYNOPSIS
+    Obtains and normalizes the protected credential path from options or an interactive prompt.
+    #>
+
     if (-not [string]::IsNullOrWhiteSpace($SecretPath)) {
         return ConvertTo-DpapiSecretPath -PathText $SecretPath
     }
@@ -1393,6 +1706,11 @@ function Resolve-DpapiSecretPath {
 }
 
 function Resolve-DpapiSecretName {
+    <#
+    .SYNOPSIS
+    Obtains the display name used to identify a protected credential.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     if (-not [string]::IsNullOrWhiteSpace($SecretName)) {
@@ -1403,6 +1721,11 @@ function Resolve-DpapiSecretName {
 }
 
 function Read-SecretSecureString {
+    <#
+    .SYNOPSIS
+    Prompts for matching secure values before accepting a secret.
+    #>
+
     while ($true) {
         $first = Read-Host 'Enter the secret value' -AsSecureString
         $second = Read-Host 'Confirm the secret value' -AsSecureString
@@ -1430,6 +1753,11 @@ function Read-SecretSecureString {
 }
 
 function Import-DpapiSecretCredential {
+    <#
+    .SYNOPSIS
+    Loads a protected credential and rejects files with an unexpected object type.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     if (-not (Test-Path -LiteralPath $ResolvedSecretPath -PathType Leaf)) {
@@ -1445,6 +1773,11 @@ function Import-DpapiSecretCredential {
 }
 
 function Get-DpapiSecretPlainValue {
+    <#
+    .SYNOPSIS
+    Decrypts the selected credential for an explicitly requested secret operation.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     $credential = Import-DpapiSecretCredential -ResolvedSecretPath $ResolvedSecretPath
@@ -1457,6 +1790,11 @@ function Get-DpapiSecretPlainValue {
 }
 
 function Invoke-DpapiSecretPreflight {
+    <#
+    .SYNOPSIS
+    Checks the prerequisites for current-user DPAPI credential protection.
+    #>
+
     param(
         [string]$ResolvedSecretPath,
         [switch]$RequireExistingSecret,
@@ -1480,6 +1818,11 @@ function Invoke-DpapiSecretPreflight {
 }
 
 function Protect-DpapiSecretValue {
+    <#
+    .SYNOPSIS
+    Prompts for a secret and persists it using current-user DPAPI protection.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$ResolvedSecretPath,
         [Parameter(Mandatory)][string]$ResolvedSecretName
@@ -1513,6 +1856,11 @@ function Protect-DpapiSecretValue {
 }
 
 function Show-DpapiSecretValue {
+    <#
+    .SYNOPSIS
+    Reveals the selected protected secret for the requested interactive action.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$ResolvedSecretPath,
         [switch]$CopyAfter
@@ -1537,6 +1885,11 @@ function Show-DpapiSecretValue {
 }
 
 function Copy-DpapiSecretValue {
+    <#
+    .SYNOPSIS
+    Copies the decrypted secret to the clipboard for the requested action.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     $plainValue = Get-DpapiSecretPlainValue -ResolvedSecretPath $ResolvedSecretPath
@@ -1550,6 +1903,11 @@ function Copy-DpapiSecretValue {
 }
 
 function Show-DpapiSecretMetadata {
+    <#
+    .SYNOPSIS
+    Reports credential metadata without revealing the stored secret.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     $credential = Import-DpapiSecretCredential -ResolvedSecretPath $ResolvedSecretPath
@@ -1563,6 +1921,11 @@ function Show-DpapiSecretMetadata {
 }
 
 function Show-DpapiSecretMenuScreen {
+    <#
+    .SYNOPSIS
+    Prints the available DPAPI credential operations.
+    #>
+
     Show-Banner -Title 'Protect Secret Value' -Subtitle 'Reusable DPAPI helper for one-user local secrets'
     Write-MenuItem -Key '1' -Label 'Protect a new or existing secret file'
     Write-MenuItem -Key '2' -Label 'Inspect a protected file'
@@ -1575,6 +1938,11 @@ function Show-DpapiSecretMenuScreen {
 }
 
 function Invoke-DpapiSecretMenuLoop {
+    <#
+    .SYNOPSIS
+    Dispatches interactive DPAPI choices and reports operation failures.
+    #>
+
     while ($true) {
         Initialize-SharedBootstrap -ClearScreen
         Show-DpapiSecretMenuScreen
@@ -1621,8 +1989,15 @@ function Invoke-DpapiSecretMenuLoop {
 }
 
 function Invoke-WorkTrailSecretTool {
+    <#
+    .SYNOPSIS
+    Dispatches the selected DPAPI credential action from command-line options.
+    #>
+
     switch ($SecretToolAction) {
-        'Menu' { Invoke-DpapiSecretMenuLoop }
+        'Menu' {
+            Invoke-DpapiSecretMenuLoop
+        }
         'Preflight' {
             $resolvedSecretPath = Resolve-DpapiSecretPath
             Show-Banner -Title 'Protect Secret Value' -Subtitle 'Reusable DPAPI helper for one-user local secrets'
@@ -1664,11 +2039,22 @@ function Invoke-WorkTrailSecretTool {
             Show-DpapiSecretMetadata -ResolvedSecretPath $resolvedSecretPath
             Show-Footer -ScriptName $script:ScriptName -Status 'COMPLETED' -StartTime $script:StartedAt -EndTime (Get-Date)
         }
-        default { throw "Unsupported DPAPI secret action: $SecretToolAction" }
+        default {
+            throw "Unsupported DPAPI secret action: $SecretToolAction"
+        }
     }
 }
 
+#endregion
+
+#region YubiKey secret implementation
+
 function Get-YkmanExecutable {
+    <#
+    .SYNOPSIS
+    Locates the YubiKey Manager executable required by hardware-backed secret operations.
+    #>
+
     $directPath = 'C:\Program Files\Yubico\YubiKey Manager\ykman.exe'
     if (Test-Path -LiteralPath $directPath -PathType Leaf) {
         return $directPath
@@ -1683,6 +2069,11 @@ function Get-YkmanExecutable {
 }
 
 function Invoke-Ykman {
+    <#
+    .SYNOPSIS
+    Runs YubiKey Manager and reports native-tool failures.
+    #>
+
     param(
         [Parameter(Mandatory)][string[]]$Arguments,
         [switch]$AllowFailure
@@ -1708,6 +2099,11 @@ function Invoke-Ykman {
 }
 
 function ConvertTo-YubiSecretPath {
+    <#
+    .SYNOPSIS
+    Normalizes the filename used for a YubiKey-protected secret document.
+    #>
+
     param([string]$PathText)
 
     $trimmed = ($PathText ?? '').Trim()
@@ -1719,6 +2115,11 @@ function ConvertTo-YubiSecretPath {
 }
 
 function Resolve-YubiSecretPath {
+    <#
+    .SYNOPSIS
+    Obtains and normalizes the protected secret path from options or a prompt.
+    #>
+
     if (-not [string]::IsNullOrWhiteSpace($SecretPath)) {
         return ConvertTo-YubiSecretPath -PathText $SecretPath
     }
@@ -1735,6 +2136,11 @@ function Resolve-YubiSecretPath {
 }
 
 function Resolve-YubiCredentialXmlPath {
+    <#
+    .SYNOPSIS
+    Resolves the existing credential file selected for migration.
+    #>
+
     if (-not [string]::IsNullOrWhiteSpace($CredentialXmlPath)) {
         return ConvertTo-YubiSecretPath -PathText $CredentialXmlPath
     }
@@ -1751,6 +2157,11 @@ function Resolve-YubiCredentialXmlPath {
 }
 
 function Resolve-YubiSecretLabel {
+    <#
+    .SYNOPSIS
+    Obtains the label used to identify the hardware-protected secret.
+    #>
+
     param(
         [string]$ResolvedSecretPath,
         [string]$FallbackLabel
@@ -1768,6 +2179,11 @@ function Resolve-YubiSecretLabel {
 }
 
 function Get-YubiOtpInfo {
+    <#
+    .SYNOPSIS
+    Reads OTP slot information from the connected YubiKey.
+    #>
+
     $result = Invoke-Ykman -Arguments @('otp', 'info')
     $slotLines = @{}
 
@@ -1784,6 +2200,11 @@ function Get-YubiOtpInfo {
 }
 
 function Get-YubiSerialNumber {
+    <#
+    .SYNOPSIS
+    Reads the connected YubiKey serial number for the protected document metadata.
+    #>
+
     $result = Invoke-Ykman -Arguments @('list', '--serials')
     $serial = ($result.Output | Select-Object -First 1).ToString().Trim()
     if ([string]::IsNullOrWhiteSpace($serial)) {
@@ -1794,14 +2215,28 @@ function Get-YubiSerialNumber {
 }
 
 function Test-YubiSlotProgrammed {
+    <#
+    .SYNOPSIS
+    Checks whether the selected OTP slot has been configured.
+    #>
+
     param([Parameter(Mandatory)][string]$SlotNumber)
 
     $info = Get-YubiOtpInfo
-    $status = if ($SlotNumber -eq '1') { $info.Slot1 } else { $info.Slot2 }
+    $status = if ($SlotNumber -eq '1') {
+        $info.Slot1
+    } else {
+        $info.Slot2
+    }
     return ($status -match 'programmed')
 }
 
 function Invoke-YubiPreflight {
+    <#
+    .SYNOPSIS
+    Checks the connected YubiKey and slot prerequisites for secret protection.
+    #>
+
     param(
         [string]$ResolvedSecretPath,
         [switch]$RequireExistingSecret,
@@ -1830,7 +2265,11 @@ function Invoke-YubiPreflight {
 
     $checks.Add([pscustomobject]@{
         Check = 'PowerShell'
-        Status = if ($PSVersionTable.PSVersion.Major -ge 7) { 'OK' } else { 'FAIL' }
+        Status = if ($PSVersionTable.PSVersion.Major -ge 7) {
+            'OK'
+        } else {
+            'FAIL'
+        }
         Details = ("Detected {0}" -f $PSVersionTable.PSVersion)
     })
 
@@ -1838,8 +2277,16 @@ function Invoke-YubiPreflight {
         $clipboardCommand = Get-Command -Name Set-Clipboard -ErrorAction SilentlyContinue | Select-Object -First 1
         $checks.Add([pscustomobject]@{
             Check = 'Clipboard'
-            Status = if ($clipboardCommand) { 'OK' } else { 'FAIL' }
-            Details = if ($clipboardCommand) { $clipboardCommand.Source } else { 'Set-Clipboard not available' }
+            Status = if ($clipboardCommand) {
+                'OK'
+            } else {
+                'FAIL'
+            }
+            Details = if ($clipboardCommand) {
+                $clipboardCommand.Source
+            } else {
+                'Set-Clipboard not available'
+            }
         })
     }
 
@@ -1847,7 +2294,11 @@ function Invoke-YubiPreflight {
         $exists = Test-Path -LiteralPath $ResolvedSecretPath -PathType Leaf
         $checks.Add([pscustomobject]@{
             Check = "File: $(Split-Path -Leaf $ResolvedSecretPath)"
-            Status = if ($exists) { 'OK' } else { 'FAIL' }
+            Status = if ($exists) {
+                'OK'
+            } else {
+                'FAIL'
+            }
             Details = $ResolvedSecretPath
         })
     }
@@ -1857,8 +2308,16 @@ function Invoke-YubiPreflight {
             $slotReady = Test-YubiSlotProgrammed -SlotNumber $Slot
             $checks.Add([pscustomobject]@{
                 Check = "OTP slot $Slot"
-                Status = if ($slotReady) { 'OK' } else { 'FAIL' }
-                Details = if ($slotReady) { 'Challenge-response slot appears programmed.' } else { 'Slot is empty. Run SetupSlot first.' }
+                Status = if ($slotReady) {
+                    'OK'
+                } else {
+                    'FAIL'
+                }
+                Details = if ($slotReady) {
+                    'Challenge-response slot appears programmed.'
+                } else {
+                    'Slot is empty. Run SetupSlot first.'
+                }
             })
         }
         catch {
@@ -1879,6 +2338,11 @@ function Invoke-YubiPreflight {
 }
 
 function New-RandomBytes {
+    <#
+    .SYNOPSIS
+    Creates cryptographically random bytes for secret-protection inputs.
+    #>
+
     param([Parameter(Mandatory)][int]$Length)
 
     $buffer = [byte[]]::new($Length)
@@ -1887,12 +2351,22 @@ function New-RandomBytes {
 }
 
 function ConvertTo-HexString {
+    <#
+    .SYNOPSIS
+    Encodes binary secret-protection inputs as hexadecimal text.
+    #>
+
     param([Parameter(Mandatory)][byte[]]$Bytes)
 
     return ([System.BitConverter]::ToString($Bytes)).Replace('-', '').ToLowerInvariant()
 }
 
 function ConvertFrom-HexString {
+    <#
+    .SYNOPSIS
+    Validates and decodes hexadecimal secret-protection inputs.
+    #>
+
     param([Parameter(Mandatory)][string]$Hex)
 
     $cleanHex = ($Hex ?? '').Trim()
@@ -1909,6 +2383,11 @@ function ConvertFrom-HexString {
 }
 
 function Get-YubiChallengeResponse {
+    <#
+    .SYNOPSIS
+    Requests the hardware challenge response from the selected YubiKey slot.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$SlotNumber,
         [Parameter(Mandatory)][byte[]]$ChallengeBytes
@@ -1931,6 +2410,11 @@ function Get-YubiChallengeResponse {
 }
 
 function Get-AesKeyFromYubiResponse {
+    <#
+    .SYNOPSIS
+    Derives the encryption key from the hardware response and the stored derivation inputs.
+    #>
+
     param(
         [Parameter(Mandatory)][byte[]]$ResponseBytes,
         [Parameter(Mandatory)][byte[]]$SaltBytes
@@ -1946,6 +2430,11 @@ function Get-AesKeyFromYubiResponse {
 }
 
 function Protect-PlaintextWithYubi {
+    <#
+    .SYNOPSIS
+    Encrypts plaintext using a hardware-derived key and writes the protected document.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$ResolvedSecretPath,
         [Parameter(Mandatory)][string]$Label,
@@ -1983,7 +2472,9 @@ function Protect-PlaintextWithYubi {
         $aes.Encrypt($nonceBytes, $plainBytes, $cipherBytes, $tagBytes)
     }
     finally {
-        if ($aes) { $aes.Dispose() }
+        if ($aes) {
+            $aes.Dispose()
+        }
         [Array]::Clear($plainBytes, 0, $plainBytes.Length)
         [Array]::Clear($keyBytes, 0, $keyBytes.Length)
         [Array]::Clear($responseBytes, 0, $responseBytes.Length)
@@ -2008,6 +2499,11 @@ function Protect-PlaintextWithYubi {
 }
 
 function Import-YubiProtectedFile {
+    <#
+    .SYNOPSIS
+    Loads and validates the structure of a hardware-protected secret document.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     if (-not (Test-Path -LiteralPath $ResolvedSecretPath -PathType Leaf)) {
@@ -2023,6 +2519,11 @@ function Import-YubiProtectedFile {
 }
 
 function Get-PlaintextFromYubiProtectedFile {
+    <#
+    .SYNOPSIS
+    Obtains a hardware response and decrypts the selected protected document.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     $payload = Import-YubiProtectedFile -ResolvedSecretPath $ResolvedSecretPath
@@ -2042,7 +2543,9 @@ function Get-PlaintextFromYubiProtectedFile {
         return [System.Text.Encoding]::UTF8.GetString($plainBytes)
     }
     finally {
-        if ($aes) { $aes.Dispose() }
+        if ($aes) {
+            $aes.Dispose()
+        }
         [Array]::Clear($plainBytes, 0, $plainBytes.Length)
         [Array]::Clear($keyBytes, 0, $keyBytes.Length)
         [Array]::Clear($responseBytes, 0, $responseBytes.Length)
@@ -2050,6 +2553,11 @@ function Get-PlaintextFromYubiProtectedFile {
 }
 
 function Protect-FromYubiPrompt {
+    <#
+    .SYNOPSIS
+    Prompts for a secret before encrypting it with the selected YubiKey slot.
+    #>
+
     $resolvedSecretPath = Resolve-YubiSecretPath
     $label = Resolve-YubiSecretLabel -ResolvedSecretPath $resolvedSecretPath -FallbackLabel ''
     $secureValue = Read-SecretSecureString
@@ -2065,6 +2573,11 @@ function Protect-FromYubiPrompt {
 }
 
 function Migrate-CredentialXmlToYubi {
+    <#
+    .SYNOPSIS
+    Reads a DPAPI credential and writes a hardware-protected copy.
+    #>
+
     $resolvedCredentialPath = Resolve-YubiCredentialXmlPath
     $resolvedSecretPath = Resolve-YubiSecretPath
 
@@ -2093,6 +2606,11 @@ function Migrate-CredentialXmlToYubi {
 }
 
 function Show-YubiProtectedSecret {
+    <#
+    .SYNOPSIS
+    Reveals a hardware-protected secret for the requested interactive action.
+    #>
+
     param(
         [Parameter(Mandatory)][string]$ResolvedSecretPath,
         [switch]$CopyAfter
@@ -2117,6 +2635,11 @@ function Show-YubiProtectedSecret {
 }
 
 function Copy-YubiProtectedSecret {
+    <#
+    .SYNOPSIS
+    Copies the decrypted hardware-protected secret to the clipboard.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     $plainValue = Get-PlaintextFromYubiProtectedFile -ResolvedSecretPath $ResolvedSecretPath
@@ -2130,6 +2653,11 @@ function Copy-YubiProtectedSecret {
 }
 
 function Show-YubiProtectedMetadata {
+    <#
+    .SYNOPSIS
+    Reports protected document metadata without decrypting the secret.
+    #>
+
     param([Parameter(Mandatory)][string]$ResolvedSecretPath)
 
     $payload = Import-YubiProtectedFile -ResolvedSecretPath $ResolvedSecretPath
@@ -2144,6 +2672,11 @@ function Show-YubiProtectedMetadata {
 }
 
 function Initialize-YubiSlot {
+    <#
+    .SYNOPSIS
+    Configures the selected YubiKey slot for challenge-response protection.
+    #>
+
     if (-not $Force) {
         Write-Host 'This will program the selected OTP slot for challenge-response and replace its current contents.' -ForegroundColor Yellow
         $confirm = Read-Host 'Continue? [y/N]'
@@ -2159,6 +2692,11 @@ function Initialize-YubiSlot {
 }
 
 function Show-YubiSecretMenuScreen {
+    <#
+    .SYNOPSIS
+    Prints the available hardware-protected secret operations.
+    #>
+
     Show-Banner -Title 'Protect Secret With YubiKey' -Subtitle 'YubiKey-backed XML secret helper'
     Write-MenuItem -Key '1' -Label 'Run preflight'
     Write-MenuItem -Key '2' -Label 'Setup OTP slot for challenge-response'
@@ -2173,6 +2711,11 @@ function Show-YubiSecretMenuScreen {
 }
 
 function Invoke-YubiSecretMenuLoop {
+    <#
+    .SYNOPSIS
+    Dispatches interactive YubiKey choices and reports operation failures.
+    #>
+
     while ($true) {
         Initialize-SharedBootstrap -ClearScreen
         Show-YubiSecretMenuScreen
@@ -2230,8 +2773,15 @@ function Invoke-YubiSecretMenuLoop {
 }
 
 function Invoke-WorkTrailYubiKeySecretTool {
+    <#
+    .SYNOPSIS
+    Dispatches the selected hardware-protected secret action from command-line options.
+    #>
+
     switch ($SecretToolAction) {
-        'Menu' { Invoke-YubiSecretMenuLoop }
+        'Menu' {
+            Invoke-YubiSecretMenuLoop
+        }
         'Preflight' {
             Show-Banner -Title 'Protect Secret With YubiKey' -Subtitle 'YubiKey-backed XML secret helper'
             Invoke-YubiPreflight -RequireProgrammedSlot
@@ -2283,32 +2833,76 @@ function Invoke-WorkTrailYubiKeySecretTool {
             Show-YubiProtectedMetadata -ResolvedSecretPath $resolvedSecretPath
             Show-Footer -ScriptName $script:ScriptName -Status 'COMPLETED' -StartTime $script:StartedAt -EndTime (Get-Date)
         }
-        default { throw "Unsupported YubiKey secret action: $SecretToolAction" }
+        default {
+            throw "Unsupported YubiKey secret action: $SecretToolAction"
+        }
     }
 }
 
+#endregion
+
+#region Action dispatch and interactive menu
+
 function Invoke-WorkTrailAction {
+    <#
+    .SYNOPSIS
+    Dispatches one repository operation using the resolved command-line options.
+    #>
+
     param([Parameter(Mandatory)][string]$RequestedAction)
 
     switch ($RequestedAction) {
-        'Preflight' { Invoke-WorkTrailPreflight }
-        'Restore' { Invoke-WorkTrailRestore }
-        'Build' { Invoke-WorkTrailBuild }
-        'Test' { Invoke-WorkTrailTest }
-        'ValidateStoreListing' { Invoke-WorkTrailStoreListingValidation }
-        'GenerateAssets' { Invoke-WorkTrailAssetGeneration }
-        'PublishUnpackaged' { Invoke-WorkTrailUnpackagedPublish }
-        'PackageMsix' { Invoke-WorkTrailMsixPackage }
-        'InstallDebugMsix' { Invoke-WorkTrailDebugMsixInstall }
-        'CreateInstaller' { Invoke-WorkTrailInstallerCreation }
-        'ProtectSecret' { Invoke-WorkTrailSecretTool }
-        'ProtectSecretYubiKey' { Invoke-WorkTrailYubiKeySecretTool }
-        'BuildInfo' { Invoke-WorkTrailBuildInfo }
-        default { throw "Unsupported WorkTrail action: $RequestedAction" }
+        'Preflight' {
+            Invoke-WorkTrailPreflight
+        }
+        'Restore' {
+            Invoke-WorkTrailRestore
+        }
+        'Build' {
+            Invoke-WorkTrailBuild
+        }
+        'Test' {
+            Invoke-WorkTrailTest
+        }
+        'ValidateStoreListing' {
+            Invoke-WorkTrailStoreListingValidation
+        }
+        'GenerateAssets' {
+            Invoke-WorkTrailAssetGeneration
+        }
+        'PublishUnpackaged' {
+            Invoke-WorkTrailUnpackagedPublish
+        }
+        'PackageMsix' {
+            Invoke-WorkTrailMsixPackage
+        }
+        'InstallDebugMsix' {
+            Invoke-WorkTrailDebugMsixInstall
+        }
+        'CreateInstaller' {
+            Invoke-WorkTrailInstallerCreation
+        }
+        'ProtectSecret' {
+            Invoke-WorkTrailSecretTool
+        }
+        'ProtectSecretYubiKey' {
+            Invoke-WorkTrailYubiKeySecretTool
+        }
+        'BuildInfo' {
+            Invoke-WorkTrailBuildInfo
+        }
+        default {
+            throw "Unsupported WorkTrail action: $RequestedAction"
+        }
     }
 }
 
 function Invoke-WorkTrailActionForAgent {
+    <#
+    .SYNOPSIS
+    Runs a noninteractive operation and reports its result or failure consistently.
+    #>
+
     param([Parameter(Mandatory)][string]$RequestedAction)
 
     $started = Get-Date
@@ -2340,6 +2934,11 @@ function Invoke-WorkTrailActionForAgent {
 }
 
 function Show-WorkTrailMenu {
+    <#
+    .SYNOPSIS
+    Runs the interactive repository menu until the user chooses to exit.
+    #>
+
     while ($true) {
         Initialize-SharedBootstrap -ClearScreen
         Show-Banner -Title 'WorkTrail Control Center' -Subtitle 'Build, validate, package, and repository helpers'
@@ -2362,14 +2961,30 @@ function Show-WorkTrailMenu {
         }
 
         $selectedAction = switch ($choice) {
-            '1' { 'Restore' }
-            '2' { 'Build' }
-            '3' { 'Test' }
-            '5' { 'ValidateStoreListing' }
-            '6' { 'GenerateAssets' }
-            '7' { 'PublishUnpackaged' }
-            '9' { 'ProtectSecret' }
-            '10' { 'ProtectSecretYubiKey' }
+            '1' {
+                'Restore'
+            }
+            '2' {
+                'Build'
+            }
+            '3' {
+                'Test'
+            }
+            '5' {
+                'ValidateStoreListing'
+            }
+            '6' {
+                'GenerateAssets'
+            }
+            '7' {
+                'PublishUnpackaged'
+            }
+            '9' {
+                'ProtectSecret'
+            }
+            '10' {
+                'ProtectSecretYubiKey'
+            }
         }
 
         try {
@@ -2385,6 +3000,8 @@ function Show-WorkTrailMenu {
         Wait-ForEnter
     }
 }
+
+#endregion
 
 if ($Help -or (@($PassThruArguments) -contains '--help') -or (@($PassThruArguments) -contains '-h') -or (@($PassThruArguments) -contains '/?')) {
     Get-Help $PSCommandPath -Detailed

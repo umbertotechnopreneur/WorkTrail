@@ -25,11 +25,17 @@ namespace WorkTrail;
 /// <summary>Floats window chrome above content without reserving a title-bar strip.</summary>
 internal sealed class TitleBarOverlayLayout
 {
+    #region Fields
+
     private readonly FrameworkElement _dragRegion;
     private readonly Grid _headerParent;
     private readonly RowDefinition _rootHeaderRow;
     private readonly RowDefinition _parentHeaderRow;
     private readonly double _overlayHeight;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Validates the existing title-bar hierarchy before collapsing its layout rows.</summary>
     internal TitleBarOverlayLayout(Grid root, FrameworkElement dragRegion)
@@ -68,6 +74,10 @@ internal sealed class TitleBarOverlayLayout
         }
     }
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Gets the fixed caption height used to bound the overlay's input surface.</summary>
     internal double HeaderHeight => _overlayHeight;
 
@@ -82,4 +92,6 @@ internal sealed class TitleBarOverlayLayout
         _parentHeaderRow.Height = new GridLength(0d);
         _rootHeaderRow.Height = new GridLength(0d);
     }
+
+    #endregion
 }

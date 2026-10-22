@@ -27,6 +27,8 @@ namespace WorkTrail.Controls;
 /// <summary>Renders the current sun or a continuously calculated lunar phase.</summary>
 public sealed partial class CelestialPhaseControl : UserControl
 {
+    #region Fields
+
     /// <summary>Identifies the daylight dependency property.</summary>
     public static readonly DependencyProperty IsDaylightProperty = DependencyProperty.Register(
         nameof(IsDaylight),
@@ -41,12 +43,20 @@ public sealed partial class CelestialPhaseControl : UserControl
         typeof(CelestialPhaseControl),
         new PropertyMetadata(0d, OnVisualPropertyChanged));
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates the celestial phase control.</summary>
     public CelestialPhaseControl()
     {
         InitializeComponent();
         UpdateVisual();
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Gets or sets whether the sun is currently above the standard apparent horizon.</summary>
     public bool IsDaylight
@@ -62,9 +72,11 @@ public sealed partial class CelestialPhaseControl : UserControl
         set => SetValue(MoonPhaseAngleDegreesProperty, value);
     }
 
+    /// <summary>Redraws the control after a visual dependency property changes.</summary>
     private static void OnVisualPropertyChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>
         ((CelestialPhaseControl)sender).UpdateVisual();
 
+    /// <summary>Recalculates the control's geometry and visibility from its current properties.</summary>
     private void UpdateVisual()
     {
         if (SunVisual is null || MoonVisual is null || MoonShadow is null)
@@ -80,15 +92,19 @@ public sealed partial class CelestialPhaseControl : UserControl
         }
     }
 
+    /// <summary>Reports a failed lunar surface image instead of silently leaving an empty disk.</summary>
     private void MoonImage_Failed(object sender, ExceptionRoutedEventArgs args) =>
         ApplicationErrorService.Report(new InvalidOperationException(args.ErrorMessage), "MoonSurfaceImage", Language);
 
+    /// <summary>Builds the dark lunar region from the outer limb and phase-dependent terminator.</summary>
     private static Geometry BuildMoonShadow(double phaseAngleDegrees, double size)
     {
         const int segmentCount = 96;
         var angle = (phaseAngleDegrees % 360d + 360d) % 360d;
         var waxing = angle <= 180d;
         var radius = size / 2d;
+        var phaseAngleRadians = angle * Math.PI / 180d;
+        var terminatorCosine = Math.Cos(phaseAngleRadians);
         var points = new List<Windows.Foundation.Point>();
 
         // The outer limb and calculated terminator form the only dark region.
@@ -106,8 +122,8 @@ public sealed partial class CelestialPhaseControl : UserControl
             var yNormalized = -1d + 2d * index / segmentCount;
             var horizontal = radius * Math.Sqrt(Math.Max(0d, 1d - yNormalized * yNormalized));
             var x = waxing
-                ? radius + Math.Cos(angle * Math.PI / 180d) * horizontal
-                : radius - Math.Cos(angle * Math.PI / 180d) * horizontal;
+                ? radius + terminatorCosine * horizontal
+                : radius - terminatorCosine * horizontal;
             points.Add(new Windows.Foundation.Point(x, radius + yNormalized * radius));
         }
 
@@ -123,4 +139,6 @@ public sealed partial class CelestialPhaseControl : UserControl
         geometry.Figures.Add(figure);
         return geometry;
     }
+
+    #endregion
 }

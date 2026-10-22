@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.IO.Pipes;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
@@ -31,6 +30,8 @@ namespace WorkTrail.Runtime;
 /// <summary>Owns the single local runtime and serves versioned requests over a same-user named pipe.</summary>
 public sealed class RuntimeHost : IAsyncDisposable
 {
+
+    #region Fields
     private IWorkTrailApplication _application;
     private readonly Func<IWorkTrailApplication>? _applicationFactory;
     private readonly bool _ownsApplication;
@@ -41,6 +42,10 @@ public sealed class RuntimeHost : IAsyncDisposable
     private RuntimePipeServer? _server;
     private Task? _serverTask;
     private bool _disposed;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Initializes a runtime host for a single application installation.</summary>
     public RuntimeHost(IWorkTrailApplication application, string installationId, ILogger<RuntimeHost>? logger = null)
@@ -65,13 +70,16 @@ public sealed class RuntimeHost : IAsyncDisposable
         _logger = logger ?? NullLogger<RuntimeHost>.Instance;
     }
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Gets the endpoint used by this host.</summary>
     public RuntimeEndpoint Endpoint => _endpoint;
 
     /// <summary>Gets the local application after this host has acquired runtime ownership.</summary>
     public IWorkTrailApplication Application =>
         _application ?? throw new InvalidOperationException("The runtime host does not own a local application.");
-
 
     /// <summary>Starts the host when this process successfully acquires runtime ownership.</summary>
     public bool TryStart()
@@ -182,6 +190,11 @@ public sealed class RuntimeHost : IAsyncDisposable
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Rejects operations after runtime host disposal has begun.</summary>
     private void ThrowIfDisposed()
     {
         if (_disposed)
@@ -190,12 +203,20 @@ public sealed class RuntimeHost : IAsyncDisposable
         }
     }
 
+    #endregion
+
 }
 
 /// <summary>Provides a typed application facade backed by the local runtime pipe.</summary>
 public sealed class RuntimeClient : IWorkTrailApplication
 {
+
+    #region Fields
     private readonly WindowSnappingService _windowSnapping = new();
+
+    #endregion
+
+    #region Methods and properties
 
     /// <inheritdoc />
     public IWindowSnappingRegistration RegisterWindowSnapping(long windowHandle, Action<Exception> reportFailure) =>
@@ -203,12 +224,20 @@ public sealed class RuntimeClient : IWorkTrailApplication
 
     /// <inheritdoc />
     public void ConfigureWindowSnapping(bool enabled) => _windowSnapping.Configure(enabled);
+
+    #endregion
+
+    #region Fields
     private static readonly TimeSpan StartupMutationTimeout = TimeSpan.FromMinutes(2);
     internal static readonly TimeSpan WorldClockQueryTimeout = TimeSpan.FromSeconds(15);
     internal static readonly TimeSpan WorldClockWeatherKeyTimeout = TimeSpan.FromSeconds(15);
     private readonly RuntimeEndpoint _endpoint;
     private readonly TimeSpan _timeout;
     private readonly ILogger<RuntimeClient> _logger;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Initializes a client for the supplied installation identifier.</summary>
     public RuntimeClient(string installationId, TimeSpan timeout, ILogger<RuntimeClient>? logger = null)
@@ -217,6 +246,10 @@ public sealed class RuntimeClient : IWorkTrailApplication
         _timeout = timeout;
         _logger = logger ?? NullLogger<RuntimeClient>.Instance;
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <inheritdoc />
     public Task<OperationResult<RuntimeHealth>> GetRuntimeHealthAsync(CancellationToken cancellationToken) => SendAsync<RuntimeHealth>(RuntimeOperation.RuntimeHealth, null, cancellationToken);
@@ -293,6 +326,11 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Exchanges one bounded request with the same-user runtime and maps unavailable transport results.</summary>
     private async Task<OperationResult<T>> SendAsync<T>(
         RuntimeOperation operation,
         object? payload,
@@ -330,4 +368,7 @@ public sealed class RuntimeClient : IWorkTrailApplication
             return OperationResult<T>.Failure("runtime.unavailable", "RuntimeUnavailable");
         }
     }
+
+    #endregion
+
 }

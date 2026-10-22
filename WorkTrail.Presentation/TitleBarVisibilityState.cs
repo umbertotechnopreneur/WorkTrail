@@ -22,16 +22,26 @@ namespace WorkTrail.Presentation;
 /// <summary>Tracks pointer and accessible keyboard/touch access to automatically hidden window chrome.</summary>
 public sealed class TitleBarVisibilityState
 {
+    #region Fields
+
     private bool _pointerInside;
     private bool _pointerPressed;
     private bool _interactionHeld;
     private bool _interactionProtected;
+
+    #endregion
+
+    #region Properties
 
     /// <summary>Gets whether the window chrome should be visible and interactive.</summary>
     public bool IsVisible { get; private set; } = true;
 
     /// <summary>Gets whether the first contact is being consumed to reveal hidden chrome.</summary>
     public bool IsRevealContactPending { get; private set; }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Resolves hover intent without interrupting a drag begun while the rendered chrome is awaiting its hide delay.</summary>
     public bool ShouldShowChrome(bool isChromeVisible) =>
@@ -73,6 +83,7 @@ public sealed class TitleBarVisibilityState
 
         IsRevealContactPending = true;
         IsVisible = false;
+
         return true;
     }
 
@@ -105,4 +116,6 @@ public sealed class TitleBarVisibilityState
         IsRevealContactPending = false;
         UpdatePointer(_pointerInside, _pointerPressed);
     }
+
+    #endregion
 }

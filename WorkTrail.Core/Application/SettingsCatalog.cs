@@ -7,6 +7,8 @@ namespace WorkTrail.Application;
 /// <summary>Validates the desktop preferences accepted by the shared facade.</summary>
 public static class SettingsCatalog
 {
+
+    #region Methods and properties
     /// <summary>Normalizes widget preferences while preserving saved cities and window placement.</summary>
     public static AppSettings NormalizePersisted(AppSettings settings) => settings with
     {
@@ -61,19 +63,37 @@ public static class SettingsCatalog
         return OperationResult<AppSettings>.Success("settings.valid", "SettingsSaved", current);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Parses a Boolean preference and rejects unsupported text.</summary>
     private static bool ParseBoolean(string value) => bool.TryParse(value, out var result) ? result : throw new ArgumentException();
+    /// <summary>Accepts an invariant integer opacity within the supported range.</summary>
     private static int ParseOpacity(string value) => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var result)
         && result is >= 25 and <= 100 ? result : throw new ArgumentException();
+    /// <summary>Validates a comma-separated selection of distinct supported countries.</summary>
     private static IReadOnlyList<string> ParseCountries(string value)
     {
-        if (value.Length == 0) return [];
+        if (value.Length == 0)
+        {
+            return [];
+        }
+
         var values = value.Split(',', StringSplitOptions.TrimEntries);
         if (values.Any(code => !CelestialCalendarCountries.All.Any(country => country.Code.Equals(code, StringComparison.OrdinalIgnoreCase)))
             || values.Distinct(StringComparer.OrdinalIgnoreCase).Count() != values.Length)
+        {
             throw new ArgumentException();
+        }
+
         return NormalizeCountries(values);
     }
+    /// <summary>Removes unsupported country codes and returns unique uppercase identifiers.</summary>
     private static IReadOnlyList<string> NormalizeCountries(IReadOnlyList<string> values) => values
         .Where(code => CelestialCalendarCountries.All.Any(country => country.Code.Equals(code, StringComparison.OrdinalIgnoreCase)))
         .Select(code => code.ToUpperInvariant()).Distinct(StringComparer.Ordinal).ToArray();
+
+    #endregion
+
 }

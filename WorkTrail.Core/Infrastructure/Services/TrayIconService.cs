@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -59,6 +58,8 @@ public sealed record TrayIconMenuState(
 /// <summary>Owns the notification-area icon that can hide and restore one top-level WorkTrail window.</summary>
 public sealed class TrayIconService : IDisposable
 {
+
+    #region Fields
     private const uint NotificationIconAdd = 0x00000000;
     private const uint NotificationIconModify = 0x00000001;
     private const uint NotificationIconDelete = 0x00000002;
@@ -100,23 +101,36 @@ public sealed class TrayIconService : IDisposable
     private bool _iconRegistered;
     private bool _disposed;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates the native notification-area owner with process-local diagnostics.</summary>
     public TrayIconService(ILogger logger)
         : this(logger, ShellNotifyIcon)
     {
     }
 
+    /// <summary>Connects notification-area ownership to logging and the shell operation delegate.</summary>
     internal TrayIconService(ILogger logger, NotifyIconDelegate notifyIcon)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _notifyIcon = notifyIcon ?? throw new ArgumentNullException(nameof(notifyIcon));
     }
 
+    #endregion
+
+    #region Fields
+
     /// <summary>Occurs after the user explicitly selects Close app in the notification-area context menu.</summary>
     public event EventHandler? ExitRequested;
 
     /// <summary>Occurs when an application action is selected; handlers must defer work until the native callback returns.</summary>
     public event Action<TrayIconMenuCommand>? CommandRequested;
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets or sets the UI-owned snapshot provider invoked immediately before the native menu opens.</summary>
     public Func<TrayIconMenuState>? MenuStateProvider { get; set; }
@@ -148,7 +162,11 @@ public sealed class TrayIconService : IDisposable
 
         RestoreMainWindowIfHidden();
         // A minimized window is still visible to USER32 and needs an explicit restore before foregrounding.
-        if (IsIconic(_windowHandle)) _ = ShowWindow(_windowHandle, ShowWindowRestore);
+        if (IsIconic(_windowHandle))
+        {
+            _ = ShowWindow(_windowHandle, ShowWindowRestore);
+        }
+
         _ = SetForegroundWindow(_windowHandle);
     }
 
@@ -165,6 +183,11 @@ public sealed class TrayIconService : IDisposable
         ReleaseNativeResources();
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Validates tray input and attaches native resources to the owning window once.</summary>
     private void EnsureAttached(IntPtr windowHandle, string iconPath, string toolTip, TrayIconMenuLabels menuLabels)
     {
         if (windowHandle == IntPtr.Zero)
@@ -253,6 +276,7 @@ public sealed class TrayIconService : IDisposable
         }
     }
 
+    /// <summary>Releases the tray icon, native subclass, icon handle, and managed callback ownership.</summary>
     private void ReleaseNativeResources()
     {
         RemoveNotificationIcon();
@@ -278,6 +302,7 @@ public sealed class TrayIconService : IDisposable
         _toolTip = string.Empty;
     }
 
+    /// <summary>Verifies or recreates the shell icon before the main window can be hidden.</summary>
     private void EnsureIconRegistered()
     {
         var notification = CreateNotificationData();
@@ -310,6 +335,7 @@ public sealed class TrayIconService : IDisposable
         _logger.LogInformation("Notification-area icon attached to the WorkTrail main window.");
     }
 
+    /// <summary>Removes the shell icon while permitting cleanup during shell shutdown.</summary>
     private void RemoveNotificationIcon()
     {
         if (!_iconRegistered)
@@ -327,6 +353,7 @@ public sealed class TrayIconService : IDisposable
         _iconRegistered = false;
     }
 
+    /// <summary>Restores tray registration after Explorer recreates the taskbar.</summary>
     private void OnTaskbarCreated()
     {
         try
@@ -343,6 +370,7 @@ public sealed class TrayIconService : IDisposable
         }
     }
 
+    /// <summary>Exposes the main window when tray recovery cannot guarantee access.</summary>
     private void RestoreMainWindowIfHidden()
     {
         if (!IsWindowVisible(_windowHandle))
@@ -355,6 +383,7 @@ public sealed class TrayIconService : IDisposable
         }
     }
 
+    /// <summary>Toggles the existing window while ensuring a usable tray icon before hiding it.</summary>
     private void ToggleMainWindowVisibility()
     {
         if (_disposed || _windowHandle == IntPtr.Zero)
@@ -373,6 +402,7 @@ public sealed class TrayIconService : IDisposable
         ShowMainWindow();
     }
 
+    /// <summary>Builds the localized native tray menu and forwards the selected command.</summary>
     private void ShowContextMenu()
     {
         if (_disposed || _windowHandle == IntPtr.Zero || _menuLabels is null)
@@ -446,6 +476,7 @@ public sealed class TrayIconService : IDisposable
     // command identifies the action returned by TrackPopupMenuEx.
     // label contains the current localized action text.
     // enabled indicates whether the existing application surface can handle this action now.
+    /// <summary>Appends a labelled command with its current enabled state to the popup.</summary>
     private static void AppendCommand(IntPtr menu, uint command, string label, bool enabled = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(label);
@@ -457,6 +488,7 @@ public sealed class TrayIconService : IDisposable
     }
 
     // menu identifies the owned native popup whose next action group is being separated.
+    /// <summary>Adds a separator between native tray menu action groups.</summary>
     private static void AppendSeparator(IntPtr menu)
     {
         if (!AppendMenu(menu, MenuSeparator, UIntPtr.Zero, string.Empty))
@@ -465,6 +497,7 @@ public sealed class TrayIconService : IDisposable
         }
     }
 
+    /// <summary>Builds the shell notification structure from the currently owned window and icon.</summary>
     private NotifyIconData CreateNotificationData() => new()
     {
         Size = Marshal.SizeOf<NotifyIconData>(),
@@ -481,6 +514,7 @@ public sealed class TrayIconService : IDisposable
         Version = NotificationIconVersion4
     };
 
+    /// <summary>Dispatches tray and taskbar messages without unwinding exceptions through Windows.</summary>
     private static IntPtr WindowSubclassProcedure(
         IntPtr windowHandle,
         uint message,
@@ -523,11 +557,17 @@ public sealed class TrayIconService : IDisposable
         return DefSubclassProc(windowHandle, message, wParam, lParam);
     }
 
+    /// <summary>Rejects tray operations after native resources have been released.</summary>
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Matches the shell notification structure, including fixed-size Unicode strings.</summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal struct NotifyIconData
     {
@@ -563,6 +603,7 @@ public sealed class TrayIconService : IDisposable
         }
     }
 
+    /// <summary>Matches a native point in physical desktop coordinates.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -581,67 +622,91 @@ public sealed class TrayIconService : IDisposable
 
     internal delegate bool NotifyIconDelegate(uint message, ref NotifyIconData notificationData);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Registers a named shell notification message.</summary>
     [DllImport("user32.dll", EntryPoint = "RegisterWindowMessageW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern uint RegisterWindowMessage(string message);
 
+    /// <summary>Adds, updates, or removes a shell notification-area icon.</summary>
     [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShellNotifyIcon(uint message, ref NotifyIconData notificationData);
 
+    /// <summary>Loads the native icon resource from the supplied source.</summary>
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern IntPtr LoadImage(IntPtr instance, string name, uint type, int desiredWidth, int desiredHeight, uint loadFlags);
 
+    /// <summary>Releases an owned native icon handle.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(IntPtr iconHandle);
 
+    /// <summary>Checks the native window visibility flag.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr windowHandle);
 
     // windowHandle identifies the main window whose minimized state is being read.
+    /// <summary>Checks whether the native window is minimized.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsIconic(IntPtr windowHandle);
 
+    /// <summary>Changes native window visibility according to the supplied show command.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShowWindow(IntPtr windowHandle, int command);
 
+    /// <summary>Requests foreground activation for a native window.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr windowHandle);
 
+    /// <summary>Allocates a native popup menu.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr CreatePopupMenu();
 
+    /// <summary>Adds a labelled command or separator to a native menu.</summary>
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AppendMenu(IntPtr menuHandle, uint flags, UIntPtr itemId, string text);
 
+    /// <summary>Displays a native popup and returns the selected command.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint TrackPopupMenuEx(IntPtr menuHandle, uint flags, int x, int y, IntPtr ownerWindowHandle, IntPtr parameters);
 
+    /// <summary>Reads the pointer position in desktop coordinates.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out NativePoint point);
 
+    /// <summary>Releases an owned native menu.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyMenu(IntPtr menuHandle);
 
+    /// <summary>Queues a native message without waiting for its handler.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool PostMessage(IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam);
 
+    /// <summary>Installs a native window callback with caller-owned lifetime.</summary>
     [DllImport("comctl32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowSubclass(IntPtr windowHandle, SubclassProcDelegate procedure, UIntPtr subclassId, IntPtr referenceData);
 
+    /// <summary>Detaches the registered native window callback.</summary>
     [DllImport("comctl32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RemoveWindowSubclass(IntPtr windowHandle, SubclassProcDelegate procedure, UIntPtr subclassId);
 
+    /// <summary>Forwards an unhandled message to the remaining native callback chain.</summary>
     [DllImport("comctl32.dll")]
     private static extern IntPtr DefSubclassProc(IntPtr windowHandle, uint message, UIntPtr wParam, IntPtr lParam);
+
+    #endregion
+
 }

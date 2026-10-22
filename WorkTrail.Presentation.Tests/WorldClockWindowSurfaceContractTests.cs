@@ -27,8 +27,12 @@ using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
+/// <summary>Protects world-clock XAML structure and its application-service boundaries.</summary>
 public sealed class WorldClockWindowSurfaceContractTests
 {
+    #region Implementation
+
+    /// <summary>Constrains the flyout presenter while keeping actions outside the scrolling fields.</summary>
     [Fact]
     public void ReferenceEditor_ConstrainsThePresenterAndScrollsFieldsWithoutHidingActions()
     {
@@ -58,12 +62,14 @@ public sealed class WorldClockWindowSurfaceContractTests
 
         var date = window.Descendants().Single(element => HasName(element, "ReferenceDatePicker"));
         var time = window.Descendants().Single(element => HasName(element, "ReferenceTimePicker"));
+
         Assert.Same(date.Parent, time.Parent);
         Assert.Null(time.Attribute("Grid.Row"));
         Assert.Equal("1", time.Attribute("Grid.Column")?.Value);
         Assert.Equal(2, date.Parent!.Elements().Single(element => element.Name.LocalName == "Grid.ColumnDefinitions").Elements().Count());
     }
 
+    /// <summary>Keeps scene layers bottom-aligned, scale-limited, and contained within their city columns.</summary>
     [Fact]
     public void SceneLayers_StayBottomAnchoredWithinTheScaleLimitAndCannotBleedIntoAdjacentClocks()
     {
@@ -140,11 +146,15 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Equal("2", titleBarOptionsHost.Attribute("Grid.Column")?.Value);
         Assert.Equal("12", titleBarSystemButtonGap.Attribute("Width")?.Value);
         Assert.Equal("{StaticResource WorkTrailTitleBarLogoStyle}", titleBarLogo.Attribute("Style")?.Value);
+
         var titleBarLogoStyle = titleBarStyles.Descendants().Single(element => KeyValueOrNull(element) == "WorkTrailTitleBarLogoStyle");
+
         Assert.Contains(titleBarLogoStyle.Descendants(), element => element.Attribute("Property")?.Value == "Width" && element.Attribute("Value")?.Value == "22");
         Assert.Contains(titleBarLogoStyle.Descendants(), element => element.Attribute("Property")?.Value == "Height" && element.Attribute("Value")?.Value == "22");
         Assert.Contains(titleBarLogoStyle.Descendants(), element => element.Attribute("Property")?.Value == "Source" && element.Attribute("Value")?.Value == "ms-appx:///Assets/WorkTrailSquare44Logo.png");
+
         var columnRows = cityName.Parent?.Elements().Single(element => element.Name.LocalName == "Grid.RowDefinitions").Elements().ToArray() ?? [];
+
         Assert.Equal("Auto", columnRows[0].Attribute("Height")?.Value);
         Assert.Equal("Auto", columnRows[3].Attribute("Height")?.Value);
         Assert.True(HasName(dateRelation.Parent!, "TimeInfo"));
@@ -326,6 +336,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.All(catalogs, catalog =>
         {
             using var document = JsonDocument.Parse(File.ReadAllText(catalog));
+
             Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("WorldClock.Loading").GetString()));
             Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("WorldClock.Empty.Title").GetString()));
             Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("WorldClock.Empty.Description").GetString()));
@@ -396,6 +407,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.All(catalogs, catalog =>
         {
             using var document = JsonDocument.Parse(File.ReadAllText(catalog));
+
             Assert.All(requiredLocalizationKeys, key =>
             {
                 Assert.True(document.RootElement.TryGetProperty(key, out var value), $"{catalog}: {key}");
@@ -434,6 +446,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.All(catalogs, catalog =>
         {
             using var document = JsonDocument.Parse(File.ReadAllText(catalog));
+
             Assert.All(phaseKeys, key =>
             {
                 Assert.True(document.RootElement.TryGetProperty(key, out var value), $"{catalog}: {key}");
@@ -538,6 +551,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.All(catalogs, catalog =>
         {
             using var document = JsonDocument.Parse(File.ReadAllText(catalog));
+
             Assert.All(statusKeys, key =>
             {
                 Assert.True(document.RootElement.TryGetProperty(key, out var value), $"{catalog}: {key}");
@@ -552,6 +566,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         });
     }
 
+    /// <summary>Restores the previous live snapshot before presenting a conversion failure.</summary>
     [Fact]
     public void FailedLiveConversion_RestoresTheLiveSnapshotBeforePublishingTheFailure()
     {
@@ -569,10 +584,12 @@ public sealed class WorldClockWindowSurfaceContractTests
         var nowHandler = source.IndexOf("private async void NowButton_Click", StringComparison.Ordinal);
         var clearPending = source.IndexOf("_pendingLiveConversion = false;", nowHandler, StringComparison.Ordinal);
         var restoreLive = source.IndexOf("_isLive = true;", clearPending, StringComparison.Ordinal);
+
         Assert.True(handlerStart >= 0 && restore > handlerStart && failure > restore);
         Assert.True(nowHandler >= 0 && clearPending > nowHandler && restoreLive > clearPending);
     }
 
+    /// <summary>Retains atmospheric scene layers while leaving density decisions to responsive layout.</summary>
     [Fact]
     public void ResponsiveClocks_HaveNoManualDensityToggleAndKeepTheAtmosphericCityLayers()
     {
@@ -581,7 +598,9 @@ public sealed class WorldClockWindowSurfaceContractTests
         var windowSource = File.ReadAllText(RepositoryFile("WorkTrail", "WorldClockWindow.xaml.cs"));
         var columnSource = File.ReadAllText(RepositoryFile("WorkTrail", "Controls", "WorldClockColumnControl.xaml.cs"));
         var localizationDirectory = RepositoryFile("WorkTrail.Core", "Localization");
+
         Assert.DoesNotContain(window.Descendants(), element => HasName(element, "PresentationModeButton"));
+
         var compactDaylight = column.Descendants().Single(element => HasName(element, "CompactDaylightDurationText"));
         var compactTimeZone = column.Descendants().Single(element => HasName(element, "CompactTimeZoneText"));
 
@@ -673,6 +692,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("MoonPhaseControl.MoonPhaseAngleDegrees = snapshot.Map.MoonPhaseAngleDegrees", source, StringComparison.Ordinal);
     }
 
+    /// <summary>Keeps attribution clear of clock text and applies pending sizing before live-mode branching.</summary>
     [Fact]
     public void ResponsiveLayout_FloatsAttributionWithoutCoveringTextAndAppliesPendingResizeBeforeTheLiveBranch()
     {
@@ -705,11 +725,13 @@ public sealed class WorldClockWindowSurfaceContractTests
         var returnToClocks = source.IndexOf("private async Task ShowClocksSurfaceAsync()", StringComparison.Ordinal);
         var resize = source.IndexOf("ApplySmartWindowSizing(snapshot.Clocks.Count);", returnToClocks, StringComparison.Ordinal);
         var liveBranch = source.IndexOf("if (_isLive)", returnToClocks, StringComparison.Ordinal);
+
         Assert.True(resize > returnToClocks && resize < liveBranch);
         Assert.Contains("_layoutState.SetPlacementRestored(restored);", source, StringComparison.Ordinal);
         Assert.Contains("if (request.ResizeToPreferred)", source, StringComparison.Ordinal);
     }
 
+    /// <summary>Gives icon-only commands matching localized accessible names and tooltips.</summary>
     [Fact]
     public void IconOnlyCommands_HaveMatchingAccessibleNamesAndTooltips()
     {
@@ -731,6 +753,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.All(buttons, button =>
         {
             var accessibleName = AttributeValue(button, "AutomationProperties.Name");
+
             Assert.False(string.IsNullOrWhiteSpace(accessibleName));
             Assert.Equal(accessibleName, AttributeValue(button, "ToolTipService.ToolTip"));
             Assert.StartsWith("WorldClock.", AttributeValue(button, "Tag"), StringComparison.Ordinal);
@@ -739,7 +762,9 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("UiLocalization.SetAccessibleLabel(HeaderBackButton, T(\"WorldClock.Options.Back\"));", windowSource, StringComparison.Ordinal);
         Assert.Contains("UiLocalization.SetAccessibleLabel(WorldMapButton, T(\"Celestial.Windows\"));", windowSource, StringComparison.Ordinal);
         Assert.Contains("UiLocalization.SetAccessibleLabel(LunarPhaseButton, T(\"WorldClock.MoonPhase.Open\"));", windowSource, StringComparison.Ordinal);
+
         var localizationSource = File.ReadAllText(RepositoryFile("WorkTrail", "UiLocalization.cs"));
+
         Assert.Contains("AutomationProperties.SetName(element, label);", localizationSource, StringComparison.Ordinal);
         Assert.Contains("ToolTipService.SetToolTip(element, label);", localizationSource, StringComparison.Ordinal);
         Assert.Contains("AutomationProperties.SetName(referenceButton, referenceName);", optionsSource, StringComparison.Ordinal);
@@ -748,6 +773,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("ToolTipService.SetToolTip(button, label);", optionsSource, StringComparison.Ordinal);
     }
 
+    /// <summary>Routes localized move commands through the application facade and disables unavailable directions.</summary>
     [Fact]
     public void ClockOptions_ExposeLocalizedBoundaryAwareMoveCommandsThroughTheApplicationFacade()
     {
@@ -773,12 +799,14 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.All(catalogs, catalog =>
         {
             using var document = JsonDocument.Parse(File.ReadAllText(catalog));
+
             Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("WorldClock.MoveUp").GetString()));
             Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("WorldClock.MoveDown").GetString()));
             Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("WorldClocksMoveUnavailable").GetString()));
         });
     }
 
+    /// <summary>Uses the full city catalog in a single searchable picker.</summary>
     [Fact]
     public void CityPicker_UsesTheCompleteCatalogInOneSearchableComboBox()
     {
@@ -829,6 +857,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("_lastWeatherMessageKey = messageKey;", source, StringComparison.Ordinal);
     }
 
+    /// <summary>Keeps daylight duration localized while leaving the current-time marker unlabelled.</summary>
     [Fact]
     public void SolarTimeline_UsesLocalizedDurationAndUnlabelledCurrentMarker()
     {
@@ -845,6 +874,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("BuildSolarArcGeometry", source, StringComparison.Ordinal);
     }
 
+    /// <summary>Finds a checked-in fixture by walking upward from the test output to the repository root.</summary>
     private static string RepositoryFile(params string[] pathSegments)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -858,23 +888,31 @@ public sealed class WorldClockWindowSurfaceContractTests
         throw new DirectoryNotFoundException("Could not locate the WorkTrail repository root.");
     }
 
+    /// <summary>Matches an element by its XAML name attribute.</summary>
     private static bool HasName(XElement element, string name) =>
         element.Attributes().Any(attribute => attribute.Name.LocalName == "Name" && attribute.Value == name);
 
+    /// <summary>Reads a required XAML resource key and reports a missing key as a fixture failure.</summary>
     private static string KeyValue(XElement element) =>
         element.Attributes().Single(attribute => attribute.Name.LocalName == "Key").Value;
 
+    /// <summary>Reads a XAML resource key when the element declares one.</summary>
     private static string? KeyValueOrNull(XElement element) =>
         element.Attributes().SingleOrDefault(attribute => attribute.Name.LocalName == "Key")?.Value;
 
+    /// <summary>Finds the position of a named XAML element for ordering assertions.</summary>
     private static int IndexOfName(XElement[] elements, string name)
     {
         var index = Array.FindIndex(elements, element => HasName(element, name));
+
         return index >= 0
             ? index
             : throw new InvalidDataException($"Expected '{name}' in the compositing stack.");
     }
 
+    /// <summary>Reads an attribute by local name for namespace-independent XAML assertions.</summary>
     private static string AttributeValue(XElement element, string localName) =>
         element.Attributes().Single(attribute => attribute.Name.LocalName == localName).Value;
+
+    #endregion
 }

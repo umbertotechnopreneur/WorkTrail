@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System;
 using System.IO;
 using System.Reflection;
@@ -28,7 +27,13 @@ namespace WorkTrail.Services;
 /// </summary>
 public sealed class UtilityService
 {
+
+    #region Fields
     private readonly Action<string, string> _apiKeyWriter;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates the Windows utility service with the production user-and-process environment writer.</summary>
     public UtilityService()
@@ -36,10 +41,15 @@ public sealed class UtilityService
     {
     }
 
+    /// <summary>Accepts the environment writer used to store provider credentials.</summary>
     internal UtilityService(Action<string, string> apiKeyWriter)
     {
         _apiKeyWriter = apiKeyWriter ?? throw new ArgumentNullException(nameof(apiKeyWriter));
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>
     /// Returns local application directory path under %LOCALAPPDATA%.
@@ -64,6 +74,11 @@ public sealed class UtilityService
         _apiKeyWriter(name, value);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Writes a key to user and process environments for current and future launches.</summary>
     private static void SetUserAndProcessApiKey(string name, string value)
     {
         // Persist in both User and Process scopes: available now and on next app launches.
@@ -71,8 +86,15 @@ public sealed class UtilityService
         Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
     }
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>
     /// Returns a random, non-identifying installation identifier.
     /// </summary>
     public string GenerateInstallationId() => Guid.NewGuid().ToString("N");
+
+    #endregion
+
 }

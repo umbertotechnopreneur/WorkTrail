@@ -25,9 +25,16 @@ using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
+/// <summary>Checks modal exclusivity and cancellation across owner and application lifetimes.</summary>
 public sealed class DialogSessionQueueTests
 {
+    #region Fields
+
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Only the current lease can occupy the presentation slot.</summary>
     [Fact]
@@ -35,12 +42,16 @@ public sealed class DialogSessionQueueTests
     {
         var queue = new DialogSessionQueue();
         var first = await queue.EnterAsync();
+
         Assert.NotNull(first);
+
         var pending = queue.EnterAsync();
+
         Assert.False(pending.IsCompleted);
 
         first.Dispose();
         using var second = await pending.WaitAsync(TestTimeout);
+
         Assert.NotNull(second);
     }
 
@@ -54,9 +65,12 @@ public sealed class DialogSessionQueueTests
         queue.Shutdown();
 
         Assert.True(queue.IsShuttingDown);
+
         var results = await Task.WhenAll(pending).WaitAsync(TestTimeout);
+
         Assert.All(results, result => Assert.Null(result));
         Assert.Null(await queue.EnterAsync().WaitAsync(TestTimeout));
+
         queue.Shutdown();
     }
 
@@ -71,12 +85,15 @@ public sealed class DialogSessionQueueTests
         var next = queue.EnterAsync();
 
         owner.Cancel();
+
         Assert.Null(await cancelled.WaitAsync(TestTimeout));
         Assert.False(next.IsCompleted);
         Assert.False(queue.IsShuttingDown);
+
         active!.Dispose();
 
         using var nextSession = await next.WaitAsync(TestTimeout);
+
         Assert.NotNull(nextSession);
     }
 
@@ -85,8 +102,11 @@ public sealed class DialogSessionQueueTests
     public async Task AlreadyClosedOwner_DoesNotAcquireTheModalSlot()
     {
         var queue = new DialogSessionQueue();
+
         Assert.Null(await queue.EnterAsync(new CancellationToken(canceled: true)));
+
         using var next = await queue.EnterAsync().WaitAsync(TestTimeout);
+
         Assert.NotNull(next);
     }
 
@@ -102,8 +122,10 @@ public sealed class DialogSessionQueueTests
         first.Dispose();
 
         Assert.False(pending.IsCompleted);
+
         second!.Dispose();
         using var third = await pending.WaitAsync(TestTimeout);
+
         Assert.NotNull(third);
     }
 
@@ -112,6 +134,7 @@ public sealed class DialogSessionQueueTests
     public async Task PresentationFailure_ReleasesTheSlot()
     {
         var queue = new DialogSessionQueue();
+
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
             using var session = await queue.EnterAsync();
@@ -119,6 +142,9 @@ public sealed class DialogSessionQueueTests
         });
 
         using var next = await queue.EnterAsync().WaitAsync(TestTimeout);
+
         Assert.NotNull(next);
     }
+
+    #endregion
 }

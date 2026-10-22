@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
@@ -28,16 +27,24 @@ namespace WorkTrail.Runtime;
 /// <summary>Defines the versioned, length-prefixed local runtime protocol.</summary>
 public static class RuntimeProtocol
 {
+
+    #region Fields
     /// <summary>Gets the supported wire-protocol version.</summary>
     public const int ProtocolVersion = 8;
 
     /// <summary>Gets the maximum accepted JSON envelope size in bytes.</summary>
     public const int MaximumMessageBytes = 16_777_216;
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Builds the mutex and named-pipe names from an installation identifier without exposing it.</summary>
     public static RuntimeEndpoint CreateEndpoint(string installationId)
     {
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(installationId ?? string.Empty))).ToLowerInvariant()[..32];
+        var identityBytes = Encoding.UTF8.GetBytes(installationId ?? string.Empty);
+        var identityDigest = SHA256.HashData(identityBytes);
+        var hash = Convert.ToHexString(identityDigest).ToLowerInvariant()[..32];
         return new RuntimeEndpoint($"Local\\WorkTrail.Runtime.{hash}", $"WorkTrail.Runtime.{hash}");
     }
 
@@ -76,6 +83,11 @@ public static class RuntimeProtocol
     /// <summary>Gets the shared JSON options used for local protocol envelopes.</summary>
     public static JsonSerializerOptions SerializerOptions { get; } = new(JsonSerializerDefaults.Web);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Fills a frame buffer and rejects a pipe that closes before the frame completes.</summary>
     private static async Task ReadExactlyAsync(Stream stream, Memory<byte> buffer, CancellationToken cancellationToken)
     {
         var consumed = 0;
@@ -90,6 +102,9 @@ public static class RuntimeProtocol
             consumed += read;
         }
     }
+
+    #endregion
+
 }
 
 /// <summary>Contains the obfuscated local kernel-object names for one installation.</summary>

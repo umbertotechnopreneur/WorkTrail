@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Globalization;
 
 namespace WorkTrail.Services;
@@ -24,6 +23,8 @@ namespace WorkTrail.Services;
 /// <summary>Defines the canonical language contracts shared by every WorkTrail frontend.</summary>
 public static class ProductLanguageCatalog
 {
+
+    #region Fields
     /// <summary>Identifies the Windows-derived language choice.</summary>
     public const string SystemLanguage = "system";
 
@@ -45,6 +46,10 @@ public static class ProductLanguageCatalog
     ];
 
     private static readonly string[] UiChoiceValues = [SystemLanguage, .. UiLocaleValues];
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets every locale for which the product ships a complete UI catalog.</summary>
     public static IReadOnlyList<string> UiLocales { get; } = Array.AsReadOnly(UiLocaleValues);
@@ -74,6 +79,11 @@ public static class ProductLanguageCatalog
     /// <summary>Returns the canonical UI setting choice, or <see langword="null"/> when unsupported.</summary>
     public static string? CanonicalUiChoice(string? value) => Canonical(UiChoiceValues, value);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Maps Windows language variants to a supported product locale.</summary>
     private static string ResolveSystemUiLanguage(CultureInfo systemCulture)
     {
         var name = systemCulture.Name;
@@ -112,6 +122,7 @@ public static class ProductLanguageCatalog
         };
     }
 
+    /// <summary>Returns the supported spelling of a language choice after trimming.</summary>
     private static string? Canonical(IEnumerable<string> choices, string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -122,4 +133,7 @@ public static class ProductLanguageCatalog
         var trimmed = value.Trim();
         return choices.FirstOrDefault(choice => choice.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
     }
+
+    #endregion
+
 }

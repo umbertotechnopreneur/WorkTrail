@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
@@ -25,6 +24,8 @@ namespace WorkTrail.Application;
 /// <summary>Provides product metadata and opens allowlisted public product links.</summary>
 public sealed partial class WorkTrailApplication
 {
+
+    #region Methods and properties
     /// <inheritdoc />
     public Task<OperationResult<ProductInformation>> GetProductInformationAsync(CancellationToken cancellationToken)
     {
@@ -99,4 +100,7 @@ public sealed partial class WorkTrailApplication
             return OperationResult<bool>.Failure("product.link.unavailable", "ProductLinkUnavailable");
         }
     }
+
+    #endregion
+
 }

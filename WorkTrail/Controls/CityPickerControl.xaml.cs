@@ -10,13 +10,27 @@ namespace WorkTrail.Controls;
 /// <summary>Collects a city from a supplied offline catalog without owning persistence or location detection.</summary>
 public sealed partial class CityPickerControl : UserControl
 {
+    #region Fields
+
     private List<CityOption> _options = [];
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Publishes the selected catalog city.</summary>
     public event SelectionChangedEventHandler? SelectionChanged;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates an empty reusable city selector.</summary>
     public CityPickerControl() => InitializeComponent();
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Gets the chosen identifier, or null until a catalog item is selected.</summary>
     public string? SelectedCityId => (CityComboBox.SelectedItem as CityOption)?.Id;
@@ -27,8 +41,12 @@ public sealed partial class CityPickerControl : UserControl
     /// <summary>Displays the supplied catalog and an optional suggestion that the user can replace.</summary>
     public void ApplyCities(IReadOnlyList<WorldClockCitySummary> cities, LocalizationService strings, string? selectedCityId = null)
     {
-        _options = cities.Select(city => new CityOption(city.Id, $"{city.Name} · {city.CountryCode}"))
-            .OrderBy(city => city.DisplayName, StringComparer.Create(strings.Culture, ignoreCase: true)).ToList();
+        var cityOptions = cities.Select(city => new CityOption(city.Id, $"{city.Name} · {city.CountryCode}"));
+        var displayNameComparer = StringComparer.Create(strings.Culture, ignoreCase: true);
+
+        _options = cityOptions
+            .OrderBy(city => city.DisplayName, displayNameComparer)
+            .ToList();
         CityComboBox.PlaceholderText = strings.Translate("WorldClock.SearchCity");
         AutomationProperties.SetName(CityComboBox, CityComboBox.PlaceholderText);
         CityComboBox.ItemsSource = _options;
@@ -47,6 +65,11 @@ public sealed partial class CityPickerControl : UserControl
     /// <summary>Moves keyboard focus to the searchable catalog.</summary>
     public void FocusPicker() => CityComboBox.Focus(FocusState.Programmatic);
 
+    /// <summary>Publishes the city selected in the picker.</summary>
     private void CityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs args) => SelectionChanged?.Invoke(this, args);
+
+    /// <summary>Carries a selectable city's display text and catalog identity.</summary>
     private sealed record CityOption(string Id, string DisplayName);
+
+    #endregion
 }

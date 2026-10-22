@@ -22,6 +22,8 @@ namespace WorkTrail.Presentation;
 /// <summary>Debounces hover-driven title-bar transitions using a caller-supplied monotonic clock.</summary>
 public sealed class TitleBarTransitionState
 {
+    #region Fields
+
     private TimeSpan _lastUpdatedAt;
     private TimeSpan? _transitionStartedAt;
 
@@ -30,6 +32,10 @@ public sealed class TitleBarTransitionState
 
     /// <summary>The duration used by the view to fade a committed visibility transition.</summary>
     public static readonly TimeSpan FadeDuration = TimeSpan.FromMilliseconds(150);
+
+    #endregion
+
+    #region Properties
 
     /// <summary>Gets the committed title-bar visibility, initially visible.</summary>
     public bool IsVisible { get; private set; } = true;
@@ -41,6 +47,10 @@ public sealed class TitleBarTransitionState
     public TimeSpan RemainingDelay => _transitionStartedAt is { } startedAt
         ? HoverDelay - (_lastUpdatedAt - startedAt)
         : TimeSpan.Zero;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Commits stable hover changes while allowing explicit interactions to bypass the delay.</summary>
     /// <param name="desiredVisible">The visibility requested by pointer and interaction state.</param>
@@ -61,6 +71,7 @@ public sealed class TitleBarTransitionState
         {
             IsVisible = desiredVisible;
             _transitionStartedAt = null;
+
             return IsVisible;
         }
 
@@ -74,4 +85,6 @@ public sealed class TitleBarTransitionState
 
         return IsVisible;
     }
+
+    #endregion
 }

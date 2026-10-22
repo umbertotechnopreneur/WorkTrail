@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using CosineKitty;
 using WorkTrail.Application;
 
@@ -25,9 +24,14 @@ namespace WorkTrail.Services;
 /// <summary>Calculates offline astronomical ephemerides without weather, location discovery, or presentation dependencies.</summary>
 public static class CelestialService
 {
+
+    #region Fields
     private static readonly object SnapshotGate = new();
     private static readonly Dictionary<(WorldClockCitySummary City, long UtcTicks), CelestialSnapshot> SnapshotCache = new();
 
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Builds ephemerides for a catalog city; rejects missing cities, invalid coordinates/time zones, and unsupported dates. Cancellation propagates.</summary>
     public static CelestialSnapshot Build(CelestialRequest request, WorldClockCityCatalog catalog, CancellationToken cancellationToken)
@@ -57,14 +61,27 @@ public static class CelestialService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var key = (city, instant.UtcTicks);
-            if (SnapshotCache.TryGetValue(key, out var cached)) return cached;
+            if (SnapshotCache.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
             var snapshot = BuildCore(city, instant, zone, cancellationToken);
-            if (SnapshotCache.Count >= 16) SnapshotCache.Remove(SnapshotCache.Keys.First());
+            if (SnapshotCache.Count >= 16)
+            {
+                SnapshotCache.Remove(SnapshotCache.Keys.First());
+            }
+
             SnapshotCache.Add(key, snapshot);
             return snapshot;
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Projects catalog bodies and stars into the observer's horizon and builds the agenda.</summary>
     private static CelestialSnapshot BuildCore(WorldClockCitySummary city, DateTimeOffset instant, TimeZoneInfo zone, CancellationToken cancellationToken)
     {
         var observer = new Observer(city.Latitude, city.Longitude, 0);
@@ -102,6 +119,7 @@ public static class CelestialService
         };
     }
 
+    /// <summary>Collects local horizon crossings, lunar quarters, seasons, and global events.</summary>
     private static IReadOnlyList<CelestialAgendaEvent> BuildAgenda(AstroTime time, Observer observer, TimeZoneInfo zone, CancellationToken cancellationToken)
     {
         var events = new List<CelestialAgendaEvent>();
@@ -128,7 +146,11 @@ public static class CelestialService
                 _ => throw new InvalidOperationException("Astronomy Engine returned an unsupported lunar quarter.")
             };
             AddEvent(kind, quarter.time);
-            if (index < 3) quarter = Astronomy.NextMoonQuarter(quarter);
+            if (index < 3)
+            {
+                quarter = Astronomy.NextMoonQuarter(quarter);
+            }
+
         }
 
         var year = time.ToUtcDateTime().Year;
@@ -149,6 +171,7 @@ public static class CelestialService
         events.AddRange(CelestialImportantDateService.BuildUpcoming(new DateTimeOffset(time.ToUtcDateTime()), zone));
         return Array.AsReadOnly(events.OrderBy(item => item.StartUtc).ThenBy(item => item.Kind).ToArray());
 
+        // Adds a calculated event with UTC and city-local timestamps.
         void AddEvent(CelestialEventKind kind, AstroTime start, AstroTime? finish = null)
         {
             var startUtc = new DateTimeOffset(start.ToUtcDateTime());
@@ -157,6 +180,7 @@ public static class CelestialService
                 endUtc is { } value ? TimeZoneInfo.ConvertTime(value, zone) : null));
         }
 
+        // Searches successive solar crossings within the agenda interval.
         void AddSolarEvents(CelestialEventKind kind, Direction direction, double? altitude)
         {
             var cursor = time;
@@ -167,12 +191,17 @@ public static class CelestialService
                 var crossing = altitude is { } degrees
                     ? Astronomy.SearchAltitude(Body.Sun, observer, direction, cursor, end.ut - cursor.ut, degrees)
                     : Astronomy.SearchRiseSet(Body.Sun, observer, direction, cursor, end.ut - cursor.ut);
-                if (crossing is null || crossing.ut >= end.ut) break;
+                if (crossing is null || crossing.ut >= end.ut)
+                {
+                    break;
+                }
+
                 AddEvent(kind, crossing);
                 cursor = crossing.AddDays(1.0 / 86400);
             }
         }
 
+        // Searches successive lunar horizon crossings within the agenda interval.
         void AddLunarEvents(CelestialEventKind kind, Direction direction)
         {
             var cursor = time;
@@ -181,12 +210,17 @@ public static class CelestialService
                 cancellationToken.ThrowIfCancellationRequested();
                 // A null crossing is normal when the Moon does not cross this observer's horizon in the interval.
                 var crossing = Astronomy.SearchRiseSet(Body.Moon, observer, direction, cursor, end.ut - cursor.ut);
-                if (crossing is null || crossing.ut >= end.ut) break;
+                if (crossing is null || crossing.ut >= end.ut)
+                {
+                    break;
+                }
+
                 AddEvent(kind, crossing);
                 cursor = crossing.AddDays(1.0 / 86400);
             }
         }
 
+        // Includes complete blue-hour intervals, including one already in progress.
         void AddBlueHours(Direction direction, CelestialEventKind kind, double startAltitude, double endAltitude)
         {
             // Look back one day to include an interval already in progress at the requested instant.
@@ -195,16 +229,25 @@ public static class CelestialService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var start = Astronomy.SearchAltitude(Body.Sun, observer, direction, cursor, end.ut - cursor.ut, startAltitude);
-                if (start is null || start.ut >= end.ut) break;
+                if (start is null || start.ut >= end.ut)
+                {
+                    break;
+                }
+
                 var finish = Astronomy.SearchAltitude(Body.Sun, observer, direction, start, 1, endAltitude);
                 var reversal = Astronomy.SearchAltitude(Body.Sun, observer,
                     direction == Direction.Rise ? Direction.Set : Direction.Rise, start.AddDays(1.0 / 86400), 1, startAltitude);
                 // At high latitudes the Sun can turn back before the other threshold. Such partial intervals are omitted.
                 if (finish is not null && finish.ut > time.ut && (reversal is null || finish.ut < reversal.ut))
+                {
                     AddEvent(kind, start, finish);
+                }
+
                 cursor = start.AddDays(1.0 / 86400);
             }
         }
     }
+
+    #endregion
 
 }

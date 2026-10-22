@@ -28,9 +28,15 @@ namespace WorkTrail;
 /// <remarks>Create one instance per window. Windows still controls accessibility and material availability.</remarks>
 public sealed class GlassBackdrop : SystemBackdrop
 {
+    #region Fields
+
     private ICompositionSupportsSystemBackdrop? _connectedTarget;
     private DesktopAcrylicController? _controller;
     private SystemBackdropConfiguration? _configuration;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Connects the glass material and the framework's theme policy to one window.</summary>
     protected override void OnTargetConnected(ICompositionSupportsSystemBackdrop connectedTarget, XamlRoot xamlRoot)
@@ -123,6 +129,7 @@ public sealed class GlassBackdrop : SystemBackdrop
         }
     }
 
+    /// <summary>Copies the framework's backdrop configuration into the acrylic controller.</summary>
     private void CopyFrameworkConfiguration(ICompositionSupportsSystemBackdrop target, XamlRoot xamlRoot)
     {
         var configuration = _configuration
@@ -135,6 +142,7 @@ public sealed class GlassBackdrop : SystemBackdrop
         configuration.IsInputActive = true;
     }
 
+    /// <summary>Rejects a backdrop operation targeting a disconnected window.</summary>
     private void RequireConnectedTarget(ICompositionSupportsSystemBackdrop target)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -143,4 +151,6 @@ public sealed class GlassBackdrop : SystemBackdrop
             throw new InvalidOperationException("The glass material received an event for an unconnected window.");
         }
     }
+
+    #endregion
 }

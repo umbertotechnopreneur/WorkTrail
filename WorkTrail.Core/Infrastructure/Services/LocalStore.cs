@@ -10,11 +10,17 @@ namespace WorkTrail.Services;
 /// <summary>Persists widget settings without opening or changing existing activity databases.</summary>
 public sealed class LocalStore
 {
+
+    #region Fields
     private readonly UtilityService _utilities = new();
     private readonly string _settingsPath;
     private readonly string _settingsBootstrapMutexName;
     private readonly object _fileLock = new();
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Opens only the existing preferences file, optionally in an isolated directory.</summary>
     public LocalStore(string? dataDirectory = null)
@@ -22,10 +28,15 @@ public sealed class LocalStore
         var directory = string.IsNullOrWhiteSpace(dataDirectory) ? _utilities.AppDataDirectory : Path.GetFullPath(dataDirectory);
         Directory.CreateDirectory(directory);
         _settingsPath = Path.Combine(directory, "appsettings.json");
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(_settingsPath.ToUpperInvariant())))[..32];
+        var normalizedPathBytes = Encoding.UTF8.GetBytes(_settingsPath.ToUpperInvariant());
+        var pathDigest = SHA256.HashData(normalizedPathBytes);
+        var fingerprint = Convert.ToHexString(pathDigest)[..32];
         _settingsBootstrapMutexName = $"Local\\WorkTrail.Settings.{fingerprint}";
     }
 
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>
     /// Loads application settings and rejects malformed persisted configuration.
@@ -45,7 +56,6 @@ public sealed class LocalStore
         var normalized = SettingsCatalog.NormalizePersisted(settings);
         return EnsureInstallationId(normalized);
     });
-
 
     /// <summary>
     /// Reads the persisted installation identifier without creating or rewriting settings.
@@ -68,7 +78,6 @@ public sealed class LocalStore
         return settings.InstallationId;
     }
 
-
     /// <summary>
     /// Persists application settings to JSON file.
     /// </summary>
@@ -81,6 +90,9 @@ public sealed class LocalStore
         return true;
     });
 
+    #endregion
+
+    #region Implementation
 
     /// <summary>Writes a fully normalized settings snapshot using an atomic same-directory replacement.</summary>
     private void WriteSettingsFile(AppSettings payload)
@@ -118,7 +130,7 @@ public sealed class LocalStore
         }
     }
 
-
+    /// <summary>Reuses or creates the installation identity under the per-settings-file mutex.</summary>
     private AppSettings EnsureInstallationId(AppSettings settings)
     {
         if (IsValidInstallationId(settings.InstallationId))
@@ -164,7 +176,7 @@ public sealed class LocalStore
         }
     }
 
-
+    /// <summary>Serializes settings reads and replacements across processes with a bounded wait.</summary>
     private T WithSettingsMutex<T>(Func<T> operation)
     {
         using var settingsMutex = new Mutex(false, _settingsBootstrapMutexName);
@@ -197,8 +209,11 @@ public sealed class LocalStore
         }
     }
 
-
+    /// <summary>Checks the bounded identifier alphabet accepted by the runtime.</summary>
     private static bool IsValidInstallationId(string? value) =>
         value is { Length: >= 16 and <= 160 }
         && value.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '.');
+
+    #endregion
+
 }

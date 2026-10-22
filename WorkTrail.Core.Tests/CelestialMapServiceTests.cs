@@ -29,9 +29,16 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks map geometry, transparency, cancellation, and explicit asset failures.</summary>
 public sealed class CelestialMapServiceTests
 {
+    #region Fields
+
     private static readonly DateTimeOffset Equinox = new(2026, 3, 20, 12, 0, 0, TimeSpan.Zero);
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Checks current solar illumination in both projections against the common astronomy engine.</summary>
     [Theory]
@@ -97,6 +104,7 @@ public sealed class CelestialMapServiceTests
     public void Render_RejectsUnsupportedInputBeforeAssetRead()
     {
         var service = new CelestialMapService("missing-day.png", "missing-night.png");
+
         Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
             _ = service.RenderAsync(new CelestialMapRequest(Equinox, (CelestialMapProjection)99));
@@ -121,10 +129,14 @@ public sealed class CelestialMapServiceTests
     {
         var service = new CelestialMapService("missing-celestial-day.png", "missing-celestial-night.png");
         var request = new CelestialMapRequest(Equinox, CelestialMapProjection.Globe, 64, 64);
+
         await Assert.ThrowsAsync<FileNotFoundException>(() => service.RenderAsync(request));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.RenderAsync(request, new CancellationToken(true)));
     }
 
+    /// <summary>Builds uniform day and night textures so geometry assertions do not depend on packaged imagery.</summary>
     private static CelestialMapService SolidTextures() => new(8, 4,
         Enumerable.Repeat(SKColors.Red, 32).ToArray(), Enumerable.Repeat(SKColors.Blue, 32).ToArray());
+
+    #endregion
 }

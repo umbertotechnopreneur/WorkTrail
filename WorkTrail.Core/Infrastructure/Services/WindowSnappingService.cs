@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -27,12 +26,20 @@ namespace WorkTrail.Services;
 /// <summary>Owns local, UI-thread window snapping without hooks in another process or persistence during a drag.</summary>
 internal sealed class WindowSnappingService
 {
+
+    #region Fields
     private readonly Dictionary<IntPtr, Registration> _windows = [];
     private bool _enabled = true;
     private uint _uiThreadId;
 
+    #endregion
+
+    #region Methods and properties
+
+    /// <summary>Publishes whether registered windows should snap during subsequent drag processing.</summary>
     internal void Configure(bool enabled) => Volatile.Write(ref _enabled, enabled);
 
+    /// <summary>Attaches snapping to a window owned by the current process and UI thread.</summary>
     internal IWindowSnappingRegistration Register(long windowHandle, Action<Exception> reportFailure)
     {
         ArgumentNullException.ThrowIfNull(reportFailure);
@@ -50,28 +57,46 @@ internal sealed class WindowSnappingService
             throw new InvalidOperationException("Window snapping registrations must share one UI thread.");
         }
 
-        if (_windows.ContainsKey(handle)) throw new InvalidOperationException("The window is already registered for snapping.");
+        if (_windows.ContainsKey(handle))
+        {
+            throw new InvalidOperationException("The window is already registered for snapping.");
+        }
+
         var registration = new Registration(this, handle, reportFailure);
         _windows.Add(handle, registration);
         _uiThreadId = currentThread;
         return registration;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Collects visible, restored, uncloaked peer frames for alignment candidates.</summary>
     private WindowSnapRectangle[] ReadPeers(IntPtr movingWindow)
     {
         var peers = new List<WindowSnapRectangle>(_windows.Count);
         foreach (var handle in _windows.Keys)
         {
-            if (handle == movingWindow || !IsWindowVisible(handle) || IsIconic(handle) || IsZoomed(handle)) continue;
+            if (handle == movingWindow || !IsWindowVisible(handle) || IsIconic(handle) || IsZoomed(handle))
+            {
+                continue;
+            }
+
             var result = DwmGetWindowAttribute(handle, 14, out int cloaked, sizeof(int));
             Marshal.ThrowExceptionForHR(result);
-            if (cloaked != 0) continue;
+            if (cloaked != 0)
+            {
+                continue;
+            }
+
             peers.Add(ReadFrame(handle));
         }
 
         return peers.ToArray();
     }
 
+    /// <summary>Reads visible DWM frame bounds without invisible resize borders.</summary>
     private static WindowSnapRectangle ReadFrame(IntPtr handle)
     {
         // DWM bounds exclude invisible resize borders: DPI-scaled thresholds refer to visible edges.
@@ -79,18 +104,29 @@ internal sealed class WindowSnappingService
         return frame.ToRectangle();
     }
 
+    /// <summary>Reads the native outer rectangle used to translate visible snap proposals.</summary>
     private static NativeRectangle ReadOuterBounds(IntPtr handle)
     {
-        if (!GetWindowRect(handle, out var bounds)) throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to read window bounds for snapping.");
+        if (!GetWindowRect(handle, out var bounds))
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to read window bounds for snapping.");
+        }
+
         return bounds;
     }
 
+    /// <summary>Reads the physical desktop pointer position for raw drag displacement.</summary>
     private static NativePoint ReadCursor()
     {
-        if (!GetCursorPos(out var point)) throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to read the window drag position.");
+        if (!GetCursorPos(out var point))
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to read the window drag position.");
+        }
+
         return point;
     }
 
+    /// <summary>Captures the starting monitor bounds, work area, and DPI thresholds.</summary>
     private static WindowSnapSession CreateSession(IntPtr handle)
     {
         var monitor = MonitorFromWindow(handle, 2);
@@ -103,13 +139,19 @@ internal sealed class WindowSnappingService
         return new WindowSnapSession(info.Bounds.ToRectangle(), info.WorkArea.ToRectangle(), ReadDpi(handle));
     }
 
+    /// <summary>Reads a valid DPI value for the window being dragged.</summary>
     private static uint ReadDpi(IntPtr handle)
     {
         var dpi = GetDpiForWindow(handle);
-        if (dpi == 0) throw new Win32Exception("Unable to read the snapping window DPI.");
+        if (dpi == 0)
+        {
+            throw new Win32Exception("Unable to read the snapping window DPI.");
+        }
+
         return dpi;
     }
 
+    /// <summary>Combines system tracking metrics with the window's own resize constraints.</summary>
     private static NativeMinMaxInformation ReadResizeLimits(IntPtr handle, uint dpi)
     {
         var limits = new NativeMinMaxInformation
@@ -126,15 +168,27 @@ internal sealed class WindowSnappingService
         return limits;
     }
 
+    /// <summary>Reads a positive DPI-scaled native tracking limit.</summary>
     private static int ReadTrackMetric(int index, uint dpi)
     {
         var metric = GetSystemMetricsForDpi(index, dpi);
-        if (metric <= 0) throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to read native resize constraints.");
+        if (metric <= 0)
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to read native resize constraints.");
+        }
+
         return metric;
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Owns one UI-thread native snapping callback and its current drag state.</summary>
     private sealed class Registration : IWindowSnappingRegistration
     {
+
+        #region Fields
         private const uint EnterSizeMove = 0x0231;
         private const uint Moving = 0x0216;
         private const uint Sizing = 0x0214;
@@ -162,6 +216,11 @@ internal sealed class WindowSnappingService
         private bool _hasMoveAnchor;
         private Exception? _pendingFailure;
 
+        #endregion
+
+        #region Initialization
+
+        /// <summary>Attaches the native callback and retains its delegate for the registration lifetime.</summary>
         internal Registration(WindowSnappingService owner, IntPtr handle, Action<Exception> reportFailure)
         {
             _owner = owner;
@@ -176,9 +235,18 @@ internal sealed class WindowSnappingService
             }
         }
 
+        #endregion
+
+        #region Methods and properties
+
         /// <inheritdoc />
         public bool PreserveUserPosition => _inMoveLoop || _preservePosition;
 
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Handles move-loop messages while containing failures at the unmanaged boundary.</summary>
         private IntPtr WindowProcedure(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam, nuint id, nuint data)
         {
             try
@@ -234,11 +302,19 @@ internal sealed class WindowSnappingService
                 }
                 else if (message == Moving && _inMoveLoop && !_faulted)
                 {
-                    if (ApplyMove(lParam)) return new IntPtr(1);
+                    if (ApplyMove(lParam))
+                    {
+                        return new IntPtr(1);
+                    }
+
                 }
                 else if (message == Sizing && _inMoveLoop && !_faulted)
                 {
-                    if (ApplyResize(wParam, lParam)) return new IntPtr(1);
+                    if (ApplyResize(wParam, lParam))
+                    {
+                        return new IntPtr(1);
+                    }
+
                 }
                 else if (message == 0x001F || (message == 0x0006 && (wParam.ToInt64() & 0xFFFF) == 0))
                 {
@@ -254,13 +330,22 @@ internal sealed class WindowSnappingService
                 _guides?.Hide();
                 _preservePosition = true;
                 Trace.TraceError("Native window snapping failed: {0}", exception);
-                if (_inMoveLoop) _pendingFailure = exception;
-                else ReportFailure(exception);
+                if (_inMoveLoop)
+                {
+                    _pendingFailure = exception;
+                }
+
+                else
+                {
+                    ReportFailure(exception);
+                }
+
             }
 
             return DefSubclassProc(handle, message, wParam, lParam);
         }
 
+        /// <summary>Translates raw pointer displacement into a visible-frame snap proposal.</summary>
         private bool ApplyMove(IntPtr rectanglePointer)
         {
             if (!Volatile.Read(ref _owner._enabled))
@@ -329,6 +414,7 @@ internal sealed class WindowSnappingService
             return true;
         }
 
+        /// <summary>Snaps moving edges while retaining native size limits and opposite edges.</summary>
         private bool ApplyResize(IntPtr sizingEdge, IntPtr rectanglePointer)
         {
             if (!Volatile.Read(ref _owner._enabled))
@@ -377,10 +463,26 @@ internal sealed class WindowSnappingService
             var raw = _resizeAnchorBounds;
             var deltaX = checked(cursor.X - _resizeAnchorCursor.X);
             var deltaY = checked(cursor.Y - _resizeAnchorCursor.Y);
-            if ((edges & WindowSnapEdges.Left) != 0) raw.Left = checked(raw.Left + deltaX);
-            if ((edges & WindowSnapEdges.Right) != 0) raw.Right = checked(raw.Right + deltaX);
-            if ((edges & WindowSnapEdges.Top) != 0) raw.Top = checked(raw.Top + deltaY);
-            if ((edges & WindowSnapEdges.Bottom) != 0) raw.Bottom = checked(raw.Bottom + deltaY);
+            if ((edges & WindowSnapEdges.Left) != 0)
+            {
+                raw.Left = checked(raw.Left + deltaX);
+            }
+
+            if ((edges & WindowSnapEdges.Right) != 0)
+            {
+                raw.Right = checked(raw.Right + deltaX);
+            }
+
+            if ((edges & WindowSnapEdges.Top) != 0)
+            {
+                raw.Top = checked(raw.Top + deltaY);
+            }
+
+            if ((edges & WindowSnapEdges.Bottom) != 0)
+            {
+                raw.Bottom = checked(raw.Bottom + deltaY);
+            }
+
             ConstrainResize(ref raw, edges, _resizeLimits);
 
             var outer = ReadOuterBounds(_handle);
@@ -408,18 +510,32 @@ internal sealed class WindowSnappingService
             return true;
         }
 
+        /// <summary>Clamps only the moving edges to the window's native tracking limits.</summary>
         private static void ConstrainResize(ref NativeRectangle raw, WindowSnapEdges edges, NativeMinMaxInformation limits)
         {
             if ((edges & WindowSnapEdges.Left) != 0)
+            {
                 raw.Left = checked((int)(raw.Right - Math.Clamp((long)raw.Right - raw.Left, limits.MinTrackSize.X, limits.MaxTrackSize.X)));
+            }
+
             else if ((edges & WindowSnapEdges.Right) != 0)
+            {
                 raw.Right = checked((int)(raw.Left + Math.Clamp((long)raw.Right - raw.Left, limits.MinTrackSize.X, limits.MaxTrackSize.X)));
+            }
+
             if ((edges & WindowSnapEdges.Top) != 0)
+            {
                 raw.Top = checked((int)(raw.Bottom - Math.Clamp((long)raw.Bottom - raw.Top, limits.MinTrackSize.Y, limits.MaxTrackSize.Y)));
+            }
+
             else if ((edges & WindowSnapEdges.Bottom) != 0)
+            {
                 raw.Bottom = checked((int)(raw.Top + Math.Clamp((long)raw.Bottom - raw.Top, limits.MinTrackSize.Y, limits.MaxTrackSize.Y)));
+            }
+
         }
 
+        /// <summary>Synchronizes transient desktop guides with the current snap candidates.</summary>
         private void UpdateGuides()
         {
             if (_session is { } session && (session.VerticalGuide.HasValue || session.HorizontalGuide.HasValue))
@@ -432,6 +548,7 @@ internal sealed class WindowSnappingService
             }
         }
 
+        /// <summary>Notifies the host without allowing notification errors to escape a native callback.</summary>
         private void ReportFailure(Exception exception)
         {
             try
@@ -445,11 +562,23 @@ internal sealed class WindowSnappingService
             }
         }
 
+        #endregion
+
+        #region Methods and properties
+
         /// <inheritdoc />
         public void Dispose()
         {
-            if (_disposed) return;
-            if (GetCurrentThreadId() != _threadId) throw new InvalidOperationException("Window snapping must be removed on its owning UI thread.");
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (GetCurrentThreadId() != _threadId)
+            {
+                throw new InvalidOperationException("Window snapping must be removed on its owning UI thread.");
+            }
+
             _guides?.Dispose();
             if (!RemoveWindowSubclass(_handle, _callback, 1))
             {
@@ -461,19 +590,34 @@ internal sealed class WindowSnappingService
             _inMoveLoop = false;
             _session = null;
         }
+
+        #endregion
+
     }
 
+    /// <summary>Matches a native rectangle using exclusive right and bottom edges.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRectangle
     {
+
+        #region Fields
         internal int Left;
         internal int Top;
         internal int Right;
         internal int Bottom;
 
+        #endregion
+
+        #region Methods and properties
+
+        /// <summary>Copies native edge coordinates into the application rectangle contract.</summary>
         internal readonly WindowSnapRectangle ToRectangle() => new(Left, Top, Right, Bottom);
+
+        #endregion
+
     }
 
+    /// <summary>Matches a native point in physical desktop coordinates.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -481,6 +625,7 @@ internal sealed class WindowSnappingService
         internal int Y;
     }
 
+    /// <summary>Matches native monitor bounds and work-area fields.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct MonitorInformation
     {
@@ -490,6 +635,7 @@ internal sealed class WindowSnappingService
         internal uint Flags;
     }
 
+    /// <summary>Matches native position and size tracking constraints.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeMinMaxInformation
     {
@@ -502,62 +648,86 @@ internal sealed class WindowSnappingService
 
     private delegate IntPtr SubclassProcedure(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, nuint id, nuint data);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Returns the current native thread identifier.</summary>
     [DllImport("kernel32.dll")]
     private static extern uint GetCurrentThreadId();
 
+    /// <summary>Reads effective DPI for the supplied native window.</summary>
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr window);
 
+    /// <summary>Reads a system metric scaled to the supplied DPI.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetSystemMetricsForDpi(int index, uint dpi);
 
+    /// <summary>Synchronously queries the native window message handler.</summary>
     [DllImport("user32.dll", EntryPoint = "SendMessageW")]
     private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, ref NativeMinMaxInformation limits);
 
+    /// <summary>Reads the process and UI thread owning a window handle.</summary>
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
+    /// <summary>Reads the native outer rectangle in desktop coordinates.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRect(IntPtr window, out NativeRectangle rectangle);
 
+    /// <summary>Reads the pointer position in desktop coordinates.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out NativePoint point);
 
+    /// <summary>Resolves the monitor associated with a window and the supplied fallback rule.</summary>
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
 
+    /// <summary>Reads native monitor bounds and work-area information.</summary>
     [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInformation info);
 
+    /// <summary>Reads a desktop compositor attribute for visible-frame or cloaking checks.</summary>
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out NativeRectangle value, int size);
 
+    /// <summary>Reads a desktop compositor attribute for visible-frame or cloaking checks.</summary>
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
 
+    /// <summary>Checks the native window visibility flag.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr window);
 
+    /// <summary>Checks whether the native window is minimized.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsIconic(IntPtr window);
 
+    /// <summary>Checks whether the native window is maximized.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsZoomed(IntPtr window);
 
+    /// <summary>Installs a native window callback with caller-owned lifetime.</summary>
     [DllImport("comctl32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowSubclass(IntPtr window, SubclassProcedure callback, nuint id, nuint data);
 
+    /// <summary>Detaches the registered native window callback.</summary>
     [DllImport("comctl32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RemoveWindowSubclass(IntPtr window, SubclassProcedure callback, nuint id);
 
+    /// <summary>Forwards an unhandled message to the remaining native callback chain.</summary>
     [DllImport("comctl32.dll")]
     private static extern IntPtr DefSubclassProc(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+    #endregion
+
 }

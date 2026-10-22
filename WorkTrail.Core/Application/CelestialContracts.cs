@@ -16,14 +16,24 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Application;
 
 /// <summary>Requests a city-based ephemeris for an instant between 1900 and 2100 inclusive.</summary>
 public sealed record CelestialRequest(string CityId, DateTimeOffset InstantUtc, bool IncludeSatellites = false);
 
 /// <summary>Identifies the Sun, Moon, or a planet visible from Earth.</summary>
-public enum CelestialBodyKind { Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune }
+public enum CelestialBodyKind
+{
+    Sun,
+    Moon,
+    Mercury,
+    Venus,
+    Mars,
+    Jupiter,
+    Saturn,
+    Uranus,
+    Neptune
+}
 
 /// <summary>Contains apparent horizontal coordinates; above the horizon does not guarantee visibility through daylight or weather.</summary>
 public sealed record CelestialBodyPosition(CelestialBodyKind Kind, double AltitudeDegrees, double AzimuthDegrees, bool IsAboveHorizon);
@@ -50,7 +60,13 @@ public enum CelestialEventKind
 }
 
 /// <summary>Classifies a significant NOAA Space Weather Prediction Center condition without inferring local aurora visibility.</summary>
-public enum SpaceWeatherEventKind { GeomagneticStorm, SolarRadiationStorm, RadioBlackout, HighEnergyElectronFlux }
+public enum SpaceWeatherEventKind
+{
+    GeomagneticStorm,
+    SolarRadiationStorm,
+    RadioBlackout,
+    HighEnergyElectronFlux
+}
 
 /// <summary>Contains one three-hour planetary K-index observation, estimate, or forecast published by NOAA SWPC.</summary>
 public sealed record SpaceWeatherKpForecast(DateTimeOffset StartUtc, double KpIndex, string Status, int? NoaaScale);
@@ -86,7 +102,21 @@ public sealed record CelestialAgendaEvent(
 }
 
 /// <summary>Identifies equal tropical zodiac sectors beginning at the March equinox; these are not IAU constellations.</summary>
-public enum TropicalZodiacSign { Aries, Taurus, Gemini, Cancer, Leo, Virgo, Libra, Scorpio, Sagittarius, Capricorn, Aquarius, Pisces }
+public enum TropicalZodiacSign
+{
+    Aries,
+    Taurus,
+    Gemini,
+    Cancer,
+    Leo,
+    Virgo,
+    Libra,
+    Scorpio,
+    Sagittarius,
+    Capricorn,
+    Aquarius,
+    Pisces
+}
 
 /// <summary>Describes one 30-degree tropical sector, inclusive at its start and exclusive at its end.</summary>
 public sealed record CelestialZodiacSector(TropicalZodiacSign Sign, double StartLongitudeDegrees, double EndLongitudeDegrees);

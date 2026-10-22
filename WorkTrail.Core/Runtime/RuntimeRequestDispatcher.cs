@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using WorkTrail.Application;
@@ -28,14 +27,25 @@ namespace WorkTrail.Runtime;
 /// <summary>Validates and dispatches versioned runtime request envelopes to the application facade.</summary>
 internal sealed class RuntimeRequestDispatcher
 {
+
+    #region Fields
     private readonly IWorkTrailApplication _application;
     private readonly ILogger _logger;
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Connects validated runtime requests to the application facade and logger.</summary>
     internal RuntimeRequestDispatcher(IWorkTrailApplication application, ILogger logger)
     {
         _application = application ?? throw new ArgumentNullException(nameof(application));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Dispatches one validated request without exposing application exceptions over IPC.</summary>
     internal async Task<RuntimeResponseEnvelope> DispatchAsync(
@@ -102,6 +112,11 @@ internal sealed class RuntimeRequestDispatcher
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Copies an application result into the versioned response envelope.</summary>
     private static RuntimeResponseEnvelope ToResponse<T>(
         RuntimeRequestEnvelope request,
         OperationResult<T> result) =>
@@ -114,6 +129,7 @@ internal sealed class RuntimeRequestDispatcher
             result.Value,
             result.Issues);
 
+    /// <summary>Deserializes the reorder request before invoking the facade.</summary>
     private async Task<OperationResult<WorldClockSelectionState>> DispatchWorldClockMoveAsync(
         RuntimeRequestEnvelope request,
         CancellationToken cancellationToken)
@@ -123,6 +139,7 @@ internal sealed class RuntimeRequestDispatcher
         return await _application.MoveWorldClockAsync(move.CityId, move.Direction, cancellationToken);
     }
 
+    /// <summary>Creates a protocol failure tied to the original request identifier.</summary>
     private static RuntimeResponseEnvelope Failure(
         RuntimeRequestEnvelope request,
         string code,
@@ -136,30 +153,39 @@ internal sealed class RuntimeRequestDispatcher
             null,
             Array.Empty<ValidationIssue>());
 
+    /// <summary>Deserializes an optional typed payload with the shared protocol options.</summary>
     private static T? Read<T>(JsonElement value) =>
         value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
             ? default
             : value.Deserialize<T>(RuntimeProtocol.SerializerOptions);
 
+    /// <summary>Reads a string property, using an empty value when it is absent.</summary>
     private static string ReadString(JsonElement value, string name) =>
         ReadStringOrNull(value, name) ?? string.Empty;
 
+    /// <summary>Returns a string property only when its JSON shape matches.</summary>
     private static string? ReadStringOrNull(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out var property)
             && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
 
+    /// <summary>Reads a required integer property or rejects the request.</summary>
     private static long ReadInt64(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out var property)
             && property.TryGetInt64(out var number) ? number : throw new ArgumentException("An integer is required.");
 
+    /// <summary>Reads a required Boolean property or rejects the request.</summary>
     private static bool ReadRequiredBool(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out var property)
             && property.ValueKind is JsonValueKind.True or JsonValueKind.False
             ? property.GetBoolean() : throw new ArgumentException("A Boolean is required.");
 
+    /// <summary>Returns true only for an explicitly true Boolean property.</summary>
     private static bool ReadBool(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object
         && value.TryGetProperty(name, out var property)
         && property.ValueKind is JsonValueKind.True or JsonValueKind.False
         && property.GetBoolean();
+
+    #endregion
+
 }

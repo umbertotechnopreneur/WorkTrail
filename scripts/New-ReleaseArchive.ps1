@@ -31,6 +31,8 @@ param(
     [string]$OutputDirectory
 )
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($Version -cnotmatch '^[1-9][0-9]{0,4}\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$' -or
@@ -58,16 +60,33 @@ for ($ancestor = $outputRoot; $ancestor.Length -ge $artifactRoot.Length; $ancest
 }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+#endregion
+#region Implementation
+
 function Read-Package {
+    <#
+    .SYNOPSIS
+    Reads package identity information used to assemble the release archive.
+    #>
+
     param([Parameter(Mandatory)][string]$Path)
     $archive = [IO.Compression.ZipFile]::OpenRead($Path)
     try {
         $entry = $archive.GetEntry('AppxManifest.xml')
-        if ($null -eq $entry) { throw "Package has no manifest: $Path" }
+        if ($null -eq $entry) {
+            throw "Package has no manifest: $Path"
+        }
         $reader = [IO.StreamReader]::new($entry.Open())
-        try { [xml]$manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+        try {
+            [xml]$manifest = $reader.ReadToEnd()
+        } finally {
+            $reader.Dispose()
+        }
         $identity = $manifest.SelectSingleNode('/*[local-name()="Package"]/*[local-name()="Identity"]')
-        if ($null -eq $identity) { throw "Package has no identity: $Path" }
+        if ($null -eq $identity) {
+            throw "Package has no identity: $Path"
+        }
         [pscustomobject]@{
             Path = $Path
             Name = $identity.GetAttribute('Name')
@@ -78,15 +97,23 @@ function Read-Package {
             Manifest = $manifest
         }
     }
-    finally { $archive.Dispose() }
+    finally {
+        $archive.Dispose()
+    }
 }
+
+#endregion
 
 $packageRoot = (Resolve-Path -LiteralPath $PackageDirectory).Path
 $packageFiles = @(Get-ChildItem -LiteralPath $packageRoot -Recurse -File |
     Where-Object { $_.Extension -in @('.msix', '.appx') -and $_.FullName -notmatch '[\\/]Dependencies[\\/]' })
-if ($packageFiles.Count -ne 1) { throw 'Expected exactly one application package in PackageDirectory.' }
+if ($packageFiles.Count -ne 1) {
+    throw 'Expected exactly one application package in PackageDirectory.'
+}
 $package = Read-Package -Path $packageFiles[0].FullName
-if ($package.Signed) { throw 'This preparation path requires an unsigned package; signing and publication are separate release steps.' }
+if ($package.Signed) {
+    throw 'This preparation path requires an unsigned package; signing and publication are separate release steps.'
+}
 if ($package.Architecture -ine $Platform -or $package.Version -ne [version]"$Version.0") {
     throw 'Application package architecture/version does not match the requested release.'
 }
@@ -94,15 +121,23 @@ if ($package.Architecture -ine $Platform -or $package.Version -ne [version]"$Ver
 $buildArchive = [IO.Compression.ZipFile]::OpenRead($package.Path)
 try {
     $buildInfoEntry = $buildArchive.GetEntry('BuildInfo.json')
-    if ($null -eq $buildInfoEntry) { throw 'Package has no BuildInfo.json.' }
+    if ($null -eq $buildInfoEntry) {
+        throw 'Package has no BuildInfo.json.'
+    }
     $reader = [IO.StreamReader]::new($buildInfoEntry.Open())
-    try { $buildInfo = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
+    try {
+        $buildInfo = $reader.ReadToEnd() | ConvertFrom-Json
+    } finally {
+        $reader.Dispose()
+    }
     if ($buildInfo.semVer -cne $Version -or $buildInfo.packageVersion -cne "$Version.0" -or
         $buildInfo.platform -ine $Platform -or $buildInfo.gitCommit -cnotmatch '^[0-9a-f]{40}$') {
         throw 'Packaged build information does not match the release.'
     }
 }
-finally { $buildArchive.Dispose() }
+finally {
+    $buildArchive.Dispose()
+}
 
 $dependenciesRoot = Join-Path $packageFiles[0].DirectoryName 'Dependencies'
 $candidates = @()
@@ -120,7 +155,9 @@ foreach ($requirement in $package.Manifest.SelectNodes('/*[local-name()="Package
         $_.Publisher -ceq $requirement.GetAttribute('Publisher') -and
         $_.Version -ge [version]$requirement.GetAttribute('MinVersion')
     })
-    if ($matches.Count -ne 1) { throw "Missing or ambiguous framework dependency: $($requirement.GetAttribute('Name'))" }
+    if ($matches.Count -ne 1) {
+        throw "Missing or ambiguous framework dependency: $($requirement.GetAttribute('Name'))"
+    }
     $dependency = $matches[0]
     $signature = Get-AuthenticodeSignature -LiteralPath $dependency.Path
     if (-not $dependency.Signed -or $signature.Status -ne 'Valid') {

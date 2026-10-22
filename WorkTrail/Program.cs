@@ -28,10 +28,16 @@ namespace WorkTrail;
 /// <summary>Starts WinUI only after enforcing one long-lived WorkTrail process per user.</summary>
 public static class Program
 {
+    #region Fields
+
     private const string MainInstanceKey = "WorkTrail.Main";
     private static readonly object ActivationGate = new();
     private static readonly Queue<RedirectedActivationRequest> PendingActivations = new();
     private static App? _application;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Redirects long-lived activations before XAML, services, or windows are initialized.</summary>
     /// <param name="arguments">The bootstrap arguments supplied by Windows or the command line.</param>
@@ -110,6 +116,7 @@ public static class Program
         });
     }
 
+    /// <summary>Identifies launches that must route through the main application instance.</summary>
     private static bool RequiresSingleInstance(IReadOnlyList<string> arguments)
     {
         // Invalid bootstrap arguments fail before redirection, including when another instance is already running.
@@ -144,6 +151,8 @@ public static class Program
     }
 
     // activation owns the Windows payload only for the duration of this callback.
+
+    /// <summary>Copies activation data into the runtime-independent redirect request.</summary>
     private static RedirectedActivationRequest CaptureRedirectedActivation(AppActivationArguments activation)
     {
         ArgumentNullException.ThrowIfNull(activation);
@@ -167,6 +176,8 @@ public static class Program
             options,
             kind);
     }
+
+    #endregion
 }
 
 /// <summary>Contains the managed snapshot consumed after a redirected WinRT activation callback returns.</summary>

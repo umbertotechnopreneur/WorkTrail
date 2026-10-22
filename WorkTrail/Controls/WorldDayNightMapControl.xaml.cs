@@ -37,6 +37,8 @@ namespace WorkTrail.Controls;
 /// <summary>Renders a responsive equirectangular day/night projection from Core-owned astronomy data.</summary>
 public sealed partial class WorldDayNightMapControl : UserControl
 {
+    #region Fields
+
     private const int MapPixelWidth = 1440;
     private const int MapPixelHeight = 720;
     private const double CelestialMarkerSize = 40d;
@@ -49,6 +51,10 @@ public sealed partial class WorldDayNightMapControl : UserControl
     private byte[]? _nightTexture;
     private bool _textureLoadStarted;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates the passive world-map renderer.</summary>
     public WorldDayNightMapControl()
     {
@@ -56,6 +62,10 @@ public sealed partial class WorldDayNightMapControl : UserControl
         CompositeMapImage.Source = _compositeBitmap;
         Loaded += WorldDayNightMapControl_Loaded;
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Applies one complete Core projection and refreshes localized map annotations.</summary>
     internal void Apply(WorldClockMapProjection projection, LocalizationService strings)
@@ -99,6 +109,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         }
     }
 
+    /// <summary>Updates map labels and accessible descriptions for the active language.</summary>
     private void ApplyLanguage()
     {
         NightLegendText.Text = T("WorldClock.Map.Night").ToUpper(_strings.Culture);
@@ -108,6 +119,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         AutomationProperties.SetName(MapRoot, T("WorldClock.Map.Title"));
     }
 
+    /// <summary>Composites day and night textures using the projected solar illumination.</summary>
     private void RenderLighting()
     {
         if (_projection is null || _dayTexture is null || _nightTexture is null)
@@ -116,6 +128,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         }
 
         var pixels = new byte[MapPixelWidth * MapPixelHeight * 4];
+        // Sample at each pixel's center so the illumination matches the decoded map texture.
         for (var y = 0; y < MapPixelHeight; y++)
         {
             var latitude = 90d - (((y + 0.5d) / MapPixelHeight) * 180d);
@@ -132,6 +145,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
                     ? ((byte)255, (byte)154, (byte)36)
                     : ((byte)255, (byte)73, (byte)53);
                 var tintBlend = sample.TwilightBlend * 0.42d;
+                // WriteableBitmap stores channels as blue, green, red, then alpha.
                 pixels[offset] = BlendChannel(
                     _nightTexture[offset],
                     _dayTexture[offset],
@@ -160,6 +174,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         _compositeBitmap.Invalidate();
     }
 
+    /// <summary>Loads the packaged map textures once before rendering illumination.</summary>
     private async void WorldDayNightMapControl_Loaded(object sender, RoutedEventArgs e)
     {
         if (_textureLoadStarted)
@@ -173,6 +188,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         RenderLighting();
     }
 
+    /// <summary>Decodes a packaged map texture into the fixed-size BGRA pixel buffer.</summary>
     private static async Task<byte[]> LoadTextureAsync(string assetUri)
     {
         var file = await PackagedAsset.GetFileFromApplicationUriAsync(new Uri(assetUri));
@@ -199,6 +215,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         return pixels;
     }
 
+    /// <summary>Blends night, day, and twilight color values into one clamped channel.</summary>
     private static byte BlendChannel(
         byte nightValue,
         byte dayValue,
@@ -211,6 +228,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         return (byte)Math.Clamp(Math.Round(tintedValue), byte.MinValue, byte.MaxValue);
     }
 
+    /// <summary>Recreates city and celestial markers for the current projection.</summary>
     private void RebuildMarkers()
     {
         MarkerCanvas.Children.Clear();
@@ -234,6 +252,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         PositionMarkers();
     }
 
+    /// <summary>Creates an accessible marker for a projected city.</summary>
     private FrameworkElement CreateCityMarker(WorldClockMapCity city)
     {
         var marker = new Ellipse
@@ -251,6 +270,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         return marker;
     }
 
+    /// <summary>Creates the Sun marker at its projected geographic position.</summary>
     private FrameworkElement CreateSunMarker(WorldClockMapCoordinate position)
     {
         var marker = CreateCelestialMarker(isDaylight: true);
@@ -260,6 +280,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         return marker;
     }
 
+    /// <summary>Creates a phase-aware Moon marker for the current map projection.</summary>
     private FrameworkElement CreateMoonMarker(WorldClockMapProjection projection)
     {
         var phase = LunarPhaseProjection.Create(projection.MoonPhaseAngleDegrees);
@@ -275,6 +296,7 @@ public sealed partial class WorldDayNightMapControl : UserControl
         return marker;
     }
 
+    /// <summary>Builds a Sun or Moon marker using the shared phase control.</summary>
     private static Grid CreateCelestialMarker(bool isDaylight, double moonPhaseAngleDegrees = 0d)
     {
         var marker = new Grid
@@ -292,12 +314,14 @@ public sealed partial class WorldDayNightMapControl : UserControl
         return marker;
     }
 
+    /// <summary>Records geographic marker coordinates before viewport positioning.</summary>
     private void AddMarker(FrameworkElement marker, double latitude, double longitude, double width, double height)
     {
         marker.Tag = new MarkerPosition(latitude, longitude, width, height);
         MarkerCanvas.Children.Add(marker);
     }
 
+    /// <summary>Projects geographic marker positions into the current map viewport.</summary>
     private void PositionMarkers()
     {
         var viewportWidth = MapRoot.ActualWidth;
@@ -328,21 +352,29 @@ public sealed partial class WorldDayNightMapControl : UserControl
         }
     }
 
+    /// <summary>Repositions markers after the map viewport changes.</summary>
     private void MapRoot_SizeChanged(object sender, SizeChangedEventArgs e) => PositionMarkers();
 
+    /// <summary>Combines a place name with localized geographic coordinates.</summary>
     private string FormatPosition(string name, double latitude, double longitude) =>
         $"{name} · {FormatCoordinates(latitude, longitude)}";
 
+    /// <summary>Formats latitude and longitude with hemisphere labels.</summary>
     private string FormatCoordinates(double latitude, double longitude) =>
         $"{latitude.ToString("+0.0;-0.0;0.0", _strings.Culture)}°, {longitude.ToString("+0.0;-0.0;0.0", _strings.Culture)}°";
 
+    /// <summary>Translates a resource key using the current UI language.</summary>
     private string T(string key) => _strings.Translate(key);
 
+    /// <summary>Rejects invalid geographic coordinates before map presentation.</summary>
     private static void ValidateCoordinate(WorldClockMapCoordinate coordinate)
     {
         ArgumentNullException.ThrowIfNull(coordinate);
         _ = WorldMapLightingProjection.Project(coordinate.Latitude, coordinate.Longitude);
     }
 
+    /// <summary>Retains geographic coordinates and marker dimensions for viewport projection.</summary>
     private sealed record MarkerPosition(double Latitude, double Longitude, double Width, double Height);
+
+    #endregion
 }

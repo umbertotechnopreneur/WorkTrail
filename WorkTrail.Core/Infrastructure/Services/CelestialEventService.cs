@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CosineKitty;
@@ -27,11 +26,17 @@ namespace WorkTrail.Services;
 /// <summary>Shares global conjunction searches, source-backed recurring meteor estimates, and tropical solar sectors.</summary>
 internal static class CelestialEventService
 {
+
+    #region Fields
     private static readonly Lazy<MeteorCatalog> MeteorData = new(LoadCatalog);
     private static readonly object EventGate = new();
     private static readonly Dictionary<DateOnly, IReadOnlyList<GlobalEvent>> EventCache = new();
     private static readonly IReadOnlyList<CelestialZodiacSector> ZodiacSectors = Array.AsReadOnly(
         Enum.GetValues<TropicalZodiacSign>().Select(sign => new CelestialZodiacSector(sign, (int)sign * 30, ((int)sign + 1) * 30)).ToArray());
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Uses the shared solar longitude to classify twelve equal tropical sectors, independently of constellation boundaries.</summary>
     internal static CelestialZodiacSnapshot BuildZodiac(DateTimeOffset instant)
@@ -53,7 +58,11 @@ internal static class CelestialEventService
             if (!EventCache.TryGetValue(date, out globalEvents!))
             {
                 globalEvents = BuildGlobalEvents(date, cancellationToken);
-                if (EventCache.Count >= 8) EventCache.Remove(EventCache.Keys.First());
+                if (EventCache.Count >= 8)
+                {
+                    EventCache.Remove(EventCache.Keys.First());
+                }
+
                 EventCache.Add(date, globalEvents);
             }
         }
@@ -74,6 +83,11 @@ internal static class CelestialEventService
                 ? LocalAstronomy.CalculateGlobal(item.InstantUtc).MoonPhaseAngleDegrees : null)).ToArray());
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Calculates lunar conjunctions and annual meteor peaks for the cached date.</summary>
     private static IReadOnlyList<GlobalEvent> BuildGlobalEvents(DateOnly date, CancellationToken cancellationToken)
     {
         var events = new List<GlobalEvent>();
@@ -114,6 +128,7 @@ internal static class CelestialEventService
         return Array.AsReadOnly(events.OrderBy(item => item.InstantUtc).ToArray());
     }
 
+    /// <summary>Finds continuous negative-to-positive longitude crossings while excluding opposition jumps.</summary>
     private static IEnumerable<AstroTime> FindAscendingCrossings(SearchContext context, AstroTime start, AstroTime end, double stepDays, CancellationToken cancellationToken)
     {
         var left = start;
@@ -135,6 +150,7 @@ internal static class CelestialEventService
         }
     }
 
+    /// <summary>Reads the embedded meteor catalog and validates its provenance and coordinate frame.</summary>
     private static MeteorCatalog LoadCatalog()
     {
         // The curated embedded resource is read once; absent or invalid data fails explicitly instead of manufacturing event dates.
@@ -142,6 +158,10 @@ internal static class CelestialEventService
             ?? throw new InvalidDataException("The embedded meteor catalog is missing.");
         return ParseCatalog(stream);
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Validates the strict local catalog schema, coordinate frame, identifiers, ranges, and provenance before use.</summary>
     internal static MeteorCatalog ParseCatalog(Stream stream)
@@ -157,7 +177,9 @@ internal static class CelestialEventService
         if (catalog.SchemaVersion != 1 || catalog.ReferenceYear is < 1900 or > 2100 || catalog.SolarLongitudeFrame != "J2000"
             || !Uri.TryCreate(catalog.SourceUrl, UriKind.Absolute, out var source) || source.Scheme != Uri.UriSchemeHttps
             || catalog.Showers is null || catalog.Showers.Count == 0)
+        {
             throw new InvalidDataException("The meteor catalog metadata is unsupported.");
+        }
 
         var identifiers = new HashSet<string>(StringComparer.Ordinal);
         var iauCodes = new HashSet<string>(StringComparer.Ordinal);
@@ -167,7 +189,10 @@ internal static class CelestialEventService
                 || shower.IauCode is not { Length: 3 } || !shower.IauCode.All(char.IsAsciiLetterUpper)
                 || !iauCodes.Add(shower.IauCode)
                 || !double.IsFinite(shower.PeakSolarLongitudeDegrees) || shower.PeakSolarLongitudeDegrees is < 0 or >= 360)
+            {
                 throw new InvalidDataException("The meteor catalog contains invalid or duplicate shower data.");
+            }
+
             try
             {
                 // Use a non-leap year because these activity ranges must exist in every supported year.
@@ -175,7 +200,10 @@ internal static class CelestialEventService
                 var start = new DateOnly(shower.StartMonth > shower.EndMonth ? nonLeapYear - 1 : nonLeapYear, shower.StartMonth, shower.StartDay);
                 var finish = new DateOnly(nonLeapYear, shower.EndMonth, shower.EndDay);
                 if (finish <= start || finish.DayNumber - start.DayNumber > 90)
+                {
                     throw new InvalidDataException("A meteor activity period is invalid.");
+                }
+
             }
             catch (ArgumentOutOfRangeException exception)
             {
@@ -185,16 +213,34 @@ internal static class CelestialEventService
         return catalog with { Showers = Array.AsReadOnly(catalog.Showers.ToArray()) };
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Normalizes angular differences to the signed half-turn interval.</summary>
     private static double SignedLongitude(double longitude) => ((longitude + 180) % 360 + 360) % 360 - 180;
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Supplies the longitude difference used to search for lunar conjunctions.</summary>
     private sealed class ConjunctionContext(Body planet) : SearchContext
     {
+
+        #region Methods and properties
         /// <summary>Returns the signed geocentric ecliptic longitude difference, increasing through a Moon/planet conjunction.</summary>
         public override double Eval(AstroTime time) => SignedLongitude(Astronomy.PairLongitude(Body.Moon, planet, time));
+
+        #endregion
+
     }
 
+    /// <summary>Supplies the J2000 solar-longitude difference used to search for meteor peaks.</summary>
     private sealed class MeteorPeakContext(double targetLongitude) : SearchContext
     {
+
+        #region Methods and properties
         /// <summary>Uses the catalog's J2000 ecliptic frame, not the precessing tropical longitude used by zodiac and seasons.</summary>
         public override double Eval(AstroTime time)
         {
@@ -202,10 +248,19 @@ internal static class CelestialEventService
             var ecliptic = Astronomy.SphereFromVector(Astronomy.RotateVector(Astronomy.Rotation_EQJ_ECL(), sun));
             return SignedLongitude(ecliptic.lon - targetLongitude);
         }
+
+        #endregion
+
     }
 
+    /// <summary>Contains source metadata and recurring meteor shower definitions.</summary>
     internal sealed record MeteorCatalog(int SchemaVersion, int ReferenceYear, string SourceUrl, string SolarLongitudeFrame, IReadOnlyList<MeteorShower> Showers);
+    /// <summary>Defines an annual activity interval and its peak solar longitude.</summary>
     internal sealed record MeteorShower(string Id, string IauCode, int StartMonth, int StartDay, int EndMonth, int EndDay, double PeakSolarLongitudeDegrees);
+    /// <summary>Stores a calculated global event before time-zone projection.</summary>
     private sealed record GlobalEvent(CelestialEventKind Kind, DateTimeOffset InstantUtc, CelestialBodyKind? Body = null,
         string? ShowerId = null, double? SeparationDegrees = null, DateOnly? ActivityStart = null, DateOnly? ActivityEnd = null);
+
+    #endregion
+
 }

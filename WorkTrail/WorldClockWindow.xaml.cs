@@ -38,6 +38,8 @@ namespace WorkTrail;
 /// <summary>Hosts the independent world-clock comparison and time-zone conversion surface.</summary>
 public sealed partial class WorldClockWindow : Window
 {
+    #region Fields
+
     private const int LogicalWindowWidth = 1120;
     private const int LogicalWindowHeight = 720;
     private const int LogicalScreenMargin = 0;
@@ -70,6 +72,10 @@ public sealed partial class WorldClockWindow : Window
     private bool _wasMinimized;
     private int _requestVersion;
 
+    #endregion
+
+    #region Implementation
+
     private bool IsClosing => _closed || _lifetimeCancellation.IsCancellationRequested;
 
     /// <summary>Requests opening or focusing the independent world-map window.</summary>
@@ -92,6 +98,10 @@ public sealed partial class WorldClockWindow : Window
 
     /// <summary>Notifies the composition root after world-clock options persist shared settings.</summary>
     internal event Action<AppSettings>? SettingsSaved;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates the independent world-clock window over the shared application facade.</summary>
     internal WorldClockWindow(
@@ -143,6 +153,10 @@ public sealed partial class WorldClockWindow : Window
         _placement.ApplyDefaultBounds(RootGrid);
         Closed += WorldClockWindow_Closed;
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Applies the current application theme and language to the detached surface.</summary>
     internal void ApplySettings(AppSettings settings)
@@ -199,8 +213,10 @@ public sealed partial class WorldClockWindow : Window
         _titleBar.QueueLayoutUpdate();
     }
 
+    /// <summary>Switches from clock columns to their preference surface.</summary>
     private void OptionsButton_Click(object sender, RoutedEventArgs e) => ShowOptionsSurface();
 
+    /// <summary>Returns from key setup to options or from options to the clock surface.</summary>
     private async void HeaderBackButton_Click(object sender, RoutedEventArgs e)
     {
         if (OptionsHost.Content is WeatherKeySetupControl)
@@ -212,6 +228,7 @@ public sealed partial class WorldClockWindow : Window
         await ShowClocksSurfaceAsync();
     }
 
+    /// <summary>Routes a clock-menu selection to the appropriate astronomy request.</summary>
     private void OpenAstronomyWindow(string windowKey)
     {
         if (windowKey == WindowStateKeys.WorldMap)
@@ -224,8 +241,10 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Requests the independent lunar phase window.</summary>
     private void LunarPhaseButton_Click(object sender, RoutedEventArgs e) => LunarPhaseRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Shows preference controls and pauses clock-surface interaction.</summary>
     private void ShowOptionsSurface()
     {
         var options = EnsureOptionsControl();
@@ -241,6 +260,7 @@ public sealed partial class WorldClockWindow : Window
         _titleBar.QueueLayoutUpdate();
     }
 
+    /// <summary>Restores the clock surface and refreshes its live projection when needed.</summary>
     private async Task ShowClocksSurfaceAsync()
     {
         OptionsPanel.Visibility = Visibility.Collapsed;
@@ -265,6 +285,7 @@ public sealed partial class WorldClockWindow : Window
         UpdateRefreshTimerState();
     }
 
+    /// <summary>Creates and wires the preference surface only on its first use.</summary>
     private WorldClockOptionsControl EnsureOptionsControl()
     {
         if (_optionsControl is not null)
@@ -297,6 +318,7 @@ public sealed partial class WorldClockWindow : Window
         return options;
     }
 
+    /// <summary>Refreshes live clocks or reapplies the current fixed-time preference state.</summary>
     private async void OptionsControl_RefreshRequested(object? sender, EventArgs e)
     {
         if (_isLive)
@@ -308,22 +330,29 @@ public sealed partial class WorldClockWindow : Window
         _optionsControl?.ApplyState(_settings, _snapshot, _referenceCityId, IsAlwaysOnTop());
     }
 
+    /// <summary>Opens the picker to add a clock city.</summary>
     private async void OptionsControl_AddRequested(object? sender, EventArgs e) => await AddCityAsync();
 
+    /// <summary>Opens the city picker from the empty clock workspace.</summary>
     private async void EmptyStateAddButton_Click(object sender, RoutedEventArgs e) => await AddCityAsync();
 
+    /// <summary>Selects the city used as the time-conversion reference.</summary>
     private void OptionsControl_ReferenceRequested(object? sender, WorldClockCityEventArgs e) =>
         SetReferenceCity(e.CityId);
 
+    /// <summary>Persists removal of the requested clock city.</summary>
     private async void OptionsControl_RemoveRequested(object? sender, WorldClockCityEventArgs e) =>
         await RemoveCityAsync(e);
 
+    /// <summary>Persists moving the city earlier in the clock order.</summary>
     private async void OptionsControl_MoveUpRequested(object? sender, WorldClockCityEventArgs e) =>
         await MoveCityAsync(e, WorldClockMoveDirection.Up);
 
+    /// <summary>Persists moving the city later in the clock order.</summary>
     private async void OptionsControl_MoveDownRequested(object? sender, WorldClockCityEventArgs e) =>
         await MoveCityAsync(e, WorldClockMoveDirection.Down);
 
+    /// <summary>Applies the topmost state and refreshes the preference presentation.</summary>
     private void OptionsControl_AlwaysOnTopChanged(bool alwaysOnTop)
     {
         if (_appWindow.Presenter is OverlappedPresenter presenter)
@@ -334,32 +363,41 @@ public sealed partial class WorldClockWindow : Window
         _optionsControl?.ApplyState(_settings, _snapshot, _referenceCityId, IsAlwaysOnTop());
     }
 
+    /// <summary>Applies committed clock preferences and publishes them to the owner.</summary>
     private void OptionsControl_SettingsSaved(AppSettings settings)
     {
         ApplySettings(settings);
         SettingsSaved?.Invoke(settings);
     }
 
+    /// <summary>Displays a warning requested by the preference surface.</summary>
     private void OptionsControl_WarningRequested(string messageKey) => ShowFailure(messageKey);
 
+    /// <summary>Opens the configured weather-provider information page.</summary>
     private async void OptionsControl_ProviderLinkRequested(object? sender, EventArgs e) =>
         await OpenWeatherProviderLinkAsync();
 
+    /// <summary>Shows weather-key setup and refreshes live weather after verification.</summary>
     private async void OptionsControl_KeySetupRequested(object? sender, EventArgs e)
     {
         var setup = new WeatherKeySetupControl();
         setup.Dismissed += async verified =>
         {
             OptionsHost.Content = _optionsControl;
-            if (verified && _isLive) await RefreshCurrentAsync();
+            if (verified && _isLive)
+            {
+                await RefreshCurrentAsync();
+            }
         };
         OptionsHost.Content = setup;
         await setup.InitializeAsync(_application, _strings, _lifetimeCancellation.Token);
     }
 
+    /// <summary>Reads the topmost state from the current overlapped presenter.</summary>
     private bool IsAlwaysOnTop() =>
         _appWindow.Presenter is OverlappedPresenter presenter && presenter.IsAlwaysOnTop;
 
+    /// <summary>Adapts header actions to the active surface and available width.</summary>
     private void UpdateHeaderForSurface()
     {
         var optionsVisible = _layoutState.Surface == WorldClockWindowSurface.Options;
@@ -376,6 +414,7 @@ public sealed partial class WorldClockWindow : Window
         OptionsButton.Visibility = optionsVisible ? Visibility.Collapsed : Visibility.Visible;
     }
 
+    /// <summary>Adapts content layout and caption hit testing to the new viewport size.</summary>
     private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // XAML may raise size changes before construction has finished attaching the chrome controller.
@@ -393,8 +432,10 @@ public sealed partial class WorldClockWindow : Window
         _titleBar.QueueLayoutUpdate();
     }
 
+    /// <summary>Constrains the reference editor before its flyout opens.</summary>
     private void ReferenceInstantFlyout_Opening(object sender, object e) => UpdateReferenceFlyoutConstraints();
 
+    /// <summary>Keeps reference fields scrollable while preserving reachable flyout actions.</summary>
     private void UpdateReferenceFlyoutConstraints()
     {
         var bounds = WorldClockWindowLayoutState.CalculateReferenceFlyoutBounds(
@@ -411,6 +452,7 @@ public sealed partial class WorldClockWindow : Window
         Close();
     }
 
+    /// <summary>Restores window placement and initializes presentation after the visual tree is ready.</summary>
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         if (_loaded)
@@ -450,12 +492,14 @@ public sealed partial class WorldClockWindow : Window
         await RefreshCurrentAsync();
     }
 
+    /// <summary>Stops the current timer tick before requesting the next live projection.</summary>
     private async void RefreshTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         sender.Stop();
         await RefreshCurrentAsync();
     }
 
+    /// <summary>Requests a current projection while guarding against concurrent refreshes and closure.</summary>
     private async Task<bool> RefreshCurrentAsync()
     {
         if (!_isLive)
@@ -529,6 +573,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Converts the selected local instant and rejects responses superseded by newer input.</summary>
     private async Task<bool> ConvertFromControlsAsync()
     {
         if (_updatingReferenceControls
@@ -593,6 +638,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Updates clock columns, reference controls, and dependent surfaces from one complete snapshot.</summary>
     private void ApplySnapshot(WorldClockSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -659,6 +705,7 @@ public sealed partial class WorldClockWindow : Window
         UpdateRefreshTimerState();
     }
 
+    /// <summary>Shows a changed weather warning without restarting unchanged notifications.</summary>
     private void UpdateWeatherStatus(WorldClockWeatherStatus status)
     {
         ArgumentNullException.ThrowIfNull(status);
@@ -692,6 +739,7 @@ public sealed partial class WorldClockWindow : Window
             T(messageKey));
     }
 
+    /// <summary>Shows provider attribution only when its fresh observations are displayed.</summary>
     private void UpdateWeatherAttribution(WorldClockSnapshot snapshot)
     {
         var displaysOpenWeatherObservation =
@@ -707,6 +755,7 @@ public sealed partial class WorldClockWindow : Window
             : Visibility.Collapsed;
     }
 
+    /// <summary>Loads the weather-provider attribution image when required.</summary>
     private void EnsureWeatherAttributionLogo()
     {
         if (_weatherAttributionLogoSource is not null)
@@ -726,12 +775,14 @@ public sealed partial class WorldClockWindow : Window
         source.UriSource = new Uri("ms-appx:///Assets/WorldClocks/ThirdParty/OpenWeather/ow_logo.svg");
     }
 
+    /// <summary>Updates attribution presentation after its logo has loaded.</summary>
     private void WeatherAttributionLogo_Opened(SvgImageSource sender, SvgImageSourceOpenedEventArgs args)
     {
         WeatherAttributionLogoContainer.Visibility = Visibility.Visible;
         WeatherAttributionText.Visibility = Visibility.Collapsed;
     }
 
+    /// <summary>Reports attribution artwork failure and updates the remaining attribution content.</summary>
     private void WeatherAttributionLogo_OpenFailed(SvgImageSource sender, SvgImageSourceFailedEventArgs args)
     {
         // Keep the existing text attribution available when the optional SVG cannot be decoded.
@@ -739,6 +790,7 @@ public sealed partial class WorldClockWindow : Window
         WeatherAttributionText.Visibility = Visibility.Visible;
     }
 
+    /// <summary>Opens the weather provider's attribution link.</summary>
     private async void WeatherAttributionButton_Click(object sender, RoutedEventArgs e)
     {
         WeatherAttributionButton.IsEnabled = false;
@@ -755,6 +807,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Opens provider information through the application facade and reports failures.</summary>
     private async Task OpenWeatherProviderLinkAsync()
     {
         if (_weatherProviderLinkOpening || IsClosing)
@@ -791,6 +844,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Restores a valid reference state after the requested conversion fails.</summary>
     private void HandleConversionFailure(bool transitionStartedFromLive, string messageKey)
     {
         var state = WorldClockWindowLayoutState.ResolveConversionFailure(transitionStartedFromLive);
@@ -811,6 +865,7 @@ public sealed partial class WorldClockWindow : Window
         ShowFailure(messageKey);
     }
 
+    /// <summary>Updates reference fields without triggering another time conversion.</summary>
     private void UpdateReferenceControls(IReadOnlyList<WorldClockItem> clocks, WorldClockItem referenceClock)
     {
         _updatingReferenceControls = true;
@@ -844,6 +899,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Reuses existing city columns and reconciles them with the snapshot order.</summary>
     private void EnsureColumns(IReadOnlyList<WorldClockItem> clocks)
     {
         if (_columns.Count == clocks.Count
@@ -886,6 +942,7 @@ public sealed partial class WorldClockWindow : Window
         UpdateClockColumnsLayout(clocks.Count, ClockColumnsScroller.ActualWidth);
     }
 
+    /// <summary>Recalculates clock-column sizes after the viewport changes.</summary>
     private void ClockColumnsScroller_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (_snapshot is { Clocks.Count: > 0 })
@@ -894,6 +951,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Distributes the available viewport among the current clock columns.</summary>
     private void UpdateClockColumnsLayout(int clockCount, double viewportWidth)
     {
         var layout = WorldClockWindowLayoutState.CalculateColumnsLayout(
@@ -915,6 +973,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Adapts initial clock-window dimensions while respecting restored user placement.</summary>
     private void ApplySmartWindowSizing(int clockCount)
     {
         if (!_loaded || _layoutState.Surface != WorldClockWindowSurface.Clocks)
@@ -946,6 +1005,7 @@ public sealed partial class WorldClockWindow : Window
         _titleBar.QueueLayoutUpdate();
     }
 
+    /// <summary>Changes the conversion reference after an explicit city selection.</summary>
     private void ReferenceCityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingReferenceControls || ReferenceCityComboBox.SelectedItem is not ReferenceCityOption option)
@@ -956,6 +1016,7 @@ public sealed partial class WorldClockWindow : Window
         SetReferenceCity(option.CityId);
     }
 
+    /// <summary>Applies the selected reference city and updates the reference controls.</summary>
     private void SetReferenceCity(string cityId)
     {
         if (_snapshot is null || _referenceCityId == cityId)
@@ -970,6 +1031,7 @@ public sealed partial class WorldClockWindow : Window
         ApplySnapshot(_snapshot);
     }
 
+    /// <summary>Recalculates the selected reference instant after a date edit.</summary>
     private async void ReferenceDatePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
     {
         if (_updatingReferenceControls)
@@ -1000,12 +1062,15 @@ public sealed partial class WorldClockWindow : Window
         await ConvertFromControlsAsync();
     }
 
+    /// <summary>Recalculates the selected reference instant after a time edit.</summary>
     private async void ReferenceTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e) =>
         await ConvertFromControlsAsync();
 
+    /// <summary>Applies the requested fixed instant from the reference editor.</summary>
     private async void ApplyReferenceButton_Click(object sender, RoutedEventArgs e) =>
         await ConvertFromControlsAsync();
 
+    /// <summary>Returns the clock workspace to the current live instant.</summary>
     private async void NowButton_Click(object sender, RoutedEventArgs e)
     {
         _pendingLiveConversion = false;
@@ -1016,6 +1081,7 @@ public sealed partial class WorldClockWindow : Window
         await RefreshCurrentAsync();
     }
 
+    /// <summary>Opens the city picker and refreshes the workspace after successful additions.</summary>
     private async Task AddCityAsync()
     {
         try
@@ -1080,6 +1146,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Removes a saved city through the application facade and refreshes the projection.</summary>
     private async Task RemoveCityAsync(WorldClockCityEventArgs e)
     {
         try
@@ -1158,6 +1225,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Persists a city's new position and refreshes the clock order.</summary>
     private async Task MoveCityAsync(WorldClockCityEventArgs e, WorldClockMoveDirection direction)
     {
         try
@@ -1200,6 +1268,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Presents a localized failure in the window's existing notification surface.</summary>
     private void ShowFailure(string messageKey)
     {
         if (!IsClosing)
@@ -1211,6 +1280,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Updates the initial-load indicator without discarding an existing projection.</summary>
     private void ShowLoading(bool show)
     {
         LoadingIndicator.IsActive = show;
@@ -1222,6 +1292,7 @@ public sealed partial class WorldClockWindow : Window
         EmptyClocksState.Visibility = !show && hasEmptySnapshot ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>Schedules live updates only while the clock surface can consume them.</summary>
     private void UpdateRefreshTimerState()
     {
         _refreshTimer.Stop();
@@ -1238,6 +1309,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Schedules a bounded retry while retaining the last complete live projection.</summary>
     private void ScheduleLiveRetry()
     {
         _refreshTimer.Stop();
@@ -1253,6 +1325,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Reconciles presentation with native window state and geometry changes.</summary>
     private async void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
     {
         var minimized = sender.Presenter is OverlappedPresenter presenter
@@ -1275,6 +1348,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Reapplies theme-dependent clock visuals after caption theme changes.</summary>
     private void TitleBar_ThemeChanged(ElementTheme effectiveTheme)
     {
         if (_snapshot is not null)
@@ -1283,6 +1357,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Renders the existing projection using the effective window theme.</summary>
     private void ReapplyThemeAwareClockPresentation()
     {
         if (IsClosing || _snapshot is not { } snapshot || _referenceCityId is not { } referenceCityId)
@@ -1305,6 +1380,7 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
+    /// <summary>Queues geometry updates after the XAML root's scale or layout changes.</summary>
     private void XamlRoot_Changed(XamlRoot sender, XamlRootChangedEventArgs args)
     {
         if (ReferenceInstantFlyout.IsOpen)
@@ -1320,6 +1396,7 @@ public sealed partial class WorldClockWindow : Window
         _titleBar.QueueLayoutUpdate();
     }
 
+    /// <summary>Releases the closed clock instance and its event subscriptions.</summary>
     private void WorldClockWindow_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
@@ -1363,7 +1440,11 @@ public sealed partial class WorldClockWindow : Window
         _lifetimeCancellation.Dispose();
     }
 
+    /// <summary>Translates a resource key using the current UI language.</summary>
     private string T(string key) => _strings.Translate(key);
 
+    /// <summary>Carries the identity and display label of a time-conversion reference city.</summary>
     private sealed record ReferenceCityOption(string CityId, string CityName);
+
+    #endregion
 }

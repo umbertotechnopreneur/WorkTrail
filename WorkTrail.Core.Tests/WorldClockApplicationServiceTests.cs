@@ -33,6 +33,8 @@ namespace WorkTrail.Core.Tests;
 /// <summary>Verifies the isolated application-layer world-clock use cases.</summary>
 public sealed class WorldClockApplicationServiceTests
 {
+    #region Implementation
+
     /// <summary>Ensures duplicate and over-capacity additions fail without changing persisted settings.</summary>
     [Fact]
     public void AddValidated_RejectsDuplicatesAndMaximumWithoutPersisting()
@@ -162,7 +164,9 @@ public sealed class WorldClockApplicationServiceTests
 
         Assert.False(invalid.Succeeded);
         Assert.Equal("world_clocks.weather.key.invalid", invalid.Code);
+
         var write = Assert.Single(writes);
+
         Assert.Equal(OpenWeatherCurrentProvider.ApiKeyEnvironmentVariable, write.Name);
         Assert.Equal(secret, write.Secret);
         Assert.True(stored.Succeeded);
@@ -210,6 +214,7 @@ public sealed class WorldClockApplicationServiceTests
         Assert.Empty(writes);
     }
 
+    /// <summary>Creates the application service with test-controlled selection persistence and weather validation.</summary>
     private static WorldClockApplicationService CreateService(
         SettingsSnapshot settings,
         Action<AppSettings>? onPersist = null,
@@ -220,6 +225,7 @@ public sealed class WorldClockApplicationServiceTests
             RepositoryFile("WorkTrail", "Assets", "WorldClocks", "world-clocks.sqlite3"),
             new ValidationWeatherProvider(validation),
             TimeProvider.System);
+
         return new WorldClockApplicationService(
             worldClocks,
             settings,
@@ -231,31 +237,50 @@ public sealed class WorldClockApplicationServiceTests
             });
     }
 
+    #endregion
+
+    #region Test doubles
+
+    /// <summary>Returns a configured key-validation outcome without contacting a weather provider.</summary>
     private sealed class ValidationWeatherProvider(WorldClockWeatherApiKeyValidation validation)
         : IWorldClockWeatherProvider
     {
+        #region Properties
+
         public string Name => "validation-test-provider";
 
         public string ConfigurationState => "configured";
 
         public bool IsConfigured => true;
 
-        /// <inheritdoc />
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Returns the configured key-validation result after honoring cancellation.</summary>
         public Task<WorldClockWeatherApiKeyValidation> ValidateApiKeyAsync(
             string secret,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
             return Task.FromResult(validation);
         }
 
-        /// <inheritdoc />
+        /// <summary>Rejects observation requests because this fixture supports only key validation.</summary>
         public Task<WorldClockWeatherObservation> GetCurrentAsync(
             WorldClockWeatherLocation location,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Weather observations are not used by this test service.");
+
+        #endregion
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Finds a checked-in fixture by walking upward from the test output to the repository root.</summary>
     private static string RepositoryFile(params string[] pathSegments)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -268,4 +293,6 @@ public sealed class WorldClockApplicationServiceTests
 
         throw new DirectoryNotFoundException("Could not locate the WorkTrail repository root.");
     }
+
+    #endregion
 }

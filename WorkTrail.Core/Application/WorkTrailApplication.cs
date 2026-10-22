@@ -9,6 +9,8 @@ namespace WorkTrail.Application;
 /// <summary>Constructs only the desktop widget services after runtime ownership is acquired.</summary>
 public static class WorkTrailApplicationFactory
 {
+
+    #region Methods and properties
     /// <summary>Loads the stable installation identity without opening activity history.</summary>
     public static string LoadInstallationId() => new LocalStore().LoadSettings().InstallationId;
 
@@ -16,11 +18,16 @@ public static class WorkTrailApplicationFactory
     public static IWorkTrailApplication Create(ILoggerFactory? loggerFactory = null, ObservabilityHealth? observability = null) =>
         new WorkTrailApplication(new LocalStore(), loggerFactory?.CreateLogger<WorkTrailApplication>(), observability,
             new WorldClockService(logger: loggerFactory?.CreateLogger<WorldClockService>()));
+
+    #endregion
+
 }
 
 /// <summary>Owns desktop widget queries, serialized settings writes and Windows integration.</summary>
 public sealed partial class WorkTrailApplication : IWorkTrailApplication
 {
+
+    #region Fields
     private readonly LocalStore _store;
     private readonly SettingsSnapshot _settingsSnapshot;
     private readonly UtilityService _utilities;
@@ -43,6 +50,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private const string ProductTermsUrl = "https://umbertogiacobbi.biz/terms/";
     private const string OpenWeatherUrl = "https://openweathermap.org/";
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates a widget runtime with no hooks, screenshot pipeline, AI client or history store.</summary>
     public WorkTrailApplication(LocalStore store, ILogger<WorkTrailApplication>? logger = null,
         ObservabilityHealth? observability = null, WorldClockService? worldClockService = null,
@@ -59,6 +70,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             _settingsSnapshot, _utilities.SetApiKey, PersistSettings);
     }
 
+    #endregion
+
+    #region Methods and properties
+
     /// <inheritdoc />
     public Task<OperationResult<RuntimeHealth>> GetRuntimeHealthAsync(CancellationToken cancellationToken)
     {
@@ -73,19 +88,32 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     public Task<OperationResult<AppSettings>> PatchSettingsAsync(SettingsPatch patch, CancellationToken cancellationToken) => MutateAsync(async () =>
     {
         var validation = SettingsCatalog.Apply(_settingsSnapshot.Value, patch);
-        if (!validation.Succeeded || validation.Value is null) return validation;
+        if (!validation.Succeeded || validation.Value is null)
+        {
+            return validation;
+        }
+
         var next = validation.Value;
         if (patch.Values.Keys.Any(key => key.Trim().Equals("home.city_id", StringComparison.OrdinalIgnoreCase)))
         {
             var catalog = _worldClockOperations.GetCatalog().Value!;
             if (!catalog.Cities.Any(city => city.Id == next.HomeCityId))
+            {
                 return OperationResult<AppSettings>.Failure("settings.validation.failed", "SettingsValidationFailed",
-                    new ValidationIssue("home.city_id", "not_found", "SettingsFieldInvalid"));
+                                    new ValidationIssue("home.city_id", "not_found", "SettingsFieldInvalid"));
+            }
+
             var selected = WorldClockSelection.NormalizePersisted(next.WorldClockCityIds);
             if (!selected.Contains(next.HomeCityId) && selected.Count >= WorldClockSelection.MaximumClocks)
+            {
                 return OperationResult<AppSettings>.Failure("world_clocks.limit", "WorldClocksMaximumReached");
+            }
+
             if (!selected.Contains(next.HomeCityId) && _featureAccess.DeniedWorldClockCreation(selected.Count) is { } denied)
+            {
                 return OperationResult<AppSettings>.Failure(denied.Code, denied.MessageKey);
+            }
+
             next = next with
             {
                 WorldClockCityIds = new[] { next.HomeCityId }.Concat(selected.Where(id => id != next.HomeCityId)).ToArray(),
@@ -94,13 +122,21 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             };
         }
         if (next.AstronomyAgendaCityId.Length > 0 && !WorldClockSelection.NormalizePersisted(next.WorldClockCityIds).Contains(next.AstronomyAgendaCityId))
+        {
             return OperationResult<AppSettings>.Failure("settings.validation.failed", "SettingsValidationFailed",
-                new ValidationIssue("astronomy.agenda.city_id", "city_not_selected", "SettingsFieldInvalid"));
+                            new ValidationIssue("astronomy.agenda.city_id", "city_not_selected", "SettingsFieldInvalid"));
+        }
+
         PersistSettings(next);
         await Task.CompletedTask;
         return OperationResult<AppSettings>.Success("settings.saved", "SettingsSaved", next);
     }, cancellationToken);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Writes settings atomically before publishing the new in-memory snapshot.</summary>
     private void PersistSettings(AppSettings settings)
     {
         // Publish only after the atomic settings replacement has completed.
@@ -108,6 +144,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _settingsSnapshot.Replace(settings);
     }
 
+    /// <summary>Serializes application mutations and rechecks disposal after acquiring the gate.</summary>
     private async Task<OperationResult<T>> MutateAsync<T>(Func<Task<OperationResult<T>>> operation, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -117,18 +154,35 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             ObjectDisposedException.ThrowIf(_disposed, this);
             return await operation().ConfigureAwait(false);
         }
-        finally { _mutations.Release(); }
+        finally
+        {
+            _mutations.Release();
+        }
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
         // Drain the active settings write before releasing widget services. Queued callers fail after acquiring the gate.
         await _mutations.WaitAsync().ConfigureAwait(false);
-        try { _worldClockOperations.Dispose(); }
-        finally { _mutations.Release(); }
+        try
+        {
+            _worldClockOperations.Dispose();
+        }
+        finally
+        {
+            _mutations.Release();
+        }
     }
 
     /// <inheritdoc />
@@ -225,7 +279,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = _worldClockOperations.GetCatalog();
-        if (!result.Succeeded || result.Value is null) return Task.FromResult(result);
+        if (!result.Succeeded || result.Value is null)
+        {
+            return Task.FromResult(result);
+        }
+
         var count = WorldClockSelection.NormalizePersisted(_settingsSnapshot.Value.WorldClockCityIds).Count;
         var suggestion = HomeCitySuggestion.Resolve(result.Value.Cities, TimeZoneInfo.Local);
         return Task.FromResult(result with
@@ -263,10 +321,13 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return CelestialService.Build(request, catalog, cancellationToken);
         }, cancellationToken).ConfigureAwait(false);
         if (request.IncludeSatellites)
+        {
             snapshot = snapshot with
             {
                 Satellites = await CelestialSatelliteService.GetPositionsAsync(snapshot, cancellationToken).ConfigureAwait(false)
             };
+        }
+
         var zone = TimeZoneInfo.FindSystemTimeZoneById(snapshot.TimeZoneId);
         var calendar = CelestialCalendarCatalog.Current;
         // Read the bundled calendar directly; widget startup never opens activity history.
@@ -325,7 +386,10 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
                 var selection = WorldClockSelection.NormalizePersisted(_settingsSnapshot.Value.WorldClockCityIds);
                 // Recheck under the same mutation lock as persistence; a previously opened picker is not an entitlement.
                 if (!selection.Contains(normalizedId) && _featureAccess.DeniedWorldClockCreation(selection.Count) is { } denied)
+                {
                     return Task.FromResult(OperationResult<WorldClockSelectionState>.Failure("feature.clock_limit", denied.MessageKey, denied));
+                }
+
                 return Task.FromResult(_worldClockOperations.AddValidated(normalizedId));
             },
             cancellationToken);
@@ -479,5 +543,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         await Task.CompletedTask;
         return OperationResult<bool>.Success(enabled ? "startup.enabled" : "startup.disabled", enabled ? "StartupEnabled" : "StartupDisabled", enabled);
     }, cancellationToken);
+
+    #endregion
 
 }

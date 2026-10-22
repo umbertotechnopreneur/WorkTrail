@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Application;
 
 /// <summary>Identifies the currently activated main window and already-created peer windows.</summary>

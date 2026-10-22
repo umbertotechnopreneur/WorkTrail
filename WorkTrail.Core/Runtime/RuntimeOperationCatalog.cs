@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Collections.ObjectModel;
 using System.Reflection;
 
@@ -82,9 +81,12 @@ internal enum RuntimeOperation
 /// <summary>Pairs a typed runtime operation with its stable wire name.</summary>
 internal sealed record RuntimeOperationDefinition(RuntimeOperation Operation, string WireName);
 
+/// <summary>Assigns the stable protocol name to a runtime operation.</summary>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
 internal sealed class RuntimeOperationWireNameAttribute : Attribute
 {
+
+    #region Initialization
     /// <summary>Creates a stable wire-name annotation.</summary>
     internal RuntimeOperationWireNameAttribute(string wireName)
     {
@@ -101,18 +103,31 @@ internal sealed class RuntimeOperationWireNameAttribute : Attribute
         WireName = wireName;
     }
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Gets the exact stable value serialized on the wire.</summary>
     internal string WireName { get; }
+
+    #endregion
+
 }
 
 /// <summary>Owns the one-to-one mapping shared by the runtime host and client.</summary>
 internal static class RuntimeOperationCatalog
 {
+
+    #region Fields
     private static readonly IReadOnlyList<RuntimeOperationDefinition> Definitions = CreateDefinitions();
     private static readonly IReadOnlyDictionary<string, RuntimeOperation> OperationsByWireName = BuildWireLookup(Definitions);
     private static readonly IReadOnlyDictionary<RuntimeOperation, string> WireNamesByOperation =
         new ReadOnlyDictionary<RuntimeOperation, string>(
             Definitions.ToDictionary(static definition => definition.Operation, static definition => definition.WireName));
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets every protocol operation exactly once.</summary>
     internal static IReadOnlyList<RuntimeOperationDefinition> All => Definitions;
@@ -153,6 +168,11 @@ internal static class RuntimeOperationCatalog
         return new ReadOnlyDictionary<string, RuntimeOperation>(lookup);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Builds the operation lookup and rejects missing or duplicate wire names.</summary>
     private static IReadOnlyList<RuntimeOperationDefinition> CreateDefinitions()
     {
         var operations = Enum.GetValues<RuntimeOperation>();
@@ -172,4 +192,7 @@ internal static class RuntimeOperationCatalog
         _ = BuildWireLookup(definitions);
         return Array.AsReadOnly(definitions);
     }
+
+    #endregion
+
 }

@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -29,9 +28,15 @@ namespace WorkTrail.Services;
 /// <summary>Persists unexpected failures and shows a native dialog even before WinUI creates a window.</summary>
 public static class ApplicationErrorService
 {
+
+    #region Fields
     private static readonly object LogGate = new();
     private static ILogger? _logger;
     private static int _dialogActive;
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Connects the error reporter to the application's normal logging pipeline.</summary>
     /// <param name="logger">The initialized process logger.</param>
@@ -60,9 +65,16 @@ public static class ApplicationErrorService
             try
             {
                 // Unobserved task notifications run on the finalizer thread; user acknowledgement must not block GC.
-                if (ThreadPool.QueueUserWorkItem(_ => ShowErrorDialog(exception, logPath, language))) return;
+                if (ThreadPool.QueueUserWorkItem(_ => ShowErrorDialog(exception, logPath, language)))
+                {
+                    return;
+                }
+
             }
-            catch (Exception schedulingFailure) { _ = TryWriteExceptionLog(schedulingFailure, "ErrorDialogScheduling"); }
+            catch (Exception schedulingFailure)
+            {
+                _ = TryWriteExceptionLog(schedulingFailure, "ErrorDialogScheduling");
+            }
         }
         ShowErrorDialog(exception, logPath, language);
     }
@@ -83,6 +95,10 @@ public static class ApplicationErrorService
         // This independent, synchronously flushed log also works before logging initialization or process termination.
         return TryWriteExceptionLog(exception, source);
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Shows one acknowledgement dialog and releases the modal guard even if native UI fails.</summary>
     /// <param name="exception">The failure already saved to the diagnostic log.</param>
@@ -170,4 +186,7 @@ public static class ApplicationErrorService
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("user32.dll", EntryPoint = "MessageBoxW", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
     private static extern int MessageBox(IntPtr owner, string text, string caption, uint flags);
+
+    #endregion
+
 }

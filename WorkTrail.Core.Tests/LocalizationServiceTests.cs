@@ -11,8 +11,12 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks shipped translations and language selection against actual application identifiers.</summary>
 public sealed class LocalizationServiceTests
 {
+    #region Implementation
+
+    /// <summary>Resolves launcher and weather labels in each shipped locale without exposing resource keys.</summary>
     [Theory]
     [InlineData("en-US")]
     [InlineData("it-IT")]
@@ -30,9 +34,15 @@ public sealed class LocalizationServiceTests
         foreach (var key in new[] { "Launcher.Settings", "Launcher.Clocks", "Launcher.Calendar", "Launcher.Sky",
             "Launcher.Moon", "Launcher.Map", "Launcher.Globe", "Launcher.Startup", "Launcher.Snapping", "Launcher.Theme",
             "Launcher.Language", "WeatherSetup.Title", "WeatherSetup.Key", "WeatherSetup.Save" })
+
+        {
             Assert.NotEqual(key, strings.Translate(key));
+        }
         foreach (var pair in LocalizationService.AutomationNameKeys)
+
+        {
             Assert.NotEqual(pair.Value, strings.Translate(pair.Value));
+        }
     }
 
     /// <summary>Every dynamic identity displayed by sky, agenda, and clocks resolves in every shipped language.</summary>
@@ -63,28 +73,42 @@ public sealed class LocalizationServiceTests
             .Concat(CatalogKeys("important-dates", "dates", "CelestialImportantDate"))
             .Concat(new[] { "WorldClock.Week", "Dialog.Save", "Launcher.CloseTitle", "Launcher.CloseMessage",
                 "Launcher.CloseToTray", "Launcher.Exit", "Welcome.Title", "Welcome.Message", "Welcome.Manual", "Welcome.Continue" });
-        foreach (var key in keys) Assert.False(string.IsNullOrWhiteSpace(strings.Translate(key)), key);
+        foreach (var key in keys)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(strings.Translate(key)), key);
+        }
+
         Assert.DoesNotContain("{0}", strings.Format("Welcome.Suggestion", "Windows time zone"), StringComparison.Ordinal);
     }
 
+    /// <summary>Reads localization identifiers from an embedded catalog to validate shipped translations.</summary>
     private static IEnumerable<string> CatalogKeys(string name, string collection, string prefix)
     {
         using var stream = typeof(LocalizationService).Assembly.GetManifestResourceStream($"WorkTrail.Data.{name}.json")
             ?? throw new InvalidDataException(name);
         using var document = JsonDocument.Parse(stream);
+
         return document.RootElement.GetProperty(collection).EnumerateArray()
             .Select(item => prefix + item.GetProperty("id").GetString()).ToArray();
     }
 
+    /// <summary>Resolves the system language from the supplied Windows culture.</summary>
     [Fact]
     public void SystemLanguage_UsesTheSuppliedWindowsCulture() =>
         Assert.Equal("it-IT", LocalizationService.ResolveLanguage("system", CultureInfo.GetCultureInfo("it-IT")));
 
+    /// <summary>Accepts every shipped locale while rejecting an unsupported language setting.</summary>
     [Fact]
     public void LanguagePatch_AcceptsEveryShippedLocaleAndRejectsAnUnknownChoice()
     {
         foreach (var locale in ProductLanguageCatalog.UiChoices)
+
+        {
             Assert.True(SettingsCatalog.Apply(new AppSettings(), new SettingsPatch(new Dictionary<string, string?> { ["language"] = locale })).Succeeded);
+        }
+
         Assert.False(SettingsCatalog.Apply(new AppSettings(), new SettingsPatch(new Dictionary<string, string?> { ["language"] = "unsupported" })).Succeeded);
     }
+
+    #endregion
 }

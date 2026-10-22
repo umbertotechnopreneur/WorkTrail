@@ -25,8 +25,11 @@ using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
+/// <summary>Checks workspace restoration order and exclusion of transient surfaces.</summary>
 public sealed class WorkspaceWindowStateTests
 {
+    #region Implementation
+
     /// <summary>Verifies that the first launch does not invent auxiliary windows without a saved session.</summary>
     [Fact]
     public void MissingSession_DoesNotOpenAuxiliaryWindows()
@@ -79,6 +82,7 @@ public sealed class WorkspaceWindowStateTests
             [WindowStateKeys.WorldMap] = false,
             [WindowStateKeys.WorldClocks] = false
         };
+
         Assert.Equal(new[] { WindowStateKeys.LocalSky, WindowStateKeys.AstronomyAgenda, WindowStateKeys.CelestialMap },
             WorkspaceWindowState.GetWindowsToRestore(states));
         Assert.True(WindowStateService.GetMinimumSize(WindowStateKeys.LocalSky).Width > 0);
@@ -137,4 +141,6 @@ public sealed class WorkspaceWindowStateTests
         Assert.Empty(WorkspaceWindowState.GetWindowsToRestore(
             new Dictionary<string, bool> { ["unknown-window"] = isOpen }));
     }
+
+    #endregion
 }

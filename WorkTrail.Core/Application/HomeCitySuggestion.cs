@@ -4,6 +4,8 @@ namespace WorkTrail.Application;
 /// <summary>Suggests a catalog city from the Windows time zone without accessing location or the network.</summary>
 internal static class HomeCitySuggestion
 {
+
+    #region Methods and properties
     /// <summary>Returns a matching city, or no suggestion when the Windows zone has no catalog match.</summary>
     internal static string? Resolve(IReadOnlyList<WorldClockCitySummary> cities, TimeZoneInfo windowsZone)
     {
@@ -12,10 +14,22 @@ internal static class HomeCitySuggestion
             .Select(city => city.Id).FirstOrDefault();
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Compares a catalog time zone with the installed Windows time zone.</summary>
     private static bool Matches(string catalogZone, string windowsZone)
     {
-        if (string.Equals(catalogZone, windowsZone, StringComparison.OrdinalIgnoreCase)) return true;
+        if (string.Equals(catalogZone, windowsZone, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         return TimeZoneInfo.TryConvertIanaIdToWindowsId(catalogZone, out var id)
             && string.Equals(id, windowsZone, StringComparison.OrdinalIgnoreCase);
     }
+
+    #endregion
+
 }

@@ -25,18 +25,25 @@ namespace WorkTrail.Presentation.Tests;
 /// <summary>Verifies that automatic chrome remains safe for mouse, touch, and keyboard interaction.</summary>
 public sealed class TitleBarVisibilityStateTests
 {
+    #region Implementation
+
     /// <summary>A contact during the hover reveal delay cannot activate a command that has not yet appeared.</summary>
     [Fact]
     public void FirstContactDuringDelayedRevealRemainsShieldedUntilRelease()
     {
         var state = new TitleBarVisibilityState();
         state.UpdatePointer(inside: true, pressed: false);
+
         Assert.True(state.IsVisible);
         Assert.True(state.BeginRevealContact(isChromeVisible: false));
+
         state.SetInteractionProtection(isProtected: true);
         state.UpdatePointer(inside: true, pressed: true);
+
         Assert.False(state.ShouldShowChrome(isChromeVisible: false));
+
         state.CompleteRevealContact();
+
         Assert.True(state.ShouldShowChrome(isChromeVisible: false));
     }
 
@@ -46,11 +53,16 @@ public sealed class TitleBarVisibilityStateTests
     {
         var state = new TitleBarVisibilityState();
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.False(state.IsVisible);
+
         state.UpdatePointer(inside: false, pressed: true);
+
         Assert.True(state.ShouldShowChrome(isChromeVisible: true));
         Assert.False(state.ShouldShowChrome(isChromeVisible: false));
+
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.False(state.ShouldShowChrome(isChromeVisible: true));
     }
 
@@ -61,10 +73,15 @@ public sealed class TitleBarVisibilityStateTests
         var state = new TitleBarVisibilityState();
         state.UpdatePointer(inside: true, pressed: false);
         state.UpdatePointer(inside: false, pressed: true);
+
         Assert.True(state.IsVisible);
+
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.False(state.IsVisible);
+
         state.UpdatePointer(inside: true, pressed: false);
+
         Assert.True(state.IsVisible);
     }
 
@@ -74,12 +91,17 @@ public sealed class TitleBarVisibilityStateTests
     {
         var state = new TitleBarVisibilityState();
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.True(state.BeginRevealContact(isChromeVisible: false));
+
         state.UpdatePointer(inside: true, pressed: true);
         state.RevealForInteraction();
+
         Assert.False(state.IsVisible);
         Assert.True(state.IsRevealContactPending);
+
         state.CompleteRevealContact();
+
         Assert.True(state.IsVisible);
         Assert.False(state.IsRevealContactPending);
         Assert.False(state.BeginRevealContact(isChromeVisible: true));
@@ -93,8 +115,11 @@ public sealed class TitleBarVisibilityStateTests
         state.UpdatePointer(inside: false, pressed: false);
         state.RevealForInteraction();
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.True(state.IsVisible);
+
         state.ResumeHover(inside: false, pressed: false);
+
         Assert.False(state.IsVisible);
     }
 
@@ -106,10 +131,15 @@ public sealed class TitleBarVisibilityStateTests
         state.UpdatePointer(inside: true, pressed: false);
         state.SetInteractionProtection(isProtected: true);
         state.ResumeHover(inside: false, pressed: false);
+
         Assert.True(state.IsVisible);
+
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.True(state.IsVisible);
+
         state.SetInteractionProtection(isProtected: false);
+
         Assert.False(state.IsVisible);
     }
 
@@ -121,8 +151,11 @@ public sealed class TitleBarVisibilityStateTests
         state.SetInteractionProtection(isProtected: true);
         state.UpdatePointer(inside: false, pressed: true);
         state.SetInteractionProtection(isProtected: false);
+
         Assert.True(state.IsVisible);
+
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.False(state.IsVisible);
     }
 
@@ -132,10 +165,15 @@ public sealed class TitleBarVisibilityStateTests
     {
         var state = new TitleBarVisibilityState();
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.True(state.BeginRevealContact(isChromeVisible: false));
+
         state.SetInteractionProtection(isProtected: true);
+
         Assert.False(state.IsVisible);
+
         state.CompleteRevealContact();
+
         Assert.True(state.IsVisible);
     }
 
@@ -145,11 +183,18 @@ public sealed class TitleBarVisibilityStateTests
     {
         var state = new TitleBarVisibilityState();
         state.UpdatePointer(inside: false, pressed: false);
+
         Assert.True(state.BeginRevealContact(isChromeVisible: false));
+
         state.EndInteraction();
+
         Assert.False(state.IsRevealContactPending);
         Assert.False(state.IsVisible);
+
         state.CompleteRevealContact();
+
         Assert.False(state.IsVisible);
     }
+
+    #endregion
 }

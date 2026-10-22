@@ -28,6 +28,8 @@ public sealed record LunarPhasePresentation(
 /// <summary>Projects the astronomy phase angle into stable presentation data.</summary>
 public static class LunarPhaseProjection
 {
+    #region Implementation
+
     /// <summary>Creates an eight-phase presentation and a rounded illuminated percentage.</summary>
     public static LunarPhasePresentation Create(double phaseAngleDegrees)
     {
@@ -36,8 +38,9 @@ public static class LunarPhaseProjection
             throw new ArgumentOutOfRangeException(nameof(phaseAngleDegrees));
         }
 
-        var normalized = (phaseAngleDegrees % 360d + 360d) % 360d;
-        var phaseIndex = (int)Math.Floor((normalized + 22.5d) / 45d) % 8;
+        // Shift by half a sector so each named phase is centered on its 45-degree interval.
+        var normalizedAngleDegrees = (phaseAngleDegrees % 360d + 360d) % 360d;
+        var phaseIndex = (int)Math.Floor((normalizedAngleDegrees + 22.5d) / 45d) % 8;
         var (localizationKey, glyph) = phaseIndex switch
         {
             0 => ("WorldClock.MoonPhase.New", "🌑"),
@@ -50,9 +53,15 @@ public static class LunarPhaseProjection
             7 => ("WorldClock.MoonPhase.WaningCrescent", "🌘"),
             _ => throw new InvalidDataException("The lunar phase index is outside the supported range.")
         };
+        // Illumination varies continuously even though the displayed phase name has eight steps.
+        var phaseAngleRadians = normalizedAngleDegrees * Math.PI / 180d;
+        var unroundedIlluminatedPercentage = (1d - Math.Cos(phaseAngleRadians)) * 50d;
         var illuminatedPercentage = Math.Round(
-            (1d - Math.Cos(normalized * Math.PI / 180d)) * 50d,
+            unroundedIlluminatedPercentage,
             MidpointRounding.AwayFromZero);
+
         return new LunarPhasePresentation(localizationKey, illuminatedPercentage, glyph);
     }
+
+    #endregion
 }

@@ -31,6 +31,8 @@ namespace WorkTrail;
 /// <summary>Collects and applies world-clock city choices through the shared application facade.</summary>
 internal sealed partial class WorldClockCityPickerDialogWindow : Window
 {
+    #region Fields
+
     private const int LogicalWidth = 500;
     private const int LogicalHeight = 340;
     private const int LogicalScreenMargin = 24;
@@ -51,8 +53,17 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
     private bool _allowClose;
     private bool _closed;
 
+    #endregion
+
+    #region Implementation
+
     private bool IsClosing => _isCompleting || _closed;
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Initializes the city picker and its guarded modal window lifetime.</summary>
     internal WorldClockCityPickerDialogWindow(
         IWorkTrailApplication application,
         IReadOnlyList<WorldClockCitySummary> cities,
@@ -129,8 +140,13 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         Closed += WorldClockCityPickerDialogWindow_Closed;
     }
 
+    #endregion
+
+    #region Implementation
+
     internal IntPtr WindowHandle => _windowHandle;
 
+    /// <summary>Shows the city picker and awaits its modal completion.</summary>
     internal Task<bool> ShowAsync()
     {
         WindowInteropService.MakeTopmostWithoutActivation(_windowHandle);
@@ -138,6 +154,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         return _completion.Task;
     }
 
+    /// <summary>Releases the dialog's placement controller once its lifetime ends.</summary>
     internal void DisposePlacement() => _placement.Dispose();
 
     /// <summary>Cancels pending work and closes immediately when the owner or application shuts down.</summary>
@@ -154,6 +171,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         Close();
     }
 
+    /// <summary>Restores window placement and initializes presentation after the visual tree is ready.</summary>
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         try
@@ -174,16 +192,20 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
     /// <summary>Enables confirmation only for a city supplied by the packaged catalog.</summary>
     private void CityPicker_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateCommandState();
 
+    /// <summary>Adds the selected city and completes the picker when successful.</summary>
     private async void AddButton_Click(object sender, RoutedEventArgs e)
     {
         await AddSelectedCityAsync(closeWhenAdded: true);
     }
 
+    /// <summary>Adds the selected city while keeping the picker available for another choice.</summary>
     private async void AddAnotherButton_Click(object sender, RoutedEventArgs e) =>
         await AddSelectedCityAsync(closeWhenAdded: false);
 
+    /// <summary>Completes the city picker without adding another city.</summary>
     private async void CancelButton_Click(object sender, RoutedEventArgs e) => await CompleteAsync();
 
+    /// <summary>Handles keyboard confirmation and cancellation within the city picker.</summary>
     private async void RootGrid_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Escape)
@@ -205,6 +227,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         await CompleteAsync();
     }
 
+    /// <summary>Completes and releases the city picker after native closure.</summary>
     private void WorldClockCityPickerDialogWindow_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
@@ -218,6 +241,8 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
     }
 
     // closeWhenAdded determines whether a successful addition closes the picker.
+
+    /// <summary>Persists the selected city and updates picker feedback before optional completion.</summary>
     private async Task AddSelectedCityAsync(bool closeWhenAdded)
     {
         if (IsClosing || _isAdding || CityPicker.SelectedCityId is not { } cityId)
@@ -237,7 +262,10 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
                 {
                     ["home.city_id"] = cityId
                 }), _lifetimeCancellation.Token);
-                if (IsClosing) return;
+                if (IsClosing)
+                {
+                    return;
+                }
                 if (!saved.Succeeded)
                 {
                     _notifications.ShowError(PickerNotificationBanner, Title, ResultMessage(saved.MessageKey));
@@ -318,11 +346,13 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         }
     }
 
+    /// <summary>Formats localized feedback for the city-addition result.</summary>
     private string ResultMessage(string messageKey) =>
         _strings.TryTranslate(messageKey, out var message)
             ? message
             : _strings.Translate("WorldClock.CatalogUnavailable");
 
+    /// <summary>Enables picker actions according to selection and pending-operation state.</summary>
     private void UpdateCommandState()
     {
         if (_closed)
@@ -338,6 +368,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         AddAnotherButton.IsEnabled = canAdd;
     }
 
+    /// <summary>Persists dialog placement before publishing the picker result and closing.</summary>
     private async Task CompleteAsync()
     {
         if (IsClosing || _isAdding)
@@ -367,4 +398,5 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
         }
     }
 
+    #endregion
 }

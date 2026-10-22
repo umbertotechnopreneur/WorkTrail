@@ -29,6 +29,8 @@ namespace WorkTrail;
 /// <summary>Applies the resolved application language to tagged WinUI presentation elements.</summary>
 internal static class UiLocalization
 {
+    #region Implementation
+
     /// <summary>Gives an icon or visual-content command the same localized name and tooltip.</summary>
     /// <param name="element">The command or control exposed through UI Automation.</param>
     /// <param name="label">The localized description of its action.</param>
@@ -180,6 +182,7 @@ internal static class UiLocalization
         }
     }
 
+    /// <summary>Applies localization metadata to the matching XAML element type.</summary>
     private static void ApplyElement(FrameworkElement element, string key, LocalizationService strings)
     {
         switch (element)
@@ -317,6 +320,7 @@ internal static class UiLocalization
         }
     }
 
+    /// <summary>Updates a button's visible and accessible localized labels.</summary>
     private static void ApplyButtonLabel(ButtonBase button, string key, LocalizationService strings)
     {
         SetIfTranslated(strings, key, value =>
@@ -334,6 +338,7 @@ internal static class UiLocalization
         });
     }
 
+    /// <summary>Applies a translated value only when the resource lookup succeeds.</summary>
     private static bool SetIfTranslated(LocalizationService strings, string key, Action<string> setter)
     {
         if (strings.TryTranslate(key, out var value))
@@ -344,4 +349,6 @@ internal static class UiLocalization
 
         return false;
     }
+
+    #endregion
 }

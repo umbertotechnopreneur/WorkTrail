@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
@@ -25,6 +24,8 @@ namespace WorkTrail.Services;
 /// <summary>Owns the native window operations shared by WinUI presentation surfaces.</summary>
 public static class WindowInteropService
 {
+
+    #region Fields
     private const int GwlHwndParent = -8;
     private const int DwmWindowAttributeCornerPreference = 33;
     private const int DwmWindowAttributeBorderColor = 34;
@@ -34,6 +35,10 @@ public static class WindowInteropService
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoActivate = 0x0010;
     private static readonly IntPtr HwndTopMost = new(-1);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets the current native window DPI as a scale relative to 96 DPI.</summary>
     public static double GetRasterizationScale(IntPtr windowHandle)
@@ -148,12 +153,19 @@ public static class WindowInteropService
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reads effective DPI for the supplied native window.</summary>
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr windowHandle);
 
+    /// <summary>Writes window metadata through the 32-bit native entry point.</summary>
     [DllImport("user32.dll", EntryPoint = "SetWindowLongW", SetLastError = true)]
     private static extern int SetWindowLongPtr32(IntPtr windowHandle, int index, int newValue);
 
+    /// <summary>Applies a desktop compositor attribute to the supplied window.</summary>
     [DllImport("dwmapi.dll", PreserveSig = true)]
     private static extern int DwmSetWindowAttribute(
         IntPtr windowHandle,
@@ -161,31 +173,45 @@ public static class WindowInteropService
         ref uint attributeValue,
         int attributeSize);
 
+    /// <summary>Writes pointer-sized window metadata through the 64-bit native entry point.</summary>
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr64(IntPtr windowHandle, int index, IntPtr newValue);
 
+    /// <summary>Applies native position, size, visibility, and stacking flags.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr windowHandle, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
 
+    /// <summary>Changes native input availability for a window.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnableWindow(IntPtr windowHandle, bool enable);
 
+    /// <summary>Enumerates top-level windows owned by a native UI thread.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnumThreadWindows(uint threadId, EnumThreadDelegate callback, IntPtr parameter);
 
+    /// <summary>Returns the current native thread identifier.</summary>
     [DllImport("kernel32.dll")]
     private static extern uint GetCurrentThreadId();
 
+    /// <summary>Checks whether a native window handle is still live.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindow(IntPtr windowHandle);
 
+    /// <summary>Checks whether native input is enabled for a window.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowEnabled(IntPtr windowHandle);
 
+    #endregion
+
+    #region Nested types
+
     private delegate bool EnumThreadDelegate(IntPtr windowHandle, IntPtr parameter);
+
+    #endregion
+
 }

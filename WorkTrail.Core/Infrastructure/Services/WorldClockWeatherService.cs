@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
@@ -28,30 +27,41 @@ using WorkTrail.Application;
 
 namespace WorkTrail.Services;
 
+/// <summary>Defines current-weather retrieval and credential validation without exposing secrets.</summary>
 internal interface IWorldClockWeatherProvider
 {
+
+    #region Methods and properties
     string Name { get; }
 
     string ConfigurationState { get; }
 
     bool IsConfigured { get; }
 
+    /// <summary>Captures provider availability and its diagnostic configuration state.</summary>
     WorldClockWeatherProviderConfiguration CaptureConfiguration() =>
         new(IsConfigured, ConfigurationState);
 
+    /// <summary>Checks a candidate credential directly with the provider.</summary>
     Task<WorldClockWeatherApiKeyValidation> ValidateApiKeyAsync(
         string secret,
         CancellationToken cancellationToken);
 
+    /// <summary>Retrieves a source observation for the selected catalog coordinates.</summary>
     Task<WorldClockWeatherObservation> GetCurrentAsync(
         WorldClockWeatherLocation location,
         CancellationToken cancellationToken);
+
+    #endregion
+
 }
 
+/// <summary>Captures provider availability without including its secret.</summary>
 internal readonly record struct WorldClockWeatherProviderConfiguration(
     bool IsConfigured,
     string State);
 
+/// <summary>Distinguishes accepted, rejected, rate-limited, and unavailable key checks.</summary>
 internal enum WorldClockWeatherApiKeyValidation
 {
     Accepted,
@@ -60,20 +70,24 @@ internal enum WorldClockWeatherApiKeyValidation
     Unavailable
 }
 
+/// <summary>Identifies the catalog city and coordinates used for a weather request.</summary>
 internal sealed record WorldClockWeatherLocation(
     string CityId,
     double Latitude,
     double Longitude);
 
+/// <summary>Contains the provider's temperature, condition, and observation timestamp.</summary>
 internal sealed record WorldClockWeatherObservation(
     double TemperatureCelsius,
     string ConditionKey,
     DateTimeOffset ObservedAtUtc);
 
+/// <summary>Pairs available city observations with aggregate provider status.</summary>
 internal sealed record WorldClockWeatherLoadResult(
     IReadOnlyDictionary<string, WorldClockWeather> Observations,
     WorldClockWeatherStatus Status);
 
+/// <summary>Captures an observation and its cache and configuration generations.</summary>
 internal readonly record struct WorldClockWeatherCacheEntry(
     WorldClockWeatherObservation Observation,
     DateTimeOffset CachedAtUtc,
@@ -83,6 +97,8 @@ internal readonly record struct WorldClockWeatherCacheEntry(
 /// <summary>Owns source observations for a strict, timer-backed in-memory retention window.</summary>
 internal sealed class WorldClockWeatherCache : IDisposable
 {
+
+    #region Fields
     private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _retention;
     private readonly object _lifecycleGate = new();
@@ -90,6 +106,11 @@ internal sealed class WorldClockWeatherCache : IDisposable
     private long _nextGeneration;
     private int _disposed;
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Configures observation expiry with a supplied time provider.</summary>
     internal WorldClockWeatherCache(TimeProvider timeProvider, TimeSpan retention)
     {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
@@ -98,8 +119,13 @@ internal sealed class WorldClockWeatherCache : IDisposable
             : throw new ArgumentOutOfRangeException(nameof(retention));
     }
 
+    #endregion
+
+    #region Methods and properties
+
     internal int Count => _entries.Count;
 
+    /// <summary>Reads the retained observation and its generation without refreshing its lifetime.</summary>
     internal bool TryGet(string cityId, out WorldClockWeatherCacheEntry entry)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
@@ -117,6 +143,7 @@ internal sealed class WorldClockWeatherCache : IDisposable
         return false;
     }
 
+    /// <summary>Replaces a city observation and schedules generation-specific expiration.</summary>
     internal void Set(
         string cityId,
         WorldClockWeatherObservation observation,
@@ -166,8 +193,10 @@ internal sealed class WorldClockWeatherCache : IDisposable
         }
     }
 
+    /// <summary>Removes only the matching generation so an old timer cannot evict a replacement.</summary>
     internal void Remove(string cityId, long generation)
     {
+        // Match both generation and entry identity: an expired timer must not remove a newer observation.
         if (_entries.TryGetValue(cityId, out var current)
             && current.Generation == generation
             && ((ICollection<KeyValuePair<string, Entry>>)_entries).Remove(
@@ -177,6 +206,7 @@ internal sealed class WorldClockWeatherCache : IDisposable
         }
     }
 
+    /// <summary>Removes observations and disposes their expiration timers under the lifecycle gate.</summary>
     internal void Clear()
     {
         lock (_lifecycleGate)
@@ -214,6 +244,11 @@ internal sealed class WorldClockWeatherCache : IDisposable
         }
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Owns a retained observation and the timer that expires its generation.</summary>
     private sealed record Entry(
         WorldClockWeatherObservation Observation,
         DateTimeOffset CachedAtUtc,
@@ -221,15 +256,21 @@ internal sealed class WorldClockWeatherCache : IDisposable
         long ConfigurationGeneration,
         ITimer ExpirationTimer);
 
+    /// <summary>Identifies the cache generation owned by an expiration callback.</summary>
     private sealed record ExpirationState(
         WorldClockWeatherCache Owner,
         string CityId,
         long Generation);
+
+    #endregion
+
 }
 
 /// <summary>Loads bounded, source-backed current weather without making clocks depend on network availability.</summary>
 internal sealed class WorldClockWeatherService : IDisposable
 {
+
+    #region Fields
     /// <summary>Elapsed cache time after which the last valid observation is revalidated.</summary>
     internal static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(12);
 
@@ -249,6 +290,11 @@ internal sealed class WorldClockWeatherService : IDisposable
     private long _configurationGeneration;
     private int _disposed;
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Connects provider retrieval to bounded caching, logging, and service cancellation.</summary>
     internal WorldClockWeatherService(
         IWorldClockWeatherProvider provider,
         TimeProvider? timeProvider = null,
@@ -263,16 +309,23 @@ internal sealed class WorldClockWeatherService : IDisposable
         _serviceToken = _serviceCancellation.Token;
     }
 
+    #endregion
+
+    #region Methods and properties
+
     internal int CachedObservationCount => _cache.Count;
 
+    /// <summary>Captures the provider's current availability without its credentials.</summary>
     internal WorldClockWeatherProviderConfiguration CaptureConfiguration() =>
         _provider.CaptureConfiguration();
 
+    /// <summary>Forwards credential validation to the configured provider.</summary>
     internal Task<WorldClockWeatherApiKeyValidation> ValidateApiKeyAsync(
         string secret,
         CancellationToken cancellationToken) =>
         _provider.ValidateApiKeyAsync(secret, cancellationToken);
 
+    /// <summary>Advances configuration identity and discards observations from the previous key.</summary>
     internal void InvalidateConfiguration()
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
@@ -280,6 +333,7 @@ internal sealed class WorldClockWeatherService : IDisposable
         _cache.Clear();
     }
 
+    /// <summary>Loads selected city observations and reports complete, partial, or unavailable weather.</summary>
     internal async Task<WorldClockWeatherLoadResult> LoadCurrentAsync(
         IReadOnlyList<WorldClockWeatherLocation> locations,
         CancellationToken cancellationToken)
@@ -353,6 +407,7 @@ internal sealed class WorldClockWeatherService : IDisposable
                 IsProviderConfigured: true));
     }
 
+    /// <summary>Removes observations that expired before the clock snapshot was projected.</summary>
     internal WorldClockWeatherLoadResult RevalidateForSnapshot(
         WorldClockWeatherLoadResult result,
         DateTimeOffset snapshotInstantUtc)
@@ -399,6 +454,11 @@ internal sealed class WorldClockWeatherService : IDisposable
             });
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Returns valid cached weather and starts shared revalidation when needed.</summary>
     private async Task<WeatherFetchOutcome> LoadLocationAsync(
         WorldClockWeatherLocation location,
         CancellationToken cancellationToken)
@@ -427,6 +487,7 @@ internal sealed class WorldClockWeatherService : IDisposable
             .ConfigureAwait(false);
     }
 
+    /// <summary>Shares one provider fetch per city and configuration generation.</summary>
     private Task<WeatherFetchOutcome> GetOrStartFetch(
         WorldClockWeatherLocation location,
         long configurationGeneration)
@@ -450,6 +511,7 @@ internal sealed class WorldClockWeatherService : IDisposable
         return sharedTask;
     }
 
+    /// <summary>Fetches fresh weather while preserving a valid cached observation on provider failure.</summary>
     private async Task<WeatherFetchOutcome> FetchLocationAsync(
         WorldClockWeatherLocation location,
         long configurationGeneration,
@@ -510,6 +572,7 @@ internal sealed class WorldClockWeatherService : IDisposable
         }
     }
 
+    /// <summary>Returns only a still-valid cached observation with the fetch failure reason.</summary>
     private WeatherFetchOutcome CurrentFallback(
         string cityId,
         DateTimeOffset now,
@@ -524,12 +587,14 @@ internal sealed class WorldClockWeatherService : IDisposable
             ? new WeatherFetchOutcome(cityId, ToContract(observation), reasonCode)
             : new WeatherFetchOutcome(cityId, null, reasonCode);
 
+    /// <summary>Removes a completed fetch only if it still owns the dictionary entry.</summary>
     private void RemoveInFlight(
         WeatherFetchKey key,
         Lazy<Task<WeatherFetchOutcome>> operation) =>
         ((ICollection<KeyValuePair<WeatherFetchKey, Lazy<Task<WeatherFetchOutcome>>>>)_inFlight).Remove(
             new KeyValuePair<WeatherFetchKey, Lazy<Task<WeatherFetchOutcome>>>(key, operation));
 
+    /// <summary>Checks configuration generation and observation freshness before returning cached weather.</summary>
     private bool TryGetCached(
         string cityId,
         DateTimeOffset now,
@@ -562,6 +627,7 @@ internal sealed class WorldClockWeatherService : IDisposable
         return false;
     }
 
+    /// <summary>Bounds cache lifetime by the source observation's expiry time.</summary>
     private static TimeSpan RetentionFromObservation(
         DateTimeOffset observedAtUtc,
         DateTimeOffset cachedAtUtc)
@@ -577,12 +643,14 @@ internal sealed class WorldClockWeatherService : IDisposable
         return retention;
     }
 
+    /// <summary>Checks maximum observation age and tolerated provider clock lead.</summary>
     private static bool IsFreshAt(DateTimeOffset observedAtUtc, DateTimeOffset nowUtc)
     {
         var age = nowUtc.ToUniversalTime() - observedAtUtc.ToUniversalTime();
         return age >= -MaximumFutureSkew && age < MaximumObservationAge;
     }
 
+    /// <summary>Maps a validated provider observation into the public weather DTO.</summary>
     private static WorldClockWeather ToContract(WorldClockWeatherObservation observation) =>
         new(
             observation.TemperatureCelsius,
@@ -590,12 +658,22 @@ internal sealed class WorldClockWeatherService : IDisposable
             observation.ObservedAtUtc.ToUniversalTime(),
             IsFresh: true);
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Carries a city's available weather and optional failure reason.</summary>
     private sealed record WeatherFetchOutcome(
         string CityId,
         WorldClockWeather? Weather,
         string? ReasonCode);
 
+    /// <summary>Separates shared fetches by city and provider configuration generation.</summary>
     private readonly record struct WeatherFetchKey(string CityId, long ConfigurationGeneration);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>
     /// Cancels in-flight weather requests and releases the owned weather cache.
@@ -611,11 +689,16 @@ internal sealed class WorldClockWeatherService : IDisposable
         _cache.Dispose();
         _serviceCancellation.Dispose();
     }
+
+    #endregion
+
 }
 
 /// <summary>Calls OpenWeather Current Weather with selected catalog coordinates and an environment-only key.</summary>
 internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
 {
+
+    #region Fields
     internal const string ApiKeyEnvironmentVariable = "WORKTRAIL_OPENWEATHER_API_KEY";
     internal static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(8);
     internal const int MaximumResponseBytes = 64 * 1024;
@@ -629,6 +712,11 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
     private readonly Func<(string? ApiKey, string State)> _configurationResolver;
     private readonly TimeSpan _requestTimeout;
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Configures bounded HTTP retrieval and the environment-backed credential resolver.</summary>
     private OpenWeatherCurrentProvider(
         HttpClient httpClient,
         Func<(string? ApiKey, string State)> configurationResolver,
@@ -640,6 +728,10 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             ? requestTimeout
             : throw new ArgumentOutOfRangeException(nameof(requestTimeout));
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <inheritdoc />
     public string Name => "openweather";
@@ -666,12 +758,14 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             configuration.State);
     }
 
+    /// <summary>Creates the production provider using environment-only credentials.</summary>
     internal static OpenWeatherCurrentProvider CreateFromEnvironment(HttpClient? httpClient = null) =>
         new(
             httpClient ?? SharedHttpClient,
             ReadEnvironmentConfiguration,
             DefaultRequestTimeout);
 
+    /// <summary>Creates an isolated provider with a fixed credential configuration.</summary>
     internal static OpenWeatherCurrentProvider CreateForTests(
         HttpClient httpClient,
         string? apiKey,
@@ -686,6 +780,7 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             requestTimeout ?? DefaultRequestTimeout);
     }
 
+    /// <summary>Creates an isolated provider with a replaceable configuration resolver.</summary>
     internal static OpenWeatherCurrentProvider CreateDynamicForTests(
         HttpClient httpClient,
         Func<(string? ApiKey, string State)> configurationResolver,
@@ -695,6 +790,7 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             configurationResolver,
             requestTimeout ?? DefaultRequestTimeout);
 
+    /// <summary>Checks credential length and printable ASCII before any provider request.</summary>
     internal static bool IsPlausibleApiKey(string? value) =>
         value is { Length: >= 16 and <= 128 }
         && value.All(static character => character is >= '!' and <= '~');
@@ -796,6 +892,11 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Encodes coordinates and the credential for the direct provider request.</summary>
     private static Uri BuildRequestUri(double latitude, double longitude, string apiKey)
     {
         var latitudeText = latitude.ToString("0.######", CultureInfo.InvariantCulture);
@@ -804,6 +905,7 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
         return new Uri($"{Endpoint}?lat={latitudeText}&lon={longitudeText}&appid={key}&units=metric");
     }
 
+    /// <summary>Reads the response with a strict byte cap, including unknown-length bodies.</summary>
     private static async Task<byte[]> ReadBoundedContentAsync(
         HttpContent content,
         CancellationToken cancellationToken)
@@ -836,6 +938,11 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
         }
     }
 
+    #endregion
+
+    #region Methods and properties
+
+    /// <summary>Validates metric temperature, source time, and condition identifiers.</summary>
     internal static WorldClockWeatherObservation ParseObservation(JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object
@@ -896,6 +1003,7 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             observedAtUtc);
     }
 
+    /// <summary>Chooses a supported decorative condition with severe weather taking precedence.</summary>
     internal static string MapCondition(IReadOnlyList<int> conditionIds)
     {
         ArgumentNullException.ThrowIfNull(conditionIds);
@@ -951,6 +1059,11 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
         return "unknown";
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Checks whether a provider condition has a known decoration.</summary>
     private static bool IsSupportedCondition(int id) =>
         IsLightning(id)
         || IsRain(id)
@@ -958,17 +1071,22 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
         || IsMixedPrecipitation(id)
         || id is 701 or 741 or >= 800 and <= 804;
 
+    /// <summary>Recognizes the provider's thunderstorm condition identifiers.</summary>
     private static bool IsLightning(int id) => id is
         200 or 201 or 202 or 210 or 211 or 212 or 221 or 230 or 231 or 232;
 
+    /// <summary>Recognizes the provider's drizzle and rain condition identifiers.</summary>
     private static bool IsRain(int id) => id is
         300 or 301 or 302 or 310 or 311 or 312 or 313 or 314 or 321 or
         500 or 501 or 502 or 503 or 504 or 511 or 520 or 521 or 522 or 531;
 
+    /// <summary>Recognizes the provider's snow condition identifiers.</summary>
     private static bool IsSnow(int id) => id is 600 or 601 or 602 or 620 or 621 or 622;
 
+    /// <summary>Recognizes the provider's sleet and mixed precipitation identifiers.</summary>
     private static bool IsMixedPrecipitation(int id) => id is 611 or 612 or 613 or 615 or 616;
 
+    /// <summary>Rejects malformed credentials returned by the configured resolver.</summary>
     private (string? ApiKey, string State) ResolveConfiguration()
     {
         var (apiKey, state) = _configurationResolver();
@@ -982,6 +1100,7 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             : (null, "invalid-api-key");
     }
 
+    /// <summary>Reads credentials in process, user, then machine scope without logging their values.</summary>
     private static (string? ApiKey, string State) ReadEnvironmentConfiguration()
     {
         try
@@ -1015,4 +1134,7 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             return (null, "environment-unavailable");
         }
     }
+
+    #endregion
+
 }

@@ -24,9 +24,16 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks space-weather significance independently of observer location.</summary>
 public sealed class SpaceWeatherRelevanceTests
 {
+    #region Fields
+
     private static readonly DateTimeOffset Instant = new(2026, 3, 20, 12, 0, 0, TimeSpan.Zero);
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Shows valid significant NOAA storms globally, regardless of the selected city's coordinates.</summary>
     [Fact]
@@ -51,4 +58,6 @@ public sealed class SpaceWeatherRelevanceTests
         Assert.False(CelestialSpaceWeatherService.IsRelevantAlert(alert, Instant));
         Assert.False(CelestialSpaceWeatherService.IsRelevantForecast(forecast, Instant));
     }
+
+    #endregion
 }

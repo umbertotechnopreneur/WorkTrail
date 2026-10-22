@@ -29,6 +29,8 @@ namespace WorkTrail;
 /// <summary>Reveals descendant scrollbars while the pointer is inside their scroll container.</summary>
 public static class ScrollBarRevealBehavior
 {
+    #region Fields
+
     private static readonly TimeSpan FadeInDuration = TimeSpan.FromMilliseconds(140);
     private static readonly TimeSpan FadeOutDuration = TimeSpan.FromMilliseconds(220);
 
@@ -37,6 +39,10 @@ public static class ScrollBarRevealBehavior
         typeof(bool),
         typeof(ScrollBarRevealBehavior),
         new PropertyMetadata(false, IsEnabledChanged));
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>
     /// Gets whether scrollbar reveal is enabled for a <see cref="ScrollViewer"/>.
@@ -48,6 +54,7 @@ public static class ScrollBarRevealBehavior
     /// </summary>
     public static void SetIsEnabled(DependencyObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
+    /// <summary>Attaches or removes the presentation behavior when its enabled property changes.</summary>
     private static void IsEnabledChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)
     {
         if (dependencyObject is not ScrollViewer scrollViewer)
@@ -68,15 +75,19 @@ public static class ScrollBarRevealBehavior
         scrollViewer.PointerExited -= ScrollViewer_PointerExited;
     }
 
+    /// <summary>Initializes scrollbar visibility when its host enters the visual tree.</summary>
     private static void ScrollViewer_Loaded(object sender, RoutedEventArgs args) =>
         SetScrollBarOpacity((ScrollViewer)sender, 0d, TimeSpan.Zero);
 
+    /// <summary>Reveals the host's scrollbars on pointer entry.</summary>
     private static void ScrollViewer_PointerEntered(object sender, PointerRoutedEventArgs args) =>
         SetScrollBarOpacity((ScrollViewer)sender, 1d, FadeInDuration);
 
+    /// <summary>Fades the host's scrollbars after pointer exit.</summary>
     private static void ScrollViewer_PointerExited(object sender, PointerRoutedEventArgs args) =>
         SetScrollBarOpacity((ScrollViewer)sender, 0d, FadeOutDuration);
 
+    /// <summary>Animates descendant scrollbars to the requested opacity.</summary>
     private static void SetScrollBarOpacity(ScrollViewer scrollViewer, double opacity, TimeSpan duration)
     {
         foreach (var scrollBar in DescendantScrollBars(scrollViewer))
@@ -94,6 +105,7 @@ public static class ScrollBarRevealBehavior
         }
     }
 
+    /// <summary>Enumerates scrollbar controls within the host's visual subtree.</summary>
     private static IEnumerable<ScrollBar> DescendantScrollBars(DependencyObject parent)
     {
         for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
@@ -110,4 +122,6 @@ public static class ScrollBarRevealBehavior
             }
         }
     }
+
+    #endregion
 }

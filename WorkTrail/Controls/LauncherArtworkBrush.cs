@@ -9,10 +9,16 @@ namespace WorkTrail.Controls;
 /// <summary>Paints launcher artwork with animated saturation while preserving its alpha channel.</summary>
 public sealed class LauncherArtworkBrush : XamlCompositionBrushBase
 {
+    #region Fields
+
     private LoadedImageSurface? _imageSurface;
     private CompositionSurfaceBrush? _surfaceBrush;
     private CompositionEffectBrush? _effectBrush;
     private bool _highlighted;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Gets or sets the packaged artwork URI before the brush connects.</summary>
     public Uri? Source { get; set; }
@@ -21,7 +27,10 @@ public sealed class LauncherArtworkBrush : XamlCompositionBrushBase
     public void SetHighlighted(bool highlighted)
     {
         _highlighted = highlighted;
-        if (_effectBrush is null) return;
+        if (_effectBrush is null)
+        {
+            return;
+        }
         var compositor = _effectBrush.Compositor;
         using var easing = compositor.CreateLinearEasingFunction();
         using var animation = compositor.CreateScalarKeyFrameAnimation();
@@ -36,7 +45,10 @@ public sealed class LauncherArtworkBrush : XamlCompositionBrushBase
     /// <summary>Connects the packaged image to the XAML compositor's saturation effect.</summary>
     protected override void OnConnected()
     {
-        if (_effectBrush is not null || Source is null) return;
+        if (_effectBrush is not null || Source is null)
+        {
+            return;
+        }
         try
         {
             var compositor = CompositionTarget.GetCompositorForCurrentThread();
@@ -81,6 +93,7 @@ public sealed class LauncherArtworkBrush : XamlCompositionBrushBase
         }
     }
 
+    /// <summary>Reports packaged artwork failures after asynchronous composition-image loading.</summary>
     private void Image_LoadCompleted(LoadedImageSurface sender, LoadedImageSourceLoadCompletedEventArgs args)
     {
         if (args.Status != LoadedImageSourceLoadStatus.Success)
@@ -91,4 +104,6 @@ public sealed class LauncherArtworkBrush : XamlCompositionBrushBase
                 "LauncherArtworkImage");
         }
     }
+
+    #endregion
 }

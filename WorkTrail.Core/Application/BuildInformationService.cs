@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Text.Json;
 using WorkTrail.Application;
 
@@ -25,8 +24,14 @@ namespace WorkTrail.Services;
 /// <summary>Loads the immutable build provenance generated during compilation.</summary>
 public sealed class BuildInformationService
 {
+
+    #region Fields
     private const string FileName = "BuildInfo.json";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Loads and validates the distributed build manifest.</summary>
     public BuildInformation Load()
@@ -51,4 +56,7 @@ public sealed class BuildInformationService
 
         return info;
     }
+
+    #endregion
+
 }

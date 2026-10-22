@@ -16,12 +16,13 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Services;
 
 /// <summary>Resolves the end of the active DST period using the installed time-zone rules.</summary>
 internal static class WorldClockDaylightSaving
 {
+
+    #region Methods and properties
     /// <summary>Returns the first standard-time instant, or null when DST is inactive or no end is defined.</summary>
     internal static DateTimeOffset? FindEnd(TimeZoneInfo timeZone, DateTimeOffset instant)
     {
@@ -66,6 +67,7 @@ internal static class WorldClockDaylightSaving
 
         return nextEnd is { } end ? TimeZoneInfo.ConvertTime(end, timeZone) : null;
 
+        // Checks a candidate boundary changes from daylight saving to standard time.
         bool Consider(DateTime localEnd, TimeSpan daylightOffset)
         {
             var utcTicks = localEnd.Ticks - daylightOffset.Ticks;
@@ -90,6 +92,11 @@ internal static class WorldClockDaylightSaving
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Resolves fixed-date or weekday-based DST transitions for a year.</summary>
     private static DateTime TransitionDate(int year, TimeZoneInfo.TransitionTime transition)
     {
         var daysInMonth = DateTime.DaysInMonth(year, transition.Month);
@@ -107,4 +114,7 @@ internal static class WorldClockDaylightSaving
         return new DateTime(year, transition.Month, day, 0, 0, 0, DateTimeKind.Unspecified)
             .Add(transition.TimeOfDay.TimeOfDay);
     }
+
+    #endregion
+
 }

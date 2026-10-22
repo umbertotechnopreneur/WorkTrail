@@ -18,7 +18,9 @@ Historical implementation milestones remain in [.github/tasks/archive.md](.githu
 
 - Main is a compact launcher for independent world clocks, the astronomical calendar, local sky, Moon, day/night map and globe. Essential preferences, Windows startup and tray commands remain.
 - Closing Main offers an Acrylic dialog to keep widgets running in the notification area, exit the app or cancel. The tray can reopen the launcher, reveal existing windows or exit the app.
-- Window title bars overlay content without reserving a separate strip. The launcher uses distinct icon colors and omits introductory copy and its visible scrollbar.
+- The launcher pairs an Acrylic city backdrop with a left-aligned reference-city heading, responsive watercolor tiles, larger titles and short localized descriptions. Artwork fades between resting and hover saturation over 300 milliseconds.
+- Launcher tiles grow vertically with the viewport, clip at the scroll boundary and replace their small icons with larger watercolor artwork. Footer actions fill the available width.
+- First-party C# classes and methods have clearer documentation and responsibility regions; dense calculations and control flow use named steps and more readable spacing. Active PowerShell helpers include function documentation and expanded resource cleanup.
 - Widget startup reads preferences and bundled calendar data without opening existing activity history. Saved cities, window placement and the separate ExcelPlanner prototype are preserved.
 - Application services and IPC expose the retained widget operations only. The local runtime protocol is version 8.
 - Repository task records and current product documentation describe the reduced app.
@@ -29,6 +31,7 @@ Historical implementation milestones remain in [.github/tasks/archive.md](.githu
 - Restored dynamic astronomical translations and the clock week label so valid city data can render in every shipped language. Widget rendering failures are also written to the local diagnostic log.
 - Saved taskbar visibility is applied when an astronomy window becomes visible; menu checkmarks follow the committed preference.
 - Window placement adapts saved geometry to current DPI and keeps disconnected-monitor positions visible.
+- The launcher opens on the display containing the pointer. The lunar widget uses a cropped surface image and a stable title-bar inset to keep the Moon visible.
 - Old saved window flags cannot prevent the current widget workspace from opening.
 
 ### Removed

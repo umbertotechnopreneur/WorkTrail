@@ -35,8 +35,11 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks city data, time conversion, astronomy, and weather cache lifetimes.</summary>
 public sealed class WorldClockServiceTests
 {
+    #region Implementation
+
     /// <summary>Projects independent DST state and each active city's own end date through the shared snapshot.</summary>
     [Fact]
     public void Snapshot_ReportsDaylightSavingForEverySelectedClock()
@@ -58,6 +61,7 @@ public sealed class WorldClockServiceTests
         Assert.Null(snapshot.Clocks[3].DaylightSavingEndsAt);
     }
 
+    /// <summary>Retains the required local city and the approved additional cities in the shipped catalog.</summary>
     [Fact]
     public void Catalog_ContainsRequiredLocalCityAndApprovedAdditionalCities()
     {
@@ -74,6 +78,7 @@ public sealed class WorldClockServiceTests
             Assert.Contains(catalog.Cities, city => city.Id == cityId && !city.IsCapital));
     }
 
+    /// <summary>Checks the approved capital and regional city coverage in the shipped catalog.</summary>
     [Fact]
     public void Catalog_ContainsEveryEuropeanCapitalAndTenApprovedCitiesForUnitedStatesAustraliaAndRussia()
     {
@@ -93,6 +98,7 @@ public sealed class WorldClockServiceTests
             Assert.Equal(10, catalog.Cities.Count(city => city.CountryCode == countryCode)));
     }
 
+    /// <summary>Matches known new and full Moon reference instants to the expected phase angles.</summary>
     [Fact]
     public void Astronomy_KnownNewAndFullMoonInstantsHaveExpectedPhaseAngles()
     {
@@ -104,10 +110,12 @@ public sealed class WorldClockServiceTests
         var newMoonDistance = Math.Min(
             newMoon.MoonPhaseAngleDegrees,
             360d - newMoon.MoonPhaseAngleDegrees);
+
         Assert.InRange(newMoonDistance, 0d, 5d);
         Assert.InRange(fullMoon.MoonPhaseAngleDegrees, 175d, 185d);
     }
 
+    /// <summary>Produces plausible London sunrise and sunset times around the equinox.</summary>
     [Fact]
     public void Astronomy_LondonEquinoxProducesPlausibleLocalSunriseAndSunset()
     {
@@ -124,6 +132,7 @@ public sealed class WorldClockServiceTests
         Assert.True(result.Sunrise < result.Sunset);
     }
 
+    /// <summary>Tracks the equinox solar position and produces finite global lunar coordinates.</summary>
     [Fact]
     public void Astronomy_GlobalProjectionTracksEquinoxSunAndFiniteMoonPosition()
     {
@@ -137,6 +146,7 @@ public sealed class WorldClockServiceTests
         Assert.InRange(projection.MoonPhaseAngleDegrees, 0d, 360d);
     }
 
+    /// <summary>Includes selected city coordinates and the astronomy projection in the map snapshot.</summary>
     [Fact]
     public void Snapshot_MapCarriesSelectedCitiesAndCelestialProjection()
     {
@@ -156,6 +166,7 @@ public sealed class WorldClockServiceTests
         Assert.InRange(snapshot.Map.Moon.Longitude, -180d, 180d);
     }
 
+    /// <summary>Resolves local day bounds across daylight-saving transitions that occur at midnight.</summary>
     [Fact]
     public void Astronomy_LocalDayBoundsHandleMidnightDstTransitionsExplicitly()
     {
@@ -199,6 +210,7 @@ public sealed class WorldClockServiceTests
         Assert.True(snapshot.WeatherStatus.IsProviderConfigured);
     }
 
+    /// <summary>Converts from the selected reference city without rounding fractional time-zone offsets.</summary>
     [Fact]
     public void Conversion_UsesTheReferenceCityAndPreservesFractionalOffsets()
     {
@@ -217,6 +229,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(new TimeOnly(9, 3), TimeOnly.FromDateTime(snapshot.Clocks.Single(clock => clock.CityId == "kathmandu").LocalTime.DateTime));
     }
 
+    /// <summary>Matches the approved civil-time conversion between Ho Chi Minh City, Tokyo, and Paris.</summary>
     [Fact]
     public void Conversion_MatchesTheApprovedHoChiMinhTokyoParisExample()
     {
@@ -233,10 +246,12 @@ public sealed class WorldClockServiceTests
         Assert.Equal(new TimeOnly(12, 18), LocalTime("tokyo"));
         Assert.Equal(new TimeOnly(5, 18), LocalTime("paris"));
 
+        // Compare each city's clock face independently of its date and UTC offset.
         TimeOnly LocalTime(string cityId) =>
             TimeOnly.FromDateTime(snapshot.Clocks.Single(clock => clock.CityId == cityId).LocalTime.DateTime);
     }
 
+    /// <summary>Rejects nonexistent or ambiguous reference times at daylight-saving transitions.</summary>
     [Theory]
     [InlineData(2026, 3, 29, 2, 30, "world_clocks.local_time.invalid")]
     [InlineData(2026, 10, 25, 2, 30, "world_clocks.local_time.ambiguous")]
@@ -260,6 +275,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(expectedCode, exception.Code);
     }
 
+    /// <summary>Uses astronomy alone for the backdrop when no weather observation is available.</summary>
     [Fact]
     public void Atmosphere_UsesNeutralAstronomyBackdropsWithoutInventingWeather()
     {
@@ -314,6 +330,7 @@ public sealed class WorldClockServiceTests
         }
     }
 
+    /// <summary>Combines fresh observed weather with the resolved local daylight phase.</summary>
     [Fact]
     public void Atmosphere_ComposesFreshWeatherWithTheResolvedLocalTimePhase()
     {
@@ -453,6 +470,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1788060600), observation.ObservedAtUtc);
     }
 
+    /// <summary>Rejects malformed weather condition entries rather than accepting a partially valid observation.</summary>
     [Theory]
     [InlineData("[{ \"id\": \"200\" }, { \"id\": 800 }]")]
     [InlineData("[800]")]
@@ -476,6 +494,7 @@ public sealed class WorldClockServiceTests
             exception.Message);
     }
 
+    /// <summary>Requests metric weather at catalog coordinates and retains the provider observation timestamp.</summary>
     [Fact]
     public async Task OpenWeatherProvider_UsesCatalogCoordinatesMetricUnitsAndObservationTimestamp()
     {
@@ -512,6 +531,7 @@ public sealed class WorldClockServiceTests
         Assert.Contains("appid=0123456789abcdef0123456789abcdef", handler.RequestUri.Query, StringComparison.Ordinal);
     }
 
+    /// <summary>Resolves changing provider configuration once for each outgoing request.</summary>
     [Fact]
     public async Task OpenWeatherProvider_ResolvesDynamicConfigurationOncePerRequest()
     {
@@ -537,6 +557,7 @@ public sealed class WorldClockServiceTests
             () =>
             {
                 Interlocked.Increment(ref resolverCalls);
+
                 return configuration;
             });
 
@@ -556,6 +577,7 @@ public sealed class WorldClockServiceTests
         Assert.Contains("appid=fedcba9876543210fedcba9876543210", handler.RequestUri!.Query, StringComparison.Ordinal);
     }
 
+    /// <summary>Accepts only bounded API keys containing visible characters.</summary>
     [Fact]
     public void OpenWeatherApiKeyValidation_AcceptsBoundedVisibleSecretsOnly()
     {
@@ -567,6 +589,7 @@ public sealed class WorldClockServiceTests
         Assert.False(OpenWeatherCurrentProvider.IsPlausibleApiKey(new string('a', 129)));
     }
 
+    /// <summary>Maps key-validation responses to public outcomes without returning the submitted secret.</summary>
     [Theory]
     [InlineData(HttpStatusCode.OK, (int)WorldClockWeatherApiKeyValidation.Accepted)]
     [InlineData(HttpStatusCode.Unauthorized, (int)WorldClockWeatherApiKeyValidation.Rejected)]
@@ -590,6 +613,7 @@ public sealed class WorldClockServiceTests
         Assert.DoesNotContain(candidate, result.ToString(), StringComparison.Ordinal);
     }
 
+    /// <summary>Reports key-validation network failures without exposing the submitted secret.</summary>
     [Fact]
     public async Task OpenWeatherApiKeyValidation_ReportsNetworkFailureWithoutExposingTheSecret()
     {
@@ -602,6 +626,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(WorldClockWeatherApiKeyValidation.Unavailable, result);
     }
 
+    /// <summary>Applies the request timeout while the provider response body is stalled.</summary>
     [Fact]
     public async Task OpenWeatherProvider_TimesOutWhileReadingAStalledResponseBody()
     {
@@ -627,6 +652,7 @@ public sealed class WorldClockServiceTests
         Assert.DoesNotContain("0123456789abcdef0123456789abcdef", exception.ToString(), StringComparison.Ordinal);
     }
 
+    /// <summary>Rejects an oversized response before attempting to parse its JSON body.</summary>
     [Fact]
     public async Task OpenWeatherProvider_RejectsAnOversizedResponseBodyBeforeParsing()
     {
@@ -646,6 +672,7 @@ public sealed class WorldClockServiceTests
         Assert.DoesNotContain("0123456789abcdef0123456789abcdef", exception.ToString(), StringComparison.Ordinal);
     }
 
+    /// <summary>Reuses current weather observations for twelve minutes across repeated city snapshots.</summary>
     [Fact]
     public async Task CurrentWeather_IsCachedForTwelveMinutesAcrossTheSelectedCities()
     {
@@ -684,6 +711,7 @@ public sealed class WorldClockServiceTests
         });
     }
 
+    /// <summary>Discards cached observations immediately when provider configuration is invalidated.</summary>
     [Fact]
     public async Task ProviderConfigurationInvalidation_DropsCachedObservationsImmediately()
     {
@@ -698,6 +726,7 @@ public sealed class WorldClockServiceTests
 
         _ = await service.BuildCurrentSnapshotAsync(["london"], true, CancellationToken.None);
         _ = await service.BuildCurrentSnapshotAsync(["london"], true, CancellationToken.None);
+
         Assert.Equal(1, provider.CallCount);
 
         service.InvalidateCurrentWeatherConfiguration();
@@ -723,13 +752,16 @@ public sealed class WorldClockServiceTests
             CancellationToken.None);
 
         Assert.Equal(1, weather.CachedObservationCount);
+
         timeProvider.Advance(WorldClockWeatherService.CacheDuration);
+
         Assert.Equal(1, weather.CachedObservationCount);
 
         timeProvider.Advance(
             WorldClockWeatherService.MaximumObservationAge
             - WorldClockWeatherService.CacheDuration
             - TimeSpan.FromSeconds(1));
+
         Assert.Equal(1, weather.CachedObservationCount);
 
         timeProvider.Advance(TimeSpan.FromSeconds(1));
@@ -748,6 +780,7 @@ public sealed class WorldClockServiceTests
         var provider = new FakeWeatherProvider(_ =>
         {
             var call = Interlocked.Increment(ref factoryCalls);
+
             return new WorldClockWeatherObservation(
                 call == 1 ? 20d : 25d,
                 call == 1 ? "rain" : "clear",
@@ -808,6 +841,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(4, provider.CallCount);
     }
 
+    /// <summary>Prevents an older expiration callback from deleting a replacement observation.</summary>
     [Fact]
     public void ReplacedObservation_IsNotDeletedByThePreviousExpirationTimer()
     {
@@ -837,6 +871,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(0, cache.Count);
     }
 
+    /// <summary>Shares a failing concurrent request while allowing a subsequent load to retry.</summary>
     [Fact]
     public async Task ConcurrentFailure_IsSingleFlight_AndALaterLoadCanRetry()
     {
@@ -869,6 +904,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal("unavailable", retry.Status.State);
     }
 
+    /// <summary>Cancels one snapshot waiter without cancelling the provider request shared by other waiters.</summary>
     [Fact]
     public async Task CancellingOneWaiter_DoesNotCancelTheSharedSuccessfulRequest()
     {
@@ -886,6 +922,7 @@ public sealed class WorldClockServiceTests
         await provider.Started;
         var second = weather.LoadCurrentAsync(locations, CancellationToken.None);
         cancelledWaiter.Cancel();
+
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
 
         provider.Release();
@@ -898,6 +935,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(1, weather.CachedObservationCount);
     }
 
+    /// <summary>Rechecks all observations against the final snapshot instant, including ones obtained earlier in the load.</summary>
     [Fact]
     public async Task Snapshot_RevalidatesEveryObservationAgainstItsSingleFinalInstant()
     {
@@ -915,8 +953,10 @@ public sealed class WorldClockServiceTests
         Assert.Equal(
             new DateTimeOffset(2026, 8, 30, 12, 0, 2, TimeSpan.Zero),
             snapshot.InstantUtc);
+
         var london = snapshot.Clocks.Single(static clock => clock.CityId == "london");
         var paris = snapshot.Clocks.Single(static clock => clock.CityId == "paris");
+
         Assert.Null(london.Weather);
         Assert.DoesNotContain(
             london.Atmosphere.ForegroundAssetPaths,
@@ -928,6 +968,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(1, snapshot.WeatherStatus.AvailableObservations);
     }
 
+    /// <summary>Rejects observations more than five minutes ahead of the application clock.</summary>
     [Fact]
     public async Task ObservationBeyondTheFiveMinuteFutureSkew_IsRejected()
     {
@@ -951,6 +992,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal(0, snapshot.WeatherStatus.AvailableObservations);
     }
 
+    /// <summary>Keeps current weather out of historical or explicit reference-time projections.</summary>
     [Fact]
     public void ReferenceInstant_DoesNotRequestOrAttachCurrentWeather()
     {
@@ -999,6 +1041,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal("stale-observation", snapshot.WeatherStatus.ReasonCode);
     }
 
+    /// <summary>Skips the configured weather provider when the weather preference is disabled.</summary>
     [Fact]
     public async Task DisabledWeather_DoesNotContactTheConfiguredProvider()
     {
@@ -1021,6 +1064,7 @@ public sealed class WorldClockServiceTests
         Assert.All(snapshot.Clocks, static clock => Assert.Null(clock.Weather));
     }
 
+    /// <summary>Keeps missing credentials and provider failures visible without suppressing clock results.</summary>
     [Fact]
     public async Task MissingKeyAndProviderFailure_RemainExplicitNonFatalDiagnostics()
     {
@@ -1072,6 +1116,7 @@ public sealed class WorldClockServiceTests
         Assert.Equal("request-failed", failed.WeatherStatus.ReasonCode);
     }
 
+    /// <summary>Checks the packaged city asset set against its provenance manifest and checksums.</summary>
     [Fact]
     public void CatalogAssets_HaveExactProvenancedChecksummedSet()
     {
@@ -1103,6 +1148,7 @@ public sealed class WorldClockServiceTests
         }
 
         Assert.NotEmpty(rows);
+
         foreach (var group in rows.GroupBy(static row => row.CityId, StringComparer.Ordinal))
         {
             Assert.Equal(2, group.Count());
@@ -1111,11 +1157,14 @@ public sealed class WorldClockServiceTests
         }
 
         var expectedPaths = rows.Select(static row => row.RelativePath).OrderBy(static path => path, StringComparer.Ordinal).ToArray();
+
         Assert.All(rows, static row => Assert.EndsWith(".png", row.RelativePath, StringComparison.Ordinal));
+
         var actualPaths = Directory.GetFiles(Path.Combine(worldClockRoot, "Skylines"), "*.png", SearchOption.TopDirectoryOnly)
             .Select(path => Path.GetRelativePath(worldClockRoot, path).Replace('\\', '/'))
             .OrderBy(static path => path, StringComparer.Ordinal)
             .ToArray();
+
         Assert.Equal(expectedPaths, actualPaths);
 
         foreach (var row in rows)
@@ -1123,15 +1172,19 @@ public sealed class WorldClockServiceTests
             Assert.False(string.IsNullOrWhiteSpace(row.Author));
             Assert.False(string.IsNullOrWhiteSpace(row.License));
             Assert.Matches("^[0-9a-f]{64}$", row.Hash);
+
             var assetPath = Path.Combine(worldClockRoot, row.RelativePath.Replace('/', Path.DirectorySeparatorChar));
             using var stream = File.OpenRead(assetPath);
             var actualHash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+
             Assert.Equal(row.Hash, actualHash);
         }
 
         using var attribution = JsonDocument.Parse(File.ReadAllText(Path.Combine(worldClockRoot, "ATTRIBUTION.json")));
         var attributionAssets = attribution.RootElement.GetProperty("assets").EnumerateArray().ToArray();
+
         Assert.Equal(rows.Count, attributionAssets.Length);
+
         var attributionKeys = attributionAssets
             .Select(static asset => asset.GetProperty("cityId").GetString() + "/" + asset.GetProperty("season").GetString())
             .OrderBy(static key => key, StringComparer.Ordinal)
@@ -1140,20 +1193,27 @@ public sealed class WorldClockServiceTests
             .Select(static row => $"{row.CityId}/{row.Season}")
             .OrderBy(static key => key, StringComparer.Ordinal)
             .ToArray();
+
         Assert.Equal(databaseKeys, attributionKeys);
 
         var packagedManifestReference = attribution.RootElement.GetProperty("packagedManifest");
         var packagedManifestName = packagedManifestReference.GetProperty("file").GetString();
+
         Assert.Equal("PACKAGED-ASSET-MANIFEST.json", packagedManifestName);
+
         var packagedManifestPath = Path.Combine(worldClockRoot, packagedManifestName!);
         using var packagedManifestStream = File.OpenRead(packagedManifestPath);
         var packagedManifestHash = Convert.ToHexString(SHA256.HashData(packagedManifestStream)).ToLowerInvariant();
+
         Assert.Equal(packagedManifestReference.GetProperty("sha256").GetString(), packagedManifestHash);
+
         using var packagedManifest = JsonDocument.Parse(File.ReadAllText(packagedManifestPath));
+
         Assert.True(packagedManifest.RootElement.GetProperty("complete").GetBoolean());
         Assert.Equal(rows.Count, packagedManifest.RootElement.GetProperty("assets").GetArrayLength());
     }
 
+    /// <summary>Checks the exact atmospheric overlay set and its recorded checksums.</summary>
     [Fact]
     public void AtmosphereOverlays_HaveExactChecksummedSet()
     {
@@ -1176,21 +1236,34 @@ public sealed class WorldClockServiceTests
             .Select(path => Path.GetRelativePath(overlayRoot, path).Replace('\\', '/'))
             .OrderBy(static path => path, StringComparer.Ordinal)
             .ToArray();
+
         Assert.Equal(expected.Keys.OrderBy(static path => path, StringComparer.Ordinal).ToArray(), actualPaths);
 
         foreach (var (relativePath, expectedHash) in expected)
         {
             using var stream = File.OpenRead(Path.Combine(overlayRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
             var actualHash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+
             Assert.Equal(expectedHash, actualHash);
         }
     }
 
+    #endregion
+
+    #region Test doubles
+
+    /// <summary>Creates weather observations from a supplied factory and counts requests.</summary>
     private sealed class FakeWeatherProvider(
         Func<WorldClockWeatherLocation, WorldClockWeatherObservation> observationFactory)
         : IWorldClockWeatherProvider
     {
+        #region Fields
+
         private int _callCount;
+
+        #endregion
+
+        #region Properties
 
         public string Name => "fake-weather";
 
@@ -1200,37 +1273,53 @@ public sealed class WorldClockServiceTests
 
         public int CallCount => Volatile.Read(ref _callCount);
 
-        /// <inheritdoc />
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Accepts validation so observation behavior remains controlled by the test factory.</summary>
         public Task<WorldClockWeatherApiKeyValidation> ValidateApiKeyAsync(
             string secret,
             CancellationToken cancellationToken) =>
             Task.FromResult(WorldClockWeatherApiKeyValidation.Accepted);
 
+        /// <summary>Counts the request and returns the observation supplied by the test factory.</summary>
         public Task<WorldClockWeatherObservation> GetCurrentAsync(
             WorldClockWeatherLocation location,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Interlocked.Increment(ref _callCount);
+
             return Task.FromResult(observationFactory(location));
         }
+
+        #endregion
     }
 
+    /// <summary>Advances the test clock between cities so one observation expires during snapshot creation.</summary>
     private sealed class AdvancingWeatherProvider(ManualTimeProvider timeProvider)
         : IWorldClockWeatherProvider
     {
+        #region Properties
+
         public string Name => "advancing-test-provider";
 
         public string ConfigurationState => "configured";
 
         public bool IsConfigured => true;
 
-        /// <inheritdoc />
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Accepts validation so the fixture can isolate observation age during snapshot creation.</summary>
         public Task<WorldClockWeatherApiKeyValidation> ValidateApiKeyAsync(
             string secret,
             CancellationToken cancellationToken) =>
             Task.FromResult(WorldClockWeatherApiKeyValidation.Accepted);
 
+        /// <summary>Returns city observations while advancing time across the cache-expiration boundary.</summary>
         public Task<WorldClockWeatherObservation> GetCurrentAsync(
             WorldClockWeatherLocation location,
             CancellationToken cancellationToken)
@@ -1247,6 +1336,7 @@ public sealed class WorldClockServiceTests
             if (location.CityId == "paris")
             {
                 timeProvider.Advance(TimeSpan.FromSeconds(2));
+
                 return Task.FromResult(new WorldClockWeatherObservation(
                     24d,
                     "cloudy",
@@ -1255,15 +1345,24 @@ public sealed class WorldClockServiceTests
 
             throw new InvalidOperationException($"Unexpected test city '{location.CityId}'.");
         }
+
+        #endregion
     }
 
+    /// <summary>Holds concurrent weather requests until the test explicitly releases them.</summary>
     private sealed class CoordinatedWeatherProvider(
         ManualTimeProvider timeProvider,
         bool fail) : IWorldClockWeatherProvider
     {
+        #region Fields
+
         private readonly TaskCompletionSource<bool> _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _callCount;
+
+        #endregion
+
+        #region Properties
 
         public string Name => "coordinated-test-provider";
 
@@ -1273,16 +1372,30 @@ public sealed class WorldClockServiceTests
 
         public int CallCount => Volatile.Read(ref _callCount);
 
-        /// <inheritdoc />
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Accepts validation so the fixture can isolate concurrent observation requests.</summary>
         public Task<WorldClockWeatherApiKeyValidation> ValidateApiKeyAsync(
             string secret,
             CancellationToken cancellationToken) =>
             Task.FromResult(WorldClockWeatherApiKeyValidation.Accepted);
 
+        #endregion
+
+        #region Properties
+
         internal Task Started => _started.Task;
 
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Unblocks the coordinated provider so waiting requests can finish or fail together.</summary>
         internal void Release() => _release.TrySetResult(true);
 
+        /// <summary>Signals request startup and waits for explicit release before returning the selected outcome.</summary>
         public async Task<WorldClockWeatherObservation> GetCurrentAsync(
             WorldClockWeatherLocation location,
             CancellationToken cancellationToken)
@@ -1300,14 +1413,24 @@ public sealed class WorldClockServiceTests
                 "clear",
                 timeProvider.GetUtcNow());
         }
+
+        #endregion
     }
 
+    /// <summary>Advances UTC time and scheduled callbacks deterministically without waiting for wall-clock time.</summary>
     private sealed class ManualTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
+        #region Fields
+
         private readonly object _gate = new();
         private readonly List<ManualTimer> _timers = [];
         private DateTimeOffset _utcNow = utcNow.ToUniversalTime();
 
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Returns the current test instant while holding the clock state lock.</summary>
         public override DateTimeOffset GetUtcNow()
         {
             lock (_gate)
@@ -1316,6 +1439,7 @@ public sealed class WorldClockServiceTests
             }
         }
 
+        /// <summary>Registers a callback with the manual clock instead of scheduling a real operating-system timer.</summary>
         public override ITimer CreateTimer(
             TimerCallback callback,
             object? state,
@@ -1332,6 +1456,7 @@ public sealed class WorldClockServiceTests
             return timer;
         }
 
+        /// <summary>Moves the manual clock forward and invokes due callbacks outside the clock lock.</summary>
         internal void Advance(TimeSpan duration)
         {
             if (duration < TimeSpan.Zero)
@@ -1341,6 +1466,7 @@ public sealed class WorldClockServiceTests
 
             ManualTimer[] timers;
             DateTimeOffset now;
+            // Snapshot the registrations under the lock; callbacks may register or dispose timers themselves.
             lock (_gate)
             {
                 _utcNow += duration;
@@ -1354,6 +1480,7 @@ public sealed class WorldClockServiceTests
             }
         }
 
+        /// <summary>Removes a disposed timer from the manual clock under its state lock.</summary>
         private void Unregister(ManualTimer timer)
         {
             lock (_gate)
@@ -1362,8 +1489,15 @@ public sealed class WorldClockServiceTests
             }
         }
 
+        #endregion
+
+        #region Test doubles
+
+        /// <summary>Implements a timer whose deadlines are evaluated only when the owning test clock advances.</summary>
         private sealed class ManualTimer : ITimer
         {
+            #region Fields
+
             private readonly ManualTimeProvider _owner;
             private readonly TimerCallback _callback;
             private readonly object? _state;
@@ -1372,6 +1506,11 @@ public sealed class WorldClockServiceTests
             private TimeSpan _period;
             private bool _disposed;
 
+            #endregion
+
+            #region Initialization
+
+            /// <summary>Stores the callback owner and configures the initial deadline and period.</summary>
             internal ManualTimer(
                 ManualTimeProvider owner,
                 TimerCallback callback,
@@ -1385,6 +1524,11 @@ public sealed class WorldClockServiceTests
                 _ = Change(dueTime, period);
             }
 
+            #endregion
+
+            #region Implementation
+
+            /// <summary>Replaces the timer deadline and period unless the timer has already been disposed.</summary>
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
                 ValidateTimeout(dueTime, nameof(dueTime));
@@ -1400,10 +1544,12 @@ public sealed class WorldClockServiceTests
                         ? null
                         : _owner.GetUtcNow() + dueTime;
                     _period = period;
+
                     return true;
                 }
             }
 
+            /// <summary>Stops the manual timer and removes it from the owning clock exactly once.</summary>
             public void Dispose()
             {
                 lock (_gate)
@@ -1420,12 +1566,15 @@ public sealed class WorldClockServiceTests
                 _owner.Unregister(this);
             }
 
+            /// <summary>Uses the same synchronous timer cleanup and returns an already-completed operation.</summary>
             public ValueTask DisposeAsync()
             {
                 Dispose();
+
                 return ValueTask.CompletedTask;
             }
 
+            /// <summary>Advances a due timer deadline under the lock, then invokes its callback outside the lock.</summary>
             internal void FireIfDue(DateTimeOffset nowUtc)
             {
                 lock (_gate)
@@ -1440,9 +1589,11 @@ public sealed class WorldClockServiceTests
                         : nowUtc + _period;
                 }
 
+                // Callback code may reenter this timer, so never invoke it while holding the timer lock.
                 _callback(_state);
             }
 
+            /// <summary>Rejects negative timer intervals except the explicit infinite sentinel.</summary>
             private static void ValidateTimeout(TimeSpan value, string parameterName)
             {
                 if (value < TimeSpan.Zero && value != Timeout.InfiniteTimeSpan)
@@ -1450,18 +1601,34 @@ public sealed class WorldClockServiceTests
                     throw new ArgumentOutOfRangeException(parameterName);
                 }
             }
+
+            #endregion
         }
+
+        #endregion
     }
 
+    /// <summary>Records outgoing request metadata and returns an in-memory provider response.</summary>
     private sealed class RecordingHttpMessageHandler(
         Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
     {
+        #region Fields
+
         private int _callCount;
+
+        #endregion
+
+        #region Properties
 
         internal int CallCount => Volatile.Read(ref _callCount);
 
         internal Uri? RequestUri { get; private set; }
 
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Records the request URI and invokes the supplied response factory after checking cancellation.</summary>
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
@@ -1469,12 +1636,18 @@ public sealed class WorldClockServiceTests
             cancellationToken.ThrowIfCancellationRequested();
             Interlocked.Increment(ref _callCount);
             RequestUri = request.RequestUri;
+
             return Task.FromResult(responseFactory(request));
         }
+
+        #endregion
     }
 
+    /// <summary>Simulates a response body that stalls until its asynchronous read is cancelled.</summary>
     private sealed class BlockingReadStream : Stream
     {
+        #region Properties
+
         public override bool CanRead => true;
 
         public override bool CanSeek => false;
@@ -1489,25 +1662,43 @@ public sealed class WorldClockServiceTests
             set => throw new NotSupportedException();
         }
 
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Rejects this unsupported stream operation; only cancellable asynchronous reads are available.</summary>
         public override void Flush() => throw new NotSupportedException();
 
+        /// <summary>Rejects this unsupported stream operation; only cancellable asynchronous reads are available.</summary>
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
+        /// <summary>Waits indefinitely for cancellation to simulate a stalled HTTP response body.</summary>
         public override async ValueTask<int> ReadAsync(
             Memory<byte> buffer,
             CancellationToken cancellationToken = default)
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+
             return 0;
         }
 
+        /// <summary>Rejects this unsupported stream operation; only cancellable asynchronous reads are available.</summary>
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
+        /// <summary>Rejects this unsupported stream operation; only cancellable asynchronous reads are available.</summary>
         public override void SetLength(long value) => throw new NotSupportedException();
 
+        /// <summary>Rejects this unsupported stream operation; only cancellable asynchronous reads are available.</summary>
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        #endregion
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Finds a checked-in fixture by walking upward from the test output to the repository root.</summary>
     private static string RepositoryFile(params string[] pathSegments)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -1520,4 +1711,6 @@ public sealed class WorldClockServiceTests
 
         throw new DirectoryNotFoundException("Could not locate the WorkTrail repository root.");
     }
+
+    #endregion
 }

@@ -30,6 +30,7 @@ namespace WorkTrail.Controls;
 /// <summary>Builds the shared navigation menu for the clocks and astronomy windows.</summary>
 internal static class AstronomyWindowMenu
 {
+
     /// <summary>Creates the navigation-only form of the shared astronomy menu.</summary>
     /// <param name="getStrings">Provides the current localization service.</param>
     /// <param name="openWindow">Opens the requested astronomy window.</param>
@@ -131,6 +132,7 @@ internal static class AstronomyWindowMenu
         // glyph supplies the optional Fluent icon shown beside the label.
         // action runs when the user selects the item.
         // color optionally accents the supplied glyph.
+        // Adds a localized menu command with an optional colored glyph.
         void AddItem(string textKey, string glyph, Action action, Color? color = null)
         {
             var item = new MenuFlyoutItem { Tag = textKey, MinWidth = 320 };
@@ -149,6 +151,7 @@ internal static class AstronomyWindowMenu
             menu.Items.Add(item);
         }
 
+        // Refreshes menu labels, accessible names, and the current taskbar preference.
         void ApplyLanguage()
         {
             var strings = getStrings();

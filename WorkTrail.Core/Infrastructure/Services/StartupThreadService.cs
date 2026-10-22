@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Runtime.ExceptionServices;
 
 namespace WorkTrail.Services;
@@ -24,6 +23,8 @@ namespace WorkTrail.Services;
 /// <summary>Completes startup activation redirection without blocking COM dispatch on the launching thread.</summary>
 public static class StartupThreadService
 {
+
+    #region Methods and properties
     /// <summary>Runs terminal activation redirection on an MTA worker while the caller waits with COM message pumping.</summary>
     /// <param name="redirectAsync">The activation operation that must finish before the launching process exits.</param>
     public static void CompleteActivationRedirection(Func<Task> redirectAsync)
@@ -56,4 +57,7 @@ public static class StartupThreadService
         redirectThread.Join();
         failure?.Throw();
     }
+
+    #endregion
+
 }

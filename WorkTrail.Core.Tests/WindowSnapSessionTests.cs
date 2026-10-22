@@ -23,9 +23,16 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks snapping thresholds, guide previews, and drag or resize boundary behavior.</summary>
 public sealed class WindowSnapSessionTests
 {
+    #region Fields
+
     private static readonly WindowSnapRectangle Monitor = new(0, 0, 1000, 1000);
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>All eight resize directions move only their dragged edges and show only their applicable guides.</summary>
     [Theory]
@@ -41,6 +48,7 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor);
         var result = session.Resize(new(405, 405, 595, 595), [new(400, 400, 600, 600)], edges);
+
         Assert.Equal(new WindowSnapRectangle(left, top, right, bottom), result);
         Assert.True(session.IsSnapped);
         Assert.Equal((edges & (WindowSnapEdges.Left | WindowSnapEdges.Right)) != 0, session.VerticalGuide.HasValue);
@@ -57,22 +65,32 @@ public sealed class WindowSnapSessionTests
     public void Dpi_ScalesMovementAndResizeThresholds(int dpi, int snapDistance, int guideDistance)
     {
         var session = new WindowSnapSession(Monitor, Monitor, (uint)dpi);
+
         Assert.Equal(0, session.Move(new(snapDistance, 200, snapDistance + 100, 300), []).Left);
         Assert.Equal(new WindowSnapGuide(0, true), session.VerticalGuide);
+
         var preview = new WindowSnapRectangle(guideDistance, 200, guideDistance + 100, 300);
+
         Assert.Equal(preview, session.Move(preview, []));
         Assert.Equal(new WindowSnapGuide(0, false), session.VerticalGuide);
+
         session.Move(new(guideDistance + 1, 200, guideDistance + 101, 300), []);
+
         Assert.Null(session.VerticalGuide);
 
         var raw = new WindowSnapRectangle(200, 200, 1000 - snapDistance, 400);
         var resized = session.Resize(raw, [], WindowSnapEdges.Right);
+
         Assert.Equal(raw with { Right = 1000 }, resized);
         Assert.Equal(new WindowSnapGuide(1000, true), session.VerticalGuide);
+
         raw = raw with { Right = 1000 - guideDistance };
+
         Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
         Assert.Equal(new WindowSnapGuide(1000, false), session.VerticalGuide);
+
         raw = raw with { Right = raw.Right - 1 };
+
         Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
         Assert.Null(session.VerticalGuide);
     }
@@ -83,6 +101,7 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor);
         var raw = new WindowSnapRectangle(405, 300, 605, 600);
+
         Assert.Equal(raw, session.Resize(raw, [new(410, 200, 800, 700)], WindowSnapEdges.Left, minimumWidth: 200));
         Assert.Null(session.VerticalGuide);
         Assert.Equal(raw, session.Resize(raw, [new(400, 200, 800, 700)], WindowSnapEdges.Left, maximumWidth: 200));
@@ -98,16 +117,23 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor, 144);
         var raw = new WindowSnapRectangle(200, 200, 985, 400);
+
         Assert.Equal(1000, session.Resize(raw, [], WindowSnapEdges.Right).Right);
+
         raw = raw with { Right = 984 };
+
         Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
         Assert.Equal(new WindowSnapGuide(1000, false), session.VerticalGuide);
+
         raw = raw with { Right = 1016 };
+
         Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
         Assert.True(session.IsSuppressed);
         Assert.Null(session.VerticalGuide);
+
         session.UpdateDpi(192);
         raw = raw with { Right = 985 };
+
         Assert.Equal(raw, session.Resize(raw, [], WindowSnapEdges.Right));
         Assert.Null(session.VerticalGuide);
     }
@@ -118,10 +144,15 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor);
         var raw = new WindowSnapRectangle(15, 200, 115, 400);
+
         Assert.Equal(raw, session.Move(raw, []));
+
         session.UpdateDpi(144);
+
         Assert.Equal(0, session.Move(raw, []).Left);
+
         session.UpdateDpi(96);
+
         Assert.Equal(raw, session.Move(raw, []));
         Assert.Throws<ArgumentOutOfRangeException>(() => session.UpdateDpi(0));
     }
@@ -135,9 +166,12 @@ public sealed class WindowSnapSessionTests
         var raw = new WindowSnapRectangle(-700, -700, -400, -400);
         WindowSnapRectangle[] peers = [new(-605, -800, -405, -200), new(-595, -800, -395, -200)];
         var result = session.Resize(raw, peers, WindowSnapEdges.Right);
+
         Assert.Equal(raw with { Right = -405 }, result);
         Assert.Equal(new WindowSnapGuide(-405, true), session.VerticalGuide);
+
         Array.Reverse(peers);
+
         Assert.Equal(result, session.Resize(raw, peers, WindowSnapEdges.Right));
     }
 
@@ -147,6 +181,7 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor);
         var raw = new WindowSnapRectangle(200, 200, 400, 400);
+
         Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.None));
         Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Left | WindowSnapEdges.Right));
         Assert.Throws<ArgumentOutOfRangeException>(() => session.Resize(raw, [], WindowSnapEdges.Top | WindowSnapEdges.Bottom));
@@ -169,6 +204,7 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor);
         var result = session.Move(new(left, 200, left + 100, 300), []);
+
         Assert.Equal(expectedLeft, result.Left);
         Assert.Equal(coordinate.HasValue ? new WindowSnapGuide(coordinate.Value, snapped) : (WindowSnapGuide?)null,
             session.VerticalGuide);
@@ -184,18 +220,25 @@ public sealed class WindowSnapSessionTests
         var session = new WindowSnapSession(monitor, monitor);
         WindowSnapRectangle[] peers = [new(-600, -600, -400, -400)];
         var result = session.Move(new(-605, -415, -505, -315), peers);
+
         Assert.Equal(new WindowSnapRectangle(-600, -415, -500, -315), result);
         Assert.Equal(new WindowSnapGuide(-600, true), session.VerticalGuide);
         Assert.Equal(new WindowSnapGuide(-400, false), session.HorizontalGuide);
+
         result = session.Move(new(-600, -400, -500, -300), peers);
+
         Assert.Equal(new WindowSnapRectangle(-600, -400, -500, -300), result);
         Assert.Equal(new WindowSnapGuide(-600, true), session.VerticalGuide);
         Assert.Equal(new WindowSnapGuide(-400, true), session.HorizontalGuide);
+
         session.Move(new(-1011, -400, -911, -300), peers);
+
         Assert.True(session.IsSuppressed);
         Assert.Null(session.VerticalGuide);
         Assert.Null(session.HorizontalGuide);
+
         session.Move(new(-600, -400, -500, -300), peers);
+
         Assert.Null(session.VerticalGuide);
         Assert.Null(session.HorizontalGuide);
     }
@@ -209,12 +252,17 @@ public sealed class WindowSnapSessionTests
         WindowSnapRectangle[] peers = [new(295, 150, 495, 350), new(305, 150, 505, 350)];
         var result = session.Move(proposed, peers);
         var guide = session.VerticalGuide;
+
         Assert.Equal(295, result.Left);
         Assert.Equal(new WindowSnapGuide(295, true), guide);
+
         Array.Reverse(peers);
+
         Assert.Equal(result, session.Move(proposed, peers));
         Assert.Equal(guide, session.VerticalGuide);
+
         session.Move(new(100, 500, 200, 600), peers);
+
         Assert.Null(session.VerticalGuide);
         Assert.Null(session.HorizontalGuide);
     }
@@ -240,6 +288,7 @@ public sealed class WindowSnapSessionTests
         var session = new WindowSnapSession(Monitor, Monitor);
         var proposed = new WindowSnapRectangle(left, top, right, bottom);
         var result = session.Move(proposed, []);
+
         Assert.Equal(new WindowSnapRectangle(expectedLeft, expectedTop, expectedRight, expectedBottom), result);
         Assert.Equal(proposed.Width, result.Width);
         Assert.Equal(proposed.Height, result.Height);
@@ -255,6 +304,7 @@ public sealed class WindowSnapSessionTests
     public void Move_DoesNotSnapAtElevenPixels(int left, int top, int right, int bottom)
     {
         var proposed = new WindowSnapRectangle(left, top, right, bottom);
+
         Assert.Equal(proposed, new WindowSnapSession(Monitor, Monitor).Move(proposed, []));
     }
 
@@ -263,6 +313,7 @@ public sealed class WindowSnapSessionTests
     public void Move_DoesNotAccumulatePreviousSnapOffset()
     {
         var session = new WindowSnapSession(Monitor, Monitor);
+
         Assert.Equal(0, session.Move(new(5, 200, 105, 300), []).Left);
         Assert.Equal(11, session.Move(new(11, 200, 111, 300), []).Left);
         Assert.False(session.IsSuppressed);
@@ -273,19 +324,28 @@ public sealed class WindowSnapSessionTests
     public void IsSnapped_TracksExactEdgesAndResetsForInteriorMoves()
     {
         var session = new WindowSnapSession(Monitor, Monitor);
+
         Assert.False(session.IsSnapped);
+
         var exactEdge = new WindowSnapRectangle(0, 200, 100, 300);
+
         Assert.Equal(exactEdge, session.Move(exactEdge, []));
         Assert.True(session.IsSnapped);
+
         var interior = new WindowSnapRectangle(200, 200, 300, 300);
+
         Assert.Equal(interior, session.Move(interior, []));
         Assert.False(session.IsSnapped);
         Assert.Equal(interior, session.Move(interior, [new(300, 200, 400, 300)]));
         Assert.True(session.IsSnapped);
+
         session.Move(new(-11, 200, 89, 300), []);
+
         Assert.True(session.IsSuppressed);
         Assert.False(session.IsSnapped);
+
         session.Move(exactEdge, []);
+
         Assert.False(session.IsSnapped);
     }
 
@@ -295,6 +355,7 @@ public sealed class WindowSnapSessionTests
     {
         var monitor = new WindowSnapRectangle(-1920, -1080, 0, 0);
         var session = new WindowSnapSession(monitor, monitor);
+
         Assert.Equal(new WindowSnapRectangle(-1920, -1080, -1720, -880), session.Move(new(-1915, -1075, -1715, -875), []));
         Assert.Equal(new WindowSnapRectangle(-200, -200, 0, 0), session.Move(new(-205, -205, -5, -5), []));
     }
@@ -313,6 +374,7 @@ public sealed class WindowSnapSessionTests
         int expectedLeft, int expectedTop, int expectedRight, int expectedBottom)
     {
         var session = new WindowSnapSession(Monitor, Monitor);
+
         Assert.Equal(new WindowSnapRectangle(expectedLeft, expectedTop, expectedRight, expectedBottom),
             session.Move(new(left, top, right, bottom), [new(400, 400, 600, 600)]));
     }
@@ -323,8 +385,11 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor);
         var proposed = new WindowSnapRectangle(195, 100, 395, 200);
+
         Assert.Equal(proposed, session.Move(proposed, [new(400, 400, 600, 600)]));
+
         proposed = new WindowSnapRectangle(100, 195, 200, 395);
+
         Assert.Equal(proposed, session.Move(proposed, [new(400, 400, 600, 600)]));
     }
 
@@ -334,6 +399,7 @@ public sealed class WindowSnapSessionTests
     {
         var proposed = new WindowSnapRectangle(200, 200, 300, 300);
         var session = new WindowSnapSession(Monitor, Monitor);
+
         Assert.Equal(new WindowSnapRectangle(210, 210, 310, 310), session.Move(proposed, [new(310, 310, 410, 410)]));
         Assert.Equal(proposed, session.Move(proposed, [new(310, 311, 410, 411)]));
     }
@@ -346,6 +412,7 @@ public sealed class WindowSnapSessionTests
         var left = new WindowSnapRectangle(397, 350, 697, 650);
         var right = new WindowSnapRectangle(403, 350, 703, 650);
         var session = new WindowSnapSession(Monitor, Monitor);
+
         Assert.Equal(397, session.Move(proposed, [left, right]).Left);
         Assert.Equal(397, session.Move(proposed, [right, left]).Left);
         Assert.Equal(402, session.Move(proposed, [left, new(402, 350, 702, 650)]).Left);
@@ -356,9 +423,12 @@ public sealed class WindowSnapSessionTests
     public void Move_UsesWorkAreaForTargetsAndMonitorForSuppression()
     {
         var session = new WindowSnapSession(Monitor, new(40, 20, 1000, 960));
+
         Assert.Equal(new WindowSnapRectangle(40, 200, 140, 300), session.Move(new(35, 200, 135, 300), []));
         Assert.Equal(new WindowSnapRectangle(200, 860, 300, 960), session.Move(new(200, 865, 300, 965), []));
+
         var taskbarBounds = new WindowSnapRectangle(200, 970, 300, 990);
+
         Assert.Equal(taskbarBounds, session.Move(taskbarBounds, []));
         Assert.False(session.IsSuppressed);
     }
@@ -373,11 +443,16 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, Monitor);
         var outside = new WindowSnapRectangle(left, top, right, bottom);
+
         Assert.Equal(outside, session.Move(outside, []));
         Assert.True(session.IsSuppressed);
+
         var reentry = new WindowSnapRectangle(5, 200, 105, 300);
+
         Assert.Equal(reentry, session.Move(reentry, [new(106, 200, 206, 300)]));
+
         var nextDrag = new WindowSnapSession(Monitor, Monitor);
+
         Assert.Equal(0, nextDrag.Move(reentry, []).Left);
         Assert.False(nextDrag.IsSuppressed);
     }
@@ -388,6 +463,7 @@ public sealed class WindowSnapSessionTests
     {
         var session = new WindowSnapSession(Monitor, new(20, 20, 980, 980));
         var proposed = new WindowSnapRectangle(1, 200, 101, 300);
+
         Assert.Equal(proposed, session.Move(proposed, [new(-2, 150, 198, 350)]));
         Assert.False(session.IsSuppressed);
         // An inside edge of an otherwise off-monitor peer remains a usable alignment target.
@@ -401,6 +477,7 @@ public sealed class WindowSnapSessionTests
         var monitor = new WindowSnapRectangle(int.MinValue, -100, int.MinValue + 1000, 900);
         var proposed = new WindowSnapRectangle(int.MinValue + 5, 200, int.MinValue + 105, 300);
         var result = new WindowSnapSession(monitor, monitor).Move(proposed, [new(int.MaxValue - 100, 200, int.MaxValue, 300)]);
+
         Assert.Equal(int.MinValue, result.Left);
         Assert.Equal(100, result.Width);
     }
@@ -413,15 +490,21 @@ public sealed class WindowSnapSessionTests
         Assert.Throws<ArgumentException>(() => new WindowSnapSession(Monitor, new(100, 100, 100, 200)));
         Assert.Throws<ArgumentException>(() => new WindowSnapSession(Monitor, new(-1, 0, 1000, 1000)));
         Assert.Throws<ArgumentException>(() => new WindowSnapSession(new(int.MinValue, 0, int.MaxValue, 100), Monitor));
+
         var session = new WindowSnapSession(Monitor, Monitor);
+
         Assert.Throws<ArgumentNullException>(() => session.Move(new(100, 100, 200, 200), null!));
         Assert.Throws<ArgumentException>(() => session.Move(new(200, 100, 100, 200), []));
         Assert.Throws<ArgumentException>(() => session.Move(new(100, 100, 200, 200), [new(0, 1, 10, 0)]));
         Assert.Throws<ArgumentException>(() => session.Move(new(int.MinValue, 0, int.MaxValue, 100), []));
         Assert.Throws<ArgumentException>(() => session.Move(new(100, 100, 200, 200), [new(0, int.MinValue, 100, int.MaxValue)]));
         Assert.False(session.IsSuppressed);
+
         session.Move(new(-11, 100, 89, 200), []);
+
         Assert.Throws<ArgumentException>(() => session.Move(default, []));
         Assert.Throws<ArgumentException>(() => session.Move(new(100, 100, 200, 200), [default]));
     }
+
+    #endregion
 }

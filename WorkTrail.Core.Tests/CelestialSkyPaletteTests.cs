@@ -23,16 +23,21 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks sky color continuity and bounds across solar elevations.</summary>
 public sealed class CelestialSkyPaletteTests
 {
+    #region Implementation
+
     /// <summary>Night, twilight and daylight remain distinct even at locations with unusual civil-time sunrise.</summary>
     [Fact]
     public void SolarElevation_DrivesSkyInsteadOfCivilHour()
     {
         Assert.Equal(24, CelestialSkyPalette.PaletteCount);
+
         var night = CelestialSkyPalette.Create(-25);
         var twilight = CelestialSkyPalette.Create(-4);
         var day = CelestialSkyPalette.Create(45);
+
         Assert.Equal(1, night.StarOpacity);
         Assert.InRange(twilight.StarOpacity, 0.01, 0.5);
         Assert.Equal(0, day.StarOpacity);
@@ -51,6 +56,7 @@ public sealed class CelestialSkyPaletteTests
     {
         var before = CelestialSkyPalette.Create(altitude - 0.000001);
         var after = CelestialSkyPalette.Create(altitude + 0.000001);
+
         Assert.Equal(before.ZenithColor, after.ZenithColor);
         Assert.Equal(before.HorizonColor, after.HorizonColor);
         Assert.InRange(Math.Abs(before.StarOpacity - after.StarOpacity), 0, 0.00001);
@@ -65,4 +71,6 @@ public sealed class CelestialSkyPaletteTests
         Assert.Throws<ArgumentOutOfRangeException>(() => CelestialSkyPalette.Create(double.NaN));
         Assert.Throws<ArgumentOutOfRangeException>(() => CelestialSkyPalette.Create(91));
     }
+
+    #endregion
 }

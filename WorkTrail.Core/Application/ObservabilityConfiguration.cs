@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Application;
 
 /// <summary>Contains process-local observability configuration; it is never persisted or exposed over IPC.</summary>
@@ -29,6 +28,8 @@ public sealed record ObservabilityConfiguration(
 /// <summary>Resolves environment and writable-directory concerns for the Windows logging composition root.</summary>
 public sealed class ObservabilityConfigurationService
 {
+
+    #region Methods and properties
     /// <summary>Loads and validates optional observability inputs without allowing failures to block startup.</summary>
     public ObservabilityConfiguration Load()
     {
@@ -45,6 +46,11 @@ public sealed class ObservabilityConfigurationService
         return new ObservabilityConfiguration(logDirectory, sentryDsn, sentryEnvironment, sentryStatus);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Creates the configured log directory, returning null when it is unavailable.</summary>
     private static string? PrepareLogDirectory()
     {
         try
@@ -62,6 +68,7 @@ public sealed class ObservabilityConfigurationService
         }
     }
 
+    /// <summary>Reads an optional environment setting without allowing denied access to block startup.</summary>
     private static string? ReadEnvironmentVariable(string name)
     {
         try
@@ -74,6 +81,7 @@ public sealed class ObservabilityConfigurationService
         }
     }
 
+    /// <summary>Validates the optional telemetry endpoint and reports malformed configuration separately.</summary>
     private static string? ResolveSentryDsn(string? value, out bool invalid)
     {
         invalid = false;
@@ -98,6 +106,7 @@ public sealed class ObservabilityConfigurationService
         return invalid ? null : value.Trim();
     }
 
+    /// <summary>Accepts a bounded environment label or uses the development default.</summary>
     private static string ResolveSentryEnvironment(string? value, out bool invalid)
     {
         invalid = false;
@@ -111,4 +120,7 @@ public sealed class ObservabilityConfigurationService
             || !candidate.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.');
         return invalid ? "development" : candidate;
     }
+
+    #endregion
+
 }

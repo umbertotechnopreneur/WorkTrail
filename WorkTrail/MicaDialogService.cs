@@ -30,9 +30,15 @@ namespace WorkTrail;
 /// <summary>Serializes standard WinUI dialogs and dedicated rich windows while keeping views passive.</summary>
 internal sealed class MicaDialogService
 {
+    #region Fields
+
     private readonly DialogSessionQueue _queue = new();
     private Window? _activeWindow;
     private ContentDialog? _activeContentDialog;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Gets the service that shows and hides reusable toast UI components.</summary>
     internal ToastNotificationService Notifications { get; } = new();
@@ -72,6 +78,7 @@ internal sealed class MicaDialogService
         // Keep the launch tied to the owner even after the dialog releases its queue lease.
         // sender identifies the owner window.
         // args contains the window-closed notification.
+        // Cancels the owned dialog session when its owner window closes.
         void OwnerClosed(object sender, WindowEventArgs args) => lifetime.Cancel();
         owner.Closed += OwnerClosed;
         try
@@ -194,6 +201,7 @@ internal sealed class MicaDialogService
         Notifications.HideAll();
     }
 
+    /// <summary>Closes the currently owned modal window without retaining its session reference.</summary>
     private void CloseActiveWindow()
     {
         switch (_activeWindow)
@@ -211,6 +219,8 @@ internal sealed class MicaDialogService
     // request contains the localized content and button labels.
     // defaultButton identifies the safe keyboard default.
     // content supplies optional custom dialog content.
+
+    /// <summary>Serializes a content dialog session and restores owner interaction afterward.</summary>
     private async Task<ContentDialogResult> RunContentDialogSessionAsync(
         Window owner,
         DialogRequest request,
@@ -220,6 +230,7 @@ internal sealed class MicaDialogService
         ValidateOwnerThread(owner);
         using var ownerLifetime = new CancellationTokenSource();
         ContentDialog? dialog = null;
+        // Cancels the owned dialog session when its owner window closes.
         void OwnerClosed(object sender, WindowEventArgs args)
         {
             ownerLifetime.Cancel();
@@ -265,6 +276,7 @@ internal sealed class MicaDialogService
         }
     }
 
+    /// <summary>Serializes modal work and keeps the owner disabled for the active session.</summary>
     private async Task RunModalSessionAsync(
         Window owner,
         Func<AppWindow, IntPtr, Task> showAsync)
@@ -277,6 +289,7 @@ internal sealed class MicaDialogService
         });
     }
 
+    /// <summary>Serializes modal work and keeps the owner disabled for the active session.</summary>
     private async Task<TResult> RunModalSessionAsync<TResult>(
         Window owner,
         TResult shutdownResult,
@@ -286,6 +299,7 @@ internal sealed class MicaDialogService
         ArgumentNullException.ThrowIfNull(showAsync);
         using var ownerLifetime = new CancellationTokenSource();
         var presenting = false;
+        // Cancels the owned dialog session when its owner window closes.
         void OwnerClosed(object sender, WindowEventArgs args)
         {
             ownerLifetime.Cancel();
@@ -336,6 +350,7 @@ internal sealed class MicaDialogService
         }
     }
 
+    /// <summary>Shows the owned dialog and awaits its guarded completion result.</summary>
     private async Task ShowDialogWindowAsync(
         Window dialog,
         IntPtr dialogHandle,
@@ -349,6 +364,7 @@ internal sealed class MicaDialogService
         }, disposePlacement);
     }
 
+    /// <summary>Shows the owned dialog and awaits its guarded completion result.</summary>
     private async Task<TResult> ShowDialogWindowAsync<TResult>(
         Window dialog,
         IntPtr dialogHandle,
@@ -382,6 +398,7 @@ internal sealed class MicaDialogService
         }
     }
 
+    /// <summary>Builds a content dialog from the validated localized request.</summary>
     private static ContentDialog CreateContentDialog(
         XamlRoot xamlRoot,
         FrameworkElement ownerContent,
@@ -402,6 +419,7 @@ internal sealed class MicaDialogService
             DefaultButton = defaultButton
         };
 
+    /// <summary>Requires dialog operations to run on the owner's UI thread.</summary>
     private static void ValidateOwnerThread(Window owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
@@ -412,6 +430,7 @@ internal sealed class MicaDialogService
         }
     }
 
+    /// <summary>Validates the text and actions required by the requested dialog.</summary>
     private static void ValidateDialogRequest(DialogRequest request, bool requiresCloseButton)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -424,4 +443,5 @@ internal sealed class MicaDialogService
         }
     }
 
+    #endregion
 }

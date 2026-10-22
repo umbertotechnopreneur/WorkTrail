@@ -28,8 +28,11 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks notification-area recovery while keeping the native window reachable.</summary>
 public sealed class TrayIconServiceTests
 {
+    #region Implementation
+
     /// <summary>Registration exposes the tray icon without changing an already visible player's state.</summary>
     [Fact]
     public void ShowInNotificationArea_RegistersIconWithoutHidingPlayer()
@@ -82,6 +85,7 @@ public sealed class TrayIconServiceTests
         // A second Explorer restart must reuse the same callback registration and remain recoverable.
         fixture.Shell.IconPresent = false;
         fixture.NotifyTaskbarCreated();
+
         Assert.True(fixture.Shell.IconPresent);
         Assert.Equal(3, fixture.Shell.AddCount);
         Assert.Equal(visible, IsWindowVisible(fixture.Window));
@@ -121,9 +125,12 @@ public sealed class TrayIconServiceTests
 
         fixture.Shell.FailingMessage = null;
         fixture.NotifyTaskbarCreated();
+
         Assert.True(fixture.Shell.IconPresent);
         Assert.True(IsWindowVisible(fixture.Window));
+
         fixture.Hide();
+
         Assert.False(IsWindowVisible(fixture.Window));
     }
 
@@ -149,6 +156,7 @@ public sealed class TrayIconServiceTests
 
         fixture.Shell.FailingMessage = null;
         fixture.Hide();
+
         Assert.True(fixture.Shell.IconPresent);
         Assert.False(IsWindowVisible(fixture.Window));
     }
@@ -167,6 +175,7 @@ public sealed class TrayIconServiceTests
 
         fixture.Shell.FailingMessage = null;
         fixture.Hide();
+
         Assert.True(fixture.Shell.IconPresent);
         Assert.False(IsWindowVisible(fixture.Window));
     }
@@ -208,9 +217,20 @@ public sealed class TrayIconServiceTests
         Assert.NotEqual(0u, fixture.Shell.Flags & 0x80 /* NIF_SHOWTIP */);
     }
 
+    #endregion
+
+    #region Test doubles
+
+    /// <summary>Owns a native test window, temporary icon, and replaceable notification-area shell.</summary>
     private sealed class TrayFixture : IDisposable
     {
+        #region Fields
+
         private readonly string _iconPath = Path.Combine(Path.GetTempPath(), $"WorkTrail-tray-test-{Guid.NewGuid():N}.ico");
+
+        #endregion
+
+        #region Initialization
 
         /// <summary>Creates an isolated native window and temporary icon without contacting Explorer.</summary>
         public TrayFixture()
@@ -223,13 +243,23 @@ public sealed class TrayIconServiceTests
             // Real USER32 subclass dispatch stays on this thread. An off-screen, nonactivating tool window cannot steal focus.
             Window = CreateWindowEx(0x08000080, "STATIC", "WorkTrail tray recovery test", 0x80000000,
                 -32000, -32000, 1, 1, 0, 0, 0, 0);
+
             Assert.NotEqual(IntPtr.Zero, Window);
+
             Service = new TrayIconService(NullLogger.Instance, Shell.Notify);
         }
+
+        #endregion
+
+        #region Properties
 
         public IntPtr Window { get; }
         public FakeShell Shell { get; } = new();
         public TrayIconService Service { get; }
+
+        #endregion
+
+        #region Implementation
 
         /// <summary>Exercises the public minimize command with complete localized labels.</summary>
         public void Hide() => Service.HideToNotificationArea(Window, _iconPath, "WorkTrail recovery test",
@@ -243,7 +273,9 @@ public sealed class TrayIconServiceTests
         public void NotifyTaskbarCreated()
         {
             var message = RegisterWindowMessage("TaskbarCreated");
+
             Assert.NotEqual(0u, message);
+
             _ = SendMessage(Window, message, 0, 0);
         }
 
@@ -251,19 +283,30 @@ public sealed class TrayIconServiceTests
         public void Dispose()
         {
             Service.Dispose();
+
             Assert.True(DestroyWindow(Window));
+
             File.Delete(_iconPath);
         }
+
+        #endregion
     }
 
+    /// <summary>Records notification-area messages and simulates selected shell failures.</summary>
     private sealed class FakeShell
     {
+        #region Properties
+
         public bool IconPresent { get; set; }
         public uint? FailingMessage { get; set; }
         public int AddCount { get; private set; }
         public int VersionCount { get; private set; }
         public string? ToolTip { get; private set; }
         public uint Flags { get; private set; }
+
+        #endregion
+
+        #region Implementation
 
         /// <summary>Models icon loss and shell failures while keeping native window dispatch real.</summary>
         public bool Notify(uint message, ref TrayIconService.NotifyIconData notification)
@@ -272,53 +315,77 @@ public sealed class TrayIconServiceTests
             if (message == FailingMessage)
             {
                 Marshal.SetLastPInvokeError(5);
+
                 return false;
             }
 
             switch (message)
             {
                 case 0: // NIM_ADD
-                    if (IconPresent) return false;
+                    if (IconPresent)
+                    {
+                        return false;
+                    }
                     IconPresent = true;
                     AddCount++;
                     ToolTip = notification.ToolTip;
                     Flags = notification.Flags;
                     return true;
                 case 1: // NIM_MODIFY
-                    if (IconPresent) ToolTip = notification.ToolTip;
+                    if (IconPresent)
+                    {
+                        ToolTip = notification.ToolTip;
+                    }
                     return IconPresent;
                 case 2: // NIM_DELETE
                     IconPresent = false;
                     return true;
                 case 4: // NIM_SETVERSION
-                    if (!IconPresent || notification.Version != 4) return false;
+                    if (!IconPresent || notification.Version != 4)
+                    {
+                        return false;
+                    }
                     VersionCount++;
                     return true;
                 default:
                     throw new InvalidOperationException($"Unexpected shell operation {message}.");
             }
         }
+
+        #endregion
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Creates a native fixture window through Win32; the test owns and destroys the returned handle.</summary>
     [DllImport("user32.dll", EntryPoint = "CreateWindowExW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern IntPtr CreateWindowEx(uint extendedStyle, string className, string title,
         uint style, int x, int y, int width, int height, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr parameter);
 
+    /// <summary>Resolves the Windows broadcast message used to simulate taskbar recreation.</summary>
     [DllImport("user32.dll", EntryPoint = "RegisterWindowMessageW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern uint RegisterWindowMessage(string message);
 
+    /// <summary>Delivers a native shell notification to the fixture window synchronously.</summary>
     [DllImport("user32.dll", EntryPoint = "SendMessageW")]
     private static extern IntPtr SendMessage(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
 
+    /// <summary>Changes fixture window visibility through Win32.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShowWindow(IntPtr window, int command);
 
+    /// <summary>Queries actual native visibility so persistence tests can detect unintended activation.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr window);
 
+    /// <summary>Releases the native fixture window through Win32.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyWindow(IntPtr window);
+
+    #endregion
 }

@@ -24,6 +24,8 @@ namespace WorkTrail.Presentation;
 /// <summary>Selects durable work surfaces while leaving temporary dialogs and operations closed.</summary>
 public static class WorkspaceWindowState
 {
+    #region Fields
+
     private static readonly string[] RestoreOrder =
     [
         WindowStateKeys.Main,
@@ -36,6 +38,10 @@ public static class WorkspaceWindowState
         WindowStateKeys.About,
         WindowStateKeys.Licenses
     ];
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Identifies a window that can reopen without replaying a configuration or background operation.</summary>
     public static bool IsRestorable(string windowKey)
@@ -64,7 +70,10 @@ public static class WorkspaceWindowState
         }
 
         // Select current work surfaces without opening or rewriting state left by removed features.
-        var requested = openStates.Where(static pair => pair.Value).Select(static pair => pair.Key).ToHashSet(StringComparer.Ordinal);
+        var requested = openStates
+            .Where(static pair => pair.Value)
+            .Select(static pair => pair.Key)
+            .ToHashSet(StringComparer.Ordinal);
         if (requested.Contains(WindowStateKeys.Licenses))
         {
             requested.Add(WindowStateKeys.About);
@@ -72,4 +81,6 @@ public static class WorkspaceWindowState
 
         return RestoreOrder.Where(requested.Contains).ToArray();
     }
+
+    #endregion
 }

@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using WorkTrail.Application;
@@ -26,7 +25,13 @@ namespace WorkTrail.Services;
 /// <summary>Loads a strict local catalog of recurring important dates and projects its next occurrences into the observer's time zone.</summary>
 internal static class CelestialImportantDateService
 {
+
+    #region Fields
     private static readonly Lazy<ImportantDateCatalog> Data = new(LoadCatalog);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Returns local all-day dates occurring in the next 367 calendar days, including only the next annual occurrence of each entry.</summary>
     internal static IReadOnlyList<CelestialAgendaEvent> BuildUpcoming(DateTimeOffset instantUtc, TimeZoneInfo zone)
@@ -56,6 +61,11 @@ internal static class CelestialImportantDateService
         return Array.AsReadOnly(events.OrderBy(item => item.StartUtc).ToArray());
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reads and validates recurring dates, rejecting duplicates and invalid annual dates.</summary>
     private static ImportantDateCatalog LoadCatalog()
     {
         using var stream = typeof(CelestialImportantDateService).Assembly.GetManifestResourceStream("WorkTrail.Data.important-dates.json")
@@ -94,6 +104,15 @@ internal static class CelestialImportantDateService
         return catalog with { Dates = Array.AsReadOnly(catalog.Dates.ToArray()) };
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Contains the versioned collection of recurring important dates.</summary>
     private sealed record ImportantDateCatalog(int SchemaVersion, IReadOnlyList<ImportantDate> Dates);
+    /// <summary>Identifies one recurring month-and-day observance.</summary>
     private sealed record ImportantDate(string Id, int Month, int Day);
+
+    #endregion
+
 }

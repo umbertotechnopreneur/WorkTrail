@@ -28,9 +28,15 @@ namespace WorkTrail.Core.Tests;
 [Collection(ProcessEnvironmentCollection.Name)]
 public sealed class ObservabilityConfigurationTests
 {
+    #region Fields
+
     private const string DsnVariable = "WORKTRAIL_SENTRY_DSN";
     private const string EnvironmentVariable = "WORKTRAIL_SENTRY_ENVIRONMENT";
     private const string LogDirectoryVariable = "WORKTRAIL_LOG_DIRECTORY";
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Ensures no remote sink is enabled when an operator provides no DSN.</summary>
     [Fact]
@@ -90,6 +96,7 @@ public sealed class ObservabilityConfigurationTests
         });
     }
 
+    /// <summary>Temporarily sets diagnostic environment values and restores them even when an assertion fails.</summary>
     private static void WithSentryEnvironment(string? dsn, string? environment, Action assertion)
     {
         var previousDsn = Environment.GetEnvironmentVariable(DsnVariable, EnvironmentVariableTarget.Process);
@@ -114,4 +121,6 @@ public sealed class ObservabilityConfigurationTests
             }
         }
     }
+
+    #endregion
 }

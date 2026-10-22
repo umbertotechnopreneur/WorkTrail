@@ -30,39 +30,69 @@ namespace WorkTrail.Controls;
 [ContentProperty(Name = nameof(Body))]
 public sealed partial class FeatureGate : UserControl
 {
+    #region Fields
+
     /// <summary>Identifies the catalog feature.</summary>
     public static readonly DependencyProperty FeatureProperty = DependencyProperty.Register(nameof(Feature), typeof(ProductFeature), typeof(FeatureGate), new PropertyMetadata(ProductFeature.WorldClocks, OnPresentationChanged));
+
     /// <summary>Identifies the passive feature controls.</summary>
     public static readonly DependencyProperty BodyProperty = DependencyProperty.Register(nameof(Body), typeof(UIElement), typeof(FeatureGate), new PropertyMetadata(null, OnPresentationChanged));
+
     /// <summary>Identifies the runtime entitlement snapshot.</summary>
     public static readonly DependencyProperty AccessProperty = DependencyProperty.Register(nameof(Access), typeof(FeatureAccessSnapshot), typeof(FeatureGate), new PropertyMetadata(null, OnPresentationChanged));
+
     /// <summary>Identifies the current UI language.</summary>
     public static readonly DependencyProperty UiLanguageProperty = DependencyProperty.Register(nameof(UiLanguage), typeof(string), typeof(FeatureGate), new PropertyMetadata("system", OnPresentationChanged));
+
     /// <summary>Controls title visibility on compact surfaces.</summary>
     public static readonly DependencyProperty ShowTitleProperty = DependencyProperty.Register(nameof(ShowTitle), typeof(bool), typeof(FeatureGate), new PropertyMetadata(true, OnPresentationChanged));
+
     /// <summary>Controls inline hint visibility on compact surfaces.</summary>
     public static readonly DependencyProperty ShowHintProperty = DependencyProperty.Register(nameof(ShowHint), typeof(bool), typeof(FeatureGate), new PropertyMetadata(true, OnPresentationChanged));
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates the reusable feature presentation.</summary>
-    public FeatureGate() { InitializeComponent(); Render(); }
+    public FeatureGate()
+    {
+        InitializeComponent();
+        Render();
+    }
+
+    #endregion
+
+    #region Implementation
+
     /// <summary>Gets or sets the catalog feature.</summary>
     public ProductFeature Feature { get => (ProductFeature)GetValue(FeatureProperty); set => SetValue(FeatureProperty, value); }
+
     /// <summary>Gets or sets the passive feature controls.</summary>
     public UIElement? Body { get => (UIElement?)GetValue(BodyProperty); set => SetValue(BodyProperty, value); }
+
     /// <summary>Gets or sets access supplied by the facade, never inferred from settings.</summary>
     public FeatureAccessSnapshot? Access { get => (FeatureAccessSnapshot?)GetValue(AccessProperty); set => SetValue(AccessProperty, value); }
+
     /// <summary>Gets or sets the UI language.</summary>
     public string UiLanguage { get => (string)GetValue(UiLanguageProperty); set => SetValue(UiLanguageProperty, value); }
+
     /// <summary>Gets or sets whether to display the feature title.</summary>
     public bool ShowTitle { get => (bool)GetValue(ShowTitleProperty); set => SetValue(ShowTitleProperty, value); }
+
     /// <summary>Gets or sets whether to display an inline access hint.</summary>
     public bool ShowHint { get => (bool)GetValue(ShowHintProperty); set => SetValue(ShowHintProperty, value); }
 
+    /// <summary>Reapplies feature-gate content after its presentation properties change.</summary>
     private static void OnPresentationChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) => ((FeatureGate)sender).Render();
 
+    /// <summary>Displays catalog labels and enables content only when the supplied access snapshot allows it.</summary>
     private void Render()
     {
-        if (BodyHost is null) return;
+        if (BodyHost is null)
+        {
+            return;
+        }
         var definition = FeatureCatalog.Get(Feature);
         var strings = new LocalizationService(UiLanguage);
         var premium = definition.RequiredTier == ProductTier.Premium;
@@ -88,4 +118,6 @@ public sealed partial class FeatureGate : UserControl
         AutomationProperties.SetName(this, premium ? $"{FeatureTitle.Text} · {BadgeText.Text}" : FeatureTitle.Text);
         AutomationProperties.SetHelpText(this, allowed ? "" : hint);
     }
+
+    #endregion
 }

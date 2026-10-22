@@ -30,6 +30,8 @@ namespace WorkTrail.Presentation.Tests;
 /// <summary>Exercises the production Sentry scrubber against the SDK payload types it mutates.</summary>
 public sealed class SentryEventSanitizerTests
 {
+    #region Implementation
+
     /// <summary>Ensures event identity, structured values, secrets, and absolute source paths are removed.</summary>
     [Fact]
     public void Sanitize_RemovesIdentitySecretsStructuredValuesAndAbsolutePaths()
@@ -136,6 +138,7 @@ public sealed class SentryEventSanitizerTests
         Assert.Null(sanitized.Contexts.Device.DeviceUniqueIdentifier);
 
         var sanitizedFrame = sanitized.SentryExceptions!.Single().Stacktrace!.Frames.Single();
+
         Assert.Null(sanitizedFrame.AbsolutePath);
         Assert.Equal("Worker.cs", sanitizedFrame.FileName);
         Assert.Equal("[path]", sanitizedFrame.Package);
@@ -143,7 +146,9 @@ public sealed class SentryEventSanitizerTests
         Assert.Empty(sanitizedFrame.PreContext);
         Assert.Empty(sanitizedFrame.PostContext);
         Assert.Empty(sanitizedFrame.Vars);
+
         var debugImages = sanitized.DebugImages!.ToArray();
+
         Assert.Equal("WorkTrail.dll", debugImages.Single().CodeFile);
         Assert.Equal("WorkTrail.pdb", debugImages.Single().DebugFile);
         Assert.Empty(sanitizedBreadcrumb.Data!);
@@ -168,4 +173,6 @@ public sealed class SentryEventSanitizerTests
 
         Assert.DoesNotContain(sensitiveValue, redacted, StringComparison.OrdinalIgnoreCase);
     }
+
+    #endregion
 }

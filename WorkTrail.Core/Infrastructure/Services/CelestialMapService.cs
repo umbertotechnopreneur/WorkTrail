@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using SkiaSharp;
 using WorkTrail.Application;
 
@@ -25,8 +24,14 @@ namespace WorkTrail.Services;
 /// <summary>Renders geographic Earth projections with locally calculated solar illumination.</summary>
 public sealed class CelestialMapService
 {
+
+    #region Fields
     private const double Radians = Math.PI / 180;
     private readonly Lazy<TexturePair> _textures;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Uses the packaged Earth textures. Missing or invalid assets fail the request explicitly.</summary>
     public CelestialMapService()
@@ -44,6 +49,7 @@ public sealed class CelestialMapService
         _textures = new Lazy<TexturePair>(() => new TexturePair(LoadTexture(dayTexturePath), LoadTexture(nightTexturePath)));
     }
 
+    /// <summary>Creates an isolated texture source from validated pixel arrays.</summary>
     internal CelestialMapService(int width, int height, SKColor[] dayPixels, SKColor[] nightPixels)
     {
         if (width < 1 || height < 1 || dayPixels.Length != width * height || nightPixels.Length != width * height)
@@ -55,6 +61,10 @@ public sealed class CelestialMapService
             new Texture(width, height, (SKColor[])dayPixels.Clone()),
             new Texture(width, height, (SKColor[])nightPixels.Clone())));
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Renders off the presentation thread and honors cancellation between scanlines.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The projection, coordinate, or resolution is unsupported.</exception>
@@ -74,6 +84,11 @@ public sealed class CelestialMapService
         return Task.Run(() => Render(request, cancellationToken), cancellationToken);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Projects Earth pixels and blends day and night textures using the solar terminator.</summary>
     private CelestialMapImage Render(CelestialMapRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -155,9 +170,11 @@ public sealed class CelestialMapService
             request.UtcNow.ToUniversalTime(), request.Projection, sun.SunLatitude, sun.SunLongitude);
     }
 
+    /// <summary>Combines one day and night color channel with exposure and limb shading.</summary>
     private static byte Channel(byte day, byte night, double daylight, double exposure, double limb) =>
         (byte)Math.Clamp(Math.Round((day * exposure * daylight + night * (1 - daylight)) * limb), 0, 255);
 
+    /// <summary>Samples the equirectangular texture with longitude wrapping and bilinear interpolation.</summary>
     private static SKColor Sample(Texture texture, double latitude, double longitude)
     {
         var u = longitude / (2 * Math.PI) + 0.5;
@@ -180,9 +197,17 @@ public sealed class CelestialMapService
             Blend(a.Blue, b.Blue, c.Blue, d.Blue, fx, fy));
     }
 
-    private static byte Blend(byte a, byte b, byte c, byte d, double fx, double fy) =>
-        (byte)Math.Round((a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy);
+    /// <summary>Interpolates four neighboring channel values at the fractional pixel position.</summary>
+    private static byte Blend(byte a, byte b, byte c, byte d, double fx, double fy)
+    {
+        var topChannel = a * (1 - fx) + b * fx;
+        var bottomChannel = c * (1 - fx) + d * fx;
+        var interpolatedChannel = topChannel * (1 - fy) + bottomChannel * fy;
 
+        return (byte)Math.Round(interpolatedChannel);
+    }
+
+    /// <summary>Decodes a packaged texture and verifies its equirectangular aspect ratio.</summary>
     private static Texture LoadTexture(string path)
     {
         // Core owns packaged-asset I/O; missing files and decode failures are not hidden by a substitute image.
@@ -197,6 +222,15 @@ public sealed class CelestialMapService
         return new Texture(bitmap.Width, bitmap.Height, bitmap.Pixels);
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Holds decoded texture dimensions and pixels.</summary>
     private sealed record Texture(int Width, int Height, SKColor[] Pixels);
+    /// <summary>Keeps the matching day and night Earth textures together.</summary>
     private sealed record TexturePair(Texture Day, Texture Night);
+
+    #endregion
+
 }

@@ -26,28 +26,40 @@ namespace WorkTrail.Controls;
 /// <summary>Identifies a decorative, non-measurement illustration in the four-column celestial atlas.</summary>
 public enum CelestialArtworkKind
 {
+
     /// <summary>Mercury illustration.</summary>
     Mercury,
+
     /// <summary>Venus illustration.</summary>
     Venus,
+
     /// <summary>Mars illustration.</summary>
     Mars,
+
     /// <summary>Jupiter illustration.</summary>
     Jupiter,
+
     /// <summary>Saturn illustration.</summary>
     Saturn,
+
     /// <summary>Uranus illustration.</summary>
     Uranus,
+
     /// <summary>Neptune illustration.</summary>
     Neptune,
+
     /// <summary>Sunrise illustration.</summary>
     Sunrise,
+
     /// <summary>Sunset illustration.</summary>
     Sunset,
+
     /// <summary>Blue-hour illustration.</summary>
     BlueHour,
+
     /// <summary>Civil-twilight illustration.</summary>
     Twilight,
+
     /// <summary>Equinox and solstice illustration.</summary>
     Seasons
 }
@@ -55,6 +67,8 @@ public enum CelestialArtworkKind
 /// <summary>Displays a reusable atlas thumbnail through a clipped native image viewport, without asset I/O or scientific calculations.</summary>
 public sealed partial class CelestialArtworkControl : UserControl
 {
+    #region Fields
+
     private const double CellSize = 96d;
 
     /// <summary>Identifies the selected decorative atlas cell.</summary>
@@ -62,12 +76,20 @@ public sealed partial class CelestialArtworkControl : UserControl
         nameof(Kind), typeof(CelestialArtworkKind), typeof(CelestialArtworkControl),
         new PropertyMetadata(CelestialArtworkKind.Mercury, OnKindChanged));
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates one lightweight photographic-style thumbnail.</summary>
     public CelestialArtworkControl()
     {
         InitializeComponent();
         UpdateCell();
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Gets or sets the atlas illustration; positions and visibility always come from the astronomical DTO.</summary>
     public CelestialArtworkKind Kind
@@ -89,9 +111,11 @@ public sealed partial class CelestialArtworkControl : UserControl
         _ => throw new ArgumentOutOfRangeException(nameof(body), body, "The Sun and Moon use their existing photographed phase control.")
     };
 
+    /// <summary>Refreshes the artwork cell after its dependency-property value changes.</summary>
     private static void OnKindChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>
         ((CelestialArtworkControl)sender).UpdateCell();
 
+    /// <summary>Selects the sprite-sheet cell matching the requested celestial artwork.</summary>
     private void UpdateCell()
     {
         if (!Enum.IsDefined(Kind))
@@ -105,4 +129,6 @@ public sealed partial class CelestialArtworkControl : UserControl
         Canvas.SetTop(AtlasImage, -(index / 4) * CellSize);
         ThumbnailFrame.CornerRadius = new CornerRadius(index < 7 && Kind != CelestialArtworkKind.Saturn ? 48 : 18);
     }
+
+    #endregion
 }

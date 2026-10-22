@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 /* VBWR B
  *
  * Project: WorkTrail
@@ -30,6 +30,8 @@ namespace WorkTrail.Controls;
 /// <summary>Collects world-clock presentation options and forwards mutations to the shared application facade.</summary>
 public sealed partial class WorldClockOptionsControl : UserControl
 {
+    #region Fields
+
     private IWorkTrailApplication? _application;
     private LocalizationService _strings = new("system");
     private CancellationToken _lifetimeToken;
@@ -43,8 +45,16 @@ public sealed partial class WorldClockOptionsControl : UserControl
     private bool _worldMapShowInTaskbar = true;
     private bool _lunarPhaseShowInTaskbar = true;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates the passive world-clock options surface.</summary>
     public WorldClockOptionsControl() => InitializeComponent();
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Occurs when the selected clocks must be refreshed.</summary>
     public event EventHandler? RefreshRequested;
@@ -139,6 +149,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         ApplyLocalizedPresentation();
     }
 
+    /// <summary>Persists the weather preference and restores the control when saving fails.</summary>
     private async void WeatherEnabledSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_updatingControls || _application is null || _busy)
@@ -181,9 +192,11 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    /// <summary>Requests the weather-key setup surface.</summary>
     private void SaveWeatherKeyButton_Click(object sender, RoutedEventArgs e) =>
         KeySetupRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Publishes the requested topmost-window preference.</summary>
     private void AlwaysOnTopSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (!_updatingControls)
@@ -192,6 +205,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    /// <summary>Tracks opacity changes and saves them when appropriate for the input state.</summary>
     private async void WorldClockOpacitySlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         if (_updatingControls)
@@ -202,12 +216,15 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _pendingWorldClockOpacityPercent = (int)Math.Round(e.NewValue);
     }
 
+    /// <summary>Commits the pending opacity when pointer interaction ends.</summary>
     private async void WorldClockOpacitySlider_PointerCaptureLost(object sender, PointerRoutedEventArgs e) =>
         await SavePendingWindowOpacityAsync();
 
+    /// <summary>Commits the pending opacity after keyboard interaction.</summary>
     private async void WorldClockOpacitySlider_KeyUp(object sender, KeyRoutedEventArgs e) =>
         await SavePendingWindowOpacityAsync();
 
+    /// <summary>Persists a changed opacity value once the interaction is ready to commit.</summary>
     private async Task SavePendingWindowOpacityAsync()
     {
         if (_application is not null && !_busy && _pendingWorldClockOpacityPercent != _worldClockOpacityPercent)
@@ -216,6 +233,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    /// <summary>Persists the clock window's taskbar visibility.</summary>
     private async void WorldClockShowInTaskbarSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (!_updatingControls && _application is not null && !_busy)
@@ -224,9 +242,13 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    /// <summary>Persists taskbar visibility for the selected astronomy window.</summary>
     private async void AstronomyShowInTaskbarSwitch_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_updatingControls || _application is null || _busy) return;
+        if (_updatingControls || _application is null || _busy)
+        {
+            return;
+        }
         var toggle = (ToggleSwitch)sender;
         var key = ReferenceEquals(toggle, WorldMapShowInTaskbarSwitch)
             ? "window.world_map.show_in_taskbar"
@@ -237,6 +259,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }));
     }
 
+    /// <summary>Persists window presentation preferences and restores committed controls on failure.</summary>
     private Task SaveWindowPresentationAsync(int opacityPercent, bool showInTaskbar) =>
         SaveWindowPresentationAsync(new SettingsPatch(new Dictionary<string, string?>
         {
@@ -244,6 +267,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
             ["window.world_clocks.show_in_taskbar"] = showInTaskbar ? "true" : "false"
         }));
 
+    /// <summary>Persists window presentation preferences and restores committed controls on failure.</summary>
     private async Task SaveWindowPresentationAsync(SettingsPatch patch)
     {
         SetBusy(true);
@@ -274,6 +298,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    /// <summary>Restores presentation controls from the last committed values.</summary>
     private void RestoreWindowPresentation()
     {
         _updatingControls = true;
@@ -285,11 +310,14 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _updatingControls = false;
     }
 
+    /// <summary>Requests the city picker for a new clock.</summary>
     private void AddClockButton_Click(object sender, RoutedEventArgs e) => AddRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Requests the weather provider's information page.</summary>
     private void WeatherProviderLinkButton_Click(object sender, RoutedEventArgs e) =>
         ProviderLinkRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Publishes the newly selected reference city.</summary>
     private void ReferenceRadioButton_Checked(object sender, RoutedEventArgs e)
     {
         if (_updatingControls || sender is not RadioButton { Tag: WorldClockItem clock })
@@ -300,6 +328,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         ReferenceRequested?.Invoke(this, new WorldClockCityEventArgs(clock.CityId, clock.CityName));
     }
 
+    /// <summary>Requests removal of the city associated with the clicked control.</summary>
     private void RemoveClockButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: WorldClockItem clock })
@@ -308,6 +337,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    /// <summary>Requests moving the selected city earlier in the clock list.</summary>
     private void MoveUpClockButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: WorldClockItem clock })
@@ -316,6 +346,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
+    /// <summary>Requests moving the selected city later in the clock list.</summary>
     private void MoveDownClockButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: WorldClockItem clock })
@@ -326,6 +357,8 @@ public sealed partial class WorldClockOptionsControl : UserControl
 
     // snapshot supplies the current clocks and their tier-dependent limit.
     // referenceCityId identifies the reference clock, if selected.
+
+    /// <summary>Builds localized city rows and their reference, move, and remove actions.</summary>
     private void RenderCities(WorldClockSnapshot? snapshot, string? referenceCityId)
     {
         CitiesHost.Children.Clear();
@@ -430,6 +463,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         AddClockButton.IsEnabled = !_busy && _canAddClock;
     }
 
+    /// <summary>Creates an accessible icon action for a specific city.</summary>
     private Button CreateCityActionButton(
         WorldClockItem clock,
         string glyph,
@@ -460,6 +494,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         return button;
     }
 
+    /// <summary>Updates the weather setup and availability presentation.</summary>
     private void ApplyWeatherStatus(WorldClockWeatherStatus? status)
     {
         (string Key, string VisualState) presentation = status is null
@@ -492,6 +527,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
             : "WorldClock.Options.Weather.KeyAction.Set");
     }
 
+    /// <summary>Restores the committed weather value without triggering another save.</summary>
     private void RestoreWeatherToggle(bool value)
     {
         _updatingControls = true;
@@ -499,6 +535,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _updatingControls = false;
     }
 
+    /// <summary>Enables or disables preference controls during an application operation.</summary>
     private void SetBusy(bool busy)
     {
         _busy = busy;
@@ -515,6 +552,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         LunarPhaseShowInTaskbarSwitch.IsEnabled = !busy;
     }
 
+    /// <summary>Refreshes labels and accessible names using the active language.</summary>
     private void ApplyLocalizedPresentation()
     {
         SetSaveWeatherKeyAction(_weatherKeyConfigured
@@ -523,6 +561,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         AutomationProperties.SetName(WeatherProviderLinkButton, WeatherProviderLinkText.Text);
     }
 
+    /// <summary>Updates the localized weather-key action label.</summary>
     private void SetSaveWeatherKeyAction(string key)
     {
         var label = T(key);
@@ -530,5 +569,8 @@ public sealed partial class WorldClockOptionsControl : UserControl
         AutomationProperties.SetName(SaveWeatherKeyButton, label);
     }
 
+    /// <summary>Translates a resource key using the current UI language.</summary>
     private string T(string key) => _strings.Translate(key);
+
+    #endregion
 }

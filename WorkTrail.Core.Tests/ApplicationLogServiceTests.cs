@@ -25,8 +25,12 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks bounded diagnostic export and redaction without changing the original log.</summary>
 public sealed class ApplicationLogServiceTests
 {
+    #region Implementation
+
+    /// <summary>Exports a bounded tail from the newest log and redacts sensitive values without modifying raw diagnostics.</summary>
     [Fact]
     public void RedactedExport_UsesNewestBoundedTailWithoutChangingRawLog()
     {
@@ -60,6 +64,7 @@ public sealed class ApplicationLogServiceTests
             var service = new ApplicationLogService(logDirectory, exportDirectory);
 
             Assert.Equal(latest, service.FindLatestLogPath());
+
             var export = service.CreateRedactedExport();
             var sharedText = File.ReadAllText(export);
 
@@ -81,6 +86,7 @@ public sealed class ApplicationLogServiceTests
         }
     }
 
+    /// <summary>Removes sensitive values while retaining the expected diagnostic context.</summary>
     [Theory]
     [InlineData("Authorization: Bearer token-value", "[secret]")]
     [InlineData("api_key=sk-secret-value", "[secret]")]
@@ -97,10 +103,14 @@ public sealed class ApplicationLogServiceTests
         Assert.DoesNotContain("token-value", result, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Creates an isolated directory for persistence fixtures owned by the current test.</summary>
     private static string CreateTemporaryDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "WorkTrail.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
+
         return path;
     }
+
+    #endregion
 }

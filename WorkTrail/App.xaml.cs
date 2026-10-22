@@ -16,6 +16,8 @@ namespace WorkTrail;
 /// <summary>Composes the launcher, independent widgets and their single shared settings runtime.</summary>
 public partial class App : Microsoft.UI.Xaml.Application
 {
+    #region Fields
+
     private readonly ServiceProvider _services;
     private readonly ILogger<App> _logger;
     private readonly MicaDialogService _dialogs = new();
@@ -36,6 +38,10 @@ public partial class App : Microsoft.UI.Xaml.Application
     private string _uiLanguage = "system";
     private int _shutdownStarted;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Initializes application logging before any preferences or windows are opened.</summary>
     public App()
     {
@@ -49,6 +55,11 @@ public partial class App : Microsoft.UI.Xaml.Application
         WindowPlacementService.SnappingFailed += WindowPlacementService_SnappingFailed;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reports an unhandled UI exception through the durable application error service.</summary>
     private void Application_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs args)
     {
         args.Handled = true;
@@ -61,34 +72,53 @@ public partial class App : Microsoft.UI.Xaml.Application
         try
         {
             var kind = ReadActivationKind();
-            if (kind == ExtendedActivationKind.Protocol) throw new ArgumentException("Protocol activation is not supported.");
+            if (kind == ExtendedActivationKind.Protocol)
+            {
+                throw new ArgumentException("Protocol activation is not supported.");
+            }
             var options = StartupActivationPolicy.Apply(LaunchOptions.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray()), kind);
             StartUi(options);
         }
-        catch (Exception exception) { ApplicationErrorService.Report(exception, "Launch", _uiLanguage); }
+        catch (Exception exception)
+        {
+            ApplicationErrorService.Report(exception, "Launch", _uiLanguage);
+        }
     }
 
     /// <summary>Restores the existing launcher after Windows redirects another activation.</summary>
     internal void HandleRedirectedActivation(RedirectedActivationRequest activation)
     {
         if (!_dispatcherQueue.TryEnqueue(() => StartUi(activation.Options)))
+        {
             _logger.LogWarning("Activation arrived while the widget dispatcher was shutting down.");
+        }
     }
 
+    /// <summary>Creates the main UI surfaces after application startup has resolved their dependencies.</summary>
     private async void StartUi(LaunchOptions options)
     {
         if (_window is not null)
         {
-            if (!options.StartWithWindows && options.Mode != LaunchMode.Background) _window.ShowLauncher();
+            if (!options.StartWithWindows && options.Mode != LaunchMode.Background)
+            {
+                _window.ShowLauncher();
+            }
             return;
         }
-        if (_uiStarting) { _showMainWindowWhenUiReady |= !options.StartWithWindows && options.Mode != LaunchMode.Background; return; }
+        if (_uiStarting)
+        {
+            _showMainWindowWhenUiReady |= !options.StartWithWindows && options.Mode != LaunchMode.Background;
+            return;
+        }
         _uiStarting = true;
         try
         {
             var application = StartOrConnectRuntime();
             var result = await application.GetSettingsAsync(CancellationToken.None);
-            if (!result.Succeeded || result.Value is null) throw new InvalidOperationException($"Widget preferences could not be loaded ({result.Code}).");
+            if (!result.Succeeded || result.Value is null)
+            {
+                throw new InvalidOperationException($"Widget preferences could not be loaded ({result.Code}).");
+            }
             var settings = result.Value;
             ApplyTitleBarSettings(settings);
             var tray = new TrayIconService(_services.GetRequiredService<ILoggerFactory>().CreateLogger<TrayIconService>());
@@ -101,8 +131,14 @@ public partial class App : Microsoft.UI.Xaml.Application
             try
             {
                 _window.EnsureNotificationAreaIcon();
-                if ((options.StartWithWindows || options.Mode == LaunchMode.Background) && !_showMainWindowWhenUiReady) _window.StartMinimizedToNotificationArea();
-                else _window.ShowLauncher();
+                if ((options.StartWithWindows || options.Mode == LaunchMode.Background) && !_showMainWindowWhenUiReady)
+                {
+                    _window.StartMinimizedToNotificationArea();
+                }
+                else
+                {
+                    _window.ShowLauncher();
+                }
             }
             catch (Exception exception)
             {
@@ -115,15 +151,24 @@ public partial class App : Microsoft.UI.Xaml.Application
             {
                 _window.ShowLauncher();
                 var catalog = await application.GetWorldClockCityCatalogAsync(CancellationToken.None);
-                if (!catalog.Succeeded || catalog.Value is null) throw new InvalidOperationException("The offline city catalog is unavailable for welcome.");
-                if (!await _dialogs.ShowWelcomeAsync(application, _window, catalog.Value, new LocalizationService(_uiLanguage))) return;
+                if (!catalog.Succeeded || catalog.Value is null)
+                {
+                    throw new InvalidOperationException("The offline city catalog is unavailable for welcome.");
+                }
+                if (!await _dialogs.ShowWelcomeAsync(application, _window, catalog.Value, new LocalizationService(_uiLanguage)))
+                {
+                    return;
+                }
                 settings = (await application.GetSettingsAsync(CancellationToken.None)).Value
                     ?? throw new InvalidOperationException("Home-city preferences could not be loaded.");
                 await _window.ApplyExternalSettingsAsync(settings);
             }
             foreach (var key in WorkspaceWindowState.GetWindowsToRestore(settings.WindowOpenStates))
             {
-                if (Volatile.Read(ref _shutdownStarted) != 0) break;
+                if (Volatile.Read(ref _shutdownStarted) != 0)
+                {
+                    break;
+                }
                 switch (key)
                 {
                     case WindowStateKeys.WorldClocks: await ShowWorldClockWindowAsync(application); break;
@@ -135,11 +180,20 @@ public partial class App : Microsoft.UI.Xaml.Application
                 }
             }
         }
-        catch (OperationCanceledException) when (Volatile.Read(ref _shutdownStarted) != 0) { }
-        catch (Exception exception) { ApplicationErrorService.Report(exception, "WidgetStartup", _uiLanguage); }
-        finally { _uiStarting = false; }
+        catch (OperationCanceledException) when (Volatile.Read(ref _shutdownStarted) != 0)
+        {
+        }
+        catch (Exception exception)
+        {
+            ApplicationErrorService.Report(exception, "WidgetStartup", _uiLanguage);
+        }
+        finally
+        {
+            _uiStarting = false;
+        }
     }
 
+    /// <summary>Propagates the saved caption visibility preference to window controllers.</summary>
     private void ApplyTitleBarSettings(AppSettings settings)
     {
         _uiLanguage = settings.UiLanguage;
@@ -147,9 +201,13 @@ public partial class App : Microsoft.UI.Xaml.Application
         _applicationFacade?.ConfigureWindowSnapping(settings.WindowSnappingEnabled);
     }
 
+    /// <summary>Starts or connects to the shared application runtime for this launch.</summary>
     private IWorkTrailApplication StartOrConnectRuntime()
     {
-        if (_applicationFacade is not null) return _applicationFacade;
+        if (_applicationFacade is not null)
+        {
+            return _applicationFacade;
+        }
         var factory = _services.GetRequiredService<ILoggerFactory>();
         var installation = WorkTrailApplicationFactory.LoadInstallationId();
         var host = new RuntimeHost(() => WorkTrailApplicationFactory.Create(factory, _services.GetRequiredService<ObservabilityHealth>()),
@@ -163,21 +221,34 @@ public partial class App : Microsoft.UI.Xaml.Application
         return _applicationFacade = new RuntimeClient(installation, TimeSpan.FromSeconds(5), factory.CreateLogger<RuntimeClient>());
     }
 
+    /// <summary>Starts orderly shutdown after the launcher requests application exit.</summary>
     private async void MainWindow_ExitRequested(object? sender, EventArgs args)
     {
-        if (Interlocked.Exchange(ref _shutdownStarted, 1) != 0) return;
+        if (Interlocked.Exchange(ref _shutdownStarted, 1) != 0)
+        {
+            return;
+        }
         try
         {
             // Save open widget visibility before closing native windows for process shutdown.
             await WindowPlacementService.PrepareForShutdownAsync();
             _dialogs.CloseActive();
-            foreach (var window in _celestialWindows.Values.ToArray()) window.CloseForShutdown();
+            foreach (var window in _celestialWindows.Values.ToArray())
+            {
+                window.CloseForShutdown();
+            }
             _worldMapWindow?.CloseForShutdown();
             _lunarPhaseWindow?.CloseForShutdown();
             _worldClockWindow?.CloseForShutdown();
             _window?.CloseForShutdown();
-            if (_runtimeHost is not null) await _runtimeHost.DisposeAsync();
-            else if (_applicationFacade is not null) await _applicationFacade.DisposeAsync();
+            if (_runtimeHost is not null)
+            {
+                await _runtimeHost.DisposeAsync();
+            }
+            else if (_applicationFacade is not null)
+            {
+                await _applicationFacade.DisposeAsync();
+            }
             WindowPlacementService.PersistenceFailed -= WindowPlacementService_PersistenceFailed;
             WindowPlacementService.SnappingFailed -= WindowPlacementService_SnappingFailed;
             await LoggingBootstrapper.ShutdownAsync(_services);
@@ -191,6 +262,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Classifies the activation payload used to select the requested application surface.</summary>
     private static ExtendedActivationKind ReadActivationKind()
     {
         try
@@ -205,11 +277,13 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Opens the saved clock workspace in response to the launcher.</summary>
     private async void MainWindow_WorldClocksRequested(object? sender, EventArgs eventArgs) =>
         await ShowWorldClockWindowAsync(StartOrConnectRuntime());
 
 
 
+    /// <summary>Creates or activates the clock window while coordinating its opening state.</summary>
     private async Task ShowWorldClockWindowAsync(IWorkTrailApplication application)
     {
         if (_worldClockWindow is not null)
@@ -265,6 +339,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Applies committed preferences to the existing clock window.</summary>
     private void ApplyWorldClockWindowSettings(AppSettings settings)
     {
         _worldClockWindow?.ApplySettings(settings);
@@ -272,18 +347,26 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Propagates committed preferences to open astronomy windows.</summary>
     private void ApplyAstronomyWindowSettings(AppSettings settings)
     {
         _worldMapWindow?.ApplySettings(settings);
         _lunarPhaseWindow?.ApplySettings(settings);
-        foreach (var window in _celestialWindows.Values) window.ApplySettings(settings);
+        foreach (var window in _celestialWindows.Values)
+        {
+            window.ApplySettings(settings);
+        }
     }
 
 
+    /// <summary>Reports a native window-snapping failure through the application error surface.</summary>
     private async Task WindowPlacementService_SnappingFailed(Window owner, Exception exception)
     {
         _logger.LogError(exception, "Window snapping failed; native free movement remains available for this operation.");
-        if (Volatile.Read(ref _shutdownStarted) != 0 || owner.Content is not FrameworkElement { IsLoaded: true }) return;
+        if (Volatile.Read(ref _shutdownStarted) != 0 || owner.Content is not FrameworkElement { IsLoaded: true })
+        {
+            return;
+        }
         var strings = new LocalizationService(_uiLanguage);
         await _dialogs.ShowInformativeAsync(owner, DialogRequest.Informative(
             strings.Translate("Operations.Status.Failed.Title"),
@@ -292,6 +375,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Reports a failed window-state save while retaining the running workspace.</summary>
     private async Task WindowPlacementService_PersistenceFailed(Window owner, string windowKey, Exception exception)
     {
         _logger.LogError(exception, "Window placement persistence failed. WindowKey={WindowKey}", windowKey);
@@ -308,22 +392,29 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Opens the map requested by the clock window.</summary>
     private async void WorldClockWindow_WorldMapRequested(object? sender, EventArgs args) =>
         await ShowAstronomyWindowAsync(isLunarPhase: false);
 
 
+    /// <summary>Opens the lunar phase surface requested by the clock window.</summary>
     private async void WorldClockWindow_LunarPhaseRequested(object? sender, EventArgs args) =>
         await ShowAstronomyWindowAsync(isLunarPhase: true);
 
 
+    /// <summary>Shares the clock reference instant with open astronomy surfaces.</summary>
     private void WorldClockWindow_ProjectionChanged(WorldClockSnapshot snapshot, bool isLive)
     {
         _worldMapWindow?.ApplySnapshot(snapshot, isLive);
         _lunarPhaseWindow?.ApplySnapshot(snapshot, isLive);
-        foreach (var window in _celestialWindows.Values) window.ApplySnapshot(snapshot, isLive);
+        foreach (var window in _celestialWindows.Values)
+        {
+            window.ApplySnapshot(snapshot, isLive);
+        }
     }
 
 
+    /// <summary>Opens the requested astronomy surface from the clock window.</summary>
     private async void WorldClockWindow_CelestialWindowRequested(string key) => await ShowCelestialWindowAsync(key);
 
 
@@ -395,6 +486,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Routes a menu selection to the corresponding astronomy window.</summary>
     private async void OpenAstronomyWindowFromMenu(string key)
     {
         if (key == WindowStateKeys.WorldMap)
@@ -412,9 +504,13 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Creates or activates the requested celestial surface.</summary>
     private async Task ShowCelestialWindowAsync(string key)
     {
-        if (!_celestialWindowsOpening.Add(key)) return;
+        if (!_celestialWindowsOpening.Add(key))
+        {
+            return;
+        }
         CelestialWindow? created = null;
         try
         {
@@ -426,10 +522,14 @@ public partial class App : Microsoft.UI.Xaml.Application
 
             var application = StartOrConnectRuntime();
             var settings = await application.GetSettingsAsync(CancellationToken.None);
-            if (_window is null || Volatile.Read(ref _shutdownStarted) != 0) return;
+            if (_window is null || Volatile.Read(ref _shutdownStarted) != 0)
+            {
+                return;
+            }
             if (!settings.Succeeded || settings.Value is null)
+            {
                 throw new InvalidOperationException($"Celestial window settings are unavailable ({settings.Code}).");
-
+            }
             created = new CelestialWindow(application, _dialogs, settings.Value, key);
             if (key is WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap)
             {
@@ -440,10 +540,14 @@ public partial class App : Microsoft.UI.Xaml.Application
             created.Closed += (sender, _) =>
             {
                 if (_celestialWindows.TryGetValue(key, out var current) && ReferenceEquals(current, sender))
+                {
                     _celestialWindows.Remove(key);
+                }
             };
             if (_worldClockWindow?.CurrentSnapshot is { } snapshot)
+            {
                 created.ApplySnapshot(snapshot, _worldClockWindow.IsLive);
+            }
             created.Activate();
         }
         catch (Exception exception)
@@ -453,15 +557,28 @@ public partial class App : Microsoft.UI.Xaml.Application
             if (created is not null)
             {
                 _celestialWindows.Remove(key);
-                try { created.CloseAfterFailedOpening(); }
-                catch (Exception cleanupException) { _logger.LogError(cleanupException, "Failed celestial opening could not release its window."); }
+                try
+                {
+                    created.CloseAfterFailedOpening();
+                }
+                catch (Exception cleanupException)
+                {
+                    _logger.LogError(cleanupException, "Failed celestial opening could not release its window.");
+                }
             }
-            if (_window is not null && Volatile.Read(ref _shutdownStarted) == 0) _window.ShowWorldClockOpenFailure();
+            if (_window is not null && Volatile.Read(ref _shutdownStarted) == 0)
+            {
+                _window.ShowWorldClockOpenFailure();
+            }
         }
-        finally { _celestialWindowsOpening.Remove(key); }
+        finally
+        {
+            _celestialWindowsOpening.Remove(key);
+        }
     }
 
 
+    /// <summary>Coordinates an astronomy window's opening and handles initialization failure.</summary>
     private async Task ShowAstronomyWindowAsync(bool isLunarPhase)
     {
         Window? existing = isLunarPhase ? _lunarPhaseWindow : _worldMapWindow;
@@ -470,8 +587,14 @@ public partial class App : Microsoft.UI.Xaml.Application
             return;
         }
 
-        if (isLunarPhase) _lunarPhaseWindowOpening = true;
-        else _worldMapWindowOpening = true;
+        if (isLunarPhase)
+        {
+            _lunarPhaseWindowOpening = true;
+        }
+        else
+        {
+            _worldMapWindowOpening = true;
+        }
         Window? createdWindow = null;
         try
         {
@@ -500,7 +623,10 @@ public partial class App : Microsoft.UI.Xaml.Application
                 AttachAstronomyContextMenu(_lunarPhaseWindow, WindowStateKeys.LunarPhase);
                 _lunarPhaseWindow.Closed += (sender, _) =>
                 {
-                    if (ReferenceEquals(_lunarPhaseWindow, sender)) _lunarPhaseWindow = null;
+                    if (ReferenceEquals(_lunarPhaseWindow, sender))
+                    {
+                        _lunarPhaseWindow = null;
+                    }
                 };
                 if (_worldClockWindow?.CurrentSnapshot is { } snapshot)
                 {
@@ -516,7 +642,10 @@ public partial class App : Microsoft.UI.Xaml.Application
                 AttachAstronomyContextMenu(_worldMapWindow, WindowStateKeys.WorldMap);
                 _worldMapWindow.Closed += (sender, _) =>
                 {
-                    if (ReferenceEquals(_worldMapWindow, sender)) _worldMapWindow = null;
+                    if (ReferenceEquals(_worldMapWindow, sender))
+                    {
+                        _worldMapWindow = null;
+                    }
                 };
                 if (_worldClockWindow?.CurrentSnapshot is { } snapshot)
                 {
@@ -556,12 +685,19 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
         finally
         {
-            if (isLunarPhase) _lunarPhaseWindowOpening = false;
-            else _worldMapWindowOpening = false;
+            if (isLunarPhase)
+            {
+                _lunarPhaseWindowOpening = false;
+            }
+            else
+            {
+                _worldMapWindowOpening = false;
+            }
         }
     }
 
 
+    /// <summary>Releases the closed clock instance and its event subscriptions.</summary>
     private void WorldClockWindow_Closed(object sender, WindowEventArgs args)
     {
         if (_worldClockWindow is not null)
@@ -575,11 +711,15 @@ public partial class App : Microsoft.UI.Xaml.Application
             _worldClockWindow = null;
         }
     }
+
+    #endregion
 }
 
 /// <summary>Maps Windows sign-in activation to the hidden launcher.</summary>
 internal static class StartupActivationPolicy
 {
+
+    /// <summary>Marks sign-in activation for a hidden launcher while preserving other launch options.</summary>
     internal static LaunchOptions Apply(LaunchOptions options, ExtendedActivationKind kind) =>
         kind == ExtendedActivationKind.StartupTask ? options with { StartWithWindows = true } : options;
 }
