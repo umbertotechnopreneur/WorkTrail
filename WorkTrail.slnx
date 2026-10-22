@@ -32,36 +32,16 @@ VBWR E -->
     <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
     <BuildType Solution="Release-Unpackaged|*" Project="Release" />
   </Project>
-  <Project Path="WorkTrail.Cli/WorkTrail.Cli.csproj">
-    <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
-    <BuildType Solution="Release-Unpackaged|*" Project="Release" />
-  </Project>
   <Project Path="WorkTrail.Presentation/WorkTrail.Presentation.csproj">
     <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
     <BuildType Solution="Release-Unpackaged|*" Project="Release" />
   </Project>
-  <Project Path="WorkTrail.Search/WorkTrail.Search.csproj">
-    <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
-    <BuildType Solution="Release-Unpackaged|*" Project="Release" />
-  </Project>
-  <Project Path="WorkTrail.Taskbar/WorkTrail.Taskbar.csproj">
-    <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
-    <BuildType Solution="Release-Unpackaged|*" Project="Release" />
-  </Project>
   <Folder Name="/Tests/">
-    <Project Path="WorkTrail.Search.Tests/WorkTrail.Search.Tests.csproj">
-      <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
-      <BuildType Solution="Release-Unpackaged|*" Project="Release" />
-    </Project>
     <Project Path="WorkTrail.Core.Tests/WorkTrail.Core.Tests.csproj">
       <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
       <BuildType Solution="Release-Unpackaged|*" Project="Release" />
     </Project>
     <Project Path="WorkTrail.Presentation.Tests/WorkTrail.Presentation.Tests.csproj">
-      <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
-      <BuildType Solution="Release-Unpackaged|*" Project="Release" />
-    </Project>
-    <Project Path="WorkTrail.Cli.Tests/WorkTrail.Cli.Tests.csproj">
       <BuildType Solution="Debug-Unpackaged|*" Project="Debug" />
       <BuildType Solution="Release-Unpackaged|*" Project="Release" />
     </Project>

@@ -204,6 +204,9 @@ internal static class UiLocalization
             case Button button:
                 ApplyButtonLabel(button, key, strings);
                 break;
+            case HyperlinkButton hyperlinkButton:
+                ApplyButtonLabel(hyperlinkButton, key, strings);
+                break;
             case CheckBox checkBox:
                 SetIfTranslated(strings, key, value =>
                 {
@@ -318,7 +321,7 @@ internal static class UiLocalization
     {
         SetIfTranslated(strings, key, value =>
         {
-            if (button.Content is string)
+            if (button.Content is null or string)
             {
                 button.Content = value;
                 AutomationProperties.SetName(button, value);

@@ -60,14 +60,12 @@ dotnet build .\WorkTrail\WorkTrail.csproj -p:Platform=x64
 - Do not add or retain backward-compatibility layers for superseded filenames, paths, settings, or APIs unless explicitly requested. Replace obsolete paths, adapters, and fallbacks.
 - This repository is in beta. Open activity databases on a best-effort basis: do not reject them because of schema versions, exact table definitions, columns, indexes, or additional schema objects. Create missing database objects without replacing existing data. Do not add version-specific compatibility layers or reset stored history to bypass an opening failure.
 - Report actual persistence, interop, startup, and unexpected application failures in a durable local log and a visible error dialog. Database failure reporting must work before the main window exists. Do not silently ignore errors or pretend an operation succeeded.
-- Keep WinUI views/code-behind, Spectre commands, prompts, and renderers passive: they collect input, bind/render DTOs, and invoke `IWorkTrailApplication`. They must not construct infrastructure services or perform I/O, process, registry, environment, HTTP, capture, hook, or persistence work.
-- Put application behavior, persistence, OS interop, capture, environment access, HTTP, retention, and startup behind `WorkTrail.Core` application services. Serialize persistence mutations in the application layer.
-- Do not create a second tracking runtime. Use the hashed-installation mutex and same-user versioned named-pipe protocol through the shared facade.
+- Keep WinUI views/code-behind and renderers passive: they collect input, bind/render DTOs, and invoke `IWorkTrailApplication`. They must not construct infrastructure services or perform I/O, process, registry, environment, HTTP, hook, or persistence work.
+- Put application behavior, persistence, OS interop, environment access, HTTP, retention, and startup behind `WorkTrail.Core` application services. Serialize persistence mutations in the application layer.
+- Do not create a second widget runtime. Use the hashed-installation mutex and same-user versioned named-pipe protocol through the shared facade.
 - Use the environment-variable secret flow. Never put secrets in CLI arguments, settings, history, logs, IPC diagnostics, or tests.
-- User-facing shared AI features say "AI provider" ("provider AI" in Italian). Name a vendor only for selected-provider or genuinely vendor-specific behavior.
 - Start first-party C# files with `// SPDX-License-Identifier: MIT`; preserve notices in generated and third-party files. Add XML documentation to public/protected methods and short comments for critical I/O, OS/process interop, external calls, and non-obvious failure behavior.
 - Give every icon-only WinUI button or toggle a localized tooltip and the same localized accessible name.
-- For Screenshot UI work, reuse components, keep data/business logic in models/services, avoid duplicate large titles and unnecessary card wrappers, and favor a translucent Mica/Acrylic presentation.
 
 ## Repository map and records
 

@@ -51,10 +51,8 @@ internal sealed class CustomTitleBarController : IDisposable
     private readonly ColumnDefinition _rightInsetColumn;
     private readonly Func<IEnumerable<FrameworkElement>> _interactiveElements;
     private readonly Grid _rootGrid;
-    private readonly bool _supportsContentOverlay;
     private readonly bool _allowAutoHide;
     private TitleBarOverlayLayout? _overlayLayout;
-    private bool _overlayContentEnabled;
     private readonly Border _revealSurface;
     private readonly InputNonClientPointerSource _pointerSource;
     private readonly DispatcherQueueTimer _pointerTimer;
@@ -83,7 +81,6 @@ internal sealed class CustomTitleBarController : IDisposable
     // rightInsetColumn reserves space for native caption buttons.
     // interactiveElements identifies title-bar controls that receive pointer input.
     // useTallTitleBar selects the native caption height.
-    // overlayContent allows the caption to float above content when hidden automatically.
     // allowAutoHide lets this window follow the global auto-hide preference.
     internal CustomTitleBarController(
         Window window,
@@ -94,7 +91,6 @@ internal sealed class CustomTitleBarController : IDisposable
         ColumnDefinition rightInsetColumn,
         Func<IEnumerable<FrameworkElement>> interactiveElements,
         bool useTallTitleBar = true,
-        bool overlayContent = false,
         bool allowAutoHide = true)
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
@@ -106,8 +102,6 @@ internal sealed class CustomTitleBarController : IDisposable
         _interactiveElements = interactiveElements ?? throw new ArgumentNullException(nameof(interactiveElements));
         _rootGrid = root as Grid
             ?? throw new ArgumentException("Shared title bars require a grid window root.", nameof(root));
-        _overlayContentEnabled = overlayContent;
-        _supportsContentOverlay = overlayContent;
         _allowAutoHide = allowAutoHide;
         _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
         _visibleOpacity = _dragRegion.Opacity;
@@ -182,26 +176,13 @@ internal sealed class CustomTitleBarController : IDisposable
     }
 
     /// <summary>Gets the vertical space consumed by docked chrome, excluding a floating overlay.</summary>
-    internal double ReservedHeight => _overlayLayout?.ReservedHeight
-        ?? (_supportsContentOverlay && _overlayContentEnabled && AutoHideEnabled ? 0d : _dragRegion.ActualHeight);
+    internal double ReservedHeight => 0d;
 
     private bool AutoHideEnabled => _allowAutoHide && _autoHideEnabled;
 
-    /// <summary>Temporarily docks the title bar when a widget displays interactive settings.</summary>
-    internal void SetOverlayContentEnabled(bool enabled)
-    {
-        if (!_supportsContentOverlay)
-        {
-            throw new InvalidOperationException("This title bar was not configured for content overlays.");
-        }
-
-        _overlayContentEnabled = enabled;
-        ApplyOverlayLayout();
-    }
-
     private void ApplyOverlayLayout()
     {
-        if (!_supportsContentOverlay || !_dragRegion.IsLoaded)
+        if (!_dragRegion.IsLoaded)
         {
             return;
         }
@@ -209,12 +190,11 @@ internal sealed class CustomTitleBarController : IDisposable
         // WinUI does not attach XAML parents during window construction. Capture the original
         // rows only after Loaded, when the header belongs to its live visual tree.
         _overlayLayout ??= new TitleBarOverlayLayout(_rootGrid, _dragRegion);
-        var overlay = _overlayContentEnabled && AutoHideEnabled;
-        _overlayLayout.SetEnabled(overlay);
+        _overlayLayout.Apply();
         // Span the content only for layout; the shield's fixed height limits input to the floating caption.
-        Grid.SetRowSpan(_revealSurface, overlay ? Math.Max(1, _rootGrid.RowDefinitions.Count) : 1);
-        _revealSurface.Height = overlay ? _overlayLayout.HeaderHeight : double.NaN;
-        _revealSurface.VerticalAlignment = overlay ? VerticalAlignment.Top : VerticalAlignment.Stretch;
+        Grid.SetRowSpan(_revealSurface, Math.Max(1, _rootGrid.RowDefinitions.Count));
+        _revealSurface.Height = _overlayLayout.HeaderHeight;
+        _revealSurface.VerticalAlignment = VerticalAlignment.Top;
         QueueLayoutUpdate();
     }
 

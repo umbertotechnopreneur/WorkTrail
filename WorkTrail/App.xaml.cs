@@ -1,35 +1,11 @@
 // SPDX-License-Identifier: MIT
-/* VBWR B
- *
- * Project: WorkTrail
- * Repository: https://github.com/umbertotechnopreneur/WorkTrail
- * Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
- *
- * VibeWare: Human intent, AI execution, and plenty of tokens
- * Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
- *
- * Modified with AI: OpenAI Codex; added this header on 2026-10-10.
- * Human guidance: Umberto Giacobbi; requested VibeWare branding.
- *
- * Copyright (c) 2026 Umberto Giacobbi
- * License: MIT - see LICENSE
- *
- * VBWR E */
-
-
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Dispatching;
-using Microsoft.Windows.AppLifecycle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
-using System.Linq;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using WorkTrail.Application;
-using WorkTrail.Cli;
 using WorkTrail.Controls;
 using WorkTrail.Presentation;
 using WorkTrail.Runtime;
@@ -37,14 +13,12 @@ using WorkTrail.Services;
 
 namespace WorkTrail;
 
-/// <summary>Provides the Windows composition root and selects a launch mode before any view is created.</summary>
+/// <summary>Composes the launcher, independent widgets and their single shared settings runtime.</summary>
 public partial class App : Microsoft.UI.Xaml.Application
 {
     private readonly ServiceProvider _services;
     private readonly ILogger<App> _logger;
     private readonly MicaDialogService _dialogs = new();
-    private readonly WindowsToastNotificationService _windowsNotifications;
-    private readonly AtomicResetService _atomicReset = new();
     private readonly DispatcherQueue _dispatcherQueue;
     private MainWindow? _window;
     private WorldClockWindow? _worldClockWindow;
@@ -52,112 +26,170 @@ public partial class App : Microsoft.UI.Xaml.Application
     private LunarPhaseWindow? _lunarPhaseWindow;
     private readonly Dictionary<string, CelestialWindow> _celestialWindows = new(StringComparer.Ordinal);
     private readonly HashSet<string> _celestialWindowsOpening = new(StringComparer.Ordinal);
-    private ScreenshotWindow? _screenshotsWindow;
-    private SearchWindow? _searchWindow;
-    private QuickSetupWindow? _quickSetupWindow;
     private RuntimeHost? _runtimeHost;
-    private IWorkTrailApplication? _runtimeApplication;
     private IWorkTrailApplication? _applicationFacade;
-    private ProcessMemoryGuardService? _memoryGuard;
-    private LaunchOptions _memoryRecoveryLaunchOptions = LaunchOptions.Parse([]);
-    private DispatcherQueueTimer? _retentionTimer;
-    private bool _retentionCheckInProgress;
-    private bool _retentionDeferredForSession;
-    private int? _historyWarningShownForThreshold;
-#if DEBUG
-    private static readonly bool AutomaticRetentionEnabled = false;
-#else
-    private static readonly bool AutomaticRetentionEnabled = true;
-#endif
-    private DashboardRefreshCoordinator? _dashboardRefreshCoordinator;
-    private bool _searchWindowOpening;
     private bool _worldClockWindowOpening;
     private bool _worldMapWindowOpening;
     private bool _lunarPhaseWindowOpening;
     private bool _uiStarting;
     private bool _showMainWindowWhenUiReady;
-    private bool _quickSetupOwnerWasInteractive;
     private string _uiLanguage = "system";
     private int _shutdownStarted;
-    private int _atomicResetStarted;
-    private int _memoryRestartStarted;
 
-    /// <summary>Initializes the WinUI application object and its logging composition root.</summary>
+    /// <summary>Initializes application logging before any preferences or windows are opened.</summary>
     public App()
     {
-        _dispatcherQueue = DispatcherQueue.GetForCurrentThread()
-            ?? throw new InvalidOperationException("The WinUI dispatcher queue is unavailable.");
+        _dispatcherQueue = DispatcherQueue.GetForCurrentThread() ?? throw new InvalidOperationException("The WinUI dispatcher is unavailable.");
         _services = LoggingBootstrapper.CreateServiceProvider();
         _logger = _services.GetRequiredService<ILogger<App>>();
         ApplicationErrorService.Configure(_logger);
         UnhandledException += Application_UnhandledException;
-        _windowsNotifications = new WindowsToastNotificationService(
-            _services.GetRequiredService<ILoggerFactory>().CreateLogger<WindowsToastNotificationService>());
         InitializeComponent();
         WindowPlacementService.PersistenceFailed += WindowPlacementService_PersistenceFailed;
         WindowPlacementService.SnappingFailed += WindowPlacementService_SnappingFailed;
-        _logger.LogInformation("WorkTrail process started. Architecture={Architecture}", RuntimeInformation.ProcessArchitecture);
     }
 
-    /// <summary>Reports recoverable WinUI failures instead of leaving an invisible or terminated UI process.</summary>
-    /// <param name="sender">The WinUI application that raised the failure.</param>
-    /// <param name="eventArgs">The managed exception and WinUI handling state.</param>
-    private void Application_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs eventArgs)
+    private void Application_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs args)
     {
-        eventArgs.Handled = true;
-        ApplicationErrorService.Report(eventArgs.Exception, "WinUI", _uiLanguage);
+        args.Handled = true;
+        ApplicationErrorService.Report(args.Exception, "WinUI", _uiLanguage);
     }
 
-    /// <summary>Routes launch modes to the CLI, background runtime, or WinUI player.</summary>
-    /// <param name="args">The Windows launch event routed by the composition root.</param>
+    /// <summary>Starts the desktop workspace after parsing launch or Windows sign-in activation.</summary>
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         try
         {
-            var activationKind = ReadActivationKind();
-            if (activationKind == ExtendedActivationKind.Protocol)
+            var kind = ReadActivationKind();
+            if (kind == ExtendedActivationKind.Protocol) throw new ArgumentException("Protocol activation is not supported.");
+            var options = StartupActivationPolicy.Apply(LaunchOptions.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray()), kind);
+            StartUi(options);
+        }
+        catch (Exception exception) { ApplicationErrorService.Report(exception, "Launch", _uiLanguage); }
+    }
+
+    /// <summary>Restores the existing launcher after Windows redirects another activation.</summary>
+    internal void HandleRedirectedActivation(RedirectedActivationRequest activation)
+    {
+        if (!_dispatcherQueue.TryEnqueue(() => StartUi(activation.Options)))
+            _logger.LogWarning("Activation arrived while the widget dispatcher was shutting down.");
+    }
+
+    private async void StartUi(LaunchOptions options)
+    {
+        if (_window is not null)
+        {
+            if (!options.StartWithWindows && options.Mode != LaunchMode.Background) _window.ShowLauncher();
+            return;
+        }
+        if (_uiStarting) { _showMainWindowWhenUiReady |= !options.StartWithWindows && options.Mode != LaunchMode.Background; return; }
+        _uiStarting = true;
+        try
+        {
+            var application = StartOrConnectRuntime();
+            var result = await application.GetSettingsAsync(CancellationToken.None);
+            if (!result.Succeeded || result.Value is null) throw new InvalidOperationException($"Widget preferences could not be loaded ({result.Code}).");
+            var settings = result.Value;
+            ApplyTitleBarSettings(settings);
+            var tray = new TrayIconService(_services.GetRequiredService<ILoggerFactory>().CreateLogger<TrayIconService>());
+            _window = new MainWindow(application, options, settings, _dialogs, tray, Path.Combine(AppContext.BaseDirectory, "Assets", "WorkTrailIcon.ico"));
+            _window.SettingsApplied += ApplyTitleBarSettings;
+            _window.SettingsApplied += ApplyWorldClockWindowSettings;
+            _window.WorldClocksRequested += MainWindow_WorldClocksRequested;
+            _window.WorldTimeWindowRequested += OpenAstronomyWindowFromMenu;
+            _window.ExitRequested += MainWindow_ExitRequested;
+            try
             {
-                var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
-                if (activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol)
+                _window.EnsureNotificationAreaIcon();
+                if ((options.StartWithWindows || options.Mode == LaunchMode.Background) && !_showMainWindowWhenUiReady) _window.StartMinimizedToNotificationArea();
+                else _window.ShowLauncher();
+            }
+            catch (Exception exception)
+            {
+                _window.Activate();
+                ApplicationErrorService.Report(exception, "LauncherTray", _uiLanguage);
+            }
+            _showMainWindowWhenUiReady = false;
+            await _window.WaitForWorkspaceReadyAsync();
+            if (!settings.WelcomeCompleted)
+            {
+                _window.ShowLauncher();
+                var catalog = await application.GetWorldClockCityCatalogAsync(CancellationToken.None);
+                if (!catalog.Succeeded || catalog.Value is null) throw new InvalidOperationException("The offline city catalog is unavailable for welcome.");
+                if (!await _dialogs.ShowWelcomeAsync(application, _window, catalog.Value, new LocalizationService(_uiLanguage))) return;
+                settings = (await application.GetSettingsAsync(CancellationToken.None)).Value
+                    ?? throw new InvalidOperationException("Home-city preferences could not be loaded.");
+                await _window.ApplyExternalSettingsAsync(settings);
+            }
+            foreach (var key in WorkspaceWindowState.GetWindowsToRestore(settings.WindowOpenStates))
+            {
+                if (Volatile.Read(ref _shutdownStarted) != 0) break;
+                switch (key)
                 {
-                    HandleScreenshotNotificationProtocol(protocol.Uri.AbsoluteUri, closeAfterAction: true);
-                    return;
+                    case WindowStateKeys.WorldClocks: await ShowWorldClockWindowAsync(application); break;
+                    case WindowStateKeys.WorldMap: await ShowAstronomyWindowAsync(false); break;
+                    case WindowStateKeys.LunarPhase: await ShowAstronomyWindowAsync(true); break;
+                    case WindowStateKeys.LocalSky:
+                    case WindowStateKeys.AstronomyAgenda:
+                    case WindowStateKeys.CelestialMap: await ShowCelestialWindowAsync(key); break;
                 }
-                throw new ArgumentException("Protocol activation has no URI payload.", nameof(args));
             }
-            var options = StartupActivationPolicy.Apply(
-                LaunchOptions.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray()),
-                activationKind);
-            _logger.LogInformation(
-                "Launch requested. Mode={Mode} ActivationKind={ActivationKind}",
-                options.Mode,
-                activationKind);
-            if (options.MemoryRecovery)
-                _logger.LogWarning("WorkTrail memory recovery launch received. Event=memory.restart.launched");
-            switch (options.Mode)
-            {
-                case LaunchMode.Cli:
-                    _ = RunCliAndExitAsync(Environment.GetCommandLineArgs().Skip(1).ToArray());
-                    return;
-                case LaunchMode.Help:
-                    _ = RunCliAndExitAsync(["--help"]);
-                    return;
-                case LaunchMode.Version:
-                    _ = RunCliAndExitAsync(["--version"]);
-                    return;
-                case LaunchMode.Background:
-                    StartBackgroundRuntime(options);
-                    return;
-                default:
-                    StartUi(options);
-                    return;
-            }
+        }
+        catch (OperationCanceledException) when (Volatile.Read(ref _shutdownStarted) != 0) { }
+        catch (Exception exception) { ApplicationErrorService.Report(exception, "WidgetStartup", _uiLanguage); }
+        finally { _uiStarting = false; }
+    }
+
+    private void ApplyTitleBarSettings(AppSettings settings)
+    {
+        _uiLanguage = settings.UiLanguage;
+        CustomTitleBarController.ApplyAutoHideSetting(settings.AutoHideTitleBar);
+        _applicationFacade?.ConfigureWindowSnapping(settings.WindowSnappingEnabled);
+    }
+
+    private IWorkTrailApplication StartOrConnectRuntime()
+    {
+        if (_applicationFacade is not null) return _applicationFacade;
+        var factory = _services.GetRequiredService<ILoggerFactory>();
+        var installation = WorkTrailApplicationFactory.LoadInstallationId();
+        var host = new RuntimeHost(() => WorkTrailApplicationFactory.Create(factory, _services.GetRequiredService<ObservabilityHealth>()),
+            installation, factory.CreateLogger<RuntimeHost>());
+        if (host.TryStart())
+        {
+            _runtimeHost = host;
+            return _applicationFacade = host.Application;
+        }
+        _ = host.DisposeAsync();
+        return _applicationFacade = new RuntimeClient(installation, TimeSpan.FromSeconds(5), factory.CreateLogger<RuntimeClient>());
+    }
+
+    private async void MainWindow_ExitRequested(object? sender, EventArgs args)
+    {
+        if (Interlocked.Exchange(ref _shutdownStarted, 1) != 0) return;
+        try
+        {
+            // Save open widget visibility before closing native windows for process shutdown.
+            await WindowPlacementService.PrepareForShutdownAsync();
+            _dialogs.CloseActive();
+            foreach (var window in _celestialWindows.Values.ToArray()) window.CloseForShutdown();
+            _worldMapWindow?.CloseForShutdown();
+            _lunarPhaseWindow?.CloseForShutdown();
+            _worldClockWindow?.CloseForShutdown();
+            _window?.CloseForShutdown();
+            if (_runtimeHost is not null) await _runtimeHost.DisposeAsync();
+            else if (_applicationFacade is not null) await _applicationFacade.DisposeAsync();
+            WindowPlacementService.PersistenceFailed -= WindowPlacementService_PersistenceFailed;
+            WindowPlacementService.SnappingFailed -= WindowPlacementService_SnappingFailed;
+            await LoggingBootstrapper.ShutdownAsync(_services);
+            Exit();
         }
         catch (Exception exception)
         {
-            ApplicationErrorService.Report(exception, "Launch", _uiLanguage);
+            Interlocked.Exchange(ref _shutdownStarted, 0);
+            ApplicationErrorService.Report(exception, "WidgetShutdown", _uiLanguage);
         }
     }
+
 
     private static ExtendedActivationKind ReadActivationKind()
     {
@@ -172,391 +204,10 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
     }
 
-    /// <summary>Queues the managed launch snapshot to restore the existing UI or promote a headless runtime.</summary>
-    internal void HandleRedirectedActivation(RedirectedActivationRequest activation)
-    {
-        ArgumentNullException.ThrowIfNull(activation);
-        if (!_dispatcherQueue.TryEnqueue(() => HandleRedirectedActivationOnUiThread(activation)))
-        {
-            // Dispatcher rejection means the registered process is already shutting down; no replacement runtime is started in parallel.
-            _logger.LogWarning("Redirected activation was ignored because the UI dispatcher is shutting down.");
-        }
-    }
-
-    private void HandleRedirectedActivationOnUiThread(RedirectedActivationRequest activation)
-    {
-        if (activation.Kind == ExtendedActivationKind.Protocol)
-        {
-            HandleScreenshotNotificationProtocol(activation.ProtocolUri, closeAfterAction: false);
-            return;
-        }
-        var options = activation.Options;
-        _logger.LogInformation("Redirected activation received. Mode={Mode} ActivationKind={ActivationKind}", options.Mode, activation.Kind);
-        switch (options.Mode)
-        {
-            case LaunchMode.Background:
-                // The registered process already owns startup; a duplicate headless request must not create a window.
-                return;
-            case LaunchMode.Ui:
-                // Promote the existing background process while preserving explicit pause, safe-mode, and UI options.
-                StartUi(options);
-                return;
-            default:
-                // Short-lived CLI modes are never redirected by Program and cannot execute inside the runtime owner.
-                throw new ArgumentException("Unsupported redirected WorkTrail launch mode.", nameof(activation));
-        }
-    }
-
-    // uri is an untrusted Windows activation value; only the two fixed notification actions are allowed.
-    // closeAfterAction identifies an action-only cold launch, which must not open the main window.
-    private async void HandleScreenshotNotificationProtocol(string? uri, bool closeAfterAction)
-    {
-        if (!ScreenshotNotificationActivation.IsSupported(uri))
-        {
-            _logger.LogWarning("Unsupported screenshot notification activation was rejected.");
-            if (closeAfterAction) Exit();
-            return;
-        }
-        if (uri == ScreenshotNotificationActivation.Open)
-        {
-            StartUi(LaunchOptions.Parse([]));
-            return;
-        }
-        try
-        {
-            var application = StartOrConnectRuntime();
-            var result = await application.PatchSettingsAsync(
-                new SettingsPatch(new Dictionary<string, string?> { ["screenshots.notifications"] = "false" }),
-                CancellationToken.None);
-            if (!result.Succeeded)
-                throw new InvalidOperationException("Screenshot notification preference could not be saved.");
-            _logger.LogInformation("Screenshot notifications were disabled from a Windows notification.");
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Screenshot notification preference could not be updated.");
-            _windowsNotifications.TryShow("WorkTrail", new LocalizationService(_uiLanguage).Translate("Notification.ScreenshotCaptured.DisableFailed"));
-        }
-        finally
-        {
-            // A normal launch redirected during this write owns the newly requested UI and its runtime.
-            if (closeAfterAction && _window is null && !_uiStarting)
-            {
-                try
-                {
-                    await ShutdownRuntimeAsync();
-                    await LoggingBootstrapper.ShutdownAsync(_services);
-                }
-                catch (Exception exception)
-                {
-                    System.Diagnostics.Debug.WriteLine($"WorkTrail notification-action shutdown failed: {exception.GetType().Name}");
-                }
-                finally { Exit(); }
-            }
-        }
-    }
-
-    /// <summary>Starts or restores the UI and reports startup failures before a main window is available.</summary>
-    /// <param name="options">The requested UI launch options.</param>
-    private async void StartUi(LaunchOptions options)
-    {
-        if (_window is not null)
-        {
-            _window.ShowFlyout();
-            return;
-        }
-
-        if (_uiStarting)
-        {
-            // A Start-menu activation can arrive while the original UI request is still loading settings.
-            // Preserve that explicit reveal so a sign-in launch cannot hide the player after the request.
-            _showMainWindowWhenUiReady = true;
-            return;
-        }
-
-        _uiStarting = true;
-        _memoryRecoveryLaunchOptions = options;
-        try
-        {
-
-            var application = StartOrConnectRuntime();
-            // Read the previous session before newly created windows can persist their visibility.
-            var initialSettings = await application.GetSettingsAsync(CancellationToken.None);
-            if (!initialSettings.Succeeded || initialSettings.Value is null)
-            {
-                throw new InvalidOperationException($"Workspace settings could not be loaded ({initialSettings.Code}).");
-            }
-
-            ApplyTitleBarSettings(initialSettings.Value);
-            _dashboardRefreshCoordinator = new DashboardRefreshCoordinator(application);
-            var trayIcon = new TrayIconService(_services.GetRequiredService<ILoggerFactory>().CreateLogger<TrayIconService>());
-            _window = new MainWindow(application, options, _dialogs, trayIcon, _windowsNotifications, _dashboardRefreshCoordinator);
-            _window.SettingsApplied += ApplyWorldClockWindowSettings;
-            _window.SettingsApplied += ApplyTitleBarSettings;
-            _window.QuickSetupRequested += MainWindow_QuickSetupRequested;
-#if DEBUG
-            _window.DebugOobeResetRequested += MainWindow_DebugOobeResetRequested;
-#endif
-            _window.WorldClocksRequested += MainWindow_WorldClocksRequested;
-            _window.WorldTimeWindowRequested += OpenAstronomyWindowFromMenu;
-            _window.TrayAstronomyRequested += MainWindow_TrayAstronomyRequested;
-            _window.SearchRequested += MainWindow_SearchRequested;
-            _window.ScreenshotGalleryRequested += MainWindow_ScreenshotGalleryRequested;
-            _window.ScreenshotGalleryDateRequested += MainWindow_ScreenshotGalleryDateRequested;
-            _window.ScreenshotsRequested += MainWindow_ScreenshotsRequested;
-            _window.ExitRequested += MainWindow_ExitRequested;
-            _window.AtomicResetPrepared += MainWindow_AtomicResetPrepared;
-            _window.Closed += MainWindow_Closed;
-            var startHidden = options.StartWithWindows && !_showMainWindowWhenUiReady;
-            _showMainWindowWhenUiReady = false;
-            try
-            {
-                _window.EnsureNotificationAreaIcon();
-                if (startHidden)
-                {
-                    _window.StartMinimizedToNotificationArea();
-                }
-                else
-                {
-                    _window.ShowFlyout();
-                }
-            }
-            catch (Exception exception)
-            {
-                // If Explorer rejects the tray icon, keep the application reachable through its main window.
-                _logger.LogError(exception, "UI startup could not initialize the notification-area icon.");
-                var strings = new LocalizationService(options.Language ?? "system");
-                _windowsNotifications.TryShow(
-                    strings.Translate("Tray.UnavailableTitle"),
-                    strings.Translate("Tray.UnavailableMessage"));
-                _window.ShowFlyout();
-            }
-
-            await CompleteUiStartupAsync(application, options, initialSettings.Value);
-        }
-        catch (Exception exception)
-        {
-            ApplicationErrorService.Report(exception, "UiStartup", options.Language ?? _uiLanguage);
-        }
-        finally
-        {
-            _uiStarting = false;
-        }
-    }
-
-    private async Task CompleteUiStartupAsync(IWorkTrailApplication application, LaunchOptions options, AppSettings previousSettings)
-    {
-        try
-        {
-            var settingsResult = await application.GetSettingsAsync(CancellationToken.None);
-            if (!settingsResult.Succeeded || settingsResult.Value is null)
-            {
-                throw new InvalidOperationException($"UI startup settings could not be loaded ({settingsResult.Code}).");
-            }
-
-            var settings = settingsResult.Value;
-            if (_window is null)
-            {
-                return;
-            }
-
-            await _window.WaitForWorkspaceReadyAsync();
-            if (!settings.QuickSetupCompleted && !options.StartWithWindows)
-            {
-                ShowQuickSetupWindow(application, settings, firstRun: true);
-            }
-            else
-            {
-                await RestoreWorkspaceAsync(application, previousSettings);
-            }
-            StartRetentionMaintenance();
-        }
-        catch (OperationCanceledException)
-        {
-            // The owner already reported an initialization failure or closed before restoration could start.
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "UI startup preparation failed after the main window was activated.");
-            if (_window is not null && Volatile.Read(ref _shutdownStarted) == 0)
-            {
-                var strings = new LocalizationService(previousSettings.UiLanguage);
-                await _dialogs.ShowInformativeAsync(_window, DialogRequest.Informative(
-                    strings.Translate("Workspace.RestoreFailed.Title"),
-                    strings.Translate("Workspace.RestoreFailed.Message"),
-                    strings.Translate("Dialog.Ok")));
-            }
-        }
-    }
-
-    private async Task RestoreWorkspaceAsync(IWorkTrailApplication application, AppSettings settings)
-    {
-        var windowKeys = WorkspaceWindowState.GetWindowsToRestore(settings.WindowOpenStates);
-        foreach (var key in windowKeys)
-        {
-            if (_window is null || Volatile.Read(ref _shutdownStarted) != 0)
-            {
-                return;
-            }
-
-            switch (key)
-            {
-                case WindowStateKeys.WorldClocks:
-                    await ShowWorldClockWindowAsync(application);
-                    break;
-                case WindowStateKeys.WorldMap:
-                    await ShowAstronomyWindowAsync(isLunarPhase: false);
-                    break;
-                case WindowStateKeys.LunarPhase:
-                    await ShowAstronomyWindowAsync(isLunarPhase: true);
-                    break;
-                case WindowStateKeys.LocalSky:
-                case WindowStateKeys.AstronomyAgenda:
-                case WindowStateKeys.CelestialMap:
-                    await ShowCelestialWindowAsync(key);
-                    break;
-                case WindowStateKeys.Search:
-                    await ShowSearchWindowAsync(application);
-                    break;
-                case WindowStateKeys.Screenshots:
-                    if (_screenshotsWindow is not null)
-                    {
-                        break;
-                    }
-
-                    await ShowScreenshotWindowAsync(application, null);
-
-                    break;
-            }
-        }
-
-        if (_window is not null)
-        {
-            await _window.RestoreToolWindowsAsync(windowKeys);
-        }
-    }
 
     private async void MainWindow_WorldClocksRequested(object? sender, EventArgs eventArgs) =>
         await ShowWorldClockWindowAsync(StartOrConnectRuntime());
 
-    private async void MainWindow_QuickSetupRequested(object? sender, EventArgs eventArgs)
-    {
-        var application = StartOrConnectRuntime();
-        var result = await application.GetSettingsAsync(CancellationToken.None);
-        if (!result.Succeeded || result.Value is null)
-        {
-            if (_window is not null)
-            {
-                var strings = new LocalizationService("system");
-                await _dialogs.ShowInformativeAsync(
-                    _window,
-                    DialogRequest.Informative(
-                        strings.Translate("QuickSetup.Unavailable.Title"),
-                        strings.Translate("QuickSetup.Unavailable.Message"),
-                        strings.Translate("Dialog.Ok")));
-            }
-
-            return;
-        }
-
-        ShowQuickSetupWindow(application, result.Value, firstRun: false);
-    }
-
-#if DEBUG
-    private async void MainWindow_DebugOobeResetRequested(object? sender, EventArgs eventArgs)
-    {
-        var application = StartOrConnectRuntime();
-        var result = await application.GetSettingsAsync(CancellationToken.None);
-        if (!result.Succeeded || result.Value is null)
-        {
-            if (_window is not null)
-            {
-                var strings = new LocalizationService("system");
-                await _dialogs.ShowInformativeAsync(
-                    _window,
-                    DialogRequest.Informative(
-                        strings.Translate("QuickSetup.Unavailable.Title"),
-                        strings.Translate("QuickSetup.Unavailable.Message"),
-                        strings.Translate("Dialog.Ok")));
-            }
-
-            return;
-        }
-
-        ShowQuickSetupWindow(application, result.Value, firstRun: true);
-    }
-#endif
-
-    private void ShowQuickSetupWindow(IWorkTrailApplication application, AppSettings settings, bool firstRun)
-    {
-        if (_quickSetupWindow is not null)
-        {
-            _quickSetupWindow.Activate();
-            return;
-        }
-
-        if (_window is null)
-        {
-            throw new InvalidOperationException("Quick Setup requires the main WorkTrail window.");
-        }
-
-        var ownerHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
-        var ownerAppWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
-            Microsoft.UI.Win32Interop.GetWindowIdFromWindow(ownerHandle));
-        if (_window.Content is UIElement ownerContent)
-        {
-            _quickSetupOwnerWasInteractive = ownerContent.IsHitTestVisible;
-            ownerContent.IsHitTestVisible = false;
-        }
-
-        _quickSetupWindow = new QuickSetupWindow(application, settings, firstRun, ownerAppWindow, ownerHandle);
-        _quickSetupWindow.ProfileApplied += QuickSetupWindow_ProfileApplied;
-        _quickSetupWindow.Closed += QuickSetupWindow_Closed;
-        _quickSetupWindow.Activate();
-    }
-
-    private async void QuickSetupWindow_ProfileApplied(AppSettings settings)
-    {
-        if (_window is not null)
-        {
-            await _window.ApplyExternalSettingsAsync(settings);
-        }
-    }
-
-    private void QuickSetupWindow_Closed(object sender, WindowEventArgs args)
-    {
-        if (_quickSetupWindow is not null)
-        {
-            _quickSetupWindow.ProfileApplied -= QuickSetupWindow_ProfileApplied;
-            _quickSetupWindow.Closed -= QuickSetupWindow_Closed;
-            _quickSetupWindow = null;
-        }
-
-        if (_window?.Content is UIElement ownerContent)
-        {
-            ownerContent.IsHitTestVisible = _quickSetupOwnerWasInteractive;
-        }
-    }
-
-    private async void MainWindow_SearchRequested(object? sender, EventArgs eventArgs) =>
-        await ShowSearchWindowAsync(StartOrConnectRuntime());
-
-    private async void MainWindow_ScreenshotGalleryRequested(object? sender, EventArgs eventArgs)
-        => await ShowScreenshotWindowAsync(StartOrConnectRuntime(), null);
-
-    private async void MainWindow_ScreenshotGalleryDateRequested(object? sender, ScreenshotGalleryDateRequestedEventArgs eventArgs)
-        => await ShowScreenshotWindowAsync(StartOrConnectRuntime(), null, eventArgs.Date);
-
-    private async void MainWindow_ScreenshotsRequested(object? sender, ScreenshotPreviewRequestedEventArgs eventArgs)
-        => await ShowScreenshotWindowAsync(StartOrConnectRuntime(), null, eventArgs.ScreenshotPath, eventArgs.CapturedAt);
-
-    private async void MainWindow_ExitRequested(object? sender, EventArgs eventArgs)
-    {
-        if (_window is not null)
-        {
-            await _window.RequestCloseAsync();
-        }
-    }
 
 
     private async Task ShowWorldClockWindowAsync(IWorkTrailApplication application)
@@ -613,11 +264,13 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
     }
 
+
     private void ApplyWorldClockWindowSettings(AppSettings settings)
     {
         _worldClockWindow?.ApplySettings(settings);
         ApplyAstronomyWindowSettings(settings);
     }
+
 
     private void ApplyAstronomyWindowSettings(AppSettings settings)
     {
@@ -626,14 +279,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         foreach (var window in _celestialWindows.Values) window.ApplySettings(settings);
     }
 
-    // settings contains current presentation and automatic-notification preferences.
-    private void ApplyTitleBarSettings(AppSettings settings)
-    {
-        _windowsNotifications.IsEnabled = settings.NotificationsEnabled;
-        _uiLanguage = settings.UiLanguage;
-        CustomTitleBarController.ApplyAutoHideSetting(settings.AutoHideTitleBar);
-        _applicationFacade?.ConfigureWindowSnapping(settings.WindowSnappingEnabled);
-    }
 
     private async Task WindowPlacementService_SnappingFailed(Window owner, Exception exception)
     {
@@ -645,6 +290,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             strings.Translate("Options.Window.Snapping.Failed"),
             strings.Translate("Dialog.Ok")));
     }
+
 
     private async Task WindowPlacementService_PersistenceFailed(Window owner, string windowKey, Exception exception)
     {
@@ -661,28 +307,14 @@ public partial class App : Microsoft.UI.Xaml.Application
             strings.Translate("Dialog.Ok")));
     }
 
-    // command identifies an existing astronomy surface requested by the native tray menu.
-    private async void MainWindow_TrayAstronomyRequested(TrayIconMenuCommand command)
-    {
-        switch (command)
-        {
-            case TrayIconMenuCommand.AstronomicalCalendar:
-                await ShowCelestialWindowAsync(WindowStateKeys.AstronomyAgenda);
-                break;
-            case TrayIconMenuCommand.DayNightMap:
-                await ShowAstronomyWindowAsync(isLunarPhase: false);
-                break;
-            case TrayIconMenuCommand.DayNightGlobe:
-                await ShowCelestialWindowAsync(WindowStateKeys.CelestialMap);
-                break;
-        }
-    }
 
     private async void WorldClockWindow_WorldMapRequested(object? sender, EventArgs args) =>
         await ShowAstronomyWindowAsync(isLunarPhase: false);
 
+
     private async void WorldClockWindow_LunarPhaseRequested(object? sender, EventArgs args) =>
         await ShowAstronomyWindowAsync(isLunarPhase: true);
+
 
     private void WorldClockWindow_ProjectionChanged(WorldClockSnapshot snapshot, bool isLive)
     {
@@ -691,7 +323,9 @@ public partial class App : Microsoft.UI.Xaml.Application
         foreach (var window in _celestialWindows.Values) window.ApplySnapshot(snapshot, isLive);
     }
 
+
     private async void WorldClockWindow_CelestialWindowRequested(string key) => await ShowCelestialWindowAsync(key);
+
 
     /// <summary>Attaches the shared astronomy menu to a window and binds it to that window's settings key.</summary>
     /// <param name="window">The window that owns the context menu.</param>
@@ -701,11 +335,12 @@ public partial class App : Microsoft.UI.Xaml.Application
         window.Content.ContextFlyout = AstronomyWindowMenu.Create(
             () => new LocalizationService(_uiLanguage),
             OpenAstronomyWindowFromMenu,
-            () => _window?.ShowFlyout(),
+            () => _window?.ShowLauncher(),
             WindowPlacementService.GetTaskbarVisibilityReader(window),
             showInTaskbar => SetAstronomyWindowShownInTaskbarAsync(windowKey, showInTaskbar),
             window.Close);
     }
+
 
     /// <summary>Persists taskbar visibility for one astronomy settings group and refreshes every open projection.</summary>
     /// <param name="windowKey">The state key of the window whose menu was used.</param>
@@ -759,6 +394,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
     }
 
+
     private async void OpenAstronomyWindowFromMenu(string key)
     {
         if (key == WindowStateKeys.WorldMap)
@@ -774,6 +410,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             await ShowCelestialWindowAsync(key);
         }
     }
+
 
     private async Task ShowCelestialWindowAsync(string key)
     {
@@ -823,6 +460,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
         finally { _celestialWindowsOpening.Remove(key); }
     }
+
 
     private async Task ShowAstronomyWindowAsync(bool isLunarPhase)
     {
@@ -923,115 +561,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
     }
 
-    private async Task ShowSearchWindowAsync(IWorkTrailApplication application)
-    {
-        if (_searchWindow is not null)
-        {
-            _searchWindow.ActivateSearch();
-            return;
-        }
-
-        if (_searchWindowOpening)
-        {
-            return;
-        }
-
-        _searchWindowOpening = true;
-        try
-        {
-            if (_window is null)
-            {
-                throw new InvalidOperationException("Search requires the main WorkTrail window.");
-            }
-
-            var settingsTask = application.GetSettingsAsync(CancellationToken.None);
-            var availabilityTask = application.GetSearchAvailabilityAsync(CancellationToken.None);
-            await Task.WhenAll(settingsTask, availabilityTask);
-            var settings = await settingsTask;
-            var availability = await availabilityTask;
-            if (!settings.Succeeded || settings.Value is null || !availability.Succeeded || availability.Value is null)
-            {
-                throw new InvalidOperationException($"Search availability is unavailable ({settings.Code}, {availability.Code}).");
-            }
-
-            if (availability.Value.TotalSnapshotCount == 0)
-            {
-                var strings = new LocalizationService(settings.Value.UiLanguage);
-                await _dialogs.ShowInformativeAsync(
-                    _window,
-                    DialogRequest.Informative(
-                        strings.Translate("Search.Empty.Title"),
-                        strings.Translate("Search.Empty.Message"),
-                        strings.Translate("Dialog.Ok")));
-                return;
-            }
-
-            _searchWindow = new SearchWindow(application, settings.Value.UiLanguage, availability.Value);
-            _searchWindow.ScreenshotRequested += SearchWindow_ScreenshotRequested;
-            _searchWindow.Closed += SearchWindow_Closed;
-            _searchWindow.Activate();
-        }
-        finally
-        {
-            _searchWindowOpening = false;
-        }
-    }
-
-    private async void SearchWindow_ScreenshotRequested(object? sender, ScreenshotPreviewRequestedEventArgs eventArgs) =>
-        await ShowScreenshotWindowAsync(
-            StartOrConnectRuntime(),
-            null,
-            eventArgs.ScreenshotPath,
-            eventArgs.CapturedAt);
-
-    private async Task ShowScreenshotWindowAsync(
-        IWorkTrailApplication application,
-        string? launchTheme,
-        string screenshotPath,
-        DateTimeOffset capturedAt)
-    {
-        if (_screenshotsWindow is not null)
-        {
-            await _screenshotsWindow.FocusScreenshotAsync(screenshotPath, capturedAt);
-            _screenshotsWindow.Activate();
-            return;
-        }
-
-        _screenshotsWindow = new ScreenshotWindow(application, _dialogs, launchTheme, screenshotPath, capturedAt);
-        _screenshotsWindow.Closed += ScreenshotsWindow_Closed;
-        _screenshotsWindow.Activate();
-    }
-
-    private async Task ShowScreenshotWindowAsync(IWorkTrailApplication application, string? launchTheme)
-    {
-        if (_screenshotsWindow is not null)
-        {
-            await _screenshotsWindow.FocusLatestAsync();
-            _screenshotsWindow.Activate();
-            return;
-        }
-
-        _screenshotsWindow = new ScreenshotWindow(application, _dialogs, launchTheme);
-        _screenshotsWindow.Closed += ScreenshotsWindow_Closed;
-        _screenshotsWindow.Activate();
-    }
-
-    private async Task ShowScreenshotWindowAsync(
-        IWorkTrailApplication application,
-        string? launchTheme,
-        DateOnly selectedDate)
-    {
-        if (_screenshotsWindow is not null)
-        {
-            await _screenshotsWindow.FocusDateAsync(selectedDate);
-            _screenshotsWindow.Activate();
-            return;
-        }
-
-        _screenshotsWindow = new ScreenshotWindow(application, _dialogs, launchTheme, requestedDate: selectedDate);
-        _screenshotsWindow.Closed += ScreenshotsWindow_Closed;
-        _screenshotsWindow.Activate();
-    }
 
     private void WorldClockWindow_Closed(object sender, WindowEventArgs args)
     {
@@ -1046,427 +575,11 @@ public partial class App : Microsoft.UI.Xaml.Application
             _worldClockWindow = null;
         }
     }
-
-    private async void MainWindow_Closed(object sender, WindowEventArgs args)
-    {
-        foreach (var celestialWindow in _celestialWindows.Values.ToArray()) celestialWindow.CloseForShutdown();
-        _celestialWindows.Clear();
-        _worldMapWindow?.CloseForShutdown();
-        _worldMapWindow = null;
-        _lunarPhaseWindow?.CloseForShutdown();
-        _lunarPhaseWindow = null;
-        if (_window is not null)
-        {
-            _window.SettingsApplied -= ApplyWorldClockWindowSettings;
-            _window.SettingsApplied -= ApplyTitleBarSettings;
-            _window.QuickSetupRequested -= MainWindow_QuickSetupRequested;
-#if DEBUG
-            _window.DebugOobeResetRequested -= MainWindow_DebugOobeResetRequested;
-#endif
-            _window.WorldClocksRequested -= MainWindow_WorldClocksRequested;
-            _window.WorldTimeWindowRequested -= OpenAstronomyWindowFromMenu;
-            _window.TrayAstronomyRequested -= MainWindow_TrayAstronomyRequested;
-            _window.SearchRequested -= MainWindow_SearchRequested;
-            _window.ScreenshotGalleryRequested -= MainWindow_ScreenshotGalleryRequested;
-            _window.ScreenshotGalleryDateRequested -= MainWindow_ScreenshotGalleryDateRequested;
-            _window.ScreenshotsRequested -= MainWindow_ScreenshotsRequested;
-            _window.ExitRequested -= MainWindow_ExitRequested;
-            _window.AtomicResetPrepared -= MainWindow_AtomicResetPrepared;
-            _window.Closed -= MainWindow_Closed;
-            _window = null;
-        }
-
-        if (_quickSetupWindow is not null)
-        {
-            _quickSetupWindow.ProfileApplied -= QuickSetupWindow_ProfileApplied;
-            _quickSetupWindow.Closed -= QuickSetupWindow_Closed;
-            _quickSetupWindow.Close();
-            _quickSetupWindow = null;
-        }
-
-        if (_worldClockWindow is not null)
-        {
-            _worldClockWindow.Closed -= WorldClockWindow_Closed;
-            _worldClockWindow.WorldMapRequested -= WorldClockWindow_WorldMapRequested;
-            _worldClockWindow.LunarPhaseRequested -= WorldClockWindow_LunarPhaseRequested;
-            _worldClockWindow.CelestialWindowRequested -= WorldClockWindow_CelestialWindowRequested;
-            _worldClockWindow.ProjectionChanged -= WorldClockWindow_ProjectionChanged;
-            _worldClockWindow.SettingsSaved -= ApplyAstronomyWindowSettings;
-            _worldClockWindow.CloseForShutdown();
-            _worldClockWindow = null;
-        }
-
-        if (_screenshotsWindow is not null)
-        {
-            _screenshotsWindow.Closed -= ScreenshotsWindow_Closed;
-            _screenshotsWindow.CloseForShutdown();
-            _screenshotsWindow = null;
-        }
-
-        if (_searchWindow is not null)
-        {
-            _searchWindow.ScreenshotRequested -= SearchWindow_ScreenshotRequested;
-            _searchWindow.Closed -= SearchWindow_Closed;
-            _searchWindow.Close();
-            _searchWindow = null;
-        }
-
-        if (Volatile.Read(ref _atomicResetStarted) != 0 || Volatile.Read(ref _memoryRestartStarted) != 0)
-        {
-            return;
-        }
-
-        await ShutdownRuntimeAsync();
-        Exit();
-    }
-
-    private void ScreenshotsWindow_Closed(object sender, WindowEventArgs args)
-    {
-        if (_screenshotsWindow is not null)
-        {
-            _screenshotsWindow.Closed -= ScreenshotsWindow_Closed;
-            _screenshotsWindow = null;
-        }
-    }
-
-    private void SearchWindow_Closed(object sender, WindowEventArgs args)
-    {
-        if (_searchWindow is not null)
-        {
-            _searchWindow.ScreenshotRequested -= SearchWindow_ScreenshotRequested;
-            _searchWindow.Closed -= SearchWindow_Closed;
-            _searchWindow = null;
-        }
-    }
-
-    private void StartBackgroundRuntime(LaunchOptions options) => _ = StartBackgroundRuntimeAsync(options);
-
-    private async Task StartBackgroundRuntimeAsync(LaunchOptions options)
-    {
-        try
-        {
-            _memoryRecoveryLaunchOptions = options;
-            var application = StartOrConnectRuntime();
-            if (!ReferenceEquals(application, _runtimeApplication))
-            {
-                return;
-            }
-
-            var settings = await application.GetSettingsAsync(CancellationToken.None);
-            if (!settings.Succeeded || settings.Value is null)
-            {
-                // A headless launch cannot present recovery UI, so leave tracking paused and record the explicit failure.
-                _logger.LogWarning("Background startup settings could not be loaded. Code={Code}", settings.Code);
-                return;
-            }
-
-            _uiLanguage = settings.Value.UiLanguage;
-            var startup = await application.SetStartupEnabledAsync(
-                settings.Value.StartWithWindows,
-                CancellationToken.None);
-            if (!startup.Succeeded)
-            {
-                // Startup reconciliation is recoverable: the runtime may track, but diagnostics retain the OS integration failure.
-                _logger.LogWarning("Background Windows startup registration reconciliation failed. Code={Code}", startup.Code);
-            }
-
-            if (TrackingStartupPolicy.ShouldStart(options, settings.Value))
-            {
-                var started = await application.StartTrackingAsync(
-                    new StartTrackingRequest(options.SafeMode, "background"),
-                    CancellationToken.None);
-                if (!started.Succeeded)
-                {
-                    _logger.LogError("Background tracking startup failed. Code={Code}", started.Code);
-                }
-            }
-        }
-        catch (Exception exception)
-        {
-            // Fire-and-forget launch tasks must retain an explicit paused failure path instead of surfacing an unobserved exception.
-            _logger.LogError(exception, "Background startup preparation failed; tracking remains paused.");
-        }
-    }
-
-    private IWorkTrailApplication StartOrConnectRuntime()
-    {
-        if (_applicationFacade is not null)
-        {
-            return _applicationFacade;
-        }
-
-        var loggerFactory = _services.GetRequiredService<ILoggerFactory>();
-        _memoryGuard ??= new ProcessMemoryGuardService(
-            loggerFactory.CreateLogger<ProcessMemoryGuardService>(),
-            memory => _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.High,
-                () => _ = RestartForMemoryPressureAsync(memory)),
-            () => Volatile.Read(ref _uiLanguage));
-        _memoryGuard.Start();
-        var observability = _services.GetRequiredService<ObservabilityHealth>();
-        var installationId = WorkTrailApplicationFactory.LoadInstallationId();
-        var host = new RuntimeHost(
-            () => WorkTrailApplicationFactory.Create(loggerFactory, observability),
-            installationId,
-            loggerFactory.CreateLogger<RuntimeHost>());
-        if (host.TryStart())
-        {
-            var localApplication = host.Application;
-            _logger.LogInformation("Runtime ownership acquired for this installation.");
-            host.AtomicResetPrepared += RuntimeHost_AtomicResetPrepared;
-            _runtimeHost = host;
-            _runtimeApplication = localApplication;
-            _applicationFacade = localApplication;
-            return _applicationFacade;
-        }
-
-        // A separate process owns hooks and persistence; this frontend uses the same facade through its pipe.
-        _ = host.DisposeAsync();
-        _logger.LogInformation("Runtime ownership is held by another process; connecting through the named pipe.");
-        _applicationFacade = new RuntimeClient(installationId, TimeSpan.FromSeconds(5), loggerFactory.CreateLogger<RuntimeClient>());
-        return _applicationFacade;
-    }
-
-    private async Task RestartForMemoryPressureAsync(ProcessMemorySnapshot memory)
-    {
-        if (Volatile.Read(ref _shutdownStarted) != 0 || Volatile.Read(ref _atomicResetStarted) != 0
-            || Interlocked.CompareExchange(ref _memoryRestartStarted, 1, 0) != 0) return;
-
-        var wasTracking = false;
-        try
-        {
-            if (_applicationFacade is not null)
-            {
-                using var preparationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                try
-                {
-                    var dashboard = await _applicationFacade.GetDashboardAsync(preparationTimeout.Token)
-                        .WaitAsync(preparationTimeout.Token);
-                    wasTracking = dashboard.Succeeded && dashboard.Value?.IsTracking == true;
-                    if (!dashboard.Succeeded)
-                        _logger.LogWarning("Memory recovery could not read tracking state; recovery will start paused. Code={Code}", dashboard.Code);
-                    if (_runtimeHost is not null)
-                    {
-                        // Finish the current activity and cancel live capture/provider work before releasing runtime ownership.
-                        var paused = await _applicationFacade.PauseTrackingAsync(preparationTimeout.Token)
-                            .WaitAsync(preparationTimeout.Token);
-                        if (!paused.Succeeded)
-                            _logger.LogWarning("Memory recovery could not pause tracking. Code={Code}", paused.Code);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    _logger.LogWarning(exception, "Memory recovery preparation did not complete within its budget.");
-                }
-            }
-
-            var restartArguments = MemoryRecoveryLaunchPolicy.CreateArguments(
-                _memoryRecoveryLaunchOptions with { Language = _uiLanguage }, wasTracking);
-            _window?.CloseForShutdown();
-            try
-            {
-                // Bound cleanup under memory pressure; Windows restart terminates the old process before launching its successor.
-                await ShutdownRuntimeAsync().WaitAsync(TimeSpan.FromSeconds(15));
-            }
-            catch (Exception exception)
-            {
-                _logger.LogError(exception, "Memory recovery runtime shutdown did not complete; Windows restart will terminate this process.");
-            }
-            _logger.LogWarning(
-                "WorkTrail memory recovery restart requested. Event=memory.restart.requested PrivateBytes={PrivateBytes} WorkingSetBytes={WorkingSetBytes} ManagedBytes={ManagedBytes} ResumeTracking={ResumeTracking}",
-                memory.PrivateBytes, memory.WorkingSetBytes, memory.ManagedBytes, wasTracking);
-            // AppInstance.Restart can terminate immediately; close and flush diagnostics before invoking it.
-            await LoggingBootstrapper.ShutdownAsync(_services);
-            var failure = AppInstance.Restart(restartArguments);
-            throw new InvalidOperationException(new LocalizationService(_uiLanguage).Format("MemoryGuard.RestartFailed", failure));
-        }
-        catch (Exception exception)
-        {
-            // The independent emergency log and native dialog remain available even after normal logging has closed.
-            ApplicationErrorService.Report(exception, "MemoryRecoveryRestart", _uiLanguage);
-            await LoggingBootstrapper.ShutdownAsync(_services);
-            Exit();
-        }
-    }
-
-    private void StartRetentionMaintenance()
-    {
-        if (!AutomaticRetentionEnabled)
-        {
-            // Development packages keep real diagnostic data; manual retention remains available.
-            _logger.LogInformation("Automatic retention is disabled in Debug builds.");
-        }
-        if (_retentionTimer is not null || Volatile.Read(ref _shutdownStarted) != 0) return;
-        _retentionTimer = _dispatcherQueue.CreateTimer();
-        _retentionTimer.Interval = TimeSpan.FromHours(1);
-        _retentionTimer.Tick += RetentionTimer_Tick;
-        _retentionTimer.Start();
-        // Measure storage and check cleanup only after workspace initialization and restoration.
-        if (!_dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _ = CheckScheduledRetentionAsync()))
-            _logger.LogWarning("Scheduled retention could not be queued after UI startup.");
-    }
-
-    // sender is the ready-state maintenance timer owned by this UI instance.
-    // args contains the timer tick notification.
-    private async void RetentionTimer_Tick(DispatcherQueueTimer sender, object args) => await CheckScheduledRetentionAsync();
-
-    private async Task CheckScheduledRetentionAsync()
-    {
-        if (_retentionCheckInProgress
-            || _window is null || _applicationFacade is null || Volatile.Read(ref _shutdownStarted) != 0) return;
-        _retentionCheckInProgress = true;
-        try
-        {
-            var application = _applicationFacade;
-            var settings = await application.GetSettingsAsync(CancellationToken.None);
-            if (settings is not { Succeeded: true, Value: { QuickSetupCompleted: true } }) return;
-            var status = await application.GetRetentionStatusAsync(CancellationToken.None);
-            if (!status.Succeeded) throw new InvalidOperationException("Scheduled retention status could not be loaded.");
-            if (AutomaticRetentionEnabled && !_retentionDeferredForSession && status.Value is { IsCleanupDue: true })
-            {
-                // Automatic maintenance runs behind the facade without opening a daily modal dialog.
-                var result = await application.RunRetentionAsync(new RetentionRequest(true, false, Scheduled: true), CancellationToken.None);
-                if (!result.Succeeded) throw new InvalidOperationException($"Scheduled retention failed ({result.Code}).");
-                status = await application.GetRetentionStatusAsync(CancellationToken.None);
-                if (!status.Succeeded) throw new InvalidOperationException("Storage status could not be refreshed after cleanup.");
-            }
-            if (status.Value is { } storage)
-            {
-                if (!storage.IsStorageWarning) _historyWarningShownForThreshold = null;
-                else if (settings.Value.NotificationsEnabled && _window is not null
-                    && _historyWarningShownForThreshold != storage.HistoryWarningMegabytes)
-                {
-                    _window.ShowHistoryStorageWarning(storage);
-                    _historyWarningShownForThreshold = storage.HistoryWarningMegabytes;
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Respect cancellation for this session without claiming a completed daily cleanup.
-            _retentionDeferredForSession = true;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Scheduled retention failed; the next ready-state check will retry.");
-            if (_window is not null && Volatile.Read(ref _shutdownStarted) == 0)
-            {
-                var strings = new LocalizationService(_uiLanguage);
-                await _dialogs.ShowInformativeAsync(_window, DialogRequest.Informative(
-                    strings.Translate("Operations.Status.Failed.Title"),
-                    strings.Translate("Operations.Status.RuntimeUnavailable.Message"), strings.Translate("Dialog.Ok")));
-            }
-        }
-        finally { _retentionCheckInProgress = false; }
-    }
-
-    private async Task ShutdownRuntimeAsync()
-    {
-        if (Interlocked.Exchange(ref _shutdownStarted, 1) != 0)
-        {
-            return;
-        }
-        _memoryGuard?.Dispose();
-        _memoryGuard = null;
-        if (_retentionTimer is not null)
-        {
-            _retentionTimer.Stop();
-            _retentionTimer.Tick -= RetentionTimer_Tick;
-            _retentionTimer = null;
-        }
-
-        // A local RuntimeHost owns and disposes its application before releasing the runtime mutex.
-        // Remote clients do not own a runtime and are disposed directly below.
-        _dashboardRefreshCoordinator?.Dispose();
-        _dashboardRefreshCoordinator = null;
-        if (_runtimeHost is not null)
-        {
-            _runtimeHost.AtomicResetPrepared -= RuntimeHost_AtomicResetPrepared;
-            await _runtimeHost.DisposeAsync();
-            _runtimeHost = null;
-            _applicationFacade = null;
-            _runtimeApplication = null;
-        }
-        else if (_applicationFacade is not null)
-        {
-            await _applicationFacade.DisposeAsync();
-            _applicationFacade = null;
-        }
-
-        _runtimeApplication = null;
-    }
-
-    private void MainWindow_AtomicResetPrepared(object? sender, AtomicResetPreparedEventArgs e) =>
-        BeginAtomicReset(e.Plan);
-
-    private void RuntimeHost_AtomicResetPrepared(AtomicResetPlan plan)
-    {
-        _ = _dispatcherQueue.TryEnqueue(() => BeginAtomicReset(plan));
-    }
-
-    private void BeginAtomicReset(AtomicResetPlan plan)
-    {
-        if (Interlocked.Exchange(ref _atomicResetStarted, 1) != 0)
-        {
-            return;
-        }
-
-        WindowPlacementService.DiscardForReset();
-        _ = CompleteAtomicResetAsync(plan, ownsRuntime: _runtimeHost is not null);
-    }
-
-    private async Task CompleteAtomicResetAsync(AtomicResetPlan plan, bool ownsRuntime)
-    {
-        try
-        {
-            _window?.CloseForShutdown();
-            if (ownsRuntime)
-            {
-                // A remote frontend receives the response first and gets a short window to release its log sink.
-                await Task.Delay(TimeSpan.FromMilliseconds(750));
-            }
-
-            await ShutdownRuntimeAsync();
-            await LoggingBootstrapper.ShutdownAsync(_services);
-            if (ownsRuntime)
-            {
-                _atomicReset.ExecuteAndRelaunch(plan);
-            }
-        }
-        catch (Exception exception)
-        {
-            // Logging may already be closed because deletion must run without open handles.
-            System.Diagnostics.Debug.WriteLine($"WorkTrail atomic reset failed: {exception.GetType().Name}");
-            Environment.ExitCode = 1;
-        }
-        finally
-        {
-            Exit();
-        }
-    }
-
-    private async Task RunCliAndExitAsync(string[] arguments)
-    {
-        try
-        {
-            var executable = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "WorkTrail.exe");
-            Environment.ExitCode = await CliBootstrap.RunAsync(arguments, executable);
-        }
-        finally
-        {
-            // Short-lived CLI processes explicitly flush and dispose providers before WinUI exits.
-            await LoggingBootstrapper.ShutdownAsync(_services);
-            Exit();
-        }
-    }
 }
 
+/// <summary>Maps Windows sign-in activation to the hidden launcher.</summary>
 internal static class StartupActivationPolicy
 {
-    internal static LaunchOptions Apply(LaunchOptions options, ExtendedActivationKind activationKind)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-        return activationKind == ExtendedActivationKind.StartupTask
-            ? options with { Mode = LaunchMode.Ui, StartWithWindows = true }
-            : options;
-    }
+    internal static LaunchOptions Apply(LaunchOptions options, ExtendedActivationKind kind) =>
+        kind == ExtendedActivationKind.StartupTask ? options with { StartWithWindows = true } : options;
 }

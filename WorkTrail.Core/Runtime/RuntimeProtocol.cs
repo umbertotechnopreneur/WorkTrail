@@ -29,7 +29,7 @@ namespace WorkTrail.Runtime;
 public static class RuntimeProtocol
 {
     /// <summary>Gets the supported wire-protocol version.</summary>
-    public const int ProtocolVersion = 7;
+    public const int ProtocolVersion = 8;
 
     /// <summary>Gets the maximum accepted JSON envelope size in bytes.</summary>
     public const int MaximumMessageBytes = 16_777_216;

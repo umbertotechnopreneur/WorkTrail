@@ -55,22 +55,11 @@ public sealed partial class WorkTrailApplication
             "vibeware-manifesto" => "https://umbertogiacobbi.biz/vibeware/manifesto/",
             "privacy" => ProductPrivacyUrl,
             "terms" => ProductTermsUrl,
-            "report-summary" => ProductRepositoryUrl + "/blob/main/docs/AI_REPORT_SUMMARY.md",
             "issues" => ProductIssuesUrl,
             "openweather" => OpenWeatherUrl,
             "openweather-keys" => "https://home.openweathermap.org/api_keys",
             "openweather-guide" => "https://openweathermap.org/faq#how-to-get-an-API-key",
             "openweather-pricing" => "https://openweathermap.org/price",
-            "openai-keys" => "https://platform.openai.com/api-keys",
-            "openai-guide" => "https://developers.openai.com/api/docs/quickstart",
-            "codex-guide" => "https://developers.openai.com/codex/cli",
-            "openai-pricing" => "https://developers.openai.com/api/docs/pricing",
-            "openrouter-keys" => "https://openrouter.ai/settings/keys",
-            "openrouter-guide" => "https://openrouter.ai/docs/quickstart",
-            "openrouter-pricing" => "https://openrouter.ai/models",
-            "anthropic-keys" => "https://console.anthropic.com/settings/keys",
-            "anthropic-guide" => "https://docs.anthropic.com/en/api/getting-started",
-            "anthropic-pricing" => "https://www.anthropic.com/pricing",
             _ => null
         };
         if (target is null)

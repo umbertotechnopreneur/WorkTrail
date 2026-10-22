@@ -59,7 +59,7 @@ public sealed class WorkspaceWindowStateTests
             [WindowStateKeys.Main] = false,
             [WindowStateKeys.WorldClocks] = false,
             [WindowStateKeys.WorldMap] = true,
-            [WindowStateKeys.Search] = false
+            ["search"] = false
         };
 
         Assert.Equal(
@@ -90,7 +90,7 @@ public sealed class WorkspaceWindowStateTests
     {
         var openStates = new Dictionary<string, bool>
         {
-            [WindowStateKeys.Screenshots] = false,
+            ["screenshots"] = false,
             [WindowStateKeys.Licenses] = true,
             [WindowStateKeys.About] = false
         };
@@ -114,27 +114,27 @@ public sealed class WorkspaceWindowStateTests
 
     /// <summary>Verifies that startup cannot replay an operation or configuration dialog from a saved visibility flag.</summary>
     [Theory]
-    [InlineData(WindowStateKeys.QuickSetup)]
+    [InlineData("QuickSetup")]
     [InlineData(WindowStateKeys.Dialog)]
-    [InlineData(WindowStateKeys.ActivityCalendar)]
-    [InlineData(WindowStateKeys.SearchIndexing)]
+    [InlineData("ActivityCalendar")]
+    [InlineData("search-indexing")]
     [InlineData(WindowStateKeys.WorldClockCityPicker)]
-    [InlineData(WindowStateKeys.AiScreenshotReprocessing)]
-    [InlineData(WindowStateKeys.AiConnectionTest)]
+    [InlineData("AiScreenshotReprocessing")]
+    [InlineData("AiConnectionTest")]
     public void Restore_LeavesTransientSurfacesClosed(string windowKey)
     {
         Assert.False(WorkspaceWindowState.IsRestorable(windowKey));
         Assert.Empty(WorkspaceWindowState.GetWindowsToRestore(new Dictionary<string, bool> { [windowKey] = true }));
     }
 
-    /// <summary>Verifies unsupported keys fail even when a malformed session marks them closed.</summary>
+    /// <summary>Old session entries cannot prevent the retained widget workspace from opening.</summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void Restore_RejectsUnknownWindowIdentities(bool isOpen)
+    public void Restore_IgnoresUnknownWindowIdentities(bool isOpen)
     {
-        Assert.Throws<ArgumentException>(() => WorkspaceWindowState.IsRestorable("unknown-window"));
-        Assert.Throws<ArgumentException>(() => WorkspaceWindowState.GetWindowsToRestore(
+        Assert.False(WorkspaceWindowState.IsRestorable("unknown-window"));
+        Assert.Empty(WorkspaceWindowState.GetWindowsToRestore(
             new Dictionary<string, bool> { ["unknown-window"] = isOpen }));
     }
 }

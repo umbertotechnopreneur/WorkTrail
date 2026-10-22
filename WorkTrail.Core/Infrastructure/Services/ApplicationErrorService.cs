@@ -49,17 +49,7 @@ public static class ApplicationErrorService
     /// <param name="deferDialog">Moves acknowledgement off a finalizer thread after the log has been saved.</param>
     public static void Report(Exception exception, string source, string language = "system", bool deferDialog = false)
     {
-        try
-        {
-            Volatile.Read(ref _logger)?.LogCritical(exception, "Unexpected application failure. Source={Source}", source);
-        }
-        catch (Exception loggingFailure)
-        {
-            Debug.WriteLine($"WorkTrail logging failed: {loggingFailure.GetType().Name}");
-        }
-
-        // This independent, synchronously flushed log also works before logging initialization or process termination.
-        var logPath = TryWriteExceptionLog(exception, source);
+        var logPath = Record(exception, source);
         if (!OperatingSystem.IsWindows() || Interlocked.CompareExchange(ref _dialogActive, 1, 0) != 0)
         {
             return;
@@ -70,17 +60,28 @@ public static class ApplicationErrorService
             try
             {
                 // Unobserved task notifications run on the finalizer thread; user acknowledgement must not block GC.
-                if (ThreadPool.QueueUserWorkItem(_ => ShowErrorDialog(exception, logPath, language)))
-                {
-                    return;
-                }
+                if (ThreadPool.QueueUserWorkItem(_ => ShowErrorDialog(exception, logPath, language))) return;
             }
-            catch (Exception schedulingFailure)
-            {
-                _ = TryWriteExceptionLog(schedulingFailure, "ErrorDialogScheduling");
-            }
+            catch (Exception schedulingFailure) { _ = TryWriteExceptionLog(schedulingFailure, "ErrorDialogScheduling"); }
         }
         ShowErrorDialog(exception, logPath, language);
+    }
+
+    /// <summary>Persists an unexpected failure when a live WinUI surface already presents its visible error.</summary>
+    /// <returns>The emergency diagnostic log path, or null if logging also fails.</returns>
+    public static string? Record(Exception exception, string source)
+    {
+        try
+        {
+            Volatile.Read(ref _logger)?.LogCritical(exception, "Unexpected application failure. Source={Source}", source);
+        }
+        catch (Exception loggingFailure)
+        {
+            Debug.WriteLine($"WorkTrail logging failed: {loggingFailure.GetType().Name}");
+        }
+
+        // This independent, synchronously flushed log also works before logging initialization or process termination.
+        return TryWriteExceptionLog(exception, source);
     }
 
     /// <summary>Shows one acknowledgement dialog and releases the modal guard even if native UI fails.</summary>

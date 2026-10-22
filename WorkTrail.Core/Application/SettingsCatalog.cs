@@ -1,524 +1,79 @@
 // SPDX-License-Identifier: MIT
-/* VBWR B
- *
- * Project: WorkTrail
- * Repository: https://github.com/umbertotechnopreneur/WorkTrail
- * Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
- *
- * VibeWare: Human intent, AI execution, and plenty of tokens
- * Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
- *
- * Modified with AI: OpenAI Codex; added this header on 2026-10-10.
- * Human guidance: Umberto Giacobbi; requested VibeWare branding.
- *
- * Copyright (c) 2026 Umberto Giacobbi
- * License: MIT - see LICENSE
- *
- * VBWR E */
-
-
 using System.Globalization;
 using WorkTrail.Services;
 
 namespace WorkTrail.Application;
 
-/// <summary>Describes one public, non-secret setting that frontends may inspect or update.</summary>
-public sealed record SettingDescriptor(
-    string Key,
-    string ValueType,
-    string Description,
-    bool RequiresRestart,
-    IReadOnlyList<string> AllowedValues);
-
-/// <summary>Provides the single public settings catalog and deterministic validation used by every frontend.</summary>
+/// <summary>Validates the desktop preferences accepted by the shared facade.</summary>
 public static class SettingsCatalog
 {
-    /// <summary>Gets the lowest supported daily AI processing limit.</summary>
-    public const int MinimumAiDailyLimit = 0;
-
-    /// <summary>Gets the highest supported daily AI processing limit.</summary>
-    public const int MaximumAiDailyLimit = 400;
-
-    private static readonly string[] BooleanValues = ["true", "false"];
-    private static readonly string[] Providers = ["openai", "codex-cli"];
-    private static readonly string[] ApiKeyVariables = ["OPENAI_API_KEY", "WORKTRAIL_OPENAI_APIKEY"];
-    private static readonly string[] OutputDetails = ["balanced", "complete"];
-    private static readonly string[] ReasoningEfforts = ["auto", "none", "low", "medium", "high", "xhigh", "max"];
-    private static readonly string[] Themes = ["system", "light", "dark"];
-    private static readonly string[] ScreenshotModes = ["all-screens", "active-window"];
-    private static readonly string[] FlyoutAnchors = [FlyoutPositions.BottomCenter, FlyoutPositions.BottomLeft, FlyoutPositions.BottomRight, FlyoutPositions.TopLeft, FlyoutPositions.TopRight];
-    private static readonly string[] TaskbarAnchors = [TaskbarWidgetPositions.Left, TaskbarWidgetPositions.Right];
-
-    /// <summary>Gets all settings that are safe to expose and writable through WinUI or CLI.</summary>
-    public static IReadOnlyList<SettingDescriptor> Definitions { get; } =
-    [
-        Boolean("screenshots.enabled", "Allow application-initiated screenshot capture."),
-        Boolean("screenshots.notifications", "Show Windows notifications with a temporary preview after successful captures."),
-        Boolean("notifications.enabled", "Enable automatic in-app and Windows notifications without changing capture or tracking."),
-        Boolean("screenshots.keep", "Keep screenshots after analysis."),
-        Choice("screenshots.mode", "Select all displays or only the active window.", ScreenshotModes),
-        Text("screenshots.directory", "Directory used for WorkTrail screenshot artifacts.", "path"),
-        Integer("screenshots.interval_minutes", "Minutes between scheduled eligible screenshots."),
-        Boolean("screenshots.details_pane_open", "Keep the snapshot-details sidebar open when the gallery reopens."),
-        Choice("search.language", "Language used for local query analysis and stemming.", ProductLanguageCatalog.SearchChoices),
-        Boolean("search.synonyms", "Expand local queries with configured multilingual synonyms."),
-        Boolean("search.typo_tolerance", "Use controlled fuzzy matching for eligible query terms."),
-        Boolean("ai.enabled", "Analyze every captured snapshot after privacy and daily request-limit checks."),
-        Choice("ai.provider", "AI provider used for screenshot analysis.", Providers),
-        Text("ai.model", "Provider model identifier."),
-        Text("ai.endpoint", "HTTPS provider endpoint; loopback HTTP is allowed for local testing.", "uri"),
-        Choice("ai.key_variable", "User environment variable that contains the API key.", ApiKeyVariables),
-        Choice("ai.output_detail", "Screenshot analysis depth: relevant content or complete visible context.", OutputDetails),
-        Choice("ai.reasoning_effort", "OpenAI Responses reasoning effort; auto omits the field.", ReasoningEfforts),
-        Text("ai.custom_prompt", "Optional user instruction appended after the built-in screenshot prompt; empty keeps only the built-in prompt.", "multiline"),
-        Boolean("ai.include_device_location", "Include Windows-provided latitude and longitude in AI snapshots only when location access is available."),
-        Integer("ai.daily_limit", "Maximum visual AI provider requests per local day, including failed attempts."),
-        Choice("language", "Application language.", ProductLanguageCatalog.UiChoices, requiresRestart: true),
-        Choice("theme", "Application color theme.", Themes),
-        Choice("position", "Main window anchor.", FlyoutAnchors),
-        Boolean("window.titlebar.auto_hide", "Automatically hide title bars in all windows when the pointer leaves."),
-        Boolean("window.snapping.enabled", "Snap within 5 pixels of WorkTrail windows or monitor edges; leaving the monitor disables snapping for that drag."),
-        Integer("window.main.opacity_percent", "Player window opacity from 25 through 100 percent."),
-        Boolean("window.main.show_in_taskbar", "Show the player window in the Windows taskbar."),
-        Boolean("world_clocks.weather.enabled", "Show source-backed current weather in the live world-clock projection."),
-        Text("astronomy.agenda.city_id", "City selected in the astronomical agenda."),
-        Text("astronomy.agenda.country_codes", "Comma-separated national holiday calendars shown in the astronomical agenda."),
-        Boolean("astronomy.agenda.show_saints", "Show source-backed Latin sanctoral entries in the astronomical agenda."),
-        Integer("window.world_clocks.opacity_percent", "World-clock window opacity from 25 through 100 percent."),
-        Boolean("window.world_clocks.show_in_taskbar", "Show the world-clock window in the Windows taskbar."),
-        Boolean("window.world_map.show_in_taskbar", "Show the world-map window in the Windows taskbar."),
-        Boolean("window.lunar_phase.show_in_taskbar", "Show the lunar-phase window in the Windows taskbar."),
-        Text("activity.span_label", "Short local activity label, limited to 20 characters."),
-        Text("activity.label.save", "Create or update a label using an Id, Name, Icon and Color JSON object; empty Id creates a label.", "json"),
-        Text("activity.label.delete", "Delete a label by ID; deleting the selected label clears selection."),
-        Text("activity.label.select", "Select a saved label by ID; empty clears selection."),
-        Text("active_hours.monday.active", "Informational Monday active period in HH:mm-HH:mm format.", "time_range"),
-        Text("active_hours.monday.breaks", "Informational Monday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
-        Text("active_hours.tuesday.active", "Informational Tuesday active period in HH:mm-HH:mm format.", "time_range"),
-        Text("active_hours.tuesday.breaks", "Informational Tuesday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
-        Text("active_hours.wednesday.active", "Informational Wednesday active period in HH:mm-HH:mm format.", "time_range"),
-        Text("active_hours.wednesday.breaks", "Informational Wednesday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
-        Text("active_hours.thursday.active", "Informational Thursday active period in HH:mm-HH:mm format.", "time_range"),
-        Text("active_hours.thursday.breaks", "Informational Thursday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
-        Text("active_hours.friday.active", "Informational Friday active period in HH:mm-HH:mm format.", "time_range"),
-        Text("active_hours.friday.breaks", "Informational Friday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
-        Text("active_hours.saturday.active", "Informational Saturday active period in HH:mm-HH:mm format.", "time_range"),
-        Text("active_hours.saturday.breaks", "Informational Saturday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
-        Text("active_hours.sunday.active", "Informational Sunday active period in HH:mm-HH:mm format.", "time_range"),
-        Text("active_hours.sunday.breaks", "Informational Sunday breaks, comma-separated HH:mm-HH:mm ranges.", "time_ranges"),
-        Boolean("startup.enabled", "Start WorkTrail after Windows sign-in."),
-        Boolean("tracking.start_on_launch", "Start tracking on the next application launch.", requiresRestart: true),
-        Integer("retention.screenshots_days", "Calendar-month screenshot retention: multiples of 30 from 30 to 360 select 1 to 12 months. Free is limited to 30."),
-        Integer("retention.data_days", "Calendar-month activity retention: multiples of 30 from 30 to 360 select 1 to 12 months. Free is limited to 30."),
-        Integer("retention.warning_mb", "Local history storage warning threshold in MB, from 100 to 1048576. Default: 1024 (1 GB)."),
-        Boolean("plugins.word.enabled", "Enable safe Microsoft Word context details."),
-        Boolean("plugins.excel.enabled", "Enable safe Microsoft Excel context details."),
-        Boolean("plugins.vscode.enabled", "Enable safe Visual Studio Code context details."),
-        Boolean("plugins.browser.enabled", "Enable safe browser title context details."),
-        Boolean("quick_setup.completed", "Record that the first-run Quick Setup profile was applied.")
-    ];
-
-    /// <summary>Gets a safe setting value by its public key without using reflection.</summary>
-    public static bool TryGetValue(AppSettings settings, string key, out object? value)
+    /// <summary>Normalizes widget preferences while preserving saved cities and window placement.</summary>
+    public static AppSettings NormalizePersisted(AppSettings settings) => settings with
     {
-        var normalizedKey = key.Trim().ToLowerInvariant();
-        if (TryGetActiveHoursValue(settings, normalizedKey, out value))
-        {
-            return true;
-        }
+        UiLanguage = ProductLanguageCatalog.CanonicalUiChoice(settings.UiLanguage) ?? "system",
+        Theme = settings.Theme is "light" or "dark" ? settings.Theme : "system",
+        WorldClockCityIds = WorldClockSelection.NormalizePersisted(settings.WorldClockCityIds),
+        MainWindowOpacityPercent = Math.Clamp(settings.MainWindowOpacityPercent, 25, 100),
+        WorldClockWindowOpacityPercent = Math.Clamp(settings.WorldClockWindowOpacityPercent, 25, 100),
+        AstronomyAgendaCityId = settings.AstronomyAgendaCityId ?? "",
+        HomeCityId = settings.HomeCityId ?? "",
+        WelcomeCompleted = settings.WelcomeCompleted && !string.IsNullOrWhiteSpace(settings.HomeCityId),
+        AstronomyAgendaCountryCodes = NormalizeCountries(settings.AstronomyAgendaCountryCodes ?? ["IT"])
+    };
 
-        value = normalizedKey switch
-        {
-            "screenshots.enabled" => settings.ScreenshotsEnabled,
-            "screenshots.notifications" => settings.ScreenshotNotificationsEnabled,
-            "notifications.enabled" => settings.NotificationsEnabled,
-            "screenshots.keep" => settings.KeepScreenshots,
-            "screenshots.mode" => settings.ScreenshotCaptureMode,
-            "screenshots.directory" => settings.ScreenshotDirectory,
-            "screenshots.interval_minutes" => settings.ScreenshotIntervalMinutes,
-            "screenshots.details_pane_open" => settings.ScreenshotDetailsPaneOpen,
-            "search.language" => settings.SearchLanguage,
-            "search.synonyms" => settings.SearchSynonymsEnabled,
-            "search.typo_tolerance" => settings.SearchTypoToleranceEnabled,
-            "ai.enabled" => settings.OpenAiEnabled,
-            "ai.provider" => settings.AiProvider,
-            "ai.model" => settings.Model,
-            "ai.endpoint" => settings.AiEndpoint,
-            "ai.key_variable" => settings.AiApiKeyName,
-            "ai.output_detail" => settings.AiOutputDetail,
-            "ai.reasoning_effort" => settings.AiReasoningEffort,
-            "ai.custom_prompt" => settings.AiCustomPrompt,
-            "ai.include_device_location" => settings.IncludeDeviceLocation,
-            "ai.daily_limit" => settings.OpenAiDailyLimit,
-            "language" => settings.UiLanguage,
-            "theme" => settings.Theme,
-            "position" => settings.FlyoutPosition,
-            "window.titlebar.auto_hide" => settings.AutoHideTitleBar,
-            "window.snapping.enabled" => settings.WindowSnappingEnabled,
-            "window.main.opacity_percent" => settings.MainWindowOpacityPercent,
-            "window.main.show_in_taskbar" => settings.MainWindowShowInTaskbar,
-            "world_clocks.weather.enabled" => settings.WorldClockWeatherEnabled,
-            "astronomy.agenda.city_id" => settings.AstronomyAgendaCityId,
-            "astronomy.agenda.country_codes" => settings.AstronomyAgendaCountryCodes ?? [],
-            "astronomy.agenda.show_saints" => settings.AstronomyAgendaShowSaints,
-            "window.world_clocks.opacity_percent" => settings.WorldClockWindowOpacityPercent,
-            "window.world_clocks.show_in_taskbar" => settings.WorldClockWindowShowInTaskbar,
-            "window.world_map.show_in_taskbar" => settings.WorldMapWindowShowInTaskbar,
-            "window.lunar_phase.show_in_taskbar" => settings.LunarPhaseWindowShowInTaskbar,
-            "activity.span_label" => settings.SpanLabel,
-            "activity.label.save" => settings.ActivityLabels ?? [],
-            "activity.label.delete" => string.Empty,
-            "activity.label.select" => (settings.ActivityLabels ?? []).FirstOrDefault(label => label.Name == settings.SpanLabel)?.Id ?? string.Empty,
-            "startup.enabled" => settings.StartWithWindows,
-            "tracking.start_on_launch" => settings.StartTrackingOnLaunch,
-            "retention.screenshots_days" => settings.ScreenshotRetentionDays,
-            "retention.data_days" => settings.DataRetentionDays,
-            "retention.warning_mb" => settings.HistoryWarningMegabytes,
-            "plugins.word.enabled" => settings.EnableWordDetailPlugin,
-            "plugins.excel.enabled" => settings.EnableExcelDetailPlugin,
-            "plugins.vscode.enabled" => settings.EnableVsCodeDetailPlugin,
-            "plugins.browser.enabled" => settings.EnableBrowserDetailPlugin,
-            "quick_setup.completed" => settings.QuickSetupCompleted,
-            _ => null
-        };
-
-        return Definitions.Any(definition => definition.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>Validates a patch as one transaction and returns a new settings snapshot without performing I/O.</summary>
+    /// <summary>Validates a complete patch in memory before settings are written.</summary>
     public static OperationResult<AppSettings> Apply(AppSettings settings, SettingsPatch patch)
     {
-        ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(patch);
-        ArgumentNullException.ThrowIfNull(patch.Values);
-
-        var issues = new List<ValidationIssue>();
-        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var current = settings;
         foreach (var pair in patch.Values)
         {
-            var key = pair.Key?.Trim();
-            if (string.IsNullOrWhiteSpace(key) || !values.TryAdd(key, pair.Value))
+            var key = pair.Key.Trim().ToLowerInvariant();
+            var value = pair.Value?.Trim() ?? "";
+            try
             {
-                issues.Add(Invalid(key ?? "settings"));
-            }
-        }
-
-        var current = settings;
-        if (values.TryGetValue("ai.provider", out var providerValue))
-        {
-            var provider = providerValue?.Trim().ToLowerInvariant();
-            if (provider is not null && Providers.Contains(provider, StringComparer.Ordinal))
-            {
-                current = current with
+                current = key switch
                 {
-                    AiProvider = provider,
-                    AiEndpoint = GetDefaultEndpoint(provider),
-                    AiApiKeyName = Canonical(ApiKeyVariables, current.AiApiKeyName) ?? GetDefaultApiKeyVariable(provider),
-                    // Switching transport requires an explicit activation after reviewing its configuration.
-                    OpenAiEnabled = provider == current.AiProvider && current.OpenAiEnabled
+                    "language" => current with { UiLanguage = ProductLanguageCatalog.CanonicalUiChoice(value) ?? throw new ArgumentException() },
+                    "theme" => current with { Theme = value is "system" or "light" or "dark" ? value : throw new ArgumentException() },
+                    "window.titlebar.auto_hide" => current with { AutoHideTitleBar = ParseBoolean(value) },
+                    "window.snapping.enabled" => current with { WindowSnappingEnabled = ParseBoolean(value) },
+                    "window.main.opacity_percent" => current with { MainWindowOpacityPercent = ParseOpacity(value) },
+                    "window.main.show_in_taskbar" => current with { MainWindowShowInTaskbar = ParseBoolean(value) },
+                    "world_clocks.weather.enabled" => current with { WorldClockWeatherEnabled = ParseBoolean(value) },
+                    "window.world_clocks.opacity_percent" => current with { WorldClockWindowOpacityPercent = ParseOpacity(value) },
+                    "window.world_clocks.show_in_taskbar" => current with { WorldClockWindowShowInTaskbar = ParseBoolean(value) },
+                    "window.world_map.show_in_taskbar" => current with { WorldMapWindowShowInTaskbar = ParseBoolean(value) },
+                    "window.lunar_phase.show_in_taskbar" => current with { LunarPhaseWindowShowInTaskbar = ParseBoolean(value) },
+                    "astronomy.agenda.city_id" => current with { AstronomyAgendaCityId = value.ToLowerInvariant() },
+                    "home.city_id" => current with { HomeCityId = value.ToLowerInvariant() },
+                    "astronomy.agenda.country_codes" => current with { AstronomyAgendaCountryCodes = ParseCountries(value) },
+                    "astronomy.agenda.show_saints" => current with { AstronomyAgendaShowSaints = ParseBoolean(value) },
+                    _ => throw new ArgumentException()
                 };
             }
-            else
+            catch (ArgumentException)
             {
-                issues.Add(Invalid("ai.provider"));
+                return OperationResult<AppSettings>.Failure("settings.validation.failed", "SettingsValidationFailed",
+                    new ValidationIssue(key, "invalid_value", "SettingsFieldInvalid"));
             }
         }
-
-        foreach (var (rawKey, rawValue) in values)
-        {
-            var key = rawKey.ToLowerInvariant();
-            if (key == "ai.provider")
-            {
-                continue;
-            }
-
-            var value = rawValue?.Trim();
-            if (TryParseActiveHoursKey(key, out var day, out var isBreaks))
-            {
-                var valid = isBreaks
-                    ? ActiveHoursSchedule.TryNormalizeBreakPeriods(value, out var normalizedPeriods)
-                    : ActiveHoursSchedule.TryNormalizeActivePeriod(value, out normalizedPeriods);
-                if (valid)
-                {
-                    current = current with { ActiveHours = ActiveHoursSchedule.Update(current.ActiveHours, day, isBreaks, normalizedPeriods) };
-                }
-                else
-                {
-                    issues.Add(Invalid(rawKey));
-                }
-
-                continue;
-            }
-
-            switch (key)
-            {
-                case "screenshots.enabled" when TryBoolean(value, out var screenshots): current = current with { ScreenshotsEnabled = screenshots }; break;
-                case "screenshots.notifications" when TryBoolean(value, out var screenshotNotifications): current = current with { ScreenshotNotificationsEnabled = screenshotNotifications }; break;
-                case "notifications.enabled" when TryBoolean(value, out var notificationsEnabled): current = current with { NotificationsEnabled = notificationsEnabled }; break;
-                case "screenshots.keep" when TryBoolean(value, out var keep): current = current with { KeepScreenshots = keep }; break;
-                case "screenshots.mode" when Canonical(ScreenshotModes, value) is { } screenshotMode: current = current with { ScreenshotCaptureMode = screenshotMode }; break;
-                case "screenshots.directory" when TryDirectory(value, allowEmpty: false, out var screenshotDirectory): current = current with { ScreenshotDirectory = screenshotDirectory }; break;
-                case "screenshots.interval_minutes" when TryInteger(value, 1, 1440, out var screenshotIntervalMinutes): current = current with { ScreenshotIntervalMinutes = screenshotIntervalMinutes }; break;
-                case "screenshots.details_pane_open" when TryBoolean(value, out var detailsPaneOpen): current = current with { ScreenshotDetailsPaneOpen = detailsPaneOpen }; break;
-                case "search.language" when Canonical(ProductLanguageCatalog.SearchChoices, value) is { } searchLanguage: current = current with { SearchLanguage = searchLanguage }; break;
-                case "search.synonyms" when TryBoolean(value, out var searchSynonyms): current = current with { SearchSynonymsEnabled = searchSynonyms }; break;
-                case "search.typo_tolerance" when TryBoolean(value, out var typoTolerance): current = current with { SearchTypoToleranceEnabled = typoTolerance }; break;
-                case "ai.enabled" when TryBoolean(value, out var enabled): current = current with { OpenAiEnabled = enabled }; break;
-                case "ai.model" when !string.IsNullOrWhiteSpace(value) && value.Length <= 200: current = current with { Model = value }; break;
-                case "ai.endpoint" when IsAllowedEndpoint(value): current = current with { AiEndpoint = value! }; break;
-                case "ai.key_variable" when Canonical(ApiKeyVariables, value) is { } keyVariable: current = current with { AiApiKeyName = keyVariable }; break;
-                case "ai.output_detail" when Contains(OutputDetails, value): current = current with { AiOutputDetail = value!.ToLowerInvariant() }; break;
-                case "ai.reasoning_effort" when Contains(ReasoningEfforts, value): current = current with { AiReasoningEffort = value!.ToLowerInvariant() }; break;
-                case "ai.custom_prompt" when TryNormalizeCustomPrompt(rawValue, out var customPrompt): current = current with { AiCustomPrompt = customPrompt }; break;
-                case "ai.include_device_location" when TryBoolean(value, out var includeDeviceLocation): current = current with { IncludeDeviceLocation = includeDeviceLocation }; break;
-                case "ai.daily_limit" when TryInteger(value, MinimumAiDailyLimit, MaximumAiDailyLimit, out var dailyLimit): current = current with { OpenAiDailyLimit = dailyLimit }; break;
-                case "language" when Canonical(ProductLanguageCatalog.UiChoices, value) is { } language: current = current with { UiLanguage = language }; break;
-                case "theme" when Canonical(Themes, value) is { } theme: current = current with { Theme = theme }; break;
-                case "window.titlebar.auto_hide" when TryBoolean(value, out var autoHideTitleBar): current = current with { AutoHideTitleBar = autoHideTitleBar }; break;
-                case "window.snapping.enabled" when TryBoolean(value, out var windowSnappingEnabled): current = current with { WindowSnappingEnabled = windowSnappingEnabled }; break;
-                case "position" when Canonical(FlyoutAnchors, value) is { } position: current = current with { FlyoutPosition = position }; break;
-                case "window.main.opacity_percent" when TryInteger(value, 25, 100, out var mainOpacity): current = current with { MainWindowOpacityPercent = mainOpacity }; break;
-                case "window.main.show_in_taskbar" when TryBoolean(value, out var mainShowInTaskbar): current = current with { MainWindowShowInTaskbar = mainShowInTaskbar }; break;
-                case "world_clocks.weather.enabled" when TryBoolean(value, out var worldClockWeatherEnabled): current = current with { WorldClockWeatherEnabled = worldClockWeatherEnabled }; break;
-                case "astronomy.agenda.city_id" when IsAgendaCityId(value): current = current with { AstronomyAgendaCityId = value! }; break;
-                case "astronomy.agenda.country_codes" when TryAgendaCountryCodes(value, out var agendaCountries): current = current with { AstronomyAgendaCountryCodes = agendaCountries }; break;
-                case "astronomy.agenda.show_saints" when TryBoolean(value, out var showAgendaSaints): current = current with { AstronomyAgendaShowSaints = showAgendaSaints }; break;
-                case "window.world_clocks.opacity_percent" when TryInteger(value, 25, 100, out var worldClockOpacity): current = current with { WorldClockWindowOpacityPercent = worldClockOpacity }; break;
-                case "window.world_clocks.show_in_taskbar" when TryBoolean(value, out var worldClockShowInTaskbar): current = current with { WorldClockWindowShowInTaskbar = worldClockShowInTaskbar }; break;
-                case "window.world_map.show_in_taskbar" when TryBoolean(value, out var worldMapShowInTaskbar): current = current with { WorldMapWindowShowInTaskbar = worldMapShowInTaskbar }; break;
-                case "window.lunar_phase.show_in_taskbar" when TryBoolean(value, out var lunarPhaseShowInTaskbar): current = current with { LunarPhaseWindowShowInTaskbar = lunarPhaseShowInTaskbar }; break;
-                case "activity.span_label" when value is not null && value.Length <= 20: current = current with { SpanLabel = value }; break;
-                case "activity.label.save" when ActivityLabelCatalog.TrySave(current, value, out var savedLabels): current = savedLabels; break;
-                case "activity.label.delete" when ActivityLabelCatalog.TryDelete(current, value, out var deletedLabels): current = deletedLabels; break;
-                case "activity.label.select" when value == "": current = current with { SpanLabel = "" }; break;
-                case "activity.label.select" when (current.ActivityLabels ?? []).FirstOrDefault(label => label.Id == value) is { } selectedLabel: current = current with { SpanLabel = selectedLabel.Name }; break;
-                case "startup.enabled" when TryBoolean(value, out var startup): current = current with { StartWithWindows = startup }; break;
-                case "tracking.start_on_launch" when TryBoolean(value, out var startOnLaunch): current = current with { StartTrackingOnLaunch = startOnLaunch }; break;
-                case "retention.screenshots_days" when TryInteger(value, 30, 360, out var screenshotDays) && screenshotDays % 30 == 0: current = current with { ScreenshotRetentionDays = screenshotDays }; break;
-                case "retention.data_days" when TryInteger(value, 30, 360, out var dataDays) && dataDays % 30 == 0: current = current with { DataRetentionDays = dataDays }; break;
-                case "retention.warning_mb" when TryInteger(value, 100, 1048576, out var warningMb): current = current with { HistoryWarningMegabytes = warningMb }; break;
-                case "plugins.word.enabled" when TryBoolean(value, out var word): current = current with { EnableWordDetailPlugin = word }; break;
-                case "plugins.excel.enabled" when TryBoolean(value, out var excel): current = current with { EnableExcelDetailPlugin = excel }; break;
-                case "plugins.vscode.enabled" when TryBoolean(value, out var vscode): current = current with { EnableVsCodeDetailPlugin = vscode }; break;
-                case "plugins.browser.enabled" when TryBoolean(value, out var browser): current = current with { EnableBrowserDetailPlugin = browser }; break;
-                case "quick_setup.completed" when TryBoolean(value, out var quickSetupCompleted): current = current with { QuickSetupCompleted = quickSetupCompleted }; break;
-                default: issues.Add(Invalid(rawKey)); break;
-            }
-        }
-
-        if (!ActiveHoursSchedule.IsValid(current.ActiveHours))
-        {
-            issues.Add(Invalid("active_hours"));
-        }
-        else
-        {
-            current = current with { ActiveHours = ActiveHoursSchedule.Normalize(current.ActiveHours) };
-        }
-
-        return issues.Count == 0
-            ? OperationResult<AppSettings>.Success("settings.validated", "SettingsValidated", current)
-            : new OperationResult<AppSettings>(false, "settings.validation.failed", "SettingsValidationFailed", null, issues);
+        return OperationResult<AppSettings>.Success("settings.valid", "SettingsSaved", current);
     }
 
-    /// <summary>Validates contract choices and normalizes other persisted settings before application use.</summary>
-    public static AppSettings NormalizePersisted(AppSettings settings, string defaultScreenshotDirectory)
+    private static bool ParseBoolean(string value) => bool.TryParse(value, out var result) ? result : throw new ArgumentException();
+    private static int ParseOpacity(string value) => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var result)
+        && result is >= 25 and <= 100 ? result : throw new ArgumentException();
+    private static IReadOnlyList<string> ParseCountries(string value)
     {
-        // A null catalog means the installation has never initialized labels; an explicit empty catalog stays empty.
-        var labels = settings.ActivityLabels ?? ActivityLabelCatalog.CreateDefaultDefinitions();
-        ActivityLabelCatalog.Validate(labels);
-        WindowStateService.ValidateOpenStates(settings.WindowOpenStates);
-        var provider = Canonical(Providers, settings.AiProvider) ?? "openai";
-        var providerSupported = Canonical(Providers, settings.AiProvider) is not null;
-        var endpoint = providerSupported && IsAllowedEndpoint(settings.AiEndpoint) ? settings.AiEndpoint.Trim() : GetDefaultEndpoint(provider);
-        var keyVariable = providerSupported ? Canonical(ApiKeyVariables, settings.AiApiKeyName) ?? GetDefaultApiKeyVariable(provider) : GetDefaultApiKeyVariable(provider);
-        var screenshotDirectory = TryDirectory(settings.ScreenshotDirectory, allowEmpty: false, out var normalizedScreenshotDirectory)
-            ? normalizedScreenshotDirectory
-            : Path.GetFullPath(defaultScreenshotDirectory);
-
-        return settings with
-        {
-            Model = string.IsNullOrWhiteSpace(settings.Model) || settings.Model.Trim().Length > 200 ? "gpt-5.6" : settings.Model.Trim(),
-            ScreenshotDirectory = screenshotDirectory,
-            ScreenshotCaptureMode = Canonical(ScreenshotModes, settings.ScreenshotCaptureMode) ?? "all-screens",
-            ScreenshotIntervalMinutes = settings.ScreenshotIntervalMinutes <= 0
-                ? 15
-                : Math.Min(settings.ScreenshotIntervalMinutes, 1440),
-            // Persisted locale identifiers are contracts and unsupported values fail fast.
-            SearchLanguage = RequiredPersistedChoice(ProductLanguageCatalog.SearchChoices, settings.SearchLanguage, "search.language"),
-            AiProvider = provider,
-            OpenAiEnabled = providerSupported && settings.OpenAiEnabled,
-            AiEndpoint = endpoint,
-            AiApiKeyName = keyVariable,
-            AiOutputDetail = Canonical(OutputDetails, settings.AiOutputDetail) ?? "balanced",
-            AiReasoningEffort = Canonical(ReasoningEfforts, settings.AiReasoningEffort) ?? "auto",
-            AiCustomPrompt = TryNormalizeCustomPrompt(settings.AiCustomPrompt, out var customPrompt) ? customPrompt : string.Empty,
-            FlyoutPosition = Canonical(FlyoutAnchors, settings.FlyoutPosition) ?? FlyoutPositions.BottomCenter,
-            UiLanguage = RequiredPersistedChoice(ProductLanguageCatalog.UiChoices, settings.UiLanguage, "language"),
-            Theme = Canonical(Themes, settings.Theme) ?? "system",
-            MainWindowOpacityPercent = Math.Clamp(settings.MainWindowOpacityPercent, 25, 100),
-            WorldClockWindowOpacityPercent = Math.Clamp(settings.WorldClockWindowOpacityPercent, 25, 100),
-            // The Premium taskbar widget is unavailable in v1; persisted visibility cannot enable it.
-            TaskbarWidgetVisible = false,
-            TaskbarWidgetPosition = Canonical(TaskbarAnchors, settings.TaskbarWidgetPosition) ?? TaskbarWidgetPositions.Left,
-            SpanLabel = settings.SpanLabel is { Length: <= 20 } ? settings.SpanLabel.Trim() : string.Empty,
-            // Existing day settings now represent fixed month choices; cleanup uses AddMonths, never AddDays.
-            DataRetentionDays = RetentionPolicy.NormalizeDays(settings.DataRetentionDays),
-            ScreenshotRetentionDays = RetentionPolicy.NormalizeDays(settings.ScreenshotRetentionDays),
-            HistoryWarningMegabytes = Math.Clamp(settings.HistoryWarningMegabytes, 100, 1048576),
-            OpenAiDailyLimit = Math.Clamp(settings.OpenAiDailyLimit, MinimumAiDailyLimit, MaximumAiDailyLimit),
-            ActiveHours = ActiveHoursSchedule.Normalize(settings.ActiveHours),
-            WorldClockCityIds = WorldClockSelection.NormalizePersisted(settings.WorldClockCityIds),
-            AstronomyAgendaCityId = IsAgendaCityId(settings.AstronomyAgendaCityId)
-                ? settings.AstronomyAgendaCityId
-                : throw new InvalidDataException("Persisted astronomical agenda city is invalid."),
-            AstronomyAgendaCountryCodes = NormalizeAgendaCountryCodes(settings.AstronomyAgendaCountryCodes),
-            ActivityLabels = labels
-        };
+        if (value.Length == 0) return [];
+        var values = value.Split(',', StringSplitOptions.TrimEntries);
+        if (values.Any(code => !CelestialCalendarCountries.All.Any(country => country.Code.Equals(code, StringComparison.OrdinalIgnoreCase)))
+            || values.Distinct(StringComparer.OrdinalIgnoreCase).Count() != values.Length)
+            throw new ArgumentException();
+        return NormalizeCountries(values);
     }
-
-    /// <summary>Returns the built-in endpoint for a supported AI provider.</summary>
-    public static string GetDefaultEndpoint(string? provider) => "https://api.openai.com/v1/responses";
-
-    /// <summary>Returns the built-in API-key environment variable for a supported AI provider.</summary>
-    public static string GetDefaultApiKeyVariable(string? provider) => "OPENAI_API_KEY";
-
-    /// <summary>Returns whether an environment-variable name is permitted for secret storage.</summary>
-    public static bool IsAllowedApiKeyVariable(string? value) => Contains(ApiKeyVariables, value);
-
-    private static SettingDescriptor Boolean(string key, string description, bool requiresRestart = false) => new(key, "boolean", description, requiresRestart, BooleanValues);
-
-    private static SettingDescriptor Choice(string key, string description, IReadOnlyList<string> values, bool requiresRestart = false) => new(key, "choice", description, requiresRestart, values);
-
-    private static SettingDescriptor Integer(string key, string description) => new(key, "integer", description, false, Array.Empty<string>());
-
-    private static SettingDescriptor Text(string key, string description, string valueType = "string") => new(key, valueType, description, false, Array.Empty<string>());
-
-    private static ValidationIssue Invalid(string key) => new(key, "not_allowed_or_invalid", "SettingsFieldInvalid");
-
-    private static bool Contains(IEnumerable<string> values, string? value) => value is not null && values.Contains(value, StringComparer.OrdinalIgnoreCase);
-
-    private static string? Canonical(IEnumerable<string> values, string? value) =>
-        value is null ? null : values.FirstOrDefault(candidate => candidate.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase));
-
-    private static string RequiredPersistedChoice(IEnumerable<string> values, string? value, string key) =>
-        Canonical(values, value)
-        ?? throw new InvalidDataException($"Persisted setting '{key}' contains unsupported value '{value ?? "<null>"}'.");
-
-    private static bool TryBoolean(string? value, out bool parsed)
-    {
-        parsed = value == "true";
-        return value is "true" or "false";
-    }
-
-    private static bool IsAgendaCityId(string? value) => value is { Length: <= 128 }
-        && value == value.Trim() && !value.Any(char.IsControl);
-
-    private static bool TryAgendaCountryCodes(string? value, out IReadOnlyList<string> codes)
-    {
-        codes = [];
-        if (value is null)
-        {
-            return false;
-        }
-
-        var parsed = value.Length == 0 ? [] : value.Split(',', StringSplitOptions.TrimEntries)
-            .Select(code => code.ToUpperInvariant()).ToArray();
-        if (parsed.Length != parsed.Distinct(StringComparer.Ordinal).Count()
-            || parsed.Any(code => code.Length == 0 || !CelestialCalendarCountries.All.Any(country => country.Code == code)))
-        {
-            return false;
-        }
-
-        codes = Array.AsReadOnly(parsed);
-        return true;
-    }
-
-    private static IReadOnlyList<string> NormalizeAgendaCountryCodes(IReadOnlyList<string>? codes)
-    {
-        if (codes is null)
-        {
-            return [];
-        }
-
-        var joined = string.Join(',', codes);
-        return TryAgendaCountryCodes(joined, out var normalized) && normalized.Count == codes.Count
-            ? normalized
-            : throw new InvalidDataException("Persisted astronomical agenda country selection is invalid.");
-    }
-
-    private static bool TryInteger(string? value, int minimum, int maximum, out int parsed) =>
-        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed) && parsed >= minimum && parsed <= maximum;
-
-    private static bool TryDirectory(string? value, bool allowEmpty, out string path)
-    {
-        path = string.Empty;
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return allowEmpty;
-        }
-
-        try
-        {
-            path = Path.GetFullPath(Environment.ExpandEnvironmentVariables(value.Trim()));
-            return true;
-        }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryGetActiveHoursValue(AppSettings settings, string key, out object? value)
-    {
-        value = null;
-        if (!TryParseActiveHoursKey(key, out var day, out var isBreaks))
-        {
-            return false;
-        }
-
-        var entry = ActiveHoursSchedule.Normalize(settings.ActiveHours)
-            .Single(candidate => string.Equals(candidate.Day, day, StringComparison.Ordinal));
-        value = isBreaks ? entry.BreakPeriods : entry.ActivePeriod;
-        return true;
-    }
-
-    private static bool TryParseActiveHoursKey(string key, out string day, out bool isBreaks)
-    {
-        foreach (var candidate in ActiveHoursSchedule.Days)
-        {
-            if (key.Equals($"active_hours.{candidate}.active", StringComparison.OrdinalIgnoreCase))
-            {
-                day = candidate;
-                isBreaks = false;
-                return true;
-            }
-
-            if (key.Equals($"active_hours.{candidate}.breaks", StringComparison.OrdinalIgnoreCase))
-            {
-                day = candidate;
-                isBreaks = true;
-                return true;
-            }
-        }
-
-        day = string.Empty;
-        isBreaks = false;
-        return false;
-    }
-
-    private static bool TryNormalizeCustomPrompt(string? value, out string normalized)
-    {
-        normalized = value?.Trim() ?? string.Empty;
-        return normalized.Length <= 6_000 && normalized.IndexOf('\0') < 0;
-    }
-
-    private static bool IsAllowedEndpoint(string? value)
-    {
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint) || !string.IsNullOrEmpty(endpoint.UserInfo))
-        {
-            return false;
-        }
-
-        return endpoint.Scheme == Uri.UriSchemeHttps || (endpoint.Scheme == Uri.UriSchemeHttp && endpoint.IsLoopback);
-    }
+    private static IReadOnlyList<string> NormalizeCountries(IReadOnlyList<string> values) => values
+        .Where(code => CelestialCalendarCountries.All.Any(country => country.Code.Equals(code, StringComparison.OrdinalIgnoreCase)))
+        .Select(code => code.ToUpperInvariant()).Distinct(StringComparer.Ordinal).ToArray();
 }

@@ -20,6 +20,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using WorkTrail.Services;
 
 namespace WorkTrail.Controls;
 
@@ -78,6 +79,9 @@ public sealed partial class CelestialPhaseControl : UserControl
             MoonShadow.Data = BuildMoonShadow(MoonPhaseAngleDegrees, 102d);
         }
     }
+
+    private void MoonImage_Failed(object sender, ExceptionRoutedEventArgs args) =>
+        ApplicationErrorService.Report(new InvalidOperationException(args.ErrorMessage), "MoonSurfaceImage", Language);
 
     private static Geometry BuildMoonShadow(double phaseAngleDegrees, double size)
     {

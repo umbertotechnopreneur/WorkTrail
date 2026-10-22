@@ -114,22 +114,17 @@ VBWR E -->
                     Height="122"
                     Fill="{ThemeResource CelestialMoonHaloBrush}" />
                 <Grid Width="102" Height="102">
-                    <Ellipse Width="102" Height="102">
-                        <Ellipse.Fill>
-                            <!-- Center the original 368px lunar disk under the calculated phase shadow. -->
-                            <ImageBrush ImageSource="ms-appx:///Assets/Celestial/moon-apollo11.jpg" Stretch="UniformToFill">
-                                <ImageBrush.RelativeTransform>
-                                    <CompositeTransform
-                                        CenterX="0.5"
-                                        CenterY="0.5"
-                                        ScaleX="1.391304"
-                                        ScaleY="1.391304"
-                                        TranslateX="-0.019022"
-                                        TranslateY="0.070652" />
-                                </ImageBrush.RelativeTransform>
-                            </ImageBrush>
-                        </Ellipse.Fill>
-                    </Ellipse>
+                    <!-- Frame the 368px disk directly, avoiding a transformed ImageBrush inside the Viewbox. -->
+                    <Border Width="102" Height="102" CornerRadius="51" Background="Transparent">
+                        <Canvas Width="102" Height="102">
+                            <Image Width="141.913" Height="142.467" Canvas.Left="-21.897" Canvas.Top="-12.75"
+                                   Stretch="Fill" ImageFailed="MoonImage_Failed">
+                                <Image.Source>
+                                    <BitmapImage UriSource="ms-appx:///Assets/Celestial/moon-apollo11.jpg" DecodePixelWidth="512" />
+                                </Image.Source>
+                            </Image>
+                        </Canvas>
+                    </Border>
                     <Path
                         x:Name="MoonShadow"
                         Width="102"

@@ -113,7 +113,8 @@ public static class Program
     private static bool RequiresSingleInstance(IReadOnlyList<string> arguments)
     {
         // Invalid bootstrap arguments fail before redirection, including when another instance is already running.
-        return LaunchOptions.Parse(arguments).Mode is not (LaunchMode.Cli or LaunchMode.Help or LaunchMode.Version);
+        _ = LaunchOptions.Parse(arguments);
+        return true;
     }
 
     /// <summary>Routes repeated Windows activations and reports callback failures centrally.</summary>
@@ -147,12 +148,6 @@ public static class Program
     {
         ArgumentNullException.ThrowIfNull(activation);
         var kind = activation.Kind;
-        if (kind == ExtendedActivationKind.Protocol
-            && activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol)
-        {
-            // Copy the URI while the WinRT callback owns its payload; the app validates fixed actions.
-            return new RedirectedActivationRequest(LaunchOptions.Parse([]), kind, protocol.Uri.AbsoluteUri);
-        }
         var options = kind switch
         {
             ExtendedActivationKind.Launch when activation.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch =>
@@ -169,7 +164,7 @@ public static class Program
 
         // Copy the only collection so the immutable request owns every value needed after the sender has exited.
         return new RedirectedActivationRequest(
-            options with { RemainingArguments = Array.AsReadOnly(options.RemainingArguments.ToArray()) },
+            options,
             kind);
     }
 }

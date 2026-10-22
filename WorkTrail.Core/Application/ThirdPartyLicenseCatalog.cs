@@ -28,8 +28,7 @@ public static class ThirdPartyLicenseCatalog
     /// <summary>Gets the direct runtime packages shipped with WorkTrail.</summary>
     public static IReadOnlyList<ThirdPartyLicense> RuntimeDependencies { get; } =
     [
-        new("Lucene.Net", "4.8.0-beta00018", "Apache-2.0"),
-        new("Lucene.Net.Analysis.Common", "4.8.0-beta00018", "Apache-2.0"),
+        new("CosineKitty.AstronomyEngine", "2.1.19", "MIT"),
         new("Microsoft.Data.Sqlite", "10.0.10", "MIT"),
         new("Microsoft.Extensions.DependencyInjection", "10.0.10", "MIT"),
         new("Microsoft.Extensions.Logging", "10.0.10", "MIT"),
@@ -43,10 +42,7 @@ public static class ThirdPartyLicenseCatalog
         new("Serilog.Sinks.File", "7.0.0", "Apache-2.0"),
         new("SkiaSharp", "4.151.0", "MIT"),
         new("SkiaSharp.NativeAssets.Win32", "4.151.0", "MIT"),
-        new("Spectre.Console", "0.57.2", "MIT"),
+        new("SGP.NET", "1.5.0", "MIT"),
         new("SQLitePCLRaw.lib.e_sqlite3", "2.1.12", "Apache-2.0"),
-        new("System.Diagnostics.PerformanceCounter", "10.0.10", "MIT"),
-        new("System.Drawing.Common", "10.0.10", "MIT"),
-        new("System.Management", "10.0.10", "MIT")
     ];
 }

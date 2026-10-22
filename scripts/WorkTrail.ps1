@@ -49,10 +49,8 @@ param(
         'Restore',
         'Build',
         'Test',
-        'TestCli',
         'ValidateStoreListing',
         'GenerateAssets',
-        'ProbeTaskbar',
         'PublishUnpackaged',
         'PackageMsix',
         'InstallDebugMsix',
@@ -74,7 +72,6 @@ param(
     [switch]$SkipRestore,
     [switch]$SkipPackageBuild,
     [switch]$Help,
-    [string]$ExecutablePath = 'worktrail.exe',
     [string]$ListingPath,
     [ValidateSet('Msix', 'Zip')]
     [string]$InstallerFormat = 'Msix',
@@ -503,65 +500,7 @@ function Invoke-WorkTrailTest {
     Invoke-NativeCommand -FilePath 'dotnet' -Arguments $arguments
 }
 
-function Invoke-WorkTrailTestCli {
-    if ($PSVersionTable.PSVersion.Major -lt 7) {
-        throw 'WorkTrail CLI is supported only in PowerShell 7 or later.'
-    }
 
-    [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
-    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-    $roundTrip = 'Italiano è · Tiếng Việt · Français · Deutsch · Español · ╭─╮ · 🚀'
-    if ([System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($roundTrip)) -ne $roundTrip) {
-        throw 'UTF-8 round-trip verification failed.'
-    }
-
-    function Invoke-WorkTrailCli {
-        param([string[]]$Arguments)
-
-        $output = & $ExecutablePath -cli @Arguments 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            throw "worktrail -cli $($Arguments -join ' ') failed with exit code $LASTEXITCODE.`n$output"
-        }
-
-        return $output
-    }
-
-    $generalHelp = Invoke-WorkTrailCli -Arguments @('/help', '--format', 'plain')
-    if (($generalHelp -join "`n") -notmatch '/config' -or ($generalHelp -join "`n") -notmatch '/doctor') {
-        throw 'General slash-command help did not include the expected command families.'
-    }
-
-    $configHelp = Invoke-WorkTrailCli -Arguments @('/help', '/config', '--format', 'plain')
-    if (($configHelp -join "`n") -notmatch 'screenshots.enabled' -or ($configHelp -join "`n") -match 'InstallationId|PrivacyProcessNames|ApiKey') {
-        throw 'Config help is missing public keys or exposes an internal/secret field.'
-    }
-
-    Invoke-WorkTrailCli -Arguments @('/status', '--help', '--format', 'plain') | Out-Null
-    Invoke-WorkTrailCli -Arguments @('--version', '--format', 'plain') | Out-Null
-
-    foreach ($command in @(@('/status', '--json'), @('/runtime', 'health', '--json'), @('/doctor', '--json'), @('/config', 'list', '--json'), @('/config', 'get', 'theme', '--json'))) {
-        $output = Invoke-WorkTrailCli -Arguments $command
-        $document = $output | ConvertFrom-Json
-        if ($null -eq $document.code) {
-            throw "CLI JSON output did not include a stable result code for '$($command -join ' ')'."
-        }
-
-        if (($output -join "`n") -match "`e\[") {
-            throw "CLI JSON output contains an ANSI sequence for '$($command -join ' ')'."
-        }
-
-        if (($command -contains '/config') -and ($output -join "`n") -match 'installationId|privacyProcessNames|apiKey') {
-            throw "CLI settings output exposed an internal or secret field for '$($command -join ' ')'."
-        }
-    }
-
-    $visibleWindows = Get-Process -Name 'WorkTrail' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }
-    if ($visibleWindows) {
-        throw 'CLI smoke test observed a visible WorkTrail window.'
-    }
-
-    Write-Host 'WorkTrail CLI smoke test completed.'
-}
 
 function Assert-Condition {
     param(
@@ -932,59 +871,7 @@ if __name__ == "__main__":
     }
 }
 
-function Invoke-WorkTrailTaskbarProbe {
-    if (-not ('TaskbarProbe' -as [type])) {
-        Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
 
-public class TaskbarProbe {
-    [DllImport("user32.dll")] public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-    [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)] public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
-    [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-    [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
-    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-    public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
-}
-'@
-    }
-
-    $script:TaskbarClassBuffer = [System.Text.StringBuilder]::new(256)
-    $script:TaskbarTitleBuffer = [System.Text.StringBuilder]::new(256)
-    $script:TaskbarProbeResults = [System.Collections.Generic.List[string]]::new()
-    $taskbar = [TaskbarProbe]::FindWindow('Shell_TrayWnd', $null)
-    Write-Host "Shell_TrayWnd handle: $taskbar"
-    if ($taskbar -eq [IntPtr]::Zero) {
-        return
-    }
-
-    $script:TaskbarProbeCount = 0
-    [TaskbarProbe]::EnumChildWindows($taskbar, [TaskbarProbe+EnumWindowsProc]{
-        param($hWnd, $lParam)
-        $script:TaskbarClassBuffer.Clear() | Out-Null
-        $script:TaskbarTitleBuffer.Clear() | Out-Null
-        [void][TaskbarProbe]::GetClassName($hWnd, $script:TaskbarClassBuffer, 256)
-        [void][TaskbarProbe]::GetWindowText($hWnd, $script:TaskbarTitleBuffer, 256)
-        $className = $script:TaskbarClassBuffer.ToString()
-        $title = $script:TaskbarTitleBuffer.ToString()
-        $visible = [TaskbarProbe]::IsWindowVisible($hWnd)
-        $rect = New-Object TaskbarProbe+RECT
-        [void][TaskbarProbe]::GetWindowRect($hWnd, [ref]$rect)
-        $width = $rect.Right - $rect.Left
-        $height = $rect.Bottom - $rect.Top
-        $script:TaskbarProbeCount++
-        if ($className -like '*HwndWrapper*' -or $title -like '*WorkTrail*') {
-            $script:TaskbarProbeResults.Add("handle=$hWnd cls=$className txt='$title' vis=$visible left=$($rect.Left) top=$($rect.Top) right=$($rect.Right) bottom=$($rect.Bottom) width=$width height=$height")
-        }
-        return $true
-    }, [IntPtr]::Zero) | Out-Null
-
-    $script:TaskbarProbeResults | ForEach-Object { Write-Host $_ }
-    Write-Host "Enumerated $($script:TaskbarProbeCount) child windows"
-}
 
 function Invoke-WorkTrailUnpackagedPublish {
     $runtime = Get-WorkTrailRuntimeIdentifier -TargetPlatform $Platform
@@ -2408,10 +2295,8 @@ function Invoke-WorkTrailAction {
         'Restore' { Invoke-WorkTrailRestore }
         'Build' { Invoke-WorkTrailBuild }
         'Test' { Invoke-WorkTrailTest }
-        'TestCli' { Invoke-WorkTrailTestCli }
         'ValidateStoreListing' { Invoke-WorkTrailStoreListingValidation }
         'GenerateAssets' { Invoke-WorkTrailAssetGeneration }
-        'ProbeTaskbar' { Invoke-WorkTrailTaskbarProbe }
         'PublishUnpackaged' { Invoke-WorkTrailUnpackagedPublish }
         'PackageMsix' { Invoke-WorkTrailMsixPackage }
         'InstallDebugMsix' { Invoke-WorkTrailDebugMsixInstall }
@@ -2463,16 +2348,14 @@ function Show-WorkTrailMenu {
         Write-MenuItem -Key '1' -Label 'Restore solution'
         Write-MenuItem -Key '2' -Label 'Build solution (x64)'
         Write-MenuItem -Key '3' -Label 'Test solution (x64)'
-        Write-MenuItem -Key '4' -Label 'Run CLI smoke test'
         Write-MenuItem -Key '5' -Label 'Validate Store listing'
         Write-MenuItem -Key '6' -Label 'Generate Store/package assets'
         Write-MenuItem -Key '7' -Label 'Publish unpackaged x64 build'
-        Write-MenuItem -Key '8' -Label 'Probe taskbar widget'
         Write-MenuItem -Key '9' -Label 'DPAPI secret helper'
         Write-MenuItem -Key '10' -Label 'YubiKey secret helper'
         Write-MenuItem -Key '0' -Label 'Exit'
 
-        $choice = Read-MenuChoice -Prompt 'Select' -AllowedChoices @('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10')
+        $choice = Read-MenuChoice -Prompt 'Select' -AllowedChoices @('0', '1', '2', '3', '5', '6', '7', '9', '10')
         if ($choice -eq '0') {
             Show-Footer -ScriptName $script:ScriptName -Status 'COMPLETED' -StartTime $script:StartedAt -EndTime (Get-Date)
             return
@@ -2482,11 +2365,9 @@ function Show-WorkTrailMenu {
             '1' { 'Restore' }
             '2' { 'Build' }
             '3' { 'Test' }
-            '4' { 'TestCli' }
             '5' { 'ValidateStoreListing' }
             '6' { 'GenerateAssets' }
             '7' { 'PublishUnpackaged' }
-            '8' { 'ProbeTaskbar' }
             '9' { 'ProtectSecret' }
             '10' { 'ProtectSecretYubiKey' }
         }

@@ -56,17 +56,7 @@ public sealed class WorldClockSelectionMutationTests
                 writtenKeyName = keyName;
                 writtenSecret = secret;
             });
-            var capture = new ScreenCaptureService(utilities.GetAppVersion());
-            await using var application = new WorkTrailApplication(
-                store,
-                utilities,
-                new TrackingDomainService(store),
-                capture,
-                new OpenAiAnalysisService(store, capture),
-                new StartupService(),
-                new BuildInformationService(),
-                worldClockService: worldClocks,
-                startScheduledSnapshotTimer: false);
+            await using var application = new WorkTrailApplication(store, utilities: utilities, worldClockService: worldClocks);
 
             var invalidWeatherKey = await application.SetWorldClockWeatherKeyAsync("short", CancellationToken.None);
 

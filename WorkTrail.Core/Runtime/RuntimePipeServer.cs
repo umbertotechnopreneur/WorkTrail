@@ -30,7 +30,6 @@ internal sealed class RuntimePipeServer
     private readonly RuntimeEndpoint _endpoint;
     private readonly RuntimeRequestDispatcher _dispatcher;
     private readonly ILogger _logger;
-    private readonly Action<AtomicResetPlan> _atomicResetPrepared;
     private readonly ConcurrentDictionary<int, Task> _activeRequests = new();
     private readonly SemaphoreSlim _connectionSlots;
     private readonly TimeSpan _frameTimeout;
@@ -40,14 +39,12 @@ internal sealed class RuntimePipeServer
         RuntimeEndpoint endpoint,
         RuntimeRequestDispatcher dispatcher,
         ILogger logger,
-        Action<AtomicResetPlan> atomicResetPrepared,
         int maximumConnections = 4,
         TimeSpan? frameTimeout = null)
     {
         _endpoint = endpoint;
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _atomicResetPrepared = atomicResetPrepared ?? throw new ArgumentNullException(nameof(atomicResetPrepared));
         if (maximumConnections is < 1 or > 4) throw new ArgumentOutOfRangeException(nameof(maximumConnections));
         _frameTimeout = frameTimeout ?? TimeSpan.FromSeconds(5);
         if (_frameTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(frameTimeout));
@@ -146,13 +143,7 @@ internal sealed class RuntimePipeServer
                 using var writeDeadline = CancellationTokenSource.CreateLinkedTokenSource(shutdownToken);
                 writeDeadline.CancelAfter(_frameTimeout);
                 await RuntimeProtocol.WriteAsync(pipe, response, writeDeadline.Token);
-                if (request.Operation == RuntimeOperationCatalog.GetWireName(RuntimeOperation.AppAtomicResetV1)
-                    && response.Succeeded
-                    && response.Payload is AtomicResetPlan resetPlan)
-                {
-                    // The runtime owner begins shutdown only after the destructive-operation result reaches the caller.
-                    _atomicResetPrepared(resetPlan);
-                }
+
             }
             catch (OperationCanceledException) when (shutdownToken.IsCancellationRequested)
             {

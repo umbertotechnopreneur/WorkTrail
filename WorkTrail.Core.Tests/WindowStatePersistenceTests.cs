@@ -124,16 +124,6 @@ public sealed class WindowStatePersistenceTests
         }
     }
 
-    /// <summary>Verifies that unsupported persisted session keys fail before application startup uses them.</summary>
-    [Fact]
-    public void PersistedOpenStates_RejectUnsupportedKeys()
-    {
-        var settings = new AppSettings(
-            WindowOpenStates: new Dictionary<string, bool> { ["unknown-window"] = true });
-
-        Assert.Throws<ArgumentException>(() => SettingsCatalog.NormalizePersisted(settings, Path.GetTempPath()));
-    }
-
     /// <summary>Guards against later settings changes overwriting geometry and session flags from a stale runtime snapshot.</summary>
     [Fact]
     public async Task WindowPersistence_SurvivesAnUnrelatedSettingsPatch()
@@ -143,16 +133,7 @@ public sealed class WindowStatePersistenceTests
         {
             var store = new LocalStore(directory);
             var utilities = new UtilityService();
-            var capture = new ScreenCaptureService(utilities.GetAppVersion());
-            await using var application = new WorkTrailApplication(
-                store,
-                utilities,
-                new TrackingDomainService(store),
-                capture,
-                new OpenAiAnalysisService(store, capture),
-                new StartupService(),
-                new BuildInformationService(),
-                startScheduledSnapshotTimer: false);
+            await using var application = new WorkTrailApplication(store, utilities: utilities);
             var saved = SaveHiddenTestWindow(application);
             Assert.True(saved.Succeeded);
             Assert.NotNull(saved.Value);

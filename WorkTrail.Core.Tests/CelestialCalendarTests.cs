@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using Microsoft.Data.Sqlite;
+
 using WorkTrail.Application;
 using WorkTrail.Services;
 using Xunit;
@@ -44,32 +44,6 @@ public sealed class CelestialCalendarTests
         Assert.Contains(catalog.Holidays, holiday => holiday.ArtworkFileName == "new-year-v1.png");
         Assert.Contains(catalog.Saints, saint => saint.EventKey == "StFrancisAssisi"
             && saint.NameLatin.Contains("Francisci", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ExistingActivityDatabase_StoresCalendarInNormalizedTables()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "WorkTrail.CalendarTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var store = new LocalStore(directory);
-            store.EnsureCelestialCalendar(CelestialCalendarCatalog.Current);
-            store.EnsureCelestialCalendar(CelestialCalendarCatalog.Current);
-            Assert.Contains(store.LoadCalendarHolidays(new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 1)),
-                holiday => holiday.Country == "IT" && holiday.Kind == "holiday");
-            Assert.Equal(211, CelestialCalendarCatalog.Current.Saints.Count);
-
-            using var connection = new SqliteConnection($"Data Source={store.ActivityDatabasePath};Pooling=False");
-            connection.Open();
-            Assert.Equal(12L, Scalar(connection, "PRAGMA user_version;"));
-            Assert.Equal(17L, Scalar(connection, "SELECT COUNT(*) FROM calendar_countries;"));
-            Assert.Equal(565L, Scalar(connection, "SELECT COUNT(*) FROM calendar_holidays;"));
-            Assert.Equal(211L, Scalar(connection, "SELECT COUNT(*) FROM calendar_saints;"));
-        }
-        finally
-        {
-            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
-        }
     }
 
     [Fact]
@@ -121,12 +95,5 @@ public sealed class CelestialCalendarTests
                 ["astronomy.agenda.country_codes"] = malformed
             })).Succeeded);
         }
-    }
-
-    private static long Scalar(SqliteConnection connection, string sql)
-    {
-        using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        return Convert.ToInt64(command.ExecuteScalar());
     }
 }

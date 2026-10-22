@@ -45,16 +45,12 @@ public static class ProductLanguageCatalog
     ];
 
     private static readonly string[] UiChoiceValues = [SystemLanguage, .. UiLocaleValues];
-    private static readonly string[] SearchChoiceValues = [SystemLanguage, .. UiLocaleValues];
 
     /// <summary>Gets every locale for which the product ships a complete UI catalog.</summary>
     public static IReadOnlyList<string> UiLocales { get; } = Array.AsReadOnly(UiLocaleValues);
 
     /// <summary>Gets persisted choices accepted by the UI language setting.</summary>
     public static IReadOnlyList<string> UiChoices { get; } = Array.AsReadOnly(UiChoiceValues);
-
-    /// <summary>Gets persisted choices accepted by local-search language analysis.</summary>
-    public static IReadOnlyList<string> SearchChoices { get; } = Array.AsReadOnly(SearchChoiceValues);
 
     /// <summary>Resolves a canonical UI choice, consulting Windows only for <c>system</c>.</summary>
     public static string ResolveUiLanguage(string? requestedLanguage, CultureInfo systemCulture)
@@ -73,33 +69,6 @@ public static class ProductLanguageCatalog
         }
 
         return ResolveSystemUiLanguage(systemCulture);
-    }
-
-    /// <summary>Resolves the analyzer language without coupling search to the selected UI locale.</summary>
-    public static string ResolveSearchLanguage(string requestedLanguage, CultureInfo systemCulture)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(requestedLanguage);
-        ArgumentNullException.ThrowIfNull(systemCulture);
-
-        var canonical = Canonical(SearchChoiceValues, requestedLanguage.Trim())
-            ?? throw new ArgumentException(
-                $"Unsupported WorkTrail search locale '{requestedLanguage}'.",
-                nameof(requestedLanguage));
-        if (!canonical.Equals(SystemLanguage, StringComparison.Ordinal))
-        {
-            return canonical;
-        }
-
-        var supportedSystemLocale = ResolveSystemUiLanguage(systemCulture);
-        if (!supportedSystemLocale.Equals(EnglishLanguage, StringComparison.Ordinal)
-            || systemCulture.TwoLetterISOLanguageName.Equals("en", StringComparison.OrdinalIgnoreCase))
-        {
-            return supportedSystemLocale;
-        }
-
-        // Preserve an unsupported Windows language for StandardAnalyzer instead of applying
-        // English stemming. zh-Hant likewise remains distinct from the shipped zh-Hans catalog.
-        return string.IsNullOrWhiteSpace(systemCulture.Name) ? EnglishLanguage : systemCulture.Name;
     }
 
     /// <summary>Returns the canonical UI setting choice, or <see langword="null"/> when unsupported.</summary>

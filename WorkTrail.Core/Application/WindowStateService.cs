@@ -49,15 +49,6 @@ public static class WindowStateKeys
     /// <summary>Identifies the independent planar/spherical Earth window.</summary>
     public const string CelestialMap = "celestial-map";
 
-    /// <summary>Identifies the native activity-calendar dialog window.</summary>
-    public const string ActivityCalendar = "activity-calendar";
-
-    /// <summary>Identifies the historical screenshot AI-reprocessing dialog window.</summary>
-    public const string AiScreenshotReprocessing = "ai-screenshot-reprocessing";
-
-    /// <summary>Identifies the screenshot gallery window.</summary>
-    public const string Screenshots = "screenshots";
-
 
     /// <summary>Identifies the about window.</summary>
     public const string About = "about";
@@ -65,35 +56,8 @@ public static class WindowStateKeys
     /// <summary>Identifies the third-party licenses window.</summary>
     public const string Licenses = "licenses";
 
-    /// <summary>Identifies the local search window.</summary>
-    public const string Search = "search";
-
-    /// <summary>Identifies the local search-index progress window.</summary>
-    public const string SearchIndexing = "search-indexing";
-
-    /// <summary>Identifies the screenshot schedule window.</summary>
-    public const string Schedule = "schedule";
-
-    /// <summary>Identifies the first-run and reusable Quick Setup window.</summary>
-    public const string QuickSetup = "quick-setup";
-
     /// <summary>Identifies the reusable message dialog window.</summary>
     public const string Dialog = "dialog";
-
-
-    /// <summary>Identifies the responsive label-management dialog.</summary>
-    public const string ActivityLabels = "activity-labels";
-
-    /// <summary>Identifies the Mica note editor for an already retained VIP capture.</summary>
-    public const string VipSnapshotNote = "vip-snapshot-note";
-    /// <summary>The VIP capture countdown window.</summary>
-    public const string VipSnapshotCountdown = "vip-snapshot-countdown";
-
-    /// <summary>Identifies the analytical export workspace.</summary>
-    public const string ReportExport = "report-export";
-
-    /// <summary>Identifies the AI provider connection test dialog window.</summary>
-    public const string AiConnectionTest = "ai-connection-test";
 }
 
 /// <summary>Persists and restores native top-level window placement.</summary>
@@ -124,16 +88,8 @@ public sealed class WindowStateService
         return windowKey switch
         {
             WindowStateKeys.Main => new(470, 240),
-            WindowStateKeys.ActivityCalendar => new(760, 560),
-            WindowStateKeys.ReportExport => new(660, 520),
-            WindowStateKeys.AiScreenshotReprocessing => new(640, 560),
-            WindowStateKeys.Screenshots => new(760, 540),
             WindowStateKeys.About => new(640, 480),
             WindowStateKeys.Licenses => new(720, 520),
-            WindowStateKeys.Search => new(560, 156),
-            WindowStateKeys.SearchIndexing => new(560, 420),
-            WindowStateKeys.Schedule => new(620, 480),
-            WindowStateKeys.QuickSetup => new(760, 560),
             WindowStateKeys.Dialog => new(320, 196),
             WindowStateKeys.WorldClocks => new(480, 240),
             WindowStateKeys.WorldMap => new(192, 160),
@@ -142,10 +98,6 @@ public sealed class WindowStateService
             WindowStateKeys.AstronomyAgenda => new(280, 320),
             WindowStateKeys.CelestialMap => new(320, 280),
             WindowStateKeys.WorldClockCityPicker => new(500, 560),
-            WindowStateKeys.ActivityLabels => new(340, 280),
-            WindowStateKeys.VipSnapshotNote => new(500, 480),
-            WindowStateKeys.VipSnapshotCountdown => new(480, 440),
-            WindowStateKeys.AiConnectionTest => new(480, 480),
             _ => throw new ArgumentException("The window key is not supported.", nameof(windowKey))
         };
     }

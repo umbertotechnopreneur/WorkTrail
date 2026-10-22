@@ -43,7 +43,7 @@ public static class WindowsLaunchArguments
         var argumentVector = CommandLineToArgvW("activation " + arguments, out var argumentCount);
         if (argumentVector == IntPtr.Zero)
         {
-            // Native parsing failure is terminal; dropping options could accidentally enable tracking.
+            // Native parsing failure is terminal; dropping options could change the requested launch behavior.
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 

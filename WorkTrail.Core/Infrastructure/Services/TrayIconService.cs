@@ -29,12 +29,6 @@ public sealed record TrayIconMenuLabels(string ShowMainWindow, string HideMainWi
 /// <summary>Identifies application commands forwarded from the native notification-area menu.</summary>
 public enum TrayIconMenuCommand : uint
 {
-    /// <summary>Pauses or enables notifications.</summary>
-    ToggleNotifications = 3,
-    /// <summary>Runs the existing manual VIP capture workflow.</summary>
-    TakeVipSnapshot = 4,
-    /// <summary>Pauses or resumes tracking.</summary>
-    ToggleTracking = 5,
     /// <summary>Shows international clocks.</summary>
     WorldClocks = 6,
     /// <summary>Shows the astronomical calendar.</summary>
@@ -54,17 +48,13 @@ public enum TrayIconMenuCommand : uint
 /// <summary>Contains current localized action labels and availability for one tray menu opening.</summary>
 public sealed record TrayIconMenuState(
     string ShowAllWindows,
-    string ToggleNotifications,
-    string TakeVipSnapshot,
-    string ToggleTracking,
     string WorldClocks,
     string AstronomicalCalendar,
     string DayNightMap,
     string DayNightGlobe,
     string Settings,
     string About,
-    bool WorkspaceReady,
-    bool CanCaptureVip);
+    bool WorkspaceReady);
 
 /// <summary>Owns the notification-area icon that can hide and restore one top-level WorkTrail window.</summary>
 public sealed class TrayIconService : IDisposable
@@ -406,9 +396,6 @@ public sealed class TrayIconService : IDisposable
             {
                 AppendCommand(menu, (uint)TrayIconMenuCommand.ShowAllWindows, state.ShowAllWindows, state.WorkspaceReady);
                 AppendSeparator(menu);
-                AppendCommand(menu, (uint)TrayIconMenuCommand.ToggleNotifications, state.ToggleNotifications, state.WorkspaceReady);
-                AppendCommand(menu, (uint)TrayIconMenuCommand.TakeVipSnapshot, state.TakeVipSnapshot, state.CanCaptureVip);
-                AppendCommand(menu, (uint)TrayIconMenuCommand.ToggleTracking, state.ToggleTracking, state.WorkspaceReady);
                 AppendSeparator(menu);
                 AppendCommand(menu, (uint)TrayIconMenuCommand.WorldClocks, state.WorldClocks, state.WorkspaceReady);
                 AppendCommand(menu, (uint)TrayIconMenuCommand.AstronomicalCalendar, state.AstronomicalCalendar, state.WorkspaceReady);

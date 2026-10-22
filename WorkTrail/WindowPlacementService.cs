@@ -165,16 +165,11 @@ internal sealed class WindowPlacementService : IDisposable
         AttachXamlRoot();
         try
         {
-            if (_windowKey != WindowStateKeys.Main)
-                _application.ExcludeAuxiliaryWindowFromCapture(_windowHandle.ToInt64());
-
             // Only independent work surfaces participate, both as moving windows and alignment targets.
             // Dialogs, About, licenses and temporary operations retain native free movement.
             if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks
                 or WindowStateKeys.WorldMap or WindowStateKeys.LunarPhase or WindowStateKeys.LocalSky
-                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap or WindowStateKeys.Search
-                or WindowStateKeys.Screenshots or WindowStateKeys.Schedule
-                or WindowStateKeys.ReportExport)
+                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap)
             {
                 _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
             }
@@ -558,6 +553,22 @@ internal sealed class WindowPlacementService : IDisposable
         var height = Math.Min(availableHeight, Math.Max(minimumSize.Height, (int)Math.Ceiling(_logicalDefaultHeight * scale)));
         _appWindow.Resize(new SizeInt32(width, height));
         CenterInWorkArea(area);
+    }
+
+    /// <summary>Centers the launcher on the pointer's display while retaining its saved size.</summary>
+    internal void CenterOnCursorDisplay(FrameworkElement root)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        if (_disposed || _closeSaveStarted || s_preservingWorkspace) return;
+        var area = CursorWorkArea();
+        var presenter = _appWindow.Presenter as OverlappedPresenter;
+        var maximized = presenter?.State == OverlappedPresenterState.Maximized;
+        if (presenter is not null && presenter.State != OverlappedPresenterState.Restored) presenter.Restore();
+        // Move before clamping so the native window reports the destination display's DPI.
+        CenterInWorkArea(area);
+        KeepCurrentBoundsInWorkArea(root, area);
+        CenterInWorkArea(area);
+        if (maximized) presenter!.Maximize();
     }
 
     /// <summary>Restores saved bounds without replacing the user's position with an application-selected anchor.</summary>

@@ -30,19 +30,7 @@ namespace WorkTrail.Core.Tests;
 /// <summary>Protects stable selectors and translated accessible names on converted UI surfaces.</summary>
 public sealed class UiAutomationContractTests
 {
-    private static readonly string[] ConvertedSurfaces =
-    [
-        "WorkTrail/MainWindow.xaml",
-        "WorkTrail/ReportExportWindow.xaml",
-        "WorkTrail/Controls/OptionsControl.xaml",
-        "WorkTrail/Controls/RetentionOperationsControl.xaml",
-        "WorkTrail/Controls/ScreenshotHeaderControl.xaml",
-        "WorkTrail/Controls/ScreenshotDetailsControl.xaml",
-        "WorkTrail/Controls/ScreenshotTimelineControl.xaml",
-        "WorkTrail/Controls/ProviderKeySetupControl.xaml",
-        "WorkTrail/Controls/WeeklyHoursEditor.xaml",
-        "WorkTrail/Controls/OperationsControl.xaml"
-    ];
+    private static readonly string[] ConvertedSurfaces = ["WorkTrail/MainWindow.xaml", "WorkTrail/Controls/WeatherKeySetupControl.xaml", "WorkTrail/Controls/CityPickerControl.xaml"];
 
     private static readonly HashSet<string> InteractiveControls = new(StringComparer.Ordinal)
     {
@@ -103,10 +91,10 @@ public sealed class UiAutomationContractTests
     {
         var english = new LocalizationService("en-US");
         var italian = new LocalizationService("it-IT");
-        Assert.True(english.TryTranslateAutomationName("Report.Export", out var englishName));
-        Assert.True(italian.TryTranslateAutomationName("Report.Export", out var italianName));
-        Assert.Equal(english.Translate("Export.Action"), englishName);
-        Assert.Equal(italian.Translate("Export.Action"), italianName);
+        Assert.True(english.TryTranslateAutomationName("Launcher.Clocks", out var englishName));
+        Assert.True(italian.TryTranslateAutomationName("Launcher.Clocks", out var italianName));
+        Assert.Equal(english.Translate("Launcher.Clocks"), englishName);
+        Assert.Equal(italian.Translate("Launcher.Clocks"), italianName);
         Assert.NotEqual(englishName, italianName);
     }
 

@@ -27,14 +27,6 @@ internal enum RuntimeOperation
 {
     [RuntimeOperationWireName("runtime.health")]
     RuntimeHealth,
-    [RuntimeOperationWireName("tracking.start")]
-    TrackingStart,
-    [RuntimeOperationWireName("tracking.pause")]
-    TrackingPause,
-    [RuntimeOperationWireName("tracking.toggle")]
-    TrackingToggle,
-    [RuntimeOperationWireName("dashboard.get")]
-    DashboardGet,
     [RuntimeOperationWireName("world_clocks.get.v3")]
     WorldClocksGetV3,
     [RuntimeOperationWireName("celestial.reference.v1")]
@@ -55,148 +47,16 @@ internal enum RuntimeOperation
     WorldClocksMoveV1,
     [RuntimeOperationWireName("world_clocks.weather.key.set.v2")]
     WorldClocksWeatherKeySetV2,
-    [RuntimeOperationWireName("session.last")]
-    SessionLast,
-    [RuntimeOperationWireName("session.today")]
-    SessionToday,
-    [RuntimeOperationWireName("search.query.v1")]
-    SearchQueryV1,
-    [RuntimeOperationWireName("search.availability.v1")]
-    SearchAvailabilityV1,
-    [RuntimeOperationWireName("search.rebuild.v1")]
-    SearchRebuildV1,
-    [RuntimeOperationWireName("screenshot.capture")]
-    ScreenshotCapture,
-    [RuntimeOperationWireName("screenshot.vip.capture.v1")]
-    ScreenshotVipCaptureV1,
-    [RuntimeOperationWireName("screenshot.manual.capture")]
-    ScreenshotManualCapture,
-    [RuntimeOperationWireName("screenshot.vip.note.save.v1")]
-    ScreenshotVipNoteSaveV1,
-    [RuntimeOperationWireName("screenshot.vip.dates.v1")]
-    ScreenshotVipDatesV1,
-    [RuntimeOperationWireName("screenshot.manual.delete")]
-    ScreenshotManualDelete,
-    [RuntimeOperationWireName("screenshot.analyze")]
-    ScreenshotAnalyze,
-    [RuntimeOperationWireName("screenshot.latest")]
-    ScreenshotLatest,
-    [RuntimeOperationWireName("screenshot.gallery")]
-    ScreenshotGallery,
-    [RuntimeOperationWireName("screenshot.gallery.latest")]
-    ScreenshotGalleryLatest,
-    [RuntimeOperationWireName("screenshot.image.get.v1")]
-    ScreenshotImageGetV1,
-    [RuntimeOperationWireName("installations.list.v1")]
-    InstallationsListV1,
-    [RuntimeOperationWireName("installations.update.v1")]
-    InstallationsUpdateV1,
-    [RuntimeOperationWireName("archive.export.v1")]
-    ArchiveExportV1,
-    [RuntimeOperationWireName("archive.import.preview.v1")]
-    ArchiveImportPreviewV1,
-    [RuntimeOperationWireName("archive.import.merge.v1")]
-    ArchiveImportMergeV1,
-    [RuntimeOperationWireName("archive.progress.v1")]
-    ArchiveProgressV1,
-    [RuntimeOperationWireName("screenshot.delete")]
-    ScreenshotDelete,
-    [RuntimeOperationWireName("screenshot.analysis.delete.v1")]
-    ScreenshotAnalysisDeleteV1,
-    [RuntimeOperationWireName("screenshot.save")]
-    ScreenshotSave,
-    [RuntimeOperationWireName("screenshot.share")]
-    ScreenshotShare,
     [RuntimeOperationWireName("diagnostics.log.open")]
     DiagnosticsLogOpen,
     [RuntimeOperationWireName("diagnostics.log.open_folder")]
     DiagnosticsLogOpenFolder,
     [RuntimeOperationWireName("diagnostics.log.share")]
     DiagnosticsLogShare,
-    [RuntimeOperationWireName("screenshot.open_folder")]
-    ScreenshotOpenFolder,
-    [RuntimeOperationWireName("notifications.drain")]
-    NotificationsDrain,
-    [RuntimeOperationWireName("ai.status")]
-    AiStatus,
-    [RuntimeOperationWireName("ai.key.get")]
-    AiKeyGet,
-    [RuntimeOperationWireName("ai.connection.test")]
-    AiConnectionTest,
-    [RuntimeOperationWireName("ai.screenshot_reprocess.preview.v1")]
-    AiScreenshotReprocessPreviewV1,
-    [RuntimeOperationWireName("ai.screenshot_reprocess.start.v1")]
-    AiScreenshotReprocessStartV1,
-    [RuntimeOperationWireName("ai.screenshot_reprocess.status.v1")]
-    AiScreenshotReprocessStatusV1,
-    [RuntimeOperationWireName("ai.screenshot_reprocess.pause.v1")]
-    AiScreenshotReprocessPauseV1,
-    [RuntimeOperationWireName("ai.screenshot_reprocess.resume.v1")]
-    AiScreenshotReprocessResumeV1,
-    [RuntimeOperationWireName("ai.models")]
-    AiModels,
-    [RuntimeOperationWireName("ai.enable")]
-    AiEnable,
-    [RuntimeOperationWireName("ai.disable")]
-    AiDisable,
-    [RuntimeOperationWireName("ai.configure")]
-    AiConfigure,
-    [RuntimeOperationWireName("ai.key.set")]
-    AiKeySet,
-    [RuntimeOperationWireName("ai.analyze")]
-    AiAnalyze,
-    [RuntimeOperationWireName("report.query.v1")]
-    ReportQueryV1,
-    [RuntimeOperationWireName("report.export.setup.v1")]
-    ReportExportSetupV1,
-    [RuntimeOperationWireName("report.export.preview.v1")]
-    ReportExportPreviewV1,
-    [RuntimeOperationWireName("report.export.preferences.v1")]
-    ReportExportPreferencesV1,
-    [RuntimeOperationWireName("report.export.write.v1")]
-    ReportExportWriteV1,
-    [RuntimeOperationWireName("report.export.summary.v1")]
-    ReportExportSummaryV1,
-    [RuntimeOperationWireName("report.timesheet.batch.v1")]
-    TimesheetBatchV1,
-    [RuntimeOperationWireName("report.preview.file.v1")]
-    ReportFilePreviewV1,
-    [RuntimeOperationWireName("ui.open")]
-    UiOpen,
-    [RuntimeOperationWireName("privacy.list")]
-    PrivacyList,
-    [RuntimeOperationWireName("privacy.add")]
-    PrivacyAdd,
-    [RuntimeOperationWireName("privacy.remove")]
-    PrivacyRemove,
-    [RuntimeOperationWireName("privacy.test_current")]
-    PrivacyTestCurrent,
-    [RuntimeOperationWireName("retention.status")]
-    RetentionStatus,
-    [RuntimeOperationWireName("retention.preview")]
-    RetentionPreview,
-    [RuntimeOperationWireName("retention.run")]
-    RetentionRun,
-    [RuntimeOperationWireName("app.atomic_reset.v1")]
-    AppAtomicResetV1,
-    [RuntimeOperationWireName("plugins.list")]
-    PluginsList,
-    [RuntimeOperationWireName("plugins.show")]
-    PluginsShow,
-    [RuntimeOperationWireName("plugins.enable")]
-    PluginsEnable,
-    [RuntimeOperationWireName("plugins.disable")]
-    PluginsDisable,
     [RuntimeOperationWireName("settings.get")]
     SettingsGet,
     [RuntimeOperationWireName("features.access.get.v1")]
     FeatureAccessGetV1,
-#if DEBUG
-    [RuntimeOperationWireName("debug.features.simulate.v1")]
-    DebugFeatureSimulateV1,
-#endif
-    [RuntimeOperationWireName("quick_setup.apply.v1")]
-    QuickSetupApplyV1,
     [RuntimeOperationWireName("settings.patch")]
     SettingsPatch,
     [RuntimeOperationWireName("window.state.restore")]

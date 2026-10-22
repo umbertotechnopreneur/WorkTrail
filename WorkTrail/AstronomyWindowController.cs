@@ -93,7 +93,7 @@ internal sealed class AstronomyWindowController
             leftInset,
             rightInset,
             interactiveElements ?? (() => []),
-            overlayContent: true);
+            useTallTitleBar: true);
         _placement = new WindowPlacementService(
             application, window, _appWindow, windowKey, defaultWidth, defaultHeight, 0);
         _refreshTimer = window.DispatcherQueue.CreateTimer();
@@ -300,6 +300,7 @@ internal sealed class AstronomyWindowController
 
     private void ShowFailure(string key, Exception? exception = null)
     {
+        if (exception is not null) ApplicationErrorService.Record(exception, "AstronomyReference");
         if (_closed || _lifetimeCancellation.IsCancellationRequested)
         {
             return;

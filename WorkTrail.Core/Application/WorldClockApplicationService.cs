@@ -92,9 +92,30 @@ internal sealed class WorldClockApplicationService : IDisposable
     internal async Task<OperationResult<WorldClockSnapshot>> GetCelestialReferenceAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var selection = _settingsSnapshot.Value.WorldClockCityIds;
+        var settings = _settingsSnapshot.Value;
         // Catalog I/O and first-use day crossings must not block an in-process WinUI caller.
-        var snapshot = await Task.Run(() => _worldClocks.BuildCurrentCelestialSnapshot(selection), cancellationToken).ConfigureAwait(false);
+        var snapshot = await Task.Run(() =>
+        {
+            var reference = _worldClocks.BuildCurrentCelestialSnapshot(settings.WorldClockCityIds);
+            string? homeCityId = settings.HomeCityId;
+            if (string.IsNullOrWhiteSpace(homeCityId))
+            {
+                homeCityId = reference.Clocks.FirstOrDefault()?.CityId
+                    ?? HomeCitySuggestion.Resolve(_worldClocks.GetCatalog().Cities, TimeZoneInfo.Local);
+            }
+            if (string.IsNullOrWhiteSpace(homeCityId)) return reference;
+
+            // A saved home city still supplies the launcher when its independent clock has been removed.
+            var homeReference = reference.Clocks.Any(clock => clock.CityId == homeCityId)
+                ? reference : _worldClocks.BuildSnapshot([homeCityId], reference.InstantUtc);
+            var homeClock = homeReference.Clocks.First(clock => clock.CityId == homeCityId);
+            var position = homeReference.Map.Cities.First(city => city.CityId == homeCityId);
+            return reference with
+            {
+                HomeCity = new WorldClockHomeCity(homeClock.CityId, homeClock.CityName, homeClock.CountryCode,
+                    position.Latitude, position.Longitude, homeClock.SkylineAssetPath)
+            };
+        }, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         return OperationResult<WorldClockSnapshot>.Success("celestial.reference.loaded", "WorldClocksLoaded", snapshot);
     }
@@ -226,7 +247,7 @@ internal sealed class WorldClockApplicationService : IDisposable
             if (validation == WorldClockWeatherApiKeyValidation.RateLimited)
             {
                 return OperationResult<string>.Failure(
-                    "world_clocks.weather.key.rate_limited", "ProviderSetup.Error.Limits");
+                    "world_clocks.weather.key.rate_limited", "WeatherSetup.Limits");
             }
 
             if (validation != WorldClockWeatherApiKeyValidation.Accepted)

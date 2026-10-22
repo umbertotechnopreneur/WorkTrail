@@ -204,7 +204,7 @@ internal sealed partial class CelestialWindow : Window
         var dialogContent = new ScrollViewer { Content = content, MaxHeight = 450, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         if (!await _dialogs.ConfirmAsync(this, new DialogRequest(
                 T("Celestial.Agenda.Options"), T("Celestial.Agenda.Options.Coverage"),
-                T("Labels.Save"), T("Dialog.Cancel")), dialogContent)) return;
+                T("Dialog.Save"), T("Dialog.Cancel")), dialogContent)) return;
         if (city.SelectedValue is not string cityId) return;
         try
         {
@@ -955,6 +955,7 @@ internal sealed partial class CelestialWindow : Window
 
     private void ShowFailure(string key, Exception? exception = null)
     {
+        if (exception is not null) ApplicationErrorService.Record(exception, "CelestialProjection");
         if (_closed)
         {
             return;

@@ -33,9 +33,6 @@ public static class WorkspaceWindowState
         WindowStateKeys.LocalSky,
         WindowStateKeys.AstronomyAgenda,
         WindowStateKeys.CelestialMap,
-        WindowStateKeys.Search,
-        WindowStateKeys.Screenshots,
-        WindowStateKeys.Schedule,
         WindowStateKeys.About,
         WindowStateKeys.Licenses
     ];
@@ -43,7 +40,6 @@ public static class WorkspaceWindowState
     /// <summary>Identifies a window that can reopen without replaying a configuration or background operation.</summary>
     public static bool IsRestorable(string windowKey)
     {
-        _ = WindowStateService.GetMinimumSize(windowKey);
         return RestoreOrder.Contains(windowKey, StringComparer.Ordinal);
     }
 
@@ -67,12 +63,7 @@ public static class WorkspaceWindowState
             return [];
         }
 
-        foreach (var key in openStates.Keys)
-        {
-            // Known transient dialogs remain closed; unsupported identities must not disappear from a saved session.
-            _ = WindowStateService.GetMinimumSize(key);
-        }
-
+        // Select current work surfaces without opening or rewriting state left by removed features.
         var requested = openStates.Where(static pair => pair.Value).Select(static pair => pair.Key).ToHashSet(StringComparer.Ordinal);
         if (requested.Contains(WindowStateKeys.Licenses))
         {

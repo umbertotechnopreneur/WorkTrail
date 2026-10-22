@@ -31,7 +31,7 @@ namespace WorkTrail.Controls;
 public sealed partial class FeatureGate : UserControl
 {
     /// <summary>Identifies the catalog feature.</summary>
-    public static readonly DependencyProperty FeatureProperty = DependencyProperty.Register(nameof(Feature), typeof(ProductFeature), typeof(FeatureGate), new PropertyMetadata(ProductFeature.Tracking, OnPresentationChanged));
+    public static readonly DependencyProperty FeatureProperty = DependencyProperty.Register(nameof(Feature), typeof(ProductFeature), typeof(FeatureGate), new PropertyMetadata(ProductFeature.WorldClocks, OnPresentationChanged));
     /// <summary>Identifies the passive feature controls.</summary>
     public static readonly DependencyProperty BodyProperty = DependencyProperty.Register(nameof(Body), typeof(UIElement), typeof(FeatureGate), new PropertyMetadata(null, OnPresentationChanged));
     /// <summary>Identifies the runtime entitlement snapshot.</summary>

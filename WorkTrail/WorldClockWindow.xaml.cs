@@ -116,7 +116,7 @@ public sealed partial class WorldClockWindow : Window
             TitleBarLeftInsetColumn,
             TitleBarRightInsetColumn,
             () => [HeaderBackButton, ReferenceInstantButton, WorldMapButton, LunarPhaseButton, OptionsButton],
-            overlayContent: true);
+            useTallTitleBar: true);
         _titleBar.ThemeChanged += TitleBar_ThemeChanged;
 
         _placement = new WindowPlacementService(
@@ -203,7 +203,7 @@ public sealed partial class WorldClockWindow : Window
 
     private async void HeaderBackButton_Click(object sender, RoutedEventArgs e)
     {
-        if (OptionsHost.Content is ProviderKeySetupControl)
+        if (OptionsHost.Content is WeatherKeySetupControl)
         {
             OptionsHost.Content = _optionsControl;
             return;
@@ -228,7 +228,6 @@ public sealed partial class WorldClockWindow : Window
 
     private void ShowOptionsSurface()
     {
-        _titleBar.SetOverlayContentEnabled(false);
         var options = EnsureOptionsControl();
         options.ApplyState(_settings, _snapshot, _referenceCityId, IsAlwaysOnTop());
         ClocksSurface.IsHitTestVisible = false;
@@ -244,7 +243,6 @@ public sealed partial class WorldClockWindow : Window
 
     private async Task ShowClocksSurfaceAsync()
     {
-        _titleBar.SetOverlayContentEnabled(true);
         OptionsPanel.Visibility = Visibility.Collapsed;
         ClocksSurface.Visibility = Visibility.Visible;
         ClocksSurface.IsHitTestVisible = true;
@@ -349,14 +347,14 @@ public sealed partial class WorldClockWindow : Window
 
     private async void OptionsControl_KeySetupRequested(object? sender, EventArgs e)
     {
-        var setup = new ProviderKeySetupControl();
+        var setup = new WeatherKeySetupControl();
         setup.Dismissed += async verified =>
         {
             OptionsHost.Content = _optionsControl;
             if (verified && _isLive) await RefreshCurrentAsync();
         };
         OptionsHost.Content = setup;
-        await setup.InitializeAsync(_application, _strings, weather: true, _lifetimeCancellation.Token);
+        await setup.InitializeAsync(_application, _strings, _lifetimeCancellation.Token);
     }
 
     private bool IsAlwaysOnTop() =>
@@ -438,8 +436,9 @@ public sealed partial class WorldClockWindow : Window
             // The detached surface was closed while its optional state was loading.
             return;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            ApplicationErrorService.Record(exception, "WorldClockWindow");
             if (IsClosing)
             {
                 return;
@@ -504,8 +503,9 @@ public sealed partial class WorldClockWindow : Window
             // Closing the detached surface cancels optional presentation refreshes without a retry.
             return false;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            ApplicationErrorService.Record(exception, "WorldClockWindow");
             if (!IsClosing)
             {
                 ShowFailure("WorldClock.CatalogUnavailable");
@@ -579,8 +579,9 @@ public sealed partial class WorldClockWindow : Window
             // Window shutdown cancels this conversion; the last complete projection remains visible.
             return false;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            ApplicationErrorService.Record(exception, "WorldClockWindow");
             if (!IsClosing)
             {
                 HandleConversionFailure(
@@ -776,8 +777,9 @@ public sealed partial class WorldClockWindow : Window
         {
             // Closing the detached surface cancels an in-progress link launch.
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            ApplicationErrorService.Record(exception, "WorldClockWindow");
             if (!IsClosing)
             {
                 ShowFailure("About.LinkFailed");
@@ -826,7 +828,7 @@ public sealed partial class WorldClockWindow : Window
             var referenceDate = referenceClock.LocalTime.Date;
             var referenceWeekText = string.Create(
                 _strings.Culture,
-                $"{T("ActivityCalendar.WeekTab")} {ISOWeek.GetWeekOfYear(referenceDate)} · {ISOWeek.GetYear(referenceDate)}");
+                $"{T("WorldClock.Week")} {ISOWeek.GetWeekOfYear(referenceDate)} · {ISOWeek.GetYear(referenceDate)}");
             ReferenceInstantText.Text = referenceInstantText;
             ReferenceWeekText.Text = referenceWeekText;
             Title = $"{T("WorldClock.Landmark")} · {referenceWeekText}";
@@ -1068,8 +1070,9 @@ public sealed partial class WorldClockWindow : Window
         {
             // Closing the detached surface cancels the optional picker or mutation.
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            ApplicationErrorService.Record(exception, "WorldClockWindow");
             if (!IsClosing)
             {
                 ShowFailure("WorldClock.CatalogUnavailable");
@@ -1145,8 +1148,9 @@ public sealed partial class WorldClockWindow : Window
         {
             // Closing the detached surface cancels the optional mutation.
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            ApplicationErrorService.Record(exception, "WorldClockWindow");
             if (!IsClosing)
             {
                 ShowFailure("WorldClock.CatalogUnavailable");
@@ -1186,8 +1190,9 @@ public sealed partial class WorldClockWindow : Window
         {
             // Closing the detached surface cancels the optional reorder mutation.
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            ApplicationErrorService.Record(exception, "WorldClockWindow");
             if (!IsClosing)
             {
                 ShowFailure("WorldClock.CatalogUnavailable");

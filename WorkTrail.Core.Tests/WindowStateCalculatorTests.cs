@@ -83,18 +83,11 @@ public sealed class WindowStateCalculatorTests
     public void WindowStateMinimumSizes_AreSharedByRestoreAndNativeSizing()
     {
         Assert.Equal(new WindowMinimumSize(470, 240), WindowStateService.GetMinimumSize(WindowStateKeys.Main));
-        Assert.Equal(new WindowMinimumSize(760, 560), WindowStateService.GetMinimumSize(WindowStateKeys.ActivityCalendar));
-        Assert.Equal(new WindowMinimumSize(640, 560), WindowStateService.GetMinimumSize(WindowStateKeys.AiScreenshotReprocessing));
-        Assert.Equal(new WindowMinimumSize(760, 540), WindowStateService.GetMinimumSize(WindowStateKeys.Screenshots));
-        Assert.Equal(new WindowMinimumSize(560, 156), WindowStateService.GetMinimumSize(WindowStateKeys.Search));
-        Assert.Equal(new WindowMinimumSize(560, 420), WindowStateService.GetMinimumSize(WindowStateKeys.SearchIndexing));
-        Assert.Equal(new WindowMinimumSize(620, 480), WindowStateService.GetMinimumSize(WindowStateKeys.Schedule));
         Assert.Equal(new WindowMinimumSize(320, 196), WindowStateService.GetMinimumSize(WindowStateKeys.Dialog));
         Assert.Equal(new WindowMinimumSize(480, 240), WindowStateService.GetMinimumSize(WindowStateKeys.WorldClocks));
         Assert.Equal(new WindowMinimumSize(192, 160), WindowStateService.GetMinimumSize(WindowStateKeys.WorldMap));
         Assert.Equal(new WindowMinimumSize(192, 192), WindowStateService.GetMinimumSize(WindowStateKeys.LunarPhase));
         Assert.Equal(new WindowMinimumSize(500, 560), WindowStateService.GetMinimumSize(WindowStateKeys.WorldClockCityPicker));
-        Assert.Equal(new WindowMinimumSize(480, 480), WindowStateService.GetMinimumSize(WindowStateKeys.AiConnectionTest));
     }
 
     [Fact]

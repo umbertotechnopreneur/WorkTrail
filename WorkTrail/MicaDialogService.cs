@@ -37,6 +37,14 @@ internal sealed class MicaDialogService
     /// <summary>Gets the service that shows and hides reusable toast UI components.</summary>
     internal ToastNotificationService Notifications { get; } = new();
 
+    /// <summary>Offers explicit exit, notification-area hide, or cancellation with a safe keyboard default.</summary>
+    internal async Task<ContentDialogResult> ChooseLauncherCloseAsync(Window owner, Func<string, string> translate)
+    {
+        var request = new DialogRequest(translate("Launcher.CloseTitle"), translate("Launcher.CloseMessage"),
+            translate("Launcher.CloseToTray"), translate("Dialog.Cancel"), translate("Launcher.Exit"));
+        return await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Primary);
+    }
+
     /// <summary>Shows one queued standard WinUI acknowledgement dialog.</summary>
     internal async Task ShowInformativeAsync(Window owner, DialogRequest request)
     {
@@ -115,35 +123,6 @@ internal sealed class MicaDialogService
         }
     }
 
-    /// <summary>Shows a cancellable five-second presentation countdown before a VIP capture.</summary>
-    /// <param name="application">The facade used for window placement.</param>
-    /// <param name="owner">The owner of the queued countdown dialog.</param>
-    /// <param name="strings">The owner's localized strings.</param>
-    /// <param name="cancellationToken">Cancels the countdown when the owner shuts down.</param>
-    internal Task<bool> ShowVipCountdownAsync(IWorkTrailApplication application, Window owner, LocalizationService strings, CancellationToken cancellationToken) =>
-        RunModalSessionAsync(owner, false, async (ownerAppWindow, ownerHandle) =>
-        {
-            if (cancellationToken.IsCancellationRequested) return false;
-            var theme = owner.Content is FrameworkElement root ? root.ActualTheme : ElementTheme.Default;
-            var dialog = new VipSnapshotCountdownWindow(application, strings, theme, ownerAppWindow, ownerHandle);
-            var completed = await ShowDialogWindowAsync(dialog, dialog.WindowHandle,
-                () => dialog.ShowAsync(cancellationToken), dialog.DisposePlacement);
-            return completed && !cancellationToken.IsCancellationRequested;
-        });
-
-    /// <summary>Shows the saved VIP screenshot and an optional note in a dedicated Acrylic window.</summary>
-    /// <param name="application">The facade used for image reads and note persistence.</param>
-    /// <param name="owner">The window that owns the modal surface.</param>
-    /// <param name="capture">The already retained VIP capture.</param>
-    /// <param name="strings">The owner's current UI strings.</param>
-    internal Task ShowVipSnapshotAsync(IWorkTrailApplication application, Window owner, ScreenshotCaptureResult capture, LocalizationService strings) =>
-        RunModalSessionAsync(owner, async (ownerAppWindow, ownerHandle) =>
-        {
-            var theme = owner.Content is FrameworkElement root ? root.ActualTheme : ElementTheme.Default;
-            var dialog = new VipSnapshotNoteWindow(application, capture, strings, theme, ownerAppWindow, ownerHandle);
-            await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
-        });
-
     /// <summary>Shows one queued standard WinUI OK/Cancel confirmation.</summary>
     /// <returns><see langword="true"/> only when the user explicitly chooses OK; dismissal safely cancels.</returns>
     internal async Task<bool> ConfirmAsync(Window owner, DialogRequest request)
@@ -162,139 +141,6 @@ internal sealed class MicaDialogService
         ValidateDialogRequest(request, requiresCloseButton: true);
         ArgumentNullException.ThrowIfNull(content);
         return await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Close, content: content) == ContentDialogResult.Primary;
-    }
-
-    /// <summary>Shows the illustrated reset confirmation while preserving queued ownership and safe dismissal.</summary>
-    internal async Task<bool> ConfirmAtomicResetAsync(Window owner, DialogRequest request)
-    {
-        ValidateDialogRequest(request, requiresCloseButton: true);
-        return await RunContentDialogSessionAsync(owner, request, ContentDialogButton.Close, atomicReset: true) == ContentDialogResult.Primary;
-    }
-
-    /// <summary>Runs one facade request only after its queued modal Mica progress surface is visible.</summary>
-    /// <param name="application">Shared facade that owns the operation and its progress.</param>
-    /// <param name="owner">Window whose modal queue hosts the progress surface.</param>
-    /// <param name="theme">Actual theme used by the owner.</param>
-    /// <param name="title">Localized heading of the progress surface.</param>
-    /// <param name="description">Localized explanation of the operation.</param>
-    /// <param name="operation">Request to run after the progress surface becomes visible.</param>
-    /// <param name="archiveOperationId">Archive job whose progress is displayed, if any.</param>
-    /// <param name="retentionOperationId">Retention job whose progress is displayed, if any.</param>
-    internal async Task<OperationResult<T>> RunWithProgressAsync<T>(
-        IWorkTrailApplication application,
-        Window owner,
-        ElementTheme theme,
-        string title,
-        string description,
-        Func<IWorkTrailApplication, CancellationToken, Task<OperationResult<T>>> operation,
-        Guid? archiveOperationId = null,
-        Guid? retentionOperationId = null)
-    {
-        ArgumentNullException.ThrowIfNull(application);
-        ArgumentNullException.ThrowIfNull(operation);
-        ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        ArgumentException.ThrowIfNullOrWhiteSpace(description);
-        ValidateOwnerThread(owner);
-        if (owner.Content is not FrameworkElement ownerContent)
-        {
-            throw new InvalidOperationException("Progress dialogs require framework-element owner content.");
-        }
-
-        var result = await RunModalSessionAsync<OperationResult<T>?>(owner, null, async (ownerAppWindow, ownerHandle) =>
-        {
-            OperationResult<T>? operationResult = null;
-            var dialog = new OperationProgressDialogWindow(
-                application,
-                theme,
-                title,
-                description,
-                ownerContent.Language,
-                ownerAppWindow,
-                ownerHandle,
-                async cancellationToken =>
-                {
-                    operationResult = await operation(application, cancellationToken);
-                }, archiveOperationId, retentionOperationId);
-            await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
-            return operationResult ?? throw new InvalidOperationException("The progress operation returned no result.");
-        });
-
-        // A closed owner or shutting-down queue cancels this request; it must not be reported as completed work.
-        return result ?? throw new OperationCanceledException("The progress dialog was cancelled during shutdown.");
-    }
-
-    /// <summary>Shows the label editor in a queued Mica window and returns its latest saved settings.</summary>
-    internal async Task<AppSettings?> ShowActivityLabelsAsync(
-        IWorkTrailApplication application,
-        Window owner,
-        AppSettings settings,
-        FeatureAccessSnapshot? access,
-        ElementTheme theme,
-        LocalizationService strings)
-    {
-        ArgumentNullException.ThrowIfNull(application);
-        ArgumentNullException.ThrowIfNull(settings);
-        ArgumentNullException.ThrowIfNull(strings);
-        return await RunModalSessionAsync<AppSettings?>(owner, null, async (ownerAppWindow, ownerHandle) =>
-        {
-            var dialog = new ActivityLabelsDialogWindow(application, settings, access, theme, strings, ownerAppWindow, ownerHandle);
-            return await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
-        });
-    }
-
-    /// <summary>Shows the export workspace without requiring an entitlement until a file is written.</summary>
-    internal async Task ShowReportExportAsync(IWorkTrailApplication application, Window owner, ElementTheme theme, LocalizationService strings)
-    {
-        await RunModalSessionAsync(owner, async (ownerAppWindow, ownerHandle) =>
-        {
-            var dialog = new ReportExportWindow(application, theme, strings, ownerAppWindow, ownerHandle);
-            await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
-        });
-    }
-
-    /// <summary>Shows the native rolling activity calendar and returns a day requested for screenshot exploration.</summary>
-    internal async Task<DateOnly?> ShowActivityCalendarAsync(
-        IWorkTrailApplication application,
-        Window owner,
-        ElementTheme theme,
-        LocalizationService strings)
-    {
-        ArgumentNullException.ThrowIfNull(application);
-        ArgumentNullException.ThrowIfNull(strings);
-        return await RunModalSessionAsync<DateOnly?>(owner, null, async (ownerAppWindow, ownerHandle) =>
-        {
-            var dialog = new ActivityCalendarDialogWindow(application, theme, strings, ownerAppWindow, ownerHandle);
-            var result = await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
-            if (result is null || _queue.IsShuttingDown)
-            {
-                return null;
-            }
-
-            if (result.Action == ActivityCalendarAction.OpenScreenshots)
-            {
-                return result.Date;
-            }
-
-            if (result.Action != ActivityCalendarAction.ReprocessDescriptions)
-            {
-                throw new InvalidOperationException($"Unsupported activity-calendar action: {result.Action}.");
-            }
-
-            // Both surfaces retain the same queue lease, so the chained modal flow cannot interleave with another dialog.
-            var reprocessingDialog = new AiScreenshotReprocessingDialogWindow(
-                application,
-                result.Date,
-                theme,
-                strings,
-                ownerAppWindow,
-                ownerHandle);
-            await ShowDialogWindowAsync(
-                reprocessingDialog,
-                reprocessingDialog.WindowHandle,
-                reprocessingDialog.ShowAsync,
-                reprocessingDialog.DisposePlacement);
-            return null;
-        });
     }
 
     /// <summary>Shows the searchable world-clock catalog and reports whether it added at least one city.</summary>
@@ -326,18 +172,16 @@ internal sealed class MicaDialogService
         });
     }
 
-    /// <summary>Shows the dedicated topmost acrylic surface for a bounded AI provider connection check.</summary>
-    internal async Task ShowAiConnectionTestAsync(IWorkTrailApplication application, Window owner, ElementTheme theme)
+    /// <summary>Collects the first home city with the reusable offline selector and the Windows time-zone suggestion.</summary>
+    internal async Task<bool> ShowWelcomeAsync(IWorkTrailApplication application, Window owner,
+        WorldClockCityCatalog catalog, LocalizationService strings)
     {
-        ArgumentNullException.ThrowIfNull(application);
-        ArgumentNullException.ThrowIfNull(owner);
-        var settings = await application.GetSettingsAsync(CancellationToken.None);
-        // If settings cannot be read, system language is the safe presentation-only fallback.
-        var strings = new LocalizationService(settings is { Succeeded: true, Value: { } value } ? value.UiLanguage : "system");
-        await RunModalSessionAsync(owner, async (ownerAppWindow, ownerHandle) =>
+        return await RunModalSessionAsync(owner, false, async (ownerAppWindow, ownerHandle) =>
         {
-            var dialog = new AiConnectionTestDialogWindow(application, theme, ownerAppWindow, ownerHandle, strings);
-            await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
+            var dialog = new WorldClockCityPickerDialogWindow(application, catalog.Cities,
+                ((FrameworkElement)owner.Content).ActualTheme, strings, ownerAppWindow, ownerHandle, Notifications,
+                welcome: true, catalog.SuggestedCityId, catalog.WindowsTimeZoneName);
+            return await ShowDialogWindowAsync(dialog, dialog.WindowHandle, dialog.ShowAsync, dialog.DisposePlacement);
         });
     }
 
@@ -354,15 +198,6 @@ internal sealed class MicaDialogService
     {
         switch (_activeWindow)
         {
-            case VipSnapshotCountdownWindow countdownWindow:
-                countdownWindow.CloseForShutdown();
-                break;
-            case VipSnapshotNoteWindow vipWindow:
-                vipWindow.CloseForShutdown();
-                break;
-            case OperationProgressDialogWindow progressWindow:
-                progressWindow.CloseForShutdown();
-                break;
             case WorldClockCityPickerDialogWindow pickerWindow:
                 pickerWindow.CloseForShutdown();
                 break;
@@ -375,13 +210,11 @@ internal sealed class MicaDialogService
     // owner identifies the window that owns this queued dialog.
     // request contains the localized content and button labels.
     // defaultButton identifies the safe keyboard default.
-    // atomicReset selects the existing reset illustration.
     // content supplies optional custom dialog content.
     private async Task<ContentDialogResult> RunContentDialogSessionAsync(
         Window owner,
         DialogRequest request,
         ContentDialogButton defaultButton,
-        bool atomicReset = false,
         object? content = null)
     {
         ValidateOwnerThread(owner);
@@ -409,14 +242,7 @@ internal sealed class MicaDialogService
                 throw new InvalidOperationException("Content dialogs require a loaded owner XamlRoot.");
             }
 
-            dialog = atomicReset
-                ? new AtomicResetDialog(request)
-                {
-                    XamlRoot = xamlRoot,
-                    RequestedTheme = ownerContent.ActualTheme,
-                    Language = ownerContent.Language
-                }
-                : CreateContentDialog(xamlRoot, ownerContent, request, defaultButton, content);
+            dialog = CreateContentDialog(xamlRoot, ownerContent, request, defaultButton, content);
             _activeContentDialog = dialog;
             try
             {
@@ -571,6 +397,8 @@ internal sealed class MicaDialogService
             Content = content ?? request.Message,
             PrimaryButtonText = request.PrimaryButtonText,
             CloseButtonText = request.CloseButtonText,
+            SecondaryButtonText = request.SecondaryButtonText,
+            Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["WorkTrailDialogStyle"],
             DefaultButton = defaultButton
         };
 

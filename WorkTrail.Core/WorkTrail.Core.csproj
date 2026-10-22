@@ -26,9 +26,6 @@ VBWR E -->
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\docs\assets\meup\worktrail-mark-v1.png" LogicalName="WorkTrail.Report.brandmark.png" />
-    <Compile Include="..\WorkTrail\Models\ActivityModels.cs" Link="Domain\ActivityModels.cs" />
-    <Compile Include="..\WorkTrail\Providers\ActivityContextProviders.cs" Link="Infrastructure\ActivityContextProviders.cs" />
     <Compile Include="Infrastructure\Services\*.cs" />
     <Compile Include="Application\*.cs" />
     <Compile Include="Runtime\*.cs" />
@@ -42,28 +39,15 @@ VBWR E -->
     <EmbeddedResource Include="Data\ui-automation-names.json" LogicalName="WorkTrail.Data.ui-automation-names.json" />
     <EmbeddedResource Include="Data\important-dates.json" LogicalName="WorkTrail.Data.important-dates.json" />
     <EmbeddedResource Include="Data\celestial-calendar.json" LogicalName="WorkTrail.Data.celestial-calendar.json" />
-    <EmbeddedResource Include="Data\screenshot-capture-rules.json" LogicalName="WorkTrail.Data.screenshot-capture-rules.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\prompts\*.prompt.md" Link="prompts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="search-synonyms.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="search-synonyms\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\WorkTrail.Search\WorkTrail.Search.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="CosineKitty.AstronomyEngine" Version="2.1.19" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    <PackageReference Include="CosineKitty.AstronomyEngine" Version="2.1.19" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageReference Include="SkiaSharp" Version="4.151.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.0" />
     <PackageReference Include="SGP.NET" Version="1.5.0" />
-    <PackageReference Include="System.Drawing.Common" Version="10.0.10" />
   </ItemGroup>
 </Project>

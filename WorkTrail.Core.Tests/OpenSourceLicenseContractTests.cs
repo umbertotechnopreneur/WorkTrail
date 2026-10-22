@@ -92,16 +92,7 @@ public sealed class OpenSourceLicenseContractTests
 
             var store = new LocalStore(dataDirectory);
             var utilities = new UtilityService();
-            await using var application = new WorkTrailApplication(
-                store,
-                utilities,
-                new TrackingDomainService(store),
-                new ScreenCaptureService(utilities.GetAppVersion()),
-                new OpenAiAnalysisService(
-                    store,
-                    new ScreenCaptureService(utilities.GetAppVersion())),
-                new StartupService(),
-                new BuildInformationService());
+            await using var application = new WorkTrailApplication(store, utilities: utilities);
 
             var result = await application.GetProductInformationAsync(CancellationToken.None);
 

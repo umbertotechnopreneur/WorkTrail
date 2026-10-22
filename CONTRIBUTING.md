@@ -47,8 +47,9 @@ To restore packages, build, and run tests:
 
 ```powershell
 pwsh -NoProfile -Command "dotnet restore .\WorkTrail.slnx"
-pwsh -NoProfile -Command "dotnet build .\WorkTrail.slnx -p:Platform=x64 -warnaserror"
-pwsh -NoProfile -Command "dotnet test .\WorkTrail.slnx -p:Platform=x64 -warnaserror"
+pwsh -NoProfile -Command "dotnet build ./WorkTrail/WorkTrail.csproj --configuration Debug -p:Platform=x64 --artifacts-path ./artifacts/development -warnaserror"
+pwsh -NoProfile -Command "dotnet test ./WorkTrail.Core.Tests/WorkTrail.Core.Tests.csproj --configuration Debug -p:Platform=x64 --artifacts-path ./artifacts/development -warnaserror"
+pwsh -NoProfile -Command "dotnet test ./WorkTrail.Presentation.Tests/WorkTrail.Presentation.Tests.csproj --configuration Debug -p:Platform=x64 --artifacts-path ./artifacts/development -warnaserror"
 ```
 
 Or use the repository script:
@@ -61,10 +62,10 @@ pwsh -NoProfile -File .\scripts\WorkTrail.ps1 -Action Test -Platform x64 -WarnAs
 
 ## A few development rules
 
-- Keep app behavior in `WorkTrail.Core` services. The UI and CLI should collect input, display results, and call `IWorkTrailApplication`.
+- Keep app behavior in `WorkTrail.Core` services. The UI should collect input, display results, and call `IWorkTrailApplication`.
 - Report invalid input and unsupported states clearly. Don't silently try another path unless that behavior is documented.
 - Remove replaced contracts instead of adding compatibility code, unless compatibility was explicitly requested.
-- Use the existing shared tracker, mutex, and named pipe. Don't start a second tracker.
+- Use the existing shared widget runtime, mutex, and named pipe. Do not start a second runtime.
 - Never pass secrets in command arguments or save them in settings, history, logs, or diagnostics.
 - Start every first-party C# source file with `// SPDX-License-Identifier: MIT`; preserve original notices in generated or third-party files.
 - Keep your change focused. Leave unrelated files and formatting alone.

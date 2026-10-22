@@ -30,8 +30,8 @@ public static class WorldClockSelection
     /// <summary>Maximum number of clocks visible in the comparison window.</summary>
     public const int MaximumClocks = 12;
 
-    /// <summary>Initial selection matching the approved local-plus-capitals composition.</summary>
-    public static IReadOnlyList<string> Defaults { get; } = ["ho-chi-minh-city", "london", "tokyo"];
+    /// <summary>No city is assumed before the owner chooses a home city.</summary>
+    public static IReadOnlyList<string> Defaults { get; } = [];
 
     /// <summary>Validates persisted identifiers without requiring catalog I/O during settings deserialization.</summary>
     public static IReadOnlyList<string> NormalizePersisted(IReadOnlyList<string>? cityIds)

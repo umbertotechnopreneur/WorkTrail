@@ -22,15 +22,10 @@ updates:
   - package-ecosystem: nuget
     directories:
       - /WorkTrail
-      - /WorkTrail.Cli
-      - /WorkTrail.Cli.Tests
       - /WorkTrail.Core
       - /WorkTrail.Core.Tests
       - /WorkTrail.Presentation
       - /WorkTrail.Presentation.Tests
-      - /WorkTrail.Search
-      - /WorkTrail.Search.Tests
-      - /WorkTrail.Taskbar
     schedule:
       interval: weekly
       day: monday

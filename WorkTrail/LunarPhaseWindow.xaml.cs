@@ -75,14 +75,14 @@ internal sealed partial class LunarPhaseWindow : Window
 
     private void UpdateMoonLayout()
     {
-        // Use the actual content slot so caption overlay changes and display scaling need no special-case geometry.
-        // Adding the current margins keeps the thresholds stable when the responsive layout changes those margins.
+        // Reserve a stable caption inset even when auto-hide makes the overlay invisible.
+        const double captionInset = 56d;
         var availableWidth = MoonContent.ActualWidth + MoonContent.Margin.Left + MoonContent.Margin.Right;
-        var availableHeight = MoonContent.ActualHeight + MoonContent.Margin.Top + MoonContent.Margin.Bottom;
+        var availableHeight = MoonContent.ActualHeight + MoonContent.Margin.Top + MoonContent.Margin.Bottom - captionInset;
         var moonOnly = availableWidth < 300d || availableHeight < 300d;
         var compact = availableWidth < 400d || availableHeight < 400d;
-        MoonContent.Margin = moonOnly ? new Thickness(0)
-            : compact ? new Thickness(8, 0, 8, 12) : new Thickness(20, 0, 20, 24);
+        MoonContent.Margin = moonOnly ? new Thickness(8, captionInset, 8, 8)
+            : compact ? new Thickness(8, captionInset, 8, 12) : new Thickness(20, captionInset, 20, 24);
         PhaseSummaryText.Visibility = moonOnly ? Visibility.Collapsed : Visibility.Visible;
         ReferenceInstantText.Visibility = moonOnly ? Visibility.Collapsed : Visibility.Visible;
         AutomationProperties.SetAccessibilityView(MoonPhaseControl, moonOnly ? AccessibilityView.Content : AccessibilityView.Raw);
