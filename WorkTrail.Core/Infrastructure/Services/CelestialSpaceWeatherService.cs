@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
@@ -29,6 +28,8 @@ namespace WorkTrail.Services;
 /// <summary>Retrieves and bounds NOAA SWPC public space-weather data for the live astronomical agenda.</summary>
 internal static class CelestialSpaceWeatherService
 {
+
+    #region Fields
     private static readonly Uri KpForecastUri = new("https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json");
     private static readonly Uri AlertsUri = new("https://services.swpc.noaa.gov/products/alerts.json");
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(15);
@@ -43,6 +44,10 @@ internal static class CelestialSpaceWeatherService
     private static DateTimeOffset? _lastRefreshAttemptUtc;
     private static SpaceWeatherPayload _payload = SpaceWeatherPayload.Empty;
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Returns a cached feed and converts significant global forecast or active conditions into city-local agenda events.</summary>
     internal static async Task<SpaceWeatherProjection> GetAsync(
         DateTimeOffset instantUtc,
@@ -53,7 +58,9 @@ internal static class CelestialSpaceWeatherService
         cancellationToken.ThrowIfCancellationRequested();
         var instant = instantUtc.ToUniversalTime();
         if ((instant - DateTimeOffset.UtcNow).Duration() > RelevantInstantWindow)
+        {
             return new SpaceWeatherProjection(SpaceWeatherSnapshot.Empty, []);
+        }
 
         var payload = await GetPayloadAsync(cancellationToken).ConfigureAwait(false);
         var localPayload = payload with
@@ -73,7 +80,9 @@ internal static class CelestialSpaceWeatherService
         cancellationToken.ThrowIfCancellationRequested();
         var instant = instantUtc.ToUniversalTime();
         if ((instant - DateTimeOffset.UtcNow).Duration() > RelevantInstantWindow)
+        {
             return null;
+        }
 
         var payload = await GetPayloadAsync(cancellationToken).ConfigureAwait(false);
         return payload.ActiveAlerts
@@ -84,6 +93,11 @@ internal static class CelestialSpaceWeatherService
             .FirstOrDefault();
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Refreshes the shared NOAA cache at most once per interval.</summary>
     private static async Task<SpaceWeatherPayload> GetPayloadAsync(CancellationToken cancellationToken)
     {
         await RefreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -91,7 +105,9 @@ internal static class CelestialSpaceWeatherService
         {
             var now = DateTimeOffset.UtcNow;
             if (_lastRefreshAttemptUtc is not null && now - _lastRefreshAttemptUtc < RefreshInterval)
+            {
                 return _payload;
+            }
 
             // Complete one shared fetch even if the requesting view is closed, so cancellations cannot hammer NOAA's public endpoints.
             _lastRefreshAttemptUtc = now;
@@ -116,16 +132,21 @@ internal static class CelestialSpaceWeatherService
         }
     }
 
+    /// <summary>Fetches one public NOAA JSON endpoint and rejects unsuccessful or empty responses.</summary>
     private static async Task<T> GetJsonAsync<T>(Uri uri)
     {
         using var response = await Http.GetAsync(uri, CancellationToken.None).ConfigureAwait(false);
         if (response.StatusCode != HttpStatusCode.OK)
+        {
             throw new HttpRequestException($"NOAA SWPC returned HTTP {(int)response.StatusCode} for {uri}.");
+        }
+
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None).ConfigureAwait(false);
         return await JsonSerializer.DeserializeAsync<T>(content, SerializerOptions, CancellationToken.None).ConfigureAwait(false)
             ?? throw new JsonException("NOAA SWPC returned an empty JSON payload.");
     }
 
+    /// <summary>Normalizes valid forecast rows and active alerts into an immutable payload.</summary>
     private static SpaceWeatherPayload ParsePayload(IEnumerable<KpResponse> kpRows, IEnumerable<AlertResponse> alertRows, DateTimeOffset retrievedUtc)
     {
         var kp = kpRows.Select(row => TryParseUtc(row.TimeTag, out var start)
@@ -145,22 +166,29 @@ internal static class CelestialSpaceWeatherService
         return new SpaceWeatherPayload(retrievedUtc, Array.AsReadOnly(kp), Array.AsReadOnly(alerts));
     }
 
+    /// <summary>Extracts a supported active condition and its validity interval from a NOAA message.</summary>
     private static SpaceWeatherAlert? ParseAlert(AlertResponse row, DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(row.ProductId) || string.IsNullOrWhiteSpace(row.IssueDatetime) || string.IsNullOrWhiteSpace(row.Message)
             || !TryParseUtc(row.IssueDatetime, out var issued) || !TryClassify(row.Message, out var kind, out var scale, out var kp))
+        {
             return null;
+        }
 
         var validity = ValidityPattern.Matches(row.Message).Select(match => ParseAlertInstant(match.Groups["value"].Value)).Where(value => value is not null).Select(value => value!.Value).ToArray();
         DateTimeOffset? validFrom = row.Message.Contains("Begin Time:", StringComparison.OrdinalIgnoreCase) || row.Message.Contains("Valid From:", StringComparison.OrdinalIgnoreCase)
             ? (validity.Length > 0 ? validity[0] : null) : null;
         DateTimeOffset? validTo = row.Message.Contains("Valid To:", StringComparison.OrdinalIgnoreCase) || row.Message.Contains("Now Valid Until:", StringComparison.OrdinalIgnoreCase)
             ? (validity.Length > 0 ? validity[^1] : null) : null;
-        if (!IsActive(row.Message, issued, validFrom, validTo, now)) return null;
+        if (!IsActive(row.Message, issued, validFrom, validTo, now))
+        {
+            return null;
+        }
 
         return new SpaceWeatherAlert(row.ProductId, issued, validFrom, validTo, kind, scale, kp, BuildSummary(kind, scale, kp));
     }
 
+    /// <summary>Groups significant forecasts and active alerts into city-local agenda entries.</summary>
     private static IReadOnlyList<CelestialAgendaEvent> BuildAgenda(SpaceWeatherPayload payload, DateTimeOffset instant, TimeZoneInfo zone)
     {
         var events = new List<CelestialAgendaEvent>();
@@ -174,7 +202,11 @@ internal static class CelestialSpaceWeatherService
         {
             var start = group[0].StartUtc < instant ? instant : group[0].StartUtc;
             var end = group[^1].StartUtc.AddHours(3);
-            if (end > forecastEnd) end = forecastEnd;
+            if (end > forecastEnd)
+            {
+                end = forecastEnd;
+            }
+
             var scale = group.Max(period => period.NoaaScale ?? GeomagneticScaleForKp(period.KpIndex));
             events.Add(new CelestialAgendaEvent(CelestialEventKind.SpaceWeather, start, end,
                 TimeZoneInfo.ConvertTime(start, zone), TimeZoneInfo.ConvertTime(end, zone),
@@ -194,6 +226,10 @@ internal static class CelestialSpaceWeatherService
         return Array.AsReadOnly(events.OrderBy(item => item.StartUtc).ThenBy(item => item.SpaceWeatherKind).ToArray());
     }
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Preserves forecast validity and storm significance without filtering by a city location.</summary>
     internal static bool IsRelevantForecast(SpaceWeatherKpForecast period, DateTimeOffset instant)
     {
@@ -207,11 +243,20 @@ internal static class CelestialSpaceWeatherService
     {
         // Recheck cached validity at the requested instant; an old 'Active Warning: YES' must not persist forever.
         if (alert.IssuedUtc > instant || alert.ValidFromUtc > instant
-            || (alert.ValidToUtc is { } end ? end <= instant : alert.IssuedUtc.AddHours(24) <= instant)) return false;
+            || (alert.ValidToUtc is { } end ? end <= instant : alert.IssuedUtc.AddHours(24) <= instant))
+        {
+            return false;
+        }
+
         return alert.Kind != SpaceWeatherEventKind.GeomagneticStorm
             || (alert.KpIndex ?? (alert.NoaaScale is { } scale ? scale + 4d : 0d)) is >= 5 and <= 9;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Groups adjacent three-hour forecast periods into continuous intervals.</summary>
     private static IEnumerable<SpaceWeatherKpForecast[]> GroupConsecutiveForecasts(IReadOnlyList<SpaceWeatherKpForecast> periods)
     {
         var group = new List<SpaceWeatherKpForecast>();
@@ -224,9 +269,14 @@ internal static class CelestialSpaceWeatherService
             }
             group.Add(period);
         }
-        if (group.Count > 0) yield return group.ToArray();
+        if (group.Count > 0)
+        {
+            yield return group.ToArray();
+        }
+
     }
 
+    /// <summary>Recognizes supported NOAA event families and their scale or Kp values.</summary>
     private static bool TryClassify(string message, out SpaceWeatherEventKind kind, out int? scale, out double? kp)
     {
         var scaleMatch = ScalePattern.Match(message);
@@ -262,6 +312,7 @@ internal static class CelestialSpaceWeatherService
         return false;
     }
 
+    /// <summary>Applies message validity and cancellation rules at the retrieval instant.</summary>
     private static bool IsActive(string message, DateTimeOffset issued, DateTimeOffset? validFrom, DateTimeOffset? validTo, DateTimeOffset now) =>
         !message.Contains("CANCEL", StringComparison.OrdinalIgnoreCase)
         && ((validTo is { } end && end >= now && (validFrom is null || validFrom <= now))
@@ -269,6 +320,7 @@ internal static class CelestialSpaceWeatherService
             || (message.Contains("WATCH:", StringComparison.OrdinalIgnoreCase) && issued >= now.AddDays(-3))
             || (message.Contains("CONTINUED ALERT:", StringComparison.OrdinalIgnoreCase) && issued >= now.AddHours(-30)));
 
+    /// <summary>Produces a compact source-labelled condition summary.</summary>
     private static string BuildSummary(SpaceWeatherEventKind kind, int? scale, double? kp) => kind switch
     {
         SpaceWeatherEventKind.GeomagneticStorm when scale is { } value => $"NOAA G{value} geomagnetic storm",
@@ -278,30 +330,46 @@ internal static class CelestialSpaceWeatherService
         _ => "NOAA high-energy electron flux"
     };
 
+    /// <summary>Reads a NOAA scale only when it belongs to the requested event family.</summary>
     private static int? ParseScale(string? value, char family)
     {
-        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
         var match = ScalePattern.Match(value);
         return ParseScaleMatch(match, family);
     }
 
+    /// <summary>Extracts the numeric severity from a matching NOAA scale token.</summary>
     private static int? ParseScaleMatch(Match match, char family) => match.Success && match.Groups["family"].Value.Equals(family.ToString(), StringComparison.OrdinalIgnoreCase)
         ? int.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture) : null;
 
+    /// <summary>Converts significant Kp values to the bounded NOAA geomagnetic scale.</summary>
     private static int? GeomagneticScaleForKp(double kp) => kp < 5d ? null : Math.Clamp((int)Math.Floor(kp) - 4, 1, 5);
 
+    /// <summary>Parses source timestamps as UTC using invariant conventions.</summary>
     private static bool TryParseUtc(string value, out DateTimeOffset instant) => DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture,
         DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out instant);
 
+    /// <summary>Returns a parsed UTC alert timestamp or null when malformed.</summary>
     private static DateTimeOffset? ParseAlertInstant(string value) => TryParseUtc(value, out var instant) ? instant : null;
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Holds one cached NOAA retrieval and its normalized conditions.</summary>
     private sealed record SpaceWeatherPayload(DateTimeOffset RetrievedUtc, IReadOnlyList<SpaceWeatherKpForecast> KpForecast, IReadOnlyList<SpaceWeatherAlert> ActiveAlerts)
     {
         internal static SpaceWeatherPayload Empty { get; } = new(DateTimeOffset.MinValue, [], []);
     }
 
+    /// <summary>Pairs the public snapshot with its projected agenda entries.</summary>
     internal sealed record SpaceWeatherProjection(SpaceWeatherSnapshot Snapshot, IReadOnlyList<CelestialAgendaEvent> Agenda);
 
+    /// <summary>Maps the NOAA Kp forecast JSON fields.</summary>
     private sealed class KpResponse
     {
         [JsonPropertyName("time_tag")] public string TimeTag { get; init; } = string.Empty;
@@ -310,10 +378,14 @@ internal static class CelestialSpaceWeatherService
         [JsonPropertyName("noaa_scale")] public string? NoaaScale { get; init; }
     }
 
+    /// <summary>Maps the NOAA alert JSON fields.</summary>
     private sealed class AlertResponse
     {
         [JsonPropertyName("product_id")] public string ProductId { get; init; } = string.Empty;
         [JsonPropertyName("issue_datetime")] public string IssueDatetime { get; init; } = string.Empty;
         [JsonPropertyName("message")] public string Message { get; init; } = string.Empty;
     }
+
+    #endregion
+
 }

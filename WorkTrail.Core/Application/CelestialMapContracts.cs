@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Application;
 
 /// <summary>Selects the geographic projection for the independent Earth window.</summary>

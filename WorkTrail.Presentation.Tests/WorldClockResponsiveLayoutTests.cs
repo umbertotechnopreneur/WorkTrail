@@ -23,8 +23,11 @@ using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
+/// <summary>Checks responsive sizing against measured content and restored user bounds.</summary>
 public sealed class WorldClockResponsiveLayoutTests
 {
+    #region Implementation
+
     /// <summary>Growing taller stops magnifying the scene at each display scale, while wide columns still fill their width.</summary>
     [Theory]
     [InlineData(640d, 1d, 720d)]
@@ -41,6 +44,7 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.Equal(120d, WorldClockWindowLayoutState.CalculateSceneHeight(width, 120d, scale));
     }
 
+    /// <summary>Keeps reference-editor content inside both root dimensions after reserving border and insets.</summary>
     [Theory]
     [InlineData(480d, 240d)]
     [InlineData(640d, 320d)]
@@ -56,6 +60,7 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.True(bounds.ContentMaxHeight + 2d + 24d <= height);
     }
 
+    /// <summary>Recalculates reference-editor bounds when the window shrinks and grows again.</summary>
     [Fact]
     public void ReferenceEditor_RecalculatesAfterShrinkingAndGrowingTheWindow()
     {
@@ -67,6 +72,7 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.Equal(large, WorldClockWindowLayoutState.CalculateReferenceFlyoutBounds(1280d, 900d));
     }
 
+    /// <summary>Rejects root bounds that cannot hold the reference-editor insets and border.</summary>
     [Theory]
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
@@ -78,6 +84,7 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.Throws<ArgumentOutOfRangeException>(() => WorldClockWindowLayoutState.CalculateReferenceFlyoutBounds(480d, value));
     }
 
+    /// <summary>Matches preferred sizing to city count while retaining the shared restore minimum.</summary>
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
@@ -92,14 +99,17 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.Equal(minimum.Height, sizing.MinimumLogicalHeight);
     }
 
+    /// <summary>Keeps equal readable columns when scaled time text requires horizontal scrolling.</summary>
     [Fact]
     public void ScaledTimeText_ExpandsColumnsEquallyAndScrollsInsteadOfClipping()
     {
         var columns = WorldClockWindowLayoutState.CalculateColumnsLayout(2, 640d, minimumColumnWidth: 410d);
+
         Assert.Equal(820d, columns.Width);
         Assert.Equal(820d, columns.MinimumWidth);
     }
 
+    /// <summary>Selects detail from measured content height and available viewport space.</summary>
     [Theory]
     [InlineData(610d, 610d, 290d, WorldClockDetailLevel.Expanded)]
     [InlineData(609d, 610d, 290d, WorldClockDetailLevel.Summary)]
@@ -115,6 +125,7 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.Equal(expected, WorldClockWindowLayoutState.CalculateDetailLevel(viewport, expandedHeight, summaryHeight));
     }
 
+    /// <summary>Rejects non-finite or negative layout measurements.</summary>
     [Theory]
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
@@ -125,19 +136,24 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.ThrowsAny<ArgumentException>(() => WorldClockWindowLayoutState.CalculateDetailLevel(value, 600, 300));
     }
 
+    /// <summary>Preserves restored user bounds through the first snapshot and later refreshes.</summary>
     [Fact]
     public void RestoredBounds_AreRetainedOnFirstSnapshotAndSubsequentRefreshes()
     {
         var state = new WorldClockWindowLayoutState();
         state.SetPlacementRestored(true);
         var initial = Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(2));
+
         Assert.False(initial.ResizeToPreferred);
+
         state.AcceptWindowResizeRequest(initial);
+
         Assert.Null(state.GetWindowResizeRequest(2));
 
         Assert.True(Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(3)).ResizeToPreferred);
     }
 
+    /// <summary>Defers city-count resizing while options are open and applies it on returning to clocks.</summary>
     [Theory]
     [InlineData(1, 2)]
     [InlineData(2, 1)]
@@ -147,24 +163,32 @@ public sealed class WorldClockResponsiveLayoutTests
         var state = new WorldClockWindowLayoutState();
         state.AcceptWindowResizeRequest(Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(before)));
         state.ShowSurface(WorldClockWindowSurface.Options);
+
         Assert.Null(state.GetWindowResizeRequest(after));
 
         state.ShowSurface(WorldClockWindowSurface.Clocks);
         var pending = Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(after));
+
         Assert.True(pending.ResizeToPreferred);
         Assert.Equal(WorldClockWindowLayoutState.CalculateWindowSizing(after), pending.Sizing);
         // A failed resize is not acknowledged and remains retryable.
         Assert.Equal(pending, state.GetWindowResizeRequest(after));
+
         state.AcceptWindowResizeRequest(pending);
+
         Assert.Null(state.GetWindowResizeRequest(after));
     }
 
+    /// <summary>Starts a fresh sizing cycle after the last city is removed.</summary>
     [Fact]
     public void EmptyCitySet_ResetsTheSizingCycle()
     {
         var state = new WorldClockWindowLayoutState();
         state.AcceptWindowResizeRequest(Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(1)));
         state.ResetWindowSizing();
+
         Assert.True(Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(1)).ResizeToPreferred);
     }
+
+    #endregion
 }

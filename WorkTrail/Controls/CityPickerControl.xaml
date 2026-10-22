@@ -1,0 +1,8 @@
+<!-- SPDX-License-Identifier: MIT -->
+<UserControl x:Class="WorkTrail.Controls.CityPickerControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ComboBox x:Name="CityComboBox" DisplayMemberPath="DisplayName" HorizontalAlignment="Stretch"
+              IsTextSearchEnabled="True" MaxDropDownHeight="320" SelectionChanged="CityComboBox_SelectionChanged"
+              AutomationProperties.AutomationId="CityPicker.City" />
+</UserControl>

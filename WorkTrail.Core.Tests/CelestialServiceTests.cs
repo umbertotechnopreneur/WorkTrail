@@ -27,9 +27,16 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks observer-specific astronomy snapshots and local agenda boundaries.</summary>
 public sealed class CelestialServiceTests
 {
+    #region Fields
+
     private static readonly WorldClockCitySummary London = new("london", "London", "GB", "Europe/London", 51.5074, -0.1278, true);
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Checks the March 2024 equinox against the published USNO minute and local solar geometry.</summary>
     [Fact]
@@ -39,8 +46,11 @@ public sealed class CelestialServiceTests
         var snapshot = Build(London, instant);
         var equinox = Assert.Single(snapshot.Agenda, item => item.Kind == CelestialEventKind.MarchEquinox);
         var reference = new DateTimeOffset(2024, 3, 20, 3, 6, 0, TimeSpan.Zero);
+
         Assert.InRange(Math.Abs((equinox.StartUtc - reference).TotalMinutes), 0, 3);
+
         var sun = Assert.Single(snapshot.Bodies, body => body.Kind == CelestialBodyKind.Sun);
+
         Assert.InRange(sun.AltitudeDegrees, 37, 40);
         Assert.InRange(sun.AzimuthDegrees, 175, 181);
         Assert.True(sun.IsAboveHorizon);
@@ -56,6 +66,7 @@ public sealed class CelestialServiceTests
         var same = Build(London, instant.ToOffset(TimeSpan.FromHours(7)));
         var global = LocalAstronomy.CalculateGlobal(instant);
         var clock = LocalAstronomy.Calculate(London.Latitude, London.Longitude, TimeZoneInfo.FindSystemTimeZoneById(London.TimeZoneId), instant);
+
         Assert.Same(snapshot, same);
         Assert.Same(global, LocalAstronomy.CalculateGlobal(instant));
         Assert.Equal(global.MoonPhaseAngleDegrees, snapshot.MoonPhaseAngleDegrees);
@@ -68,6 +79,7 @@ public sealed class CelestialServiceTests
     {
         var pole = London with { Id = "north-pole", Latitude = 90, Longitude = 0, TimeZoneId = "UTC" };
         var snapshot = Build(pole, new DateTimeOffset(2024, 6, 21, 12, 0, 0, TimeSpan.Zero));
+
         Assert.True(snapshot.SunAltitudeDegrees > 20);
         Assert.DoesNotContain(snapshot.Agenda, item => item.Kind is CelestialEventKind.Sunrise or CelestialEventKind.Sunset
             or CelestialEventKind.CivilDawn or CelestialEventKind.CivilDusk
@@ -75,7 +87,9 @@ public sealed class CelestialServiceTests
         Assert.Equal(5, snapshot.Agenda.Count(item => item.Kind is not CelestialEventKind.MoonPlanetConjunction
             and not CelestialEventKind.MeteorShower and not CelestialEventKind.ImportantDate));
         Assert.Equal(3, snapshot.Agenda.Count(item => item.Kind == CelestialEventKind.ImportantDate));
+
         var clock = LocalAstronomy.Calculate(90, 0, TimeZoneInfo.Utc, snapshot.InstantUtc);
+
         Assert.Null(clock.Sunrise);
         Assert.Null(clock.Sunset);
     }
@@ -85,14 +99,18 @@ public sealed class CelestialServiceTests
     public void Agenda_UsesCityOffsetsAcrossDaylightSavingTransition()
     {
         var snapshot = Build(London, new DateTimeOffset(2024, 3, 30, 0, 0, 0, TimeSpan.Zero));
+
         Assert.Equal(snapshot.Agenda.OrderBy(item => item.StartUtc).ThenBy(item => item.Kind), snapshot.Agenda);
+
         var sunrises = snapshot.Agenda.Where(item => item.Kind == CelestialEventKind.Sunrise).ToArray();
+
         Assert.Equal(2, sunrises.Length);
         Assert.Equal(TimeSpan.Zero, sunrises[0].StartLocal.Offset);
         Assert.Equal(TimeSpan.FromHours(1), sunrises[1].StartLocal.Offset);
         Assert.All(snapshot.Agenda, item =>
         {
             Assert.Equal(item.StartUtc, item.StartLocal.ToUniversalTime());
+
             if (item.EndUtc is { } end)
             {
                 Assert.True(end > item.StartUtc);
@@ -110,6 +128,7 @@ public sealed class CelestialServiceTests
         var blue = snapshot.Agenda.First(item => item.Kind == CelestialEventKind.MorningBlueHour);
         var middle = blue.StartUtc + (blue.EndUtc!.Value - blue.StartUtc) / 2;
         var current = Build(London, middle);
+
         Assert.Contains(current.Agenda, item => item.Kind == blue.Kind && item.StartUtc < middle && item.EndUtc > middle);
     }
 
@@ -120,6 +139,7 @@ public sealed class CelestialServiceTests
         var snapshot = Build(London, new DateTimeOffset(2026, 9, 19, 0, 0, 0, TimeSpan.Zero));
         var json = JsonSerializer.Serialize(snapshot);
         var restored = JsonSerializer.Deserialize<CelestialSnapshot>(json)!;
+
         Assert.Equal(snapshot.InstantUtc, restored.InstantUtc);
         Assert.Equal(snapshot.Zodiac.CurrentSign, restored.Zodiac.CurrentSign);
         Assert.Equal(snapshot.SkyAppearance, restored.SkyAppearance);
@@ -172,12 +192,16 @@ public sealed class CelestialServiceTests
     public void Snapshot_RejectsInvalidInputAndCancellation()
     {
         var instant = new DateTimeOffset(2024, 3, 20, 0, 0, 0, TimeSpan.Zero);
+
         Assert.Throws<ArgumentException>(() => CelestialService.Build(new("missing", instant), new([London], 12), CancellationToken.None));
         Assert.Throws<ArgumentException>(() => Build(London with { Latitude = double.NaN }, instant));
         Assert.Throws<TimeZoneNotFoundException>(() => Build(London with { TimeZoneId = "invalid/celestial-zone" }, instant));
         Assert.Throws<OperationCanceledException>(() => CelestialService.Build(new(London.Id, instant), new([London], 12), new CancellationToken(true)));
     }
 
+    /// <summary>Creates an astronomy snapshot for the specified observer and instant using the shared clock service.</summary>
     private static CelestialSnapshot Build(WorldClockCitySummary city, DateTimeOffset instant) =>
         CelestialService.Build(new(city.Id, instant), new([city], 12), CancellationToken.None);
+
+    #endregion
 }

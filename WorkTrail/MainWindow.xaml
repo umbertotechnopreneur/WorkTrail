@@ -1,1277 +1,258 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- VBWR B
-
-  Project: WorkTrail
-  Repository: https://github.com/umbertotechnopreneur/WorkTrail
-  Creator: Umberto Giacobbi | https://umbertogiacobbi.biz
-
-  VibeWare: Human intent, AI execution, and plenty of tokens
-  Manifesto: https://umbertogiacobbi.biz/vibeware/manifesto
-
-  Modified with AI: OpenAI Codex; added this header on 2026-10-10.
-  Human guidance: Umberto Giacobbi; requested VibeWare branding.
-
-  Copyright (c) 2026 Umberto Giacobbi
-  License: MIT - see LICENSE
-  SPDX-License-Identifier: MIT
-
-VBWR E -->
-
-<Window
-    x:Class="WorkTrail.MainWindow"
+<!-- SPDX-License-Identifier: MIT -->
+<Window x:Class="WorkTrail.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:WorkTrail.Controls"
-    xmlns:local="using:WorkTrail"
-    Title="WorkTrail">
-    <Grid x:Name="RootGrid" Background="Transparent" Loaded="RootGrid_Loaded">
-        <Grid.KeyboardAccelerators>
-            <KeyboardAccelerator Key="P" Modifiers="Control, Shift" Invoked="MainKeyboardAccelerator_Invoked" />
-            <KeyboardAccelerator Key="F3" Invoked="MainKeyboardAccelerator_Invoked" />
-            <KeyboardAccelerator Key="G" Modifiers="Control, Shift" Invoked="MainKeyboardAccelerator_Invoked" />
-            <KeyboardAccelerator Key="O" Modifiers="Control, Shift" Invoked="MainKeyboardAccelerator_Invoked" />
-            <KeyboardAccelerator Key="S" Modifiers="Control, Shift" Invoked="MainKeyboardAccelerator_Invoked" />
-        </Grid.KeyboardAccelerators>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="48" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <!-- Only application content inherits the user-selected opacity; notifications stay opaque. -->
-        <Grid x:Name="WindowContent" Grid.RowSpan="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="48" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <!-- A background brush paints the arranged bounds without contributing the bitmap's natural size. -->
-            <Border
-                x:Name="PlayerBackgroundSurface"
-                Grid.RowSpan="2"
-                AutomationProperties.AccessibilityView="Raw"
-                IsHitTestVisible="False"
-                Opacity="0.1">
-                <Border.Background>
-                    <ImageBrush ImageSource="ms-appx:///Assets/WorldClocks/Skylines/ho-chi-minh-city-summer.png" Stretch="UniformToFill" />
-                </Border.Background>
-            </Border>
-            <Grid
-                x:Name="DragRegion"
-                Height="48">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="TitleBarLeftInsetColumn" Width="0" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition x:Name="TitleBarCaptionColumn" Width="*" MinWidth="64" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0" />
-                </Grid.ColumnDefinitions>
-                <Button AutomationProperties.AutomationId="Main.TitleBarBackButton"
-                    x:Name="TitleBarBackButton"
-                    Grid.Column="1"
-                    Margin="8,0,0,0"
-                    Click="TitleBarBackButton_Click"
-                    Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                    Tag="QuickSetup.Back"
-                    AutomationProperties.Name="Back" ToolTipService.ToolTip="Back"
-                    Visibility="Collapsed">
-                    <FontIcon
-                        AutomationProperties.AccessibilityView="Raw"
-                        FontFamily="Segoe Fluent Icons"
-                        FontSize="17"
-                        Glyph="&#xE72B;" />
-                </Button>
-                <Button AutomationProperties.AutomationId="Main.WorldClockButton"
-                    x:Name="WorldClockButton"
-                    Grid.Column="4"
-                    Height="32"
-                    Padding="10,4"
-                    Margin="0,0,6,0"
-                    VerticalAlignment="Center"
-                    CornerRadius="12"
-                    BorderBrush="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                    AllowFocusOnInteraction="True"
-                    IsTabStop="True"
-                    Tag="WorldTime.OpenMenu"
-                    AutomationProperties.Name="Open World Time" ToolTipService.ToolTip="Open World Time">
-                    <StackPanel Orientation="Horizontal" Spacing="8" AutomationProperties.AccessibilityView="Raw">
-                        <FontIcon Glyph="&#xE774;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        <TextBlock Tag="WorldTime.Title" Text="World Time" VerticalAlignment="Center" />
-                        <FontIcon Glyph="&#xE70D;" FontSize="10" />
-                    </StackPanel>
-                    <Button.Flyout>
-                        <Flyout x:Name="WorldTimeFlyout" Placement="BottomEdgeAlignedRight"
-                                ShouldConstrainToRootBounds="False"
-                                Opening="WorldTimeFlyout_Opening" Closed="WorldTimeFlyout_Closed">
-                            <Flyout.SystemBackdrop><DesktopAcrylicBackdrop /></Flyout.SystemBackdrop>
-                            <Flyout.FlyoutPresenterStyle>
-                                <Style TargetType="FlyoutPresenter">
-                                    <Setter Property="Padding" Value="20" />
-                                    <Setter Property="CornerRadius" Value="16" />
-                                    <Setter Property="MaxWidth" Value="440" />
-                                    <Setter Property="MaxHeight" Value="680" />
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                </Style>
-                            </Flyout.FlyoutPresenterStyle>
-                            <ScrollViewer x:Name="WorldTimeMenuScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
-                                <StackPanel x:Name="WorldTimeMenuContent" Width="340" Spacing="14">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Tag="WorldTime.Heading" Text="Time to meet" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                        <TextBlock Tag="WorldTime.Description" Text="Compare times. Find a moment to connect." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                    <TextBlock x:Name="WorldTimePreviewStatus" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite" />
-                                    <ItemsControl x:Name="WorldTimePreview" IsTabStop="False">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="local:WorldTimePreviewRow">
-                                                <Grid ColumnSpacing="12" Padding="0,8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="24" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <FontIcon Glyph="{x:Bind Glyph, Mode=OneTime}" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" />
-                                                    <StackPanel Grid.Column="1" Spacing="2">
-                                                        <TextBlock Text="{x:Bind City, Mode=OneTime}" FontSize="15" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Text="{x:Bind Date, Mode=OneTime}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="2" Text="{x:Bind Time, Mode=OneTime}" FontSize="22" VerticalAlignment="Center" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                    <Grid ColumnSpacing="10" RowSpacing="10">
-                                        <Grid.Resources>
-                                            <Style x:Key="WorldTimeTileStyle" TargetType="Button">
-                                                <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                                <Setter Property="MinHeight" Value="64" />
-                                                <Setter Property="Padding" Value="12" />
-                                                <Setter Property="CornerRadius" Value="10" />
-                                            </Style>
-                                        </Grid.Resources>
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                        <Button x:Name="WorldTimeClocksButton" AutomationProperties.AutomationId="Main.WorldTime.Clocks" Style="{StaticResource WorldTimeTileStyle}" Click="WorldTimeClocksButton_Click">
-                                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><FontIcon Glyph="&#xE917;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" /><TextBlock Grid.Column="1" Tag="WorldTime.Clocks" Text="Clocks" TextWrapping="Wrap" VerticalAlignment="Center" /></Grid>
-                                        </Button>
-                                        <Button x:Name="WorldTimeMapButton" AutomationProperties.AutomationId="Main.WorldTime.Map" Grid.Column="1" Style="{StaticResource WorldTimeTileStyle}" Click="WorldTimeMapButton_Click">
-                                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><FontIcon Glyph="&#xE707;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" /><TextBlock Grid.Column="1" Tag="WorldTime.Map" Text="Map" TextWrapping="Wrap" VerticalAlignment="Center" /></Grid>
-                                        </Button>
-                                        <Button x:Name="WorldTimeCalendarButton" AutomationProperties.AutomationId="Main.WorldTime.Calendar" Grid.Row="1" Style="{StaticResource WorldTimeTileStyle}" Click="WorldTimeCalendarButton_Click">
-                                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><FontIcon Glyph="&#xE787;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" /><TextBlock Grid.Column="1" Tag="WorldTime.Calendar" Text="Calendar" TextWrapping="Wrap" VerticalAlignment="Center" /></Grid>
-                                        </Button>
-                                        <Button x:Name="WorldTimeSkyButton" AutomationProperties.AutomationId="Main.WorldTime.Sky" Grid.Row="1" Grid.Column="1" Style="{StaticResource WorldTimeTileStyle}" Click="WorldTimeSkyButton_Click">
-                                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><FontIcon Glyph="&#xE9CE;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" /><TextBlock Grid.Column="1" Tag="WorldTime.Sky" Text="Sky" TextWrapping="Wrap" VerticalAlignment="Center" /></Grid>
-                                        </Button>
-                                        <Button x:Name="WorldTimeSunButton" AutomationProperties.AutomationId="Main.WorldTime.Sun" Grid.Row="2" Style="{StaticResource WorldTimeTileStyle}" Click="WorldTimeSunButton_Click">
-                                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><FontIcon Glyph="&#xE706;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" /><TextBlock Grid.Column="1" Tag="WorldTime.Sun" Text="Sun · day/night" TextWrapping="Wrap" VerticalAlignment="Center" /></Grid>
-                                        </Button>
-                                        <Button x:Name="WorldTimeMoonButton" AutomationProperties.AutomationId="Main.WorldTime.Moon" Grid.Row="2" Grid.Column="1" Style="{StaticResource WorldTimeTileStyle}" Click="WorldTimeMoonButton_Click">
-                                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><FontIcon Glyph="&#xE708;" FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" /><TextBlock Grid.Column="1" Tag="WorldTime.Moon" Text="Moon" TextWrapping="Wrap" VerticalAlignment="Center" /></Grid>
-                                        </Button>
-                                    </Grid>
-                                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                    <HyperlinkButton x:Name="WorldTimeOpenButton" AutomationProperties.AutomationId="Main.WorldTime.Open" Tag="WorldTime.OpenClocks" Click="WorldTimeClocksButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0,6">
-                                        <TextBlock Tag="WorldTime.OpenClocks" Text="Open all world clocks →" TextWrapping="Wrap" />
-                                    </HyperlinkButton>
-                                </StackPanel>
-                            </ScrollViewer>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
-                <Image
-                    x:Name="TitleBarLogo"
-                    Grid.Column="2"
-                    Margin="12,0,0,0"
-                    Style="{StaticResource WorkTrailTitleBarLogoStyle}" />
-                <Grid Grid.Column="3" ColumnSpacing="8" Margin="10,0,12,0">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock
-                    x:Name="TitleBarTitleText"
-                    AutomationProperties.AccessibilityView="Raw"
-                    CharacterSpacing="130"
-                    Style="{StaticResource WorkTrailTitleBarLabelStyle}"
-                    Text="WORKTRAIL"
-                    TextTrimming="CharacterEllipsis" />
-                    <controls:PremiumBadge x:Name="TitlePremiumBadge" Grid.Column="1" VerticalAlignment="Center" Visibility="Collapsed" />
-                </Grid>
-                <Button AutomationProperties.AutomationId="Main.TitleBarMoreButton"
-                    x:Name="TitleBarMoreButton"
-                    Grid.Column="6"
-                    Padding="6"
-                    Click="TitleBarMoreButton_Click"
-                    Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                    Tag="Main.Menu.Open"
-                    AutomationProperties.Name="Open application menu" ToolTipService.ToolTip="Open application menu">
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="M" Modifiers="Menu" />
-                    </Button.KeyboardAccelerators>
-                    <FontIcon
-                        AutomationProperties.AccessibilityView="Raw"
-                        FontFamily="Segoe Fluent Icons"
-                        FontSize="19"
-                        Glyph="&#xE712;" />
-                </Button>
-                <Button AutomationProperties.AutomationId="Main.TitleBarSearchButton"
-                    x:Name="TitleBarSearchButton"
-                    Grid.Column="7"
-                    Click="TitleBarSearchButton_Click"
-                    Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                    Tag="Search.Title"
-                    AutomationProperties.Name="Search history" ToolTipService.ToolTip="Search history">
-                    <FontIcon
-                        AutomationProperties.AccessibilityView="Raw"
-                        FontFamily="Segoe Fluent Icons"
-                        FontSize="17"
-                        Glyph="&#xE721;" />
-                </Button>
-                <Button AutomationProperties.AutomationId="Main.TitleBarMinimizeToTrayButton"
-                    x:Name="TitleBarMinimizeToTrayButton"
-                    Grid.Column="8"
-                    Click="MinimizeToTrayButton_Click"
-                    Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                    Tag="Main.Menu.MinimizeToTray"
-                    AutomationProperties.Name="Minimize to notification area" ToolTipService.ToolTip="Minimize to notification area"
-                    Visibility="Collapsed">
-                    <FontIcon
-                        AutomationProperties.AccessibilityView="Raw"
-                        FontFamily="Segoe Fluent Icons"
-                        FontSize="17"
-                        Glyph="&#xE921;" />
-                </Button>
-                <Button AutomationProperties.AutomationId="Main.TitleBarCloseButton"
-                    x:Name="TitleBarCloseButton"
-                    Grid.Column="9"
-                    Width="48"
-                    Click="TitleBarCloseButton_Click"
-                    Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                    Tag="Tray.CloseApplication"
-                    AutomationProperties.Name="Close app" ToolTipService.ToolTip="Close app">
-                    <FontIcon
-                        AutomationProperties.AccessibilityView="Raw"
-                        FontFamily="Segoe Fluent Icons"
-                        FontSize="16"
-                        Glyph="&#xE8BB;" />
-                </Button>
-            </Grid>
-
-            <Border
-                x:Name="PlayerPanel"
-                Grid.Row="1"
-                Margin="12,2,12,8"
-                Padding="16,6,16,10"
-                Background="Transparent">
-                <Border.Resources>
-                    <ResourceDictionary>
-                        <LinearGradientBrush x:Key="PlayerAccentBrush" StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#FFE86C4F" Offset="0" />
-                            <GradientStop Color="#FFD34D34" Offset="1" />
-                        </LinearGradientBrush>
-                        <SolidColorBrush x:Key="PlayerInputBrush" Color="{ThemeResource SystemAccentColor}" />
-                        <SolidColorBrush x:Key="PlayerAccentGlyphBrush" Color="#FFFFFFFF" />
-                        <Style x:Key="CircularActionButtonStyle"
-                               TargetType="Button">
-                            <Setter Property="UseSystemFocusVisuals" Value="True" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Grid x:Name="ActionRoot">
-                                            <Border x:Name="ActionSurface"
-                                                    Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="{TemplateBinding CornerRadius}"/>
-                                            <Border x:Name="ActionHoverOverlay"
-                                                    Background="{ThemeResource TextFillColorPrimaryBrush}"
-                                                    CornerRadius="{TemplateBinding CornerRadius}"
-                                                    IsHitTestVisible="False"
-                                                    Opacity="0"/>
-                                            <ContentPresenter Content="{TemplateBinding Content}"
-                                                              ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                              ContentTransitions="{TemplateBinding ContentTransitions}"
-                                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
-                                                              Padding="{TemplateBinding Padding}"/>
-                                            <VisualStateManager.VisualStateGroups>
-                                                <VisualStateGroup x:Name="CommonStates">
-                                                    <VisualState x:Name="Normal">
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetName="ActionRoot"
-                                                                             Storyboard.TargetProperty="Opacity"
-                                                                             To="1"
-                                                                             Duration="0"/>
-                                                            <DoubleAnimation Storyboard.TargetName="ActionHoverOverlay"
-                                                                             Storyboard.TargetProperty="Opacity"
-                                                                             To="0"
-                                                                             Duration="0:0:0.12"/>
-                                                        </Storyboard>
-                                                    </VisualState>
-                                                    <VisualState x:Name="PointerOver">
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetName="ActionRoot"
-                                                                             Storyboard.TargetProperty="Opacity"
-                                                                             To="1"
-                                                                             Duration="0"/>
-                                                            <DoubleAnimation Storyboard.TargetName="ActionHoverOverlay"
-                                                                             Storyboard.TargetProperty="Opacity"
-                                                                             To="0.06"
-                                                                             Duration="0:0:0.12"/>
-                                                        </Storyboard>
-                                                    </VisualState>
-                                                    <VisualState x:Name="Pressed">
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetName="ActionRoot"
-                                                                             Storyboard.TargetProperty="Opacity"
-                                                                             To="1"
-                                                                             Duration="0"/>
-                                                            <DoubleAnimation Storyboard.TargetName="ActionHoverOverlay"
-                                                                             Storyboard.TargetProperty="Opacity"
-                                                                             To="0.1"
-                                                                             Duration="0:0:0.08"/>
-                                                        </Storyboard>
-                                                    </VisualState>
-                                                    <VisualState x:Name="Disabled">
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetName="ActionRoot"
-                                                                             Storyboard.TargetProperty="Opacity"
-                                                                             To="0.45"
-                                                                             Duration="0"/>
-                                                        </Storyboard>
-                                                    </VisualState>
-                                                </VisualStateGroup>
-                                            </VisualStateManager.VisualStateGroups>
-                                        </Grid>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                        <ResourceDictionary.ThemeDictionaries>
-                            <ResourceDictionary x:Key="Light">
-                                <LinearGradientBrush x:Key="PlayerAccentBrush" StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#FFE86C4F" Offset="0" />
-                                    <GradientStop Color="#FFD34D34" Offset="1" />
-                                </LinearGradientBrush>
-                                <SolidColorBrush x:Key="PlayerAccentGlyphBrush" Color="#FFFFFFFF" />
-                            </ResourceDictionary>
-                            <ResourceDictionary x:Key="Dark">
-                                <LinearGradientBrush x:Key="PlayerAccentBrush" StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#FFE86C4F" Offset="0" />
-                                    <GradientStop Color="#FFD34D34" Offset="1" />
-                                </LinearGradientBrush>
-                                <SolidColorBrush x:Key="PlayerAccentGlyphBrush" Color="#FFFFFFFF" />
-                            </ResourceDictionary>
-                            <ResourceDictionary x:Key="HighContrast">
-                                <SolidColorBrush x:Key="PlayerAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
-                                <SolidColorBrush x:Key="PlayerAccentGlyphBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
-                            </ResourceDictionary>
-                        </ResourceDictionary.ThemeDictionaries>
+    xmlns:controls="using:WorkTrail.Controls">
+    <Grid x:Name="RootGrid" Background="Transparent">
+        <Grid.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.ThemeDictionaries>
+                    <ResourceDictionary x:Key="Default">
+                        <x:Double x:Key="LauncherCityImageOpacity">0.32</x:Double>
+                        <x:Double x:Key="LauncherCornerArtOpacity">0.94</x:Double>
                     </ResourceDictionary>
-                </Border.Resources>
-                <Grid x:Name="PlayerViewport" SizeChanged="PlayerViewport_SizeChanged">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <!-- Reflow first; fit only unusually small viewports after compact disclosure. -->
-                    <Viewbox x:Name="PlayerFit" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" VerticalAlignment="Top">
-                        <Grid x:Name="PlayerLayout" Width="520" RowSpacing="6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition x:Name="PlayerSecondaryColumn" Width="0" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <Button AutomationProperties.AutomationId="Main.MoreButton"
-                            x:Name="MoreButton"
-                            Background="Transparent"
-                            BorderBrush="Transparent"
-                            AutomationProperties.Name="Open application menu" ToolTipService.ToolTip="Open application menu"
-                            Visibility="Collapsed">
-                            <FontIcon
-                                AutomationProperties.AccessibilityView="Raw"
-                                FontFamily="Segoe Fluent Icons"
-                                FontSize="15"
-                                Glyph="&#xE712;" />
-                            <Button.Resources>
-                                <x:Double x:Key="MainMenuMinimumWidth">320</x:Double>
-                                <Style TargetType="MenuFlyoutItem" BasedOn="{StaticResource DefaultMenuFlyoutItemStyle}">
-                                    <Setter Property="MinWidth" Value="{StaticResource MainMenuMinimumWidth}" />
-                                </Style>
-                                <Style TargetType="ToggleMenuFlyoutItem" BasedOn="{StaticResource DefaultToggleMenuFlyoutItemStyle}">
-                                    <Setter Property="MinWidth" Value="{StaticResource MainMenuMinimumWidth}" />
-                                </Style>
-                                <Style TargetType="MenuFlyoutSubItem" BasedOn="{StaticResource DefaultMenuFlyoutSubItemStyle}">
-                                    <Setter Property="MinWidth" Value="{StaticResource MainMenuMinimumWidth}" />
-                                </Style>
-                            </Button.Resources>
-                            <Button.Flyout>
-                                <MenuFlyout
-                                    x:Name="MainMenuFlyout"
-                                    Opened="MoreMenu_Opened"
-                                    Placement="TopEdgeAlignedRight"
-                                    ShouldConstrainToRootBounds="False">
-                                    <MenuFlyout.SystemBackdrop>
-                                        <DesktopAcrylicBackdrop />
-                                    </MenuFlyout.SystemBackdrop>
-                                    <MenuFlyout.MenuFlyoutPresenterStyle>
-                                        <Style TargetType="MenuFlyoutPresenter">
-                                            <Setter Property="MinWidth" Value="{StaticResource MainMenuMinimumWidth}" />
-                                            <Setter Property="CornerRadius" Value="12" />
-                                        </Style>
-                                    </MenuFlyout.MenuFlyoutPresenterStyle>
-
-                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickSearchMenuItem"
-                                        x:Name="QuickSearchMenuItem"
-                                        ToolTipService.ToolTip="Find recorded moments in your history."
-                                        Tag="Search.Title"
-                                        Text="Search history"
-                                        KeyboardAcceleratorTextOverride="F3 / Ctrl+Shift+P"
-                                        Click="SearchMenuItem_Click">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Foreground="#FFDB8D72" Glyph="&#xE721;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickActivityCalendarMenuItem"
-                                        x:Name="QuickActivityCalendarMenuItem"
-                                        ToolTipService.ToolTip="Open the activity calendar."
-                                        Tag="ActivityCalendar.MenuTitle"
-                                        Text="Activity calendar"
-                                        Click="ActivityCalendarMenuItem_Click">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Foreground="#FF7D9FF8" Glyph="&#xE787;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickScreenshotGalleryMenuItem"
-                                        x:Name="QuickScreenshotGalleryMenuItem"
-                                        ToolTipService.ToolTip="Browse captured screenshots."
-                                        Tag="Screenshots.Caption"
-                                        Text="Screenshot gallery"
-                                        KeyboardAcceleratorTextOverride="Ctrl+Shift+G"
-                                        Click="ScreenshotsMenuItem_Click">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Foreground="#FF71CBB7" Glyph="&#xE8B9;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.ReportExportMenuItem" x:Name="ReportExportMenuItem" Tag="Export.Title" Text="Export activity" ToolTipService.ToolTip="Export activity" Click="ReportExportMenuItem_Click">
-                                        <MenuFlyoutItem.Icon><FontIcon Foreground="#FFDB8D72" Glyph="&#xEDE1;" /></MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutSeparator />
-
-                                    <MenuFlyoutSubItem AutomationProperties.AutomationId="Main.CaptureMenu"
-                                        x:Name="CaptureMenu"
-                                        AutomationProperties.HelpText="Configure when screenshots are captured and whether capture is enabled."
-                                        Tag="Main.Menu.Capture"
-                                        Text="Screen capture"
-                                        ToolTipService.ToolTip="Configure when screenshots are captured and whether capture is enabled.">
-                                        <MenuFlyoutSubItem.Icon>
-                                            <FontIcon Glyph="&#xE722;" />
-                                        </MenuFlyoutSubItem.Icon>
-                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.ScheduleMenuItem"
-                                            x:Name="ScheduleMenuItem"
-                                            Tag="Schedule.Snapshots"
-                                            Text="Screenshot schedule"
-                                            ToolTipService.ToolTip="Choose the days, hours, and interval for automatic screenshots."
-                                            KeyboardAcceleratorTextOverride="Ctrl+Shift+S"
-                                            Click="ScheduleScreenshotMenuItem_Click">
-                                            <MenuFlyoutItem.Icon>
-                                                <FontIcon Foreground="#FF85A8DB" Glyph="&#xE8C0;" />
-                                            </MenuFlyoutItem.Icon>
-                                        </MenuFlyoutItem>
-                                        <ToggleMenuFlyoutItem AutomationProperties.AutomationId="Main.ScreenshotsMenuToggle"
-                                            x:Name="ScreenshotsMenuToggle"
-                                            Tag="MenuToggleScreenshot"
-                                            Text="Automatic screenshots"
-                                            ToolTipService.ToolTip="Enable or pause scheduled screenshot capture."
-                                            Click="ScreenshotsMenuToggle_Click">
-                                            <ToggleMenuFlyoutItem.Icon>
-                                                <FontIcon Foreground="#FFE88F6B" Glyph="&#xE8B8;" />
-                                            </ToggleMenuFlyoutItem.Icon>
-                                        </ToggleMenuFlyoutItem>
-                                    </MenuFlyoutSubItem>
-
-                                    <MenuFlyoutSubItem AutomationProperties.AutomationId="Main.SettingsMenu"
-                                        x:Name="SettingsMenu"
-                                        AutomationProperties.HelpText="Configure WorkTrail or open maintenance and diagnostic tools."
-                                        Tag="Main.Menu.Settings"
-                                        Text="App settings"
-                                        ToolTipService.ToolTip="Configure WorkTrail or open maintenance and diagnostic tools.">
-                                        <MenuFlyoutSubItem.Icon>
-                                            <FontIcon Glyph="&#xE713;" />
-                                        </MenuFlyoutSubItem.Icon>
-                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.QuickSetupMenuItem"
-                                            x:Name="QuickSetupMenuItem"
-                                            Tag="QuickSetup.MenuTitle"
-                                            Text="Quick Setup"
-                                            ToolTipService.ToolTip="Choose a guided privacy and capture profile."
-                                            Click="QuickSetupMenuItem_Click">
-                                            <MenuFlyoutItem.Icon>
-                                                <FontIcon Foreground="#FF71CBB7" Glyph="&#xE9D5;" />
-                                            </MenuFlyoutItem.Icon>
-                                        </MenuFlyoutItem>
-                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.OptionsMenuItem"
-                                            x:Name="OptionsMenuItem"
-                                            Tag="MenuTitleOptions"
-                                            Text="App options"
-                                            ToolTipService.ToolTip="Open all application, capture, search, and AI settings."
-                                            KeyboardAcceleratorTextOverride="Ctrl+Shift+O"
-                                            Click="OptionsMenuItem_Click">
-                                            <MenuFlyoutItem.Icon>
-                                                <FontIcon Foreground="#FFE5B06A" Glyph="&#xE713;" />
-                                            </MenuFlyoutItem.Icon>
-                                        </MenuFlyoutItem>
-                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.OperationsMenuItem"
-                                            x:Name="OperationsMenuItem"
-                                            Tag="Main.Menu.Operations"
-                                            Text="Maintenance and diagnostics"
-                                            ToolTipService.ToolTip="Open data, privacy, retention, plugin, and diagnostic tools."
-                                            Click="OperationsMenuItem_Click">
-                                            <MenuFlyoutItem.Icon>
-                                                <FontIcon Glyph="&#xE90F;" />
-                                            </MenuFlyoutItem.Icon>
-                                        </MenuFlyoutItem>
-                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.ExportDataMenuItem"
-                                            x:Name="ExportDataMenuItem"
-                                            Tag="Main.Menu.DataTransfer.Export"
-                                            Text="Export data and screenshots…"
-                                            ToolTipService.ToolTip="Create a portable WorkTrail archive containing local activity, installation metadata, and retained screenshots."
-                                            Click="ExportDataMenuItem_Click">
-                                            <MenuFlyoutItem.Icon>
-                                                <FontIcon Foreground="#FF71CBB7" Glyph="&#xE898;" />
-                                            </MenuFlyoutItem.Icon>
-                                        </MenuFlyoutItem>
-                                        <MenuFlyoutItem AutomationProperties.AutomationId="Main.ImportDataMenuItem"
-                                            x:Name="ImportDataMenuItem"
-                                            Tag="Main.Menu.DataTransfer.Import"
-                                            Text="Import data and screenshots…"
-                                            ToolTipService.ToolTip="Preview and merge a WorkTrail archive created on another computer."
-                                            Click="ImportDataMenuItem_Click">
-                                            <MenuFlyoutItem.Icon>
-                                                <FontIcon Foreground="#FF85A8DB" Glyph="&#xE896;" />
-                                            </MenuFlyoutItem.Icon>
-                                        </MenuFlyoutItem>
-                                    </MenuFlyoutSubItem>
-
-                                    <MenuFlyoutSubItem AutomationProperties.AutomationId="Main.AiProviderMenu"
-                                        x:Name="AiProviderMenu"
-                                        AutomationProperties.HelpText="Enable AI descriptions."
-                                        Tag="Main.Menu.AiProvider"
-                                        Text="AI features"
-                                        ToolTipService.ToolTip="Enable AI descriptions.">
-                                        <MenuFlyoutSubItem.Icon>
-                                            <FontIcon Foreground="#FFA97BEA" Glyph="&#xE99A;" />
-                                        </MenuFlyoutSubItem.Icon>
-                                        <ToggleMenuFlyoutItem AutomationProperties.AutomationId="Main.OpenAiMenuToggle"
-                                            x:Name="OpenAiMenuToggle"
-                                            Tag="MenuToggleOpenAi"
-                                            Text="Automatic AI descriptions"
-                                            ToolTipService.ToolTip="Enable or pause automatic AI descriptions for eligible screenshots."
-                                            IsChecked="{x:Bind AiState.Enabled, Mode=OneWay}"
-                                            IsEnabled="{x:Bind AiState.CanToggle, Mode=OneWay}"
-                                            Click="OpenAiMenuToggle_Click">
-                                            <ToggleMenuFlyoutItem.Icon>
-                                                <FontIcon Foreground="#FFA97BEA" Glyph="&#xE9A3;" />
-                                            </ToggleMenuFlyoutItem.Icon>
-                                        </ToggleMenuFlyoutItem>
-                                    </MenuFlyoutSubItem>
-
-                                    <MenuFlyoutSeparator />
-                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.MinimizeToTrayMenuItem"
-                                        x:Name="MinimizeToTrayMenuItem"
-                                        Tag="Main.Menu.MinimizeToTray"
-                                        Text="Minimize to notification area"
-                                        ToolTipService.ToolTip="Minimize to notification area"
-                                        Click="MinimizeToTrayButton_Click">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Foreground="#FF85A8DB" Glyph="&#xE921;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutItem AutomationProperties.AutomationId="Main.AboutMenuItem"
-                                        x:Name="AboutMenuItem"
-                                        Tag="MenuTitleAbout"
-                                        Text="About"
-                                        ToolTipService.ToolTip="View WorkTrail version, logs, licenses, and project links."
-                                        Click="AboutMenuItem_Click">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Foreground="#FF85A8DB" Glyph="&#xE946;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                </MenuFlyout>
-                            </Button.Flyout>
-                        </Button>
-
-                        <Grid x:Name="PlayerHeader" Grid.Row="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <Grid
-                                x:Name="OutsideActiveHoursBanner"
-                                Grid.Row="0"
-                                Margin="0,4,0,12"
-                                Padding="0,2"
-                                ColumnSpacing="8"
-                                Visibility="Collapsed">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon
-                                    VerticalAlignment="Center"
-                                    AutomationProperties.AccessibilityView="Raw"
-                                    FontFamily="Segoe Fluent Icons"
-                                    FontSize="14"
-                                    Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                                    Glyph="&#xE7BA;" />
-                                <RichTextBlock
-                                    Grid.Column="1"
-                                    FontSize="11"
-                                    IsTextSelectionEnabled="False"
-                                    TextWrapping="Wrap">
-                                    <Paragraph>
-                                        <Run x:Name="OutsideActiveHoursMessageRun" Text="Outside active hours, scheduled snapshots are not recorded." />
-                                        <Run Text=" " />
-                                        <Hyperlink Click="OutsideActiveHoursSettingsLink_Click">
-                                            <Run x:Name="OutsideActiveHoursLinkRun" Text="Configure hours" />
-                                        </Hyperlink>
-                                    </Paragraph>
-                                </RichTextBlock>
-                            </Grid>
-
-                            <Grid x:Name="PlayerControlsGrid" Grid.Row="1" Margin="0,2,0,1" ColumnSpacing="14">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel x:Name="CaptureActionsPanel"
-                                        Orientation="Horizontal"
-                                        VerticalAlignment="Center"
-                                        Spacing="9">
-                                <Button AutomationProperties.AutomationId="Tracking.Toggle"
-                                    x:Name="TrackingButton"
-                                    Width="74"
-                                    Height="74"
-                                    Padding="0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Background="{ThemeResource PlayerAccentBrush}"
-                                    BorderBrush="#D9FFFFFF"
-                                    BorderThickness="1"
-                                    Click="TrackingButton_Click"
-                                    CornerRadius="37"
-                                    Style="{StaticResource CircularActionButtonStyle}"
-                                    AutomationProperties.Name="Start tracking" ToolTipService.ToolTip="Start tracking"
-                                    Translation="0,0,3">
-                                    <Button.Shadow>
-                                        <ThemeShadow/>
-                                    </Button.Shadow>
-                                    <FontIcon
-                                        x:Name="PlayPauseIcon"
-                                        AutomationProperties.AccessibilityView="Raw"
-                                        FontFamily="Segoe Fluent Icons"
-                                        FontSize="26"
-                                        Foreground="{ThemeResource PlayerAccentGlyphBrush}"
-                                        Glyph="&#xE768;"/>
-                                </Button>
-                                <StackPanel
-                                    VerticalAlignment="Center"
-                                    Spacing="6">
-                                    <Button AutomationProperties.AutomationId="Capture.TakeScreenshot"
-                                        x:Name="TakeScreenshotButton"
-                                        Width="32"
-                                        Height="32"
-                                        Padding="0"
-                                        HorizontalAlignment="Center"
-                                        Background="Transparent"
-                                        BorderBrush="Transparent"
-                                        BorderThickness="1"
-                                        Click="TakeScreenshotButton_Click"
-                                        CornerRadius="16"
-                                        Style="{StaticResource CircularActionButtonStyle}"
-                                        Tag="Snapshot.Take"
-                                        AutomationProperties.Name="Take snapshot" ToolTipService.ToolTip="Take snapshot">
-                                        <FontIcon
-                                            AutomationProperties.AccessibilityView="Raw"
-                                            FontFamily="Segoe Fluent Icons"
-                                            FontSize="14"
-                                            Foreground="{ThemeResource PlayerAccentTextBrush}"
-                                            Glyph="&#xE722;"/>
-                                    </Button>
-                                    <Button AutomationProperties.AutomationId="Main.DeleteSnapshotButton"
-                                        x:Name="DeleteSnapshotButton"
-                                        Tag="Snapshot.Delete"
-                                        Width="32"
-                                        Height="32"
-                                        Padding="0"
-                                        HorizontalAlignment="Center"
-                                        Background="Transparent"
-                                        BorderBrush="Transparent"
-                                        BorderThickness="1"
-                                        Click="DeleteSnapshotButton_Click"
-                                        CornerRadius="16"
-                                        Style="{StaticResource CircularActionButtonStyle}"
-                                        AutomationProperties.Name="Delete snapshot" ToolTipService.ToolTip="Delete snapshot"
-                                        Visibility="Collapsed">
-                                        <FontIcon
-                                            AutomationProperties.AccessibilityView="Raw"
-                                            FontFamily="Segoe Fluent Icons"
-                                            FontSize="14"
-                                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                            Glyph="&#xE74D;"/>
-                                    </Button>
+                    <ResourceDictionary x:Key="Light">
+                        <x:Double x:Key="LauncherCityImageOpacity">0.20</x:Double>
+                        <x:Double x:Key="LauncherCornerArtOpacity">0.94</x:Double>
+                    </ResourceDictionary>
+                    <ResourceDictionary x:Key="HighContrast">
+                        <x:Double x:Key="LauncherCityImageOpacity">0</x:Double>
+                        <x:Double x:Key="LauncherCornerArtOpacity">0</x:Double>
+                    </ResourceDictionary>
+                </ResourceDictionary.ThemeDictionaries>
+                <Style x:Key="LauncherTileStyle" TargetType="Button">
+                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                    <Setter Property="VerticalAlignment" Value="Stretch" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="MinHeight" Value="112" />
+                    <Setter Property="Padding" Value="132,16,18,16" />
+                    <Setter Property="CornerRadius" Value="12" />
+                </Style>
+                <Style x:Key="LauncherCornerArtStyle" TargetType="Rectangle">
+                    <Setter Property="Width" Value="144" />
+                    <Setter Property="Height" Value="144" />
+                    <Setter Property="HorizontalAlignment" Value="Left" />
+                    <Setter Property="VerticalAlignment" Value="Top" />
+                    <Setter Property="Margin" Value="-24,-32,0,-16" />
+                    <Setter Property="Stretch" Value="Uniform" />
+                    <Setter Property="Opacity" Value="{ThemeResource LauncherCornerArtOpacity}" />
+                    <Setter Property="IsHitTestVisible" Value="False" />
+                    <Setter Property="AutomationProperties.AccessibilityView" Value="Raw" />
+                </Style>
+                <Style x:Key="LauncherFooterButtonStyle" TargetType="Button">
+                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                    <Setter Property="VerticalAlignment" Value="Stretch" />
+                    <Setter Property="HorizontalContentAlignment" Value="Center" />
+                    <Setter Property="MinHeight" Value="44" />
+                    <Setter Property="Padding" Value="10,10" />
+                </Style>
+            </ResourceDictionary>
+        </Grid.Resources>
+        <Grid.RowDefinitions><RowDefinition Height="48" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Image x:Name="HomeCityImage" Grid.Row="1" Stretch="Uniform" VerticalAlignment="Bottom"
+               Opacity="{ThemeResource LauncherCityImageOpacity}" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"
+               ImageFailed="HomeCityImage_Failed" />
+        <Grid x:Name="TitleBarDragRegion" Background="{ThemeResource WorkTrailTitleBarOverlayBrush}"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="TitleBarLeftInsetColumn" Width="0" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+            <Image Grid.Column="1" Margin="16,0,10,0" Style="{StaticResource WorkTrailTitleBarLogoStyle}" />
+            <TextBlock Grid.Column="2" Text="WORKTRAIL" CharacterSpacing="70" Style="{StaticResource WorkTrailTitleBarLabelStyle}" />
+        </Grid>
+        <!-- Keep content below the floating 48-DIP caption, including while it is hidden. -->
+        <Grid x:Name="LauncherContent" Grid.Row="1" Margin="28,72,28,20" RowSpacing="12" SizeChanged="LauncherContent_SizeChanged">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+            <StackPanel x:Name="HomeCityHeader" Margin="14,0,0,0" Spacing="5" HorizontalAlignment="Left" Visibility="Collapsed">
+                <TextBlock Tag="WorldClock.ReferenceCity" FontSize="11" CharacterSpacing="100" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock x:Name="HomeCityNameText" FontSize="28" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <Grid ColumnSpacing="7">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE707;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw" />
+                    <TextBlock x:Name="HomeCityPositionText" Grid.Column="1" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Grid>
+            </StackPanel>
+            <ScrollViewer x:Name="LauncherScroller" SizeChanged="LauncherViewport_SizeChanged" Grid.Row="1" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+                <!-- The artwork overhang belongs inside the scroll extent, not the viewport padding. -->
+                <StackPanel x:Name="LauncherBody" SizeChanged="LauncherViewport_SizeChanged" Padding="30,38,24,18" Spacing="24">
+                    <Grid x:Name="LauncherTiles" ColumnSpacing="40" RowSpacing="48">
+                        <Grid.Resources>
+                            <ResourceDictionary>
+                                <ResourceDictionary.ThemeDictionaries>
+                                    <ResourceDictionary x:Key="Default">
+                                <SolidColorBrush x:Key="ButtonBackground" Color="#E8121C30" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F0213552" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#F00C1525" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#FFF8FAFF" />
+                                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF" />
+                                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#887C95B8" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#FFC2DCFF" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FF94B9EA" />
+                                <SolidColorBrush x:Key="LauncherTileDescriptionBrush" Color="#FFD1DBEB" />
+                                    </ResourceDictionary>
+                                    <ResourceDictionary x:Key="Light">
+                                <SolidColorBrush x:Key="ButtonBackground" Color="#E8121C30" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F0213552" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#F00C1525" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#FFF8FAFF" />
+                                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF" />
+                                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#887C95B8" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#FFC2DCFF" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FF94B9EA" />
+                                <SolidColorBrush x:Key="LauncherTileDescriptionBrush" Color="#FFD1DBEB" />
+                                    </ResourceDictionary>
+                                    <ResourceDictionary x:Key="HighContrast">
+                                <StaticResource x:Key="ButtonBackground" ResourceKey="SystemColorButtonFaceColorBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightColorBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SystemColorHighlightColorBrush" />
+                                <StaticResource x:Key="ButtonForeground" ResourceKey="SystemColorButtonTextColorBrush" />
+                                <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush" />
+                                <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="SystemColorHighlightTextColorBrush" />
+                                <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SystemColorButtonTextColorBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SystemColorHighlightTextColorBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SystemColorHighlightTextColorBrush" />
+                                <StaticResource x:Key="LauncherTileDescriptionBrush" ResourceKey="SystemColorButtonTextColorBrush" />
+                                    </ResourceDictionary>
+                                </ResourceDictionary.ThemeDictionaries>
+                            </ResourceDictionary>
+                        </Grid.Resources>
+                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid x:Name="ClocksTile" Grid.Row="0" Grid.Column="0" Height="112">
+                            <Button x:Name="ClocksButton" Tag="Launcher.Clocks" AutomationProperties.AutomationId="Launcher.Clocks"
+                                    Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
+                                    PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Clocks_Click">
+                                <StackPanel Spacing="5" VerticalAlignment="Center">
+                                    <TextBlock Tag="Launcher.Clocks" Text="World clocks" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.ClocksDescription" Text="The time in the cities you follow." FontSize="14"
+                                               Foreground="{ThemeResource LauncherTileDescriptionBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                                <TextBlock
-                                    x:Name="TrackingStateText"
-                                    AutomationProperties.LiveSetting="Polite"
-                                    Style="{StaticResource DashboardMetricLabelTextBlockStyle}"
-                                    Text="IN PAUSA" />
-                                <TextBlock
-                                    x:Name="ElapsedText"
-                                    FontSize="34"
-                                    FontWeight="Light"
-                                    Text="00:00" />
-                                <Grid
-                                    x:Name="PendingSnapshotPanel"
-                                    Margin="0,3,0,1"
-                                    AutomationProperties.AccessibilityView="Content"
-                                    ColumnSpacing="5"
-                                    Visibility="Collapsed">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock
-                                        x:Name="SnapshotDeleteAvailableText"
-                                        Grid.Column="0"
-                                        Tag="Snapshot.DeleteAvailable"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.AccessibilityView="Raw"
-                                        FontSize="10"
-                                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                        MaxLines="1"
-                                        Text="Delete available"
-                                        TextTrimming="CharacterEllipsis" />
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.AccessibilityView="Raw"
-                                        FontSize="10"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Text="·" />
-                                    <TextBlock
-                                        x:Name="SnapshotDeleteCountdownText"
-                                        Grid.Column="2"
-                                        MinWidth="36"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.AccessibilityView="Raw"
-                                        FontSize="10"
-                                        FontWeight="SemiBold"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Text="00:30"
-                                        TextAlignment="Right" />
-                                </Grid>
-                                <Grid Margin="0,3,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Image
-                                        x:Name="CurrentApplicationIcon"
-                                        Width="16"
-                                        Height="16"
-                                        Margin="0,0,6,0"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.AccessibilityView="Raw"
-                                        Visibility="Collapsed" />
-                                    <TextBlock
-                                        x:Name="CurrentContextText"
-                                        Grid.Column="1"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.LiveSetting="Polite"
-                                        FontSize="12"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        MaxLines="1"
-                                        Text="Pronto a misurare il tuo tempo"
-                                        TextTrimming="CharacterEllipsis"
-                                        TextWrapping="Wrap" />
-                                </Grid>
-                            </StackPanel>
-                            <Grid x:Name="PlayerLabelPanel" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" RowSpacing="6">
-                                <Grid x:Name="PlayerLabelActionsPanel" RowSpacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <controls:FeatureGate x:Name="PlayerLabelFeatureGate" Feature="ActivityLabels" ShowTitle="False" ShowHint="False" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <controls:ActivityLabelSelector x:Name="PlayerLabelSelector" ManageRequested="PlayerLabelSelector_ManageRequested" />
-                                    </controls:FeatureGate>
-                                    <Button AutomationProperties.AutomationId="Main.VipSnapshotButton" x:Name="VipSnapshotButton" Grid.Row="1" Width="155" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                            IsEnabled="{Binding IsEnabled, ElementName=TakeScreenshotButton}" Style="{StaticResource AccentButtonStyle}"
-                                            Padding="8,4" FontSize="12" Click="VipSnapshotButton_Click">
-                                        <Grid ColumnSpacing="6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <FontIcon Glyph="&#xE722;" FontSize="14" AutomationProperties.AccessibilityView="Raw" />
-                                            <TextBlock Grid.Column="1" Tag="Snapshot.Vip.Take" Text="VIP snapshot" TextWrapping="Wrap" />
-                                        </Grid>
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                            </Grid>
-
-                        </Grid>
-
-                        <StackPanel x:Name="PlayerMetrics" Grid.Row="1" Spacing="6">
-                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                            <Grid Margin="0,3,4,1" ColumnSpacing="8">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="1" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition x:Name="ActiveMetricSeparatorColumn" Width="1" />
-                                    <ColumnDefinition x:Name="ActiveMetricColumn" Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="18" Foreground="{ThemeResource PlayerInputBrush}" Glyph="&#xE765;" />
-                                    <StackPanel>
-                                        <TextBlock Tag="KeysLabel" CharacterSpacing="80" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="KEYS" />
-                                        <TextBlock x:Name="KeyCountText" FontSize="19" FontWeight="SemiBold" Foreground="{ThemeResource PlayerInputBrush}" Text="0" />
-                                    </StackPanel>
-                                </StackPanel>
-                                <Rectangle Grid.Column="1" Width="1" Height="30" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Opacity="0.55" />
-                                <StackPanel x:Name="ClickMetricPanel" Grid.Column="2" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="8">
-                                    <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="18" Foreground="{ThemeResource PlayerAccentTextBrush}" Glyph="&#xE962;" />
-                                    <StackPanel>
-                                        <TextBlock Tag="ClicksLabel" CharacterSpacing="80" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="CLICKS" />
-                                        <TextBlock x:Name="ClickCountText" FontSize="19" FontWeight="SemiBold" Foreground="{ThemeResource PlayerAccentTextBrush}" Text="0" />
-                                    </StackPanel>
-                                </StackPanel>
-                                <Rectangle x:Name="ActiveMetricSeparator" Grid.Column="3" Width="1" Height="30" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Opacity="0.55" />
-                                <StackPanel x:Name="ActiveMetricPanel" Grid.Column="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
-                                    <FontIcon AutomationProperties.AccessibilityView="Raw" FontFamily="Segoe Fluent Icons" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Glyph="&#xE823;" />
-                                    <StackPanel>
-                                        <TextBlock Tag="ActiveLabel" CharacterSpacing="80" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="ACTIVE" />
-                                        <TextBlock x:Name="ActiveTimeText" FontSize="19" FontWeight="SemiBold" Text="0 min" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-
-                        <Grid x:Name="PlayerActivity" Grid.Row="2" Margin="0,1,0,0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Button AutomationProperties.AutomationId="Main.ActivityScoreButton"
-                                x:Name="ActivityScoreButton"
-                                MinHeight="32"
-                                Padding="2,6"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Background="Transparent"
-                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                BorderThickness="0,1,0,0"
-                                Click="ActivityScoreButton_Click"
-                                CornerRadius="0"
-                                AutomationProperties.Name="Hide activity score" ToolTipService.ToolTip="Hide activity score">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock
-                                        Tag="Activity.Title"
-                                        VerticalAlignment="Center"
-                                        CharacterSpacing="100"
-                                        FontSize="10"
-                                        FontWeight="SemiBold"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Text="ACTIVITY" />
-                                    <StackPanel Grid.Column="1" Margin="0,0,10,0" Orientation="Horizontal" Spacing="5">
-                                        <TextBlock
-                                            x:Name="ActivityScoreValueText"
-                                            VerticalAlignment="Center"
-                                            FontSize="13"
-                                            FontWeight="SemiBold"
-                                            Foreground="{ThemeResource PlayerAccentTextBrush}"
-                                            Text="0" />
-                                        <TextBlock
-                                            Tag="Activity.Score"
-                                            VerticalAlignment="Center"
-                                            FontSize="10"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            Text="score" />
-                                    </StackPanel>
-                                    <FontIcon
-                                        x:Name="ActivityScoreChevron"
-                                        Grid.Column="2"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.AccessibilityView="Raw"
-                                        FontFamily="Segoe Fluent Icons"
-                                        FontSize="12"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Glyph="&#xE70E;" />
-                                </Grid>
                             </Button>
-
-                            <Grid x:Name="ActivityScorePanel" Grid.Row="1" Margin="2,0,2,3" RowSpacing="4">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition x:Name="ActivityChartRow" Height="54" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <Grid x:Name="ActivityChartHeading" ColumnSpacing="10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock
-                                        Tag="Activity.LastThirtyMinutes"
-                                        VerticalAlignment="Center"
-                                        FontSize="10"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        TextWrapping="Wrap"
-                                        Text="Last 30 minutes · 1 minute bars" />
-                                </Grid>
-                                <Grid x:Name="ActivityScoreBarHost" Grid.Row="1" AutomationProperties.Name="Activity score for the last 30 minutes" />
-                                <Grid x:Name="ActivityChartFooter" Grid.Row="2" ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock
-                                        x:Name="ActivityScorePreviousIntervalText"
-                                        VerticalAlignment="Center"
-                                        FontSize="10"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        MaxLines="1"
-                                        Text="Previous: 0 clicks · 0 keys"
-                                        TextTrimming="CharacterEllipsis" />
-                                    <TextBlock
-                                        x:Name="ActivityScoreLatestIntervalText"
-                                        Grid.Column="1"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Center"
-                                        FontSize="10"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        MaxLines="1"
-                                        Text="Latest: 0 clicks · 0 keys"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Grid>
-                            </Grid>
+                            <Rectangle Style="{StaticResource LauncherCornerArtStyle}">
+                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/world-clocks-v1.png" /></Rectangle.Fill>
+                            </Rectangle>
                         </Grid>
-
-                        <Button AutomationProperties.AutomationId="Main.DetailsButton"
-                            x:Name="DetailsButton"
-                            Grid.Row="3"
-                            MinHeight="34"
-                            Margin="0,1,0,0"
-                            Padding="2,7"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Stretch"
-                            Background="Transparent"
-                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                            BorderThickness="0,1,0,0"
-                            Click="DetailsButton_Click"
-                            CornerRadius="0"
-                            AutomationProperties.Name="Show last session" ToolTipService.ToolTip="Show last session">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock
-                                    Tag="LastSessionTitle"
-                                    VerticalAlignment="Center"
-                                    CharacterSpacing="100"
-                                    FontSize="10"
-                                    FontWeight="SemiBold"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Text="LAST SESSION" />
-                                <FontIcon
-                                    x:Name="DetailsChevron"
-                                    Grid.Column="1"
-                                    VerticalAlignment="Center"
-                                    AutomationProperties.AccessibilityView="Raw"
-                                    FontFamily="Segoe Fluent Icons"
-                                    FontSize="12"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Glyph="&#xE70D;" />
-                            </Grid>
-                        </Button>
-
-                        <Grid x:Name="DetailsPanel" Grid.Row="4" RowSpacing="8" Visibility="Collapsed">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Grid x:Name="LastSessionBody" Grid.Row="0" Height="92" ColumnSpacing="10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="36" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="132" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon
-                                    Margin="0,12,0,0"
-                                    VerticalAlignment="Top"
-                                    AutomationProperties.AccessibilityView="Raw"
-                                    FontFamily="Segoe Fluent Icons"
-                                    FontSize="28"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Glyph="&#xE7F4;" />
-                                <Grid Grid.Column="1" Height="92">
-                                    <StackPanel Margin="0,12,0,0" Spacing="2">
-                                        <TextBlock
-                                            x:Name="LastSessionAppText"
-                                            FontSize="14"
-                                            FontWeight="SemiBold"
-                                            MaxLines="1"
-                                            Text="No session recorded"
-                                            TextTrimming="CharacterEllipsis" />
-                                        <TextBlock
-                                            x:Name="LastSessionDetailText"
-                                            FontSize="12"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            MaxLines="1"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <TextBlock
-                                        x:Name="ScreenshotStatusText"
-                                        Margin="0,0,0,2"
-                                        VerticalAlignment="Bottom"
-                                        Tag="Screenshot.Status.Off"
-                                        FontSize="11"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        MaxLines="1"
-                                        Text="Screenshot off"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Grid>
-                                <Button AutomationProperties.AutomationId="Main.ScreenshotPreviewButton"
-                                    x:Name="ScreenshotPreviewButton"
-                                    Grid.Column="2"
-                                    Width="132"
-                                    Height="92"
-                                    Padding="0"
-                                    VerticalAlignment="Top"
-                                    Background="Transparent"
-                                    BorderBrush="Transparent"
-                                    BorderThickness="0"
-                                    Click="ScreenshotPreviewButton_Click"
-                                    PointerEntered="ScreenshotPreviewButton_PointerEntered"
-                                    PointerExited="ScreenshotPreviewButton_PointerExited"
-                                    AutomationProperties.Name="No screen capture available yet" ToolTipService.ToolTip="No screen capture available yet">
-                                    <Border
-                                        x:Name="ScreenshotPreviewSurface"
-                                        Width="124"
-                                        Height="78"
-                                        Margin="4,8,4,6"
-                                        Background="Transparent"
-                                        CornerRadius="9"
-                                        Translation="0,0,20">
-                                        <Border.Shadow>
-                                            <ThemeShadow />
-                                        </Border.Shadow>
-                                        <Grid>
-                                            <Image
-                                                x:Name="ScreenshotPlaceholderImage"
-                                                AutomationProperties.AccessibilityView="Raw"
-                                                Source="ms-appx:///Assets/WorkTrailSnapshotPlaceholder.png"
-                                                Stretch="UniformToFill" />
-                                            <Image
-                                                x:Name="LastScreenshotImage"
-                                                AutomationProperties.AccessibilityView="Raw"
-                                                Stretch="UniformToFill"
-                                                Visibility="Collapsed" />
-                                            <Border
-                                                x:Name="ScreenshotOpenOverlay"
-                                                Width="28"
-                                                Height="28"
-                                                Margin="0,0,6,6"
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Bottom"
-                                                Background="#B3000000"
-                                                CornerRadius="6"
-                                                IsHitTestVisible="False"
-                                                Opacity="0">
-                                                <FontIcon
-                                                    AutomationProperties.AccessibilityView="Raw"
-                                                    FontFamily="Segoe Fluent Icons"
-                                                    FontSize="13"
-                                                    Foreground="White"
-                                                    Glyph="&#xE8A7;" />
-                                            </Border>
-                                        </Grid>
-                                    </Border>
-                                </Button>
-                            </Grid>
-                            <TextBlock x:Name="CompactLastSessionSummary" Grid.Row="0" Text="{Binding Text, ElementName=LastSessionAppText}" TextTrimming="CharacterEllipsis" FontSize="12" Visibility="Collapsed" />
-                            <Grid x:Name="LastSessionClockFooter" Grid.Row="1" Margin="0,4,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="1" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <Border Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                <Grid Grid.Row="1" Margin="0,6,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock
-                                        x:Name="LocalTimeText"
-                                        HorizontalAlignment="Left"
-                                        AutomationProperties.Name="Local time"
-                                        FontSize="11"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Opacity="0.82"
-                                        Text="Local time --:--:--" />
-                                    <TextBlock
-                                        x:Name="UtcTimeText"
-                                        Grid.Column="1"
-                                        HorizontalAlignment="Right"
-                                        AutomationProperties.Name="UTC time"
-                                        FontSize="11"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Opacity="0.82"
-                                        Text="UTC --:--:--" />
-                                </Grid>
-                            </Grid>
+                        <Grid x:Name="MapTile" Grid.Row="0" Grid.Column="1" Height="112">
+                            <Button x:Name="MapButton" Tag="Launcher.Map" AutomationProperties.AutomationId="Launcher.Map"
+                                    Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
+                                    PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Map_Click">
+                                <StackPanel Spacing="5" VerticalAlignment="Center">
+                                    <TextBlock Tag="Launcher.Map" Text="Day and night" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.MapDescription" Text="Where the Sun is shining now." FontSize="14"
+                                               Foreground="{ThemeResource LauncherTileDescriptionBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
+                            <Rectangle Style="{StaticResource LauncherCornerArtStyle}">
+                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/day-night-v1.png" /></Rectangle.Fill>
+                            </Rectangle>
+                        </Grid>
+                        <Grid x:Name="CalendarTile" Grid.Row="1" Grid.Column="0" Height="112">
+                            <Button x:Name="CalendarButton" Tag="Launcher.Calendar" AutomationProperties.AutomationId="Launcher.Calendar"
+                                    Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
+                                    PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Calendar_Click">
+                                <StackPanel Spacing="5" VerticalAlignment="Center">
+                                    <TextBlock Tag="Launcher.Calendar" Text="Calendar" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.CalendarDescription" Text="Holidays and astronomical events." FontSize="14"
+                                               Foreground="{ThemeResource LauncherTileDescriptionBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
+                            <Rectangle Style="{StaticResource LauncherCornerArtStyle}">
+                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/calendar-v1.png" /></Rectangle.Fill>
+                            </Rectangle>
+                        </Grid>
+                        <Grid x:Name="SkyTile" Grid.Row="1" Grid.Column="1" Height="112">
+                            <Button x:Name="SkyButton" Tag="Launcher.Sky" AutomationProperties.AutomationId="Launcher.Sky"
+                                    Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
+                                    PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Sky_Click">
+                                <StackPanel Spacing="5" VerticalAlignment="Center">
+                                    <TextBlock Tag="Launcher.Sky" Text="Local sky" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.SkyDescription" Text="Stars and planets above you." FontSize="14"
+                                               Foreground="{ThemeResource LauncherTileDescriptionBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
+                            <Rectangle Style="{StaticResource LauncherCornerArtStyle}">
+                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/local-sky-v1.png" /></Rectangle.Fill>
+                            </Rectangle>
+                        </Grid>
+                        <Grid x:Name="GlobeTile" Grid.Row="2" Grid.Column="0" Height="112">
+                            <Button x:Name="GlobeButton" Tag="Launcher.Globe" AutomationProperties.AutomationId="Launcher.Globe"
+                                    Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
+                                    PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Globe_Click">
+                                <StackPanel Spacing="5" VerticalAlignment="Center">
+                                    <TextBlock Tag="Launcher.Globe" Text="Globe" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.GlobeDescription" Text="Explore the Earth in 3D." FontSize="14"
+                                               Foreground="{ThemeResource LauncherTileDescriptionBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
+                            <Rectangle Style="{StaticResource LauncherCornerArtStyle}">
+                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/globe-v1.png" /></Rectangle.Fill>
+                            </Rectangle>
+                        </Grid>
+                        <Grid x:Name="MoonTile" Grid.Row="2" Grid.Column="1" Height="112">
+                            <Button x:Name="MoonButton" Tag="Launcher.Moon" AutomationProperties.AutomationId="Launcher.Moon"
+                                    Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
+                                    PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Moon_Click">
+                                <StackPanel Spacing="5" VerticalAlignment="Center">
+                                    <TextBlock Tag="Launcher.Moon" Text="Moon" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.MoonDescription" Text="The current phase of the Moon." FontSize="14"
+                                               Foreground="{ThemeResource LauncherTileDescriptionBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
+                            <Rectangle Style="{StaticResource LauncherCornerArtStyle}">
+                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/moon-v1.png" /></Rectangle.Fill>
+                            </Rectangle>
                         </Grid>
                     </Grid>
-                    </Viewbox>
-                    <StackPanel
-                        x:Name="VibeWareFooter"
-                        Grid.Row="1"
-                        Margin="0,8,0,0"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom"
-                        Orientation="Horizontal"
-                        SizeChanged="PlayerViewport_SizeChanged"
-                        Spacing="6">
-                        <Image
-                            Width="20"
-                            Height="20"
-                            VerticalAlignment="Center"
-                            AutomationProperties.AccessibilityView="Raw"
-                            Stretch="Uniform">
-                            <Image.Source>
-                                <BitmapImage DecodePixelWidth="80" UriSource="ms-appx:///Assets/VibeWareLogo.png" />
-                            </Image.Source>
-                        </Image>
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="11"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                            <Run Text="This is " /><Run FontWeight="SemiBold" Text="VibeWare" />
-                        </TextBlock>
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            AutomationProperties.AccessibilityView="Raw"
-                            FontSize="11"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="·" />
-                        <HyperlinkButton
-                            x:Name="VibeWareManifestoButton"
-                            AutomationProperties.AutomationId="Main.VibeWareManifestoButton"
-                            MinHeight="24"
-                            Padding="2,4"
-                            VerticalAlignment="Center"
-                            AutomationProperties.Name="VibeWare manifesto"
-                            CharacterSpacing="80"
-                            Click="VibeWareManifestoButton_Click"
-                            Content="MANIFESTO"
-                            FontSize="10"
-                            FontWeight="SemiBold"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            ToolTipService.ToolTip="VibeWare manifesto" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <Border
-                x:Name="OptionsPanel"
-                Grid.Row="1"
-                Margin="12"
-                Padding="16"
-                Background="Transparent"
-                Visibility="Collapsed">
-                <ContentPresenter x:Name="OptionsHost" />
-            </Border>
-
-            <Border
-                x:Name="OperationsPanel"
-                Grid.Row="1"
-                Margin="12"
-                Padding="16"
-                Background="Transparent"
-                Visibility="Collapsed">
-                <ContentPresenter x:Name="OperationsHost" />
-            </Border>
-        </Grid>
-
-        <controls:TimedInfoBar
-            x:Name="MainNotificationBanner"
-            Grid.Row="1"
-            Margin="16,10,16,0"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Top"
-            Canvas.ZIndex="100" />
-
-        <Border
-            x:Name="TrackingStatusToast"
-            Grid.Row="1"
-            Margin="0,18,18,0"
-            Padding="10,8"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            AutomationProperties.LiveSetting="Polite"
-            AutomationProperties.Name="Tracking status"
-            Background="{ThemeResource TrackingStatusToastBackgroundBrush}"
-            BorderBrush="{ThemeResource ToastBorderBrush}"
-            BorderThickness="1"
-            Canvas.ZIndex="10"
-            CornerRadius="16"
-            IsHitTestVisible="False"
-            Opacity="0"
-            Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Spacing="9">
-                <Image Width="28" Height="28" AutomationProperties.AccessibilityView="Raw" Source="ms-appx:///Assets/WorkTrailSquare44Logo.png" />
-                <StackPanel VerticalAlignment="Center" Spacing="1">
-                    <TextBlock x:Name="TrackingStatusToastText" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ToastTextBrush}" />
-                    <TextBlock
-                        FontSize="9"
-                        Foreground="{ThemeResource ToastSecondaryTextBrush}"
-                        Tag="Main.LocalActivityPlayer"
-                        Text="Local activity player" />
+                    <Button x:Name="ShowAllButton" Tag="Tray.ShowAllWindows" AutomationProperties.AutomationId="Launcher.ShowAll"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="14,12" CornerRadius="10" Click="ShowAll_Click">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE8A7;" FontSize="21" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Tag="Tray.ShowAllWindows" Text="Show all windows" TextWrapping="Wrap" />
+                                <TextBlock Tag="Launcher.ShowAllDescription" Text="Bring your open WorkTrail windows to the front."
+                                           FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                    </Button>
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                    <Expander x:Name="SettingsExpander" AutomationProperties.AutomationId="Launcher.Settings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                        <Expander.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE713;" FontSize="18" AutomationProperties.AccessibilityView="Raw" />
+                                <TextBlock Tag="Launcher.Settings" Text="Settings" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Spacing="12">
+                            <ToggleSwitch x:Name="StartupToggle" Tag="Launcher.Startup" AutomationProperties.AutomationId="Launcher.Startup" Toggled="Startup_Toggled" />
+                            <ToggleSwitch x:Name="SnappingToggle" Tag="Launcher.Snapping" AutomationProperties.AutomationId="Launcher.Snapping" Toggled="Preference_Toggled" />
+                            <ToggleSwitch x:Name="TitleBarToggle" Tag="Launcher.AutoHide" AutomationProperties.AutomationId="Launcher.AutoHide" Toggled="Preference_Toggled" />
+                            <ComboBox x:Name="ThemeCombo" Tag="Launcher.Theme" AutomationProperties.AutomationId="Launcher.Theme" HorizontalAlignment="Stretch" SelectionChanged="Theme_Changed" />
+                            <ComboBox x:Name="LanguageCombo" Tag="Launcher.Language" AutomationProperties.AutomationId="Launcher.Language" HorizontalAlignment="Stretch" SelectionChanged="Language_Changed" />
+                        </StackPanel>
+                    </Expander>
+                    <InfoBar x:Name="StatusBar" IsOpen="False" Severity="Error" IsClosable="True" />
+                    <Grid x:Name="LauncherFooter" ColumnSpacing="12" RowSpacing="10">
+                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Button x:Name="AboutButton" Tag="MenuTitleAbout" AutomationProperties.AutomationId="Launcher.About" Style="{StaticResource LauncherFooterButtonStyle}" Click="About_Click">
+                            <TextBlock Tag="MenuTitleAbout" Text="About" TextWrapping="Wrap" TextAlignment="Center" />
+                        </Button>
+                        <Button x:Name="HideButton" Grid.Column="1" Tag="Tray.HideMainWindow" AutomationProperties.AutomationId="Launcher.Hide" Style="{StaticResource LauncherFooterButtonStyle}" Click="Hide_Click">
+                            <TextBlock Tag="Tray.HideMainWindow" Text="Hide launcher" TextWrapping="Wrap" TextAlignment="Center" />
+                        </Button>
+                        <Button x:Name="ExitButton" Grid.Column="2" Tag="Tray.CloseApplication" AutomationProperties.AutomationId="Launcher.Exit" Style="{StaticResource LauncherFooterButtonStyle}" Click="Exit_Click">
+                            <TextBlock Tag="Tray.CloseApplication" Text="Exit" TextWrapping="Wrap" TextAlignment="Center" />
+                        </Button>
+                    </Grid>
                 </StackPanel>
-            </StackPanel>
-        </Border>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Window>

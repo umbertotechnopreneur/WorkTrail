@@ -31,6 +31,8 @@ param(
     [switch] $RequireComplete
 )
 
+#region Initialization
+
 $ErrorActionPreference = 'Stop'
 
 $expectedSchemaVersion = 1
@@ -38,7 +40,16 @@ $expectedStyleId = 'urban-wash-v1'
 $cityIdPattern = '^[a-z0-9]+(?:-[a-z0-9]+)*$'
 $sha256Pattern = '^[0-9a-f]{64}$'
 
+#endregion
+
+#region Implementation
+
 function Assert-DirectChildPath {
+    <#
+    .SYNOPSIS
+    Rejects output paths that escape the expected asset directory.
+    #>
+
     param(
         [Parameter(Mandatory)]
         [string] $Parent,
@@ -56,6 +67,8 @@ function Assert-DirectChildPath {
         throw "Path must be a direct child of $parentPath`: $childPath"
     }
 }
+
+#endregion
 
 $resolvedMasterRoot = (Resolve-Path -LiteralPath $MasterRoot).Path
 $resolvedManifestPath = (Resolve-Path -LiteralPath $ManifestPath).Path

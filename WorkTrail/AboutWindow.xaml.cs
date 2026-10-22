@@ -31,6 +31,8 @@ namespace WorkTrail;
 /// <summary>Displays product information and delegates diagnostics actions to the application facade.</summary>
 public sealed partial class AboutWindow : Window
 {
+    #region Fields
+
     private const int LogicalWindowWidth = 860;
     private const int LogicalWindowHeight = 520;
     private const int LogicalScreenMargin = 22;
@@ -41,6 +43,10 @@ public sealed partial class AboutWindow : Window
     private readonly LocalizationService _strings;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private ThirdPartyLicensesWindow? _licensesWindow;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates and sizes the About window on the display that contains its owner.</summary>
     public AboutWindow(
@@ -86,9 +92,14 @@ public sealed partial class AboutWindow : Window
         Closed += AboutWindow_Closed;
     }
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Forwards the close interaction to the window framework.</summary>
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
+    /// <summary>Saves the information window's placement and releases its lifetime resources.</summary>
     private async void AboutWindow_Closed(object sender, WindowEventArgs args)
     {
         _ = await _placement.TrySaveForCloseAsync(CancellationToken.None);
@@ -98,6 +109,7 @@ public sealed partial class AboutWindow : Window
         _titleBar.Dispose();
     }
 
+    /// <summary>Restores window placement and initializes presentation after the visual tree is ready.</summary>
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         _placement.ApplyDefaultBounds(RootGrid);
@@ -124,6 +136,7 @@ public sealed partial class AboutWindow : Window
         }
     }
 
+    /// <summary>Requests the local diagnostic log through the application facade.</summary>
     private async void ShowLogButton_Click(object sender, RoutedEventArgs e)
     {
         await RunDiagnosticsActionAsync(
@@ -131,6 +144,7 @@ public sealed partial class AboutWindow : Window
             "About.LogFolderOpened");
     }
 
+    /// <summary>Requests the diagnostic log sharing action through the application facade.</summary>
     private async void ShareLogButton_Click(object sender, RoutedEventArgs e)
     {
         var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64();
@@ -139,24 +153,31 @@ public sealed partial class AboutWindow : Window
             "About.LogShared");
     }
 
+    /// <summary>Opens the product website through the application link service.</summary>
     private async void WebsiteButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("author");
 
+    /// <summary>Opens the VibeWare information page through the application link service.</summary>
     private async void VibeWareAboutButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("vibeware");
 
+    /// <summary>Opens the VibeWare manifesto through the application link service.</summary>
     private async void VibeWareManifestoButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("vibeware-manifesto");
 
+    /// <summary>Opens the repository through the application link service.</summary>
     private async void RepositoryButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("repository");
 
+    /// <summary>Opens the current privacy policy through the application link service.</summary>
     private async void PrivacyButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("privacy");
 
+    /// <summary>Opens the current terms through the application link service.</summary>
     private async void TermsButton_Click(object sender, RoutedEventArgs e) =>
         await RunProductLinkActionAsync("terms");
 
+    /// <summary>Opens the third-party license information window.</summary>
     private void LicensesButton_Click(object sender, RoutedEventArgs e) => ShowLicenses();
 
     /// <summary>Opens or focuses the licenses work surface, including during workspace restoration.</summary>
@@ -173,6 +194,7 @@ public sealed partial class AboutWindow : Window
         _licensesWindow.Activate();
     }
 
+    /// <summary>Executes a product-link action and displays any application-reported failure.</summary>
     private async Task RunProductLinkActionAsync(string linkKey)
     {
         VibeWareAboutButton.IsEnabled = false;
@@ -217,6 +239,7 @@ public sealed partial class AboutWindow : Window
         }
     }
 
+    /// <summary>Executes a diagnostic action while coordinating busy state and failure feedback.</summary>
     private async Task RunDiagnosticsActionAsync(
         Func<CancellationToken, Task<OperationResult<bool>>> action,
         string successKey)
@@ -252,6 +275,7 @@ public sealed partial class AboutWindow : Window
         }
     }
 
+    /// <summary>Configures the information window's native presentation constraints.</summary>
     private void ConfigureWindowBehavior()
     {
         if (_appWindow.Presenter is OverlappedPresenter presenter)
@@ -259,6 +283,7 @@ public sealed partial class AboutWindow : Window
             presenter.IsResizable = false;
             presenter.IsMaximizable = false;
         }
-
     }
+
+    #endregion
 }

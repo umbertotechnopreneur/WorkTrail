@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
@@ -30,6 +29,8 @@ namespace WorkTrail.Services;
 /// </summary>
 public sealed class LocalizationService
 {
+
+    #region Fields
     private const string ResourcePrefix = "WorkTrail.Localization.";
 
     private static readonly IReadOnlyDictionary<string, string> CultureNames =
@@ -54,6 +55,10 @@ public sealed class LocalizationService
     private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Catalogs = LoadCatalogs();
     private static readonly IReadOnlyDictionary<string, string> AutomationNames = LoadAutomationNames();
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Gets stable UI automation identifiers and their localized name keys.</summary>
     public static IReadOnlyDictionary<string, string> AutomationNameKeys => AutomationNames;
 
@@ -69,6 +74,10 @@ public sealed class LocalizationService
     /// <summary>Gets the specific culture used for dates, numbers, and localized formatting.</summary>
     public CultureInfo Culture => CultureInfo.GetCultureInfo(CultureNames[Language]);
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates a localization service for an explicit locale or the Windows UI locale.</summary>
     public LocalizationService(string language)
     {
@@ -78,6 +87,10 @@ public sealed class LocalizationService
             ? ProductLanguageCatalog.SystemLanguage
             : Language;
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Resolves an explicit locale before consulting Windows for the system choice.</summary>
     public static string ResolveLanguage(string? requestedLanguage, CultureInfo systemCulture)
@@ -123,6 +136,10 @@ public sealed class LocalizationService
         return false;
     }
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Loads the dedicated control-name map and checks its keys against every supported locale.</summary>
     private static IReadOnlyDictionary<string, string> LoadAutomationNames()
     {
@@ -145,6 +162,7 @@ public sealed class LocalizationService
         return names;
     }
 
+    /// <summary>Loads every supported locale and validates complete key and format parity.</summary>
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> LoadCatalogs()
     {
         var catalogs = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -161,6 +179,7 @@ public sealed class LocalizationService
         return new ReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>(catalogs);
     }
 
+    /// <summary>Reads one localization resource, rejecting invalid, duplicate, or malformed entries.</summary>
     private static IReadOnlyDictionary<string, string> LoadCatalog(Stream stream, string resourceName)
     {
         try
@@ -205,6 +224,7 @@ public sealed class LocalizationService
         }
     }
 
+    /// <summary>Ensures each locale has the English keys and preserves composite format items.</summary>
     private static void ValidateCatalogParity(IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> catalogs)
     {
         var english = catalogs[ProductLanguageCatalog.EnglishLanguage];
@@ -230,9 +250,13 @@ public sealed class LocalizationService
         }
     }
 
+    /// <summary>Returns sorted format placeholders for locale parity comparisons.</summary>
     private static string[] FormatItems(string value) =>
         FormatItemPattern.Matches(value)
             .Select(static match => match.Value)
             .OrderBy(static item => item, StringComparer.Ordinal)
             .ToArray();
+
+    #endregion
+
 }

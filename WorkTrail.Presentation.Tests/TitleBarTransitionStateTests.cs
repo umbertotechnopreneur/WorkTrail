@@ -26,6 +26,8 @@ namespace WorkTrail.Presentation.Tests;
 /// <summary>Verifies delayed title-bar transitions without relying on wall-clock waits.</summary>
 public sealed class TitleBarTransitionStateTests
 {
+    #region Implementation
+
     /// <summary>Both reveal and hide wait exactly 300 milliseconds of stable intent.</summary>
     [Theory]
     [InlineData(false)]
@@ -75,6 +77,7 @@ public sealed class TitleBarTransitionStateTests
         Assert.Equal(!desiredVisible, state.Update(!desiredVisible, TimeSpan.FromMilliseconds(500)));
 
         state.Update(desiredVisible, TimeSpan.FromMilliseconds(600));
+
         Assert.Equal(!desiredVisible, state.Update(desiredVisible, TimeSpan.FromMilliseconds(899)));
         Assert.Equal(desiredVisible, state.Update(desiredVisible, TimeSpan.FromMilliseconds(900)));
     }
@@ -132,4 +135,6 @@ public sealed class TitleBarTransitionStateTests
         Assert.Equal(TimeSpan.FromMilliseconds(300), state.RemainingDelay);
         Assert.False(state.Update(false, TimeSpan.FromMilliseconds(400)));
     }
+
+    #endregion
 }

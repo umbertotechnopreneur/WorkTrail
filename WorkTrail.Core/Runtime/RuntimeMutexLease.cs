@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Runtime;
 
 /// <summary>
@@ -24,12 +23,19 @@ namespace WorkTrail.Runtime;
 /// </summary>
 internal sealed class RuntimeMutexLease : IDisposable
 {
+
+    #region Fields
     private readonly ManualResetEventSlim _ready = new(false);
     private readonly ManualResetEventSlim _release = new(false);
     private readonly Thread _ownerThread;
     private Exception? _failure;
     private bool _disposed;
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Starts the thread that acquires and eventually releases runtime ownership.</summary>
     internal RuntimeMutexLease(string mutexName)
     {
         _ownerThread = new Thread(() => Own(mutexName))
@@ -45,6 +51,10 @@ internal sealed class RuntimeMutexLease : IDisposable
             throw new InvalidOperationException("Unable to acquire the WorkTrail runtime mutex.", _failure);
         }
     }
+
+    #endregion
+
+    #region Methods and properties
 
     internal bool Acquired { get; private set; }
 
@@ -63,6 +73,11 @@ internal sealed class RuntimeMutexLease : IDisposable
         _ready.Dispose();
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Acquires the mutex and waits for release on the same owning thread.</summary>
     private void Own(string mutexName)
     {
         try
@@ -94,4 +109,7 @@ internal sealed class RuntimeMutexLease : IDisposable
             _ready.Set();
         }
     }
+
+    #endregion
+
 }

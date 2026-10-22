@@ -16,19 +16,28 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Application;
 
 /// <summary>Holds the immutable settings value currently owned by the runtime.</summary>
 public sealed class SettingsSnapshot
 {
+
+    #region Fields
     private AppSettings _value;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Initializes a settings snapshot with the validated runtime value.</summary>
     public SettingsSnapshot(AppSettings value)
     {
         _value = value ?? throw new ArgumentNullException(nameof(value));
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets the current immutable settings value without accessing persistence.</summary>
     public AppSettings Value => Volatile.Read(ref _value);
@@ -39,4 +48,7 @@ public sealed class SettingsSnapshot
         ArgumentNullException.ThrowIfNull(value);
         Volatile.Write(ref _value, value);
     }
+
+    #endregion
+
 }

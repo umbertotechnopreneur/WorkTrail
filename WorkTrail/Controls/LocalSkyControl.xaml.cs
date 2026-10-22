@@ -33,6 +33,8 @@ namespace WorkTrail.Controls;
 /// <summary>Plots Core-computed horizontal sky coordinates on a centered, responsive all-sky chart.</summary>
 public sealed partial class LocalSkyControl : UserControl
 {
+    #region Fields
+
     private CelestialSnapshot? _snapshot;
     private LocalizationService _strings = new("system");
     private double _centerX;
@@ -44,6 +46,10 @@ public sealed partial class LocalSkyControl : UserControl
     private bool _showPlanets = true;
     private bool _showConstellations = true;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates a passive sky chart without location, clock, or astronomy services.</summary>
     public LocalSkyControl()
     {
@@ -51,13 +57,20 @@ public sealed partial class LocalSkyControl : UserControl
         ActualThemeChanged += (_, _) => Render();
     }
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Gets or sets whether planet markers are rendered; the Sun and Moon remain visible as primary sky references.</summary>
     internal bool ShowPlanets
     {
         get => _showPlanets;
         set
         {
-            if (_showPlanets == value) return;
+            if (_showPlanets == value)
+            {
+                return;
+            }
             _showPlanets = value;
             Render();
         }
@@ -69,7 +82,10 @@ public sealed partial class LocalSkyControl : UserControl
         get => _showConstellations;
         set
         {
-            if (_showConstellations == value) return;
+            if (_showConstellations == value)
+            {
+                return;
+            }
             _showConstellations = value;
             Render();
         }
@@ -87,8 +103,10 @@ public sealed partial class LocalSkyControl : UserControl
         Render();
     }
 
+    /// <summary>Redraws the sky using the newly available viewport.</summary>
     private void SkyViewport_SizeChanged(object sender, SizeChangedEventArgs e) => Render();
 
+    /// <summary>Draws the horizon grid, visible bodies, and collision-aware labels from the supplied sky snapshot.</summary>
     private void Render()
     {
         SkyCanvas.Children.Clear();
@@ -199,9 +217,11 @@ public sealed partial class LocalSkyControl : UserControl
         foreach (var body in _snapshot.Bodies.Where(body => body.IsAboveHorizon && (_showPlanets || !IsPlanet(body.Kind))))
         {
             var point = Project(body.AltitudeDegrees, body.AzimuthDegrees);
-            var diameter = body.Kind is CelestialBodyKind.Sun or CelestialBodyKind.Moon
-                ? (_radius > 170d ? 44d : 30d)
-                : (_radius > 170d ? 34d : 24d);
+            var isSunOrMoon = body.Kind is CelestialBodyKind.Sun or CelestialBodyKind.Moon;
+            var hasRoomForLargeMarkers = _radius > 170d;
+            var sunOrMoonDiameter = hasRoomForLargeMarkers ? 44d : 30d;
+            var planetDiameter = hasRoomForLargeMarkers ? 34d : 24d;
+            var diameter = isSunOrMoon ? sunOrMoonDiameter : planetDiameter;
             // Keep the marker footprint free when placing constellation names later in this render.
             _labelBounds.Add(new Rect(point.X - (diameter / 2d) - 4d, point.Y - (diameter / 2d) - 4d,
                 diameter + 8d, diameter + 8d));
@@ -309,16 +329,18 @@ public sealed partial class LocalSkyControl : UserControl
                 }
             }
         }
-
     }
 
+    /// <summary>Identifies planetary bodies separately from the Sun and Moon.</summary>
     private static bool IsPlanet(CelestialBodyKind kind) => kind is CelestialBodyKind.Mercury or CelestialBodyKind.Venus
         or CelestialBodyKind.Mars or CelestialBodyKind.Jupiter or CelestialBodyKind.Saturn
         or CelestialBodyKind.Uranus or CelestialBodyKind.Neptune;
 
+    /// <summary>Keeps selected notable stars eligible for labels at larger viewport sizes.</summary>
     private static bool IsFeaturedStar(string id) => id is "proxima-cen" or "alf-cen" or "sirius"
         or "vega" or "deneb" or "altair";
 
+    /// <summary>Projects altitude and azimuth onto the circular sky viewport.</summary>
     private Point Project(double altitude, double azimuth)
     {
         // This is only the all-sky drawing projection: zenith at the center, east on the left.
@@ -327,6 +349,7 @@ public sealed partial class LocalSkyControl : UserControl
         return new Point(_centerX - (radius * Math.Sin(radians)), _centerY - (radius * Math.Cos(radians)));
     }
 
+    /// <summary>Parses the supplied color components for sky appearance brushes.</summary>
     private static Windows.UI.Color ParseColor(string value)
     {
         if (string.IsNullOrEmpty(value)
@@ -343,6 +366,7 @@ public sealed partial class LocalSkyControl : UserControl
             byte.Parse(value.AsSpan(rgbOffset + 4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture));
     }
 
+    /// <summary>Places a sky label while optionally avoiding previously occupied marker and label bounds.</summary>
     private void Label(string text, double x, double y, Brush foreground, double size,
         TropicalZodiacSign? zodiacSign = null, bool avoidOverlap = false)
     {
@@ -397,7 +421,10 @@ public sealed partial class LocalSkyControl : UserControl
                 }
             }
 
-            if (available) break;
+            if (available)
+            {
+                break;
+            }
         }
 
         if (avoidOverlap && !available)
@@ -424,9 +451,11 @@ public sealed partial class LocalSkyControl : UserControl
         Add(border, left, top);
     }
 
+    /// <summary>Checks whether two label or marker rectangles overlap.</summary>
     private static bool Intersects(Rect first, Rect second) =>
         first.Left < second.Right && first.Right > second.Left && first.Top < second.Bottom && first.Bottom > second.Top;
 
+    /// <summary>Positions a visual in the sky canvas using viewport coordinates.</summary>
     private void Add(FrameworkElement element, double x, double y)
     {
         Canvas.SetLeft(element, x);
@@ -434,6 +463,7 @@ public sealed partial class LocalSkyControl : UserControl
         SkyCanvas.Children.Add(element);
     }
 
+    /// <summary>Resolves the sky presentation brush for the requested theme resource.</summary>
     private Brush Brush(string key) => key switch
     {
         "TextFillColorPrimaryBrush" => PrimaryPalette.Background,
@@ -442,4 +472,6 @@ public sealed partial class LocalSkyControl : UserControl
         "DividerStrokeColorDefaultBrush" => DividerPalette.Background,
         _ => throw new ArgumentException("Unsupported sky theme brush.", nameof(key))
     };
+
+    #endregion
 }

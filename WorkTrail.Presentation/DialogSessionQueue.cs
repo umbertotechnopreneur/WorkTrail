@@ -22,11 +22,21 @@ namespace WorkTrail.Presentation;
 /// <summary>Serializes modal presentation and cancels pending sessions when their owner closes or the app stops.</summary>
 public sealed class DialogSessionQueue
 {
+    #region Fields
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly CancellationTokenSource _shutdown = new();
 
+    #endregion
+
+    #region Properties
+
     /// <summary>Gets whether this queue permanently rejects new dialog sessions.</summary>
     public bool IsShuttingDown => _shutdown.IsCancellationRequested;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Acquires the modal slot, or returns null when the owner or application has closed.</summary>
     /// <param name="ownerCancellation">Cancellation tied to the lifetime of the requesting window.</param>
@@ -47,6 +57,7 @@ public sealed class DialogSessionQueue
         if (cancellation.IsCancellationRequested)
         {
             _gate.Release();
+
             return null;
         }
 
@@ -56,13 +67,28 @@ public sealed class DialogSessionQueue
     /// <summary>Rejects new sessions and immediately releases all pending waiters without interrupting lease cleanup.</summary>
     public void Shutdown() => _shutdown.Cancel();
 
+    #endregion
+
+    #region Lease implementation
+
+    /// <summary>Returns the modal slot once, even when several cleanup paths dispose the same lease.</summary>
     private sealed class Lease(SemaphoreSlim gate) : IDisposable
     {
+        #region Fields
+
         private SemaphoreSlim? _gate = gate;
+
+        #endregion
+
+        #region Implementation
 
         /// <summary>
         /// Releases the modal slot exactly once.
         /// </summary>
         public void Dispose() => Interlocked.Exchange(ref _gate, null)?.Release();
+
+        #endregion
     }
+
+    #endregion
 }

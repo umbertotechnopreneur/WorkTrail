@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Runtime.InteropServices;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
@@ -27,6 +26,8 @@ namespace WorkTrail.Services;
 /// <summary>Opens the Windows Share UI for one validated local file.</summary>
 public sealed class WindowsFileShareService
 {
+
+    #region Fields
     private static readonly Guid DataTransferManagerIid = new(
         0xa5caee9b,
         0x8708,
@@ -39,6 +40,10 @@ public sealed class WindowsFileShareService
         0x8d,
         0xa0,
         0x0c);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Registers one existing file as shareable content and opens the Windows Share UI.</summary>
     public string Share(string filePath, IntPtr windowHandle, string title, string description)
@@ -105,6 +110,11 @@ public sealed class WindowsFileShareService
         return fullPath;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Resolves the local file through Windows storage and wraps preparation failures.</summary>
     private static StorageFile LoadStorageFile(string filePath)
     {
         try
@@ -117,6 +127,7 @@ public sealed class WindowsFileShareService
         }
     }
 
+    /// <summary>Obtains the per-window share manager and releases the temporary ABI reference.</summary>
     private static (IDataTransferManagerInterop Interop, DataTransferManager Manager) GetDataTransferManager(IntPtr windowHandle)
     {
         try
@@ -153,19 +164,36 @@ public sealed class WindowsFileShareService
         }
     }
 
+    /// <summary>Recognizes COM failures indicating unavailable Windows sharing support.</summary>
     private static bool IsUnsupported(COMException exception) =>
         exception.HResult is unchecked((int)0x80004001) or unchecked((int)0x80004002) or unchecked((int)0x80070032);
 
+    /// <summary>Creates the explicit failure used when Windows cannot provide sharing.</summary>
     private static PlatformNotSupportedException CreateUnsupportedException(Exception? innerException = null) =>
         new("Windows Share UI is not supported by this Windows installation or app deployment.", innerException);
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Defines the desktop HWND bridge to the Windows share manager.</summary>
     [ComImport]
     [Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IDataTransferManagerInterop
     {
+
+        #region Methods and properties
+        /// <summary>Obtains the COM share manager associated with a desktop window.</summary>
         IntPtr GetForWindow([In] IntPtr appWindow, [In] ref Guid riid);
 
+        /// <summary>Opens the Windows share UI for the supplied desktop window.</summary>
         void ShowShareUIForWindow(IntPtr appWindow);
+
+        #endregion
+
     }
+
+    #endregion
+
 }

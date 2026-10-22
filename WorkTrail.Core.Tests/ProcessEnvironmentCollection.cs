@@ -21,8 +21,13 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Serializes tests that modify process-wide environment variables.</summary>
 [CollectionDefinition(ProcessEnvironmentCollection.Name)]
 public sealed class ProcessEnvironmentCollection
 {
+    #region Fields
+
     public const string Name = "Process environment";
+
+    #endregion
 }

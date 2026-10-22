@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System;
 using System.IO;
 using System.Reflection;
@@ -28,7 +27,13 @@ namespace WorkTrail.Services;
 /// </summary>
 public sealed class UtilityService
 {
+
+    #region Fields
     private readonly Action<string, string> _apiKeyWriter;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates the Windows utility service with the production user-and-process environment writer.</summary>
     public UtilityService()
@@ -36,20 +41,20 @@ public sealed class UtilityService
     {
     }
 
+    /// <summary>Accepts the environment writer used to store provider credentials.</summary>
     internal UtilityService(Action<string, string> apiKeyWriter)
     {
         _apiKeyWriter = apiKeyWriter ?? throw new ArgumentNullException(nameof(apiKeyWriter));
     }
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>
     /// Returns local application directory path under %LOCALAPPDATA%.
     /// </summary>
     public string AppDataDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WorkTrail");
-
-    /// <summary>
-    /// Returns default screenshot storage directory.
-    /// </summary>
-    public string GetDefaultScreenshotDirectory() => Path.Combine(AppDataDirectory, "screenshots");
 
     /// <summary>
     /// Returns current application version in a compact string.
@@ -61,25 +66,19 @@ public sealed class UtilityService
     }
 
     /// <summary>
-    /// Expands environment variables, creates directory and returns the canonical path.
-    /// </summary>
-    /// <param name="value">Input directory, or empty for default.</param>
-    public string NormalizeDirectory(string? value)
-    {
-        var directory = string.IsNullOrWhiteSpace(value) ? GetDefaultScreenshotDirectory() : Environment.ExpandEnvironmentVariables(value.Trim());
-        Directory.CreateDirectory(directory);
-        return Path.GetFullPath(directory);
-    }
-
-    /// <summary>
     /// Stores API key in process and user environment.
     /// </summary>
     public void SetApiKey(string keyName, string value)
     {
-        var name = string.IsNullOrWhiteSpace(keyName) ? "OPENAI_API_KEY" : keyName.Trim();
+        var name = string.IsNullOrWhiteSpace(keyName) ? throw new ArgumentException("A key variable is required.", nameof(keyName)) : keyName.Trim();
         _apiKeyWriter(name, value);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Writes a key to user and process environments for current and future launches.</summary>
     private static void SetUserAndProcessApiKey(string name, string value)
     {
         // Persist in both User and Process scopes: available now and on next app launches.
@@ -87,25 +86,15 @@ public sealed class UtilityService
         Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
     }
 
-    /// <summary>
-    /// Formats seconds as a compact duration (e.g., "2 h 35 min").
-    /// </summary>
-    public string FormatDuration(long seconds) => seconds >= 3600 ? $"{seconds / 3600} h {(seconds % 3600) / 60} min" : $"{Math.Max(0, seconds / 60)} min";
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>
     /// Returns a random, non-identifying installation identifier.
     /// </summary>
     public string GenerateInstallationId() => Guid.NewGuid().ToString("N");
 
-    /// <summary>Returns the current Windows machine name used as immutable installation provenance.</summary>
-    public string GetMachineName()
-    {
-        var machineName = Environment.MachineName.Trim();
-        if (machineName.Length is < 1 or > 128)
-        {
-            throw new InvalidOperationException("Windows returned an invalid machine name.");
-        }
+    #endregion
 
-        return machineName;
-    }
 }

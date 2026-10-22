@@ -28,10 +28,16 @@ namespace WorkTrail.Runtime;
 /// <summary>Creates the process-wide logging pipeline used by both packaged and unpackaged launches.</summary>
 internal static class LoggingBootstrapper
 {
+    #region Fields
+
     private const int RetainedFileCount = 7;
     private static readonly TimeSpan RetainedFileTime = TimeSpan.FromDays(7);
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(2);
     private static int _shutdownStarted;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Builds the application service provider and configures console/file sinks.</summary>
     internal static ServiceProvider CreateServiceProvider()
@@ -129,6 +135,7 @@ internal static class LoggingBootstrapper
         }
     }
 
+    /// <summary>Builds logging providers and resolves them immediately to detect initialization failures.</summary>
     private static ServiceProvider BuildServiceProvider(string? sentryDsn, bool fileLoggingEnabled, string sentryStatus, string sentryEnvironment)
     {
         var serviceProvider = new ServiceCollection()
@@ -175,6 +182,7 @@ internal static class LoggingBootstrapper
         }
     }
 
+    /// <summary>Flushes logging synchronously during process exit with a local fallback on failure.</summary>
     private static void Shutdown(ServiceProvider serviceProvider)
     {
         try
@@ -189,6 +197,7 @@ internal static class LoggingBootstrapper
         }
     }
 
+    /// <summary>Closes local log sinks after provider shutdown.</summary>
     private static void CloseLocalSinks()
     {
         try
@@ -202,4 +211,5 @@ internal static class LoggingBootstrapper
         }
     }
 
+    #endregion
 }

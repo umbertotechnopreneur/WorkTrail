@@ -28,18 +28,27 @@ namespace WorkTrail;
 /// <summary>Owns the lifecycle of timed toast components without coupling notifications to dialog presentation.</summary>
 internal sealed class ToastNotificationService
 {
+    #region Fields
+
     private static readonly TimeSpan TimeoutInterval = TimeSpan.FromMilliseconds(250);
     private readonly Dictionary<TimedInfoBar, ToastCountdown> _countdowns = [];
     private TimeSpan _defaultTimeout = TimeSpan.FromSeconds(10);
     private long _nextGeneration;
     private bool _isEnabled = true;
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Applies the persisted notification preference and dismisses existing toasts when paused.</summary>
     /// <param name="enabled">Whether automatic in-app toasts may be displayed.</param>
     internal void SetEnabled(bool enabled)
     {
         _isEnabled = enabled;
-        if (!enabled) HideAll();
+        if (!enabled)
+        {
+            HideAll();
+        }
     }
 
     /// <summary>Gets or sets the timeout used when a toast does not provide an override.</summary>
@@ -95,13 +104,18 @@ internal sealed class ToastNotificationService
     // message contains optional supporting text.
     // severity selects the notification color and icon.
     // timeout overrides the default dismissal delay when supplied.
+
+    /// <summary>Displays a notification and replaces any previous timeout for the same host.</summary>
     private void Show(TimedInfoBar host, string title, string message, InfoBarSeverity severity, TimeSpan? timeout)
     {
         ValidateHostThread(host);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(message);
         var duration = ValidateTimeout(timeout ?? DefaultTimeout, nameof(timeout));
-        if (!_isEnabled) return;
+        if (!_isEnabled)
+        {
+            return;
+        }
         StopCountdown(host);
         host.Dismissed += ToastHost_Dismissed;
         host.Present(title, message, severity);
@@ -118,6 +132,8 @@ internal sealed class ToastNotificationService
 
     // host identifies the toast whose dismissal timeout is being checked.
     // generation prevents an earlier timer from dismissing a replacement notification.
+
+    /// <summary>Advances only the timeout generation associated with the visible notification.</summary>
     private void UpdateCountdown(TimedInfoBar host, long generation)
     {
         if (!_countdowns.TryGetValue(host, out var countdown) || countdown.Generation != generation)
@@ -134,6 +150,7 @@ internal sealed class ToastNotificationService
         Hide(host);
     }
 
+    /// <summary>Stops the countdown when the notification host is dismissed.</summary>
     private void ToastHost_Dismissed(object? sender, EventArgs e)
     {
         if (sender is TimedInfoBar host)
@@ -142,6 +159,7 @@ internal sealed class ToastNotificationService
         }
     }
 
+    /// <summary>Detaches and stops the timer belonging to a notification host.</summary>
     private void StopCountdown(TimedInfoBar host)
     {
         host.Dismissed -= ToastHost_Dismissed;
@@ -152,6 +170,7 @@ internal sealed class ToastNotificationService
         }
     }
 
+    /// <summary>Requires notification changes to run on the host's UI dispatcher.</summary>
     private static void ValidateHostThread(TimedInfoBar host)
     {
         ArgumentNullException.ThrowIfNull(host);
@@ -162,6 +181,7 @@ internal sealed class ToastNotificationService
         }
     }
 
+    /// <summary>Rejects unsupported notification timeout values.</summary>
     private static TimeSpan ValidateTimeout(TimeSpan timeout, string parameterName)
     {
         if (timeout <= TimeSpan.Zero)
@@ -172,10 +192,13 @@ internal sealed class ToastNotificationService
         return timeout;
     }
 
+    /// <summary>Tracks a notification timer and its active dismissal generation.</summary>
     private sealed record ToastCountdown(
         DispatcherQueueTimer Timer,
         TypedEventHandler<DispatcherQueueTimer, object> Tick,
         long StartedTimestamp,
         TimeSpan Duration,
         long Generation);
+
+    #endregion
 }

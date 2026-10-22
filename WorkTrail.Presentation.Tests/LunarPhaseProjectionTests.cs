@@ -23,8 +23,11 @@ using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
+/// <summary>Checks lunar phase labels, illumination, and rejected non-finite angles.</summary>
 public sealed class LunarPhaseProjectionTests
 {
+    #region Implementation
+
     /// <summary>Verifies the localization key and illumination projected for each principal lunar phase.</summary>
     [Theory]
     [InlineData(0d, "WorldClock.MoonPhase.New", 0d)]
@@ -57,4 +60,6 @@ public sealed class LunarPhaseProjectionTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => LunarPhaseProjection.Create(angle));
     }
+
+    #endregion
 }

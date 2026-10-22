@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Runtime.InteropServices;
 using WorkTrail.Services;
 
@@ -49,56 +48,21 @@ public static class WindowStateKeys
     /// <summary>Identifies the independent planar/spherical Earth window.</summary>
     public const string CelestialMap = "celestial-map";
 
-    /// <summary>Identifies the native activity-calendar dialog window.</summary>
-    public const string ActivityCalendar = "activity-calendar";
-
-    /// <summary>Identifies the historical screenshot AI-reprocessing dialog window.</summary>
-    public const string AiScreenshotReprocessing = "ai-screenshot-reprocessing";
-
-    /// <summary>Identifies the screenshot gallery window.</summary>
-    public const string Screenshots = "screenshots";
-
-
     /// <summary>Identifies the about window.</summary>
     public const string About = "about";
 
     /// <summary>Identifies the third-party licenses window.</summary>
     public const string Licenses = "licenses";
 
-    /// <summary>Identifies the local search window.</summary>
-    public const string Search = "search";
-
-    /// <summary>Identifies the local search-index progress window.</summary>
-    public const string SearchIndexing = "search-indexing";
-
-    /// <summary>Identifies the screenshot schedule window.</summary>
-    public const string Schedule = "schedule";
-
-    /// <summary>Identifies the first-run and reusable Quick Setup window.</summary>
-    public const string QuickSetup = "quick-setup";
-
     /// <summary>Identifies the reusable message dialog window.</summary>
     public const string Dialog = "dialog";
-
-
-    /// <summary>Identifies the responsive label-management dialog.</summary>
-    public const string ActivityLabels = "activity-labels";
-
-    /// <summary>Identifies the Mica note editor for an already retained VIP capture.</summary>
-    public const string VipSnapshotNote = "vip-snapshot-note";
-    /// <summary>The VIP capture countdown window.</summary>
-    public const string VipSnapshotCountdown = "vip-snapshot-countdown";
-
-    /// <summary>Identifies the analytical export workspace.</summary>
-    public const string ReportExport = "report-export";
-
-    /// <summary>Identifies the AI provider connection test dialog window.</summary>
-    public const string AiConnectionTest = "ai-connection-test";
 }
 
 /// <summary>Persists and restores native top-level window placement.</summary>
 public sealed class WindowStateService
 {
+
+    #region Fields
     private const uint MonitorDefaultToNearest = 2;
     private const uint SetWindowPosNoActivate = 0x0010;
     private const uint SetWindowPosNoZOrder = 0x0004;
@@ -107,11 +71,19 @@ public sealed class WindowStateService
     private const int ToolWindowStyle = 0x00000080;
     private readonly LocalStore _store;
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>Creates the window-state service over the shared settings store.</summary>
     public WindowStateService(LocalStore store)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets the minimum usable logical size for the supplied persisted window key.</summary>
     public static WindowMinimumSize GetMinimumSize(string windowKey)
@@ -124,16 +96,8 @@ public sealed class WindowStateService
         return windowKey switch
         {
             WindowStateKeys.Main => new(470, 240),
-            WindowStateKeys.ActivityCalendar => new(760, 560),
-            WindowStateKeys.ReportExport => new(660, 520),
-            WindowStateKeys.AiScreenshotReprocessing => new(640, 560),
-            WindowStateKeys.Screenshots => new(760, 540),
             WindowStateKeys.About => new(640, 480),
             WindowStateKeys.Licenses => new(720, 520),
-            WindowStateKeys.Search => new(560, 156),
-            WindowStateKeys.SearchIndexing => new(560, 420),
-            WindowStateKeys.Schedule => new(620, 480),
-            WindowStateKeys.QuickSetup => new(760, 560),
             WindowStateKeys.Dialog => new(320, 196),
             WindowStateKeys.WorldClocks => new(480, 240),
             WindowStateKeys.WorldMap => new(192, 160),
@@ -142,10 +106,6 @@ public sealed class WindowStateService
             WindowStateKeys.AstronomyAgenda => new(280, 320),
             WindowStateKeys.CelestialMap => new(320, 280),
             WindowStateKeys.WorldClockCityPicker => new(500, 560),
-            WindowStateKeys.ActivityLabels => new(340, 280),
-            WindowStateKeys.VipSnapshotNote => new(500, 480),
-            WindowStateKeys.VipSnapshotCountdown => new(480, 440),
-            WindowStateKeys.AiConnectionTest => new(480, 480),
             _ => throw new ArgumentException("The window key is not supported.", nameof(windowKey))
         };
     }
@@ -165,9 +125,14 @@ public sealed class WindowStateService
         return updated;
     }
 
+    /// <summary>Checks every persisted window key against the supported placement contract.</summary>
     internal static void ValidateOpenStates(IReadOnlyDictionary<string, bool>? openStates)
     {
-        if (openStates is null) return;
+        if (openStates is null)
+        {
+            return;
+        }
+
         foreach (var key in openStates.Keys)
         {
             // Unsupported persisted keys are a contract error; never silently drop a saved window.
@@ -242,6 +207,11 @@ public sealed class WindowStateService
         return safeState;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Applies native bounds without activation or changes to window stacking.</summary>
     private static void ApplyBounds(IntPtr handle, WindowState state)
     {
         if (!SetWindowPos(handle, IntPtr.Zero, state.X, state.Y, state.Width, state.Height, SetWindowPosNoActivate | SetWindowPosNoZOrder))
@@ -250,12 +220,14 @@ public sealed class WindowStateService
         }
     }
 
+    /// <summary>Reads effective window DPI and rejects unavailable scaling.</summary>
     private static uint ReadWindowDpi(IntPtr handle)
     {
         var dpi = GetDpiForWindow(handle);
         return dpi != 0 ? dpi : throw new InvalidOperationException("Unable to read the window DPI.");
     }
 
+    /// <summary>Validates a supported window key and a nonzero native handle.</summary>
     private static void ValidateRequest(string windowKey, long windowHandle)
     {
         _ = GetMinimumSize(windowKey);
@@ -266,6 +238,7 @@ public sealed class WindowStateService
         }
     }
 
+    /// <summary>Rejects unusable persisted bounds, monitor identity, or DPI values.</summary>
     private static void ValidatePersistedState(WindowState state)
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -277,6 +250,7 @@ public sealed class WindowStateService
         }
     }
 
+    /// <summary>Resolves the nearest monitor for a live native window.</summary>
     private static NativeMonitor GetMonitorForWindow(IntPtr handle)
     {
         var monitorHandle = MonitorFromWindow(handle, MonitorDefaultToNearest);
@@ -288,6 +262,7 @@ public sealed class WindowStateService
         return ReadMonitor(monitorHandle);
     }
 
+    /// <summary>Captures current display monitors through the native enumeration callback.</summary>
     private static IReadOnlyList<NativeMonitor> EnumerateMonitors()
     {
         var monitors = new List<NativeMonitor>();
@@ -304,6 +279,7 @@ public sealed class WindowStateService
         return monitors;
     }
 
+    /// <summary>Reads monitor bounds, work area, and available stable device identity.</summary>
     private static NativeMonitor ReadMonitor(IntPtr monitorHandle)
     {
         var monitorInfo = new MonitorInfoEx { CbSize = (uint)Marshal.SizeOf<MonitorInfoEx>() };
@@ -323,6 +299,7 @@ public sealed class WindowStateService
             monitorInfo.MonitorArea, deviceId, (monitorInfo.Flags & 1) != 0);
     }
 
+    /// <summary>Converts restored window placement from workspace to screen coordinates when needed.</summary>
     private static NativeRect GetNormalWindowRect(IntPtr handle, NativeMonitor monitor)
     {
         var placement = new NativeWindowPlacement { Length = (uint)Marshal.SizeOf<NativeWindowPlacement>() };
@@ -332,7 +309,10 @@ public sealed class WindowStateService
             throw new InvalidOperationException($"Unable to read window placement (Win32 error {Marshal.GetLastWin32Error()}).");
         }
 
-        if (placement.ShowCommand == ShowNormal) return GetWindowRect(handle);
+        if (placement.ShowCommand == ShowNormal)
+        {
+            return GetWindowRect(handle);
+        }
 
         Marshal.SetLastPInvokeError(0);
         var extendedStyle = GetWindowLong(handle, ExtendedWindowStyle);
@@ -358,6 +338,7 @@ public sealed class WindowStateService
         return normal;
     }
 
+    /// <summary>Reads physical outer bounds and reports native failure.</summary>
     private static NativeRect GetWindowRect(IntPtr handle)
     {
         if (!GetWindowRectNative(handle, out var rect))
@@ -368,8 +349,14 @@ public sealed class WindowStateService
         return rect;
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Combines physical display geometry with persistent monitor identifiers.</summary>
     private sealed record NativeMonitor(string DeviceName, WindowWorkArea WorkArea, NativeRect MonitorArea, string? DeviceId, bool IsPrimary);
 
+    /// <summary>Matches the native display device information layout.</summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct DisplayDevice
     {
@@ -381,6 +368,7 @@ public sealed class WindowStateService
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
     }
 
+    /// <summary>Matches a native point in physical desktop coordinates.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -388,6 +376,7 @@ public sealed class WindowStateService
         public int Y;
     }
 
+    /// <summary>Matches Windows saved normal, minimized, and maximized placement fields.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeWindowPlacement
     {
@@ -399,6 +388,7 @@ public sealed class WindowStateService
         public NativeRect NormalPosition;
     }
 
+    /// <summary>Matches a native rectangle using exclusive right and bottom edges.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeRect
     {
@@ -408,6 +398,7 @@ public sealed class WindowStateService
         public int Bottom;
     }
 
+    /// <summary>Matches native monitor geometry and GDI device name fields.</summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct MonitorInfoEx
     {
@@ -422,36 +413,52 @@ public sealed class WindowStateService
 
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr monitorRect, IntPtr data);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reads effective DPI for the supplied native window.</summary>
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr handle);
 
+    /// <summary>Reads display device identity from the native display catalog.</summary>
     [DllImport("user32.dll", EntryPoint = "EnumDisplayDevicesW", CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnumDisplayDevices(string deviceName, uint deviceIndex, ref DisplayDevice device, uint flags);
 
+    /// <summary>Enumerates native display monitor handles.</summary>
     [DllImport("user32.dll", EntryPoint = "EnumDisplayMonitors", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clipRect, MonitorEnumProc callback, IntPtr data);
 
+    /// <summary>Reads native monitor bounds and work-area information.</summary>
     [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfoEx monitorInfo);
 
+    /// <summary>Resolves the monitor associated with a window and the supplied fallback rule.</summary>
     [DllImport("user32.dll", EntryPoint = "MonitorFromWindow", SetLastError = true)]
     private static extern IntPtr MonitorFromWindow(IntPtr handle, uint flags);
 
+    /// <summary>Reads the physical outer bounds of a native window.</summary>
     [DllImport("user32.dll", EntryPoint = "GetWindowRect", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRectNative(IntPtr handle, out NativeRect rect);
 
+    /// <summary>Reads saved native normal bounds and current show state.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowPlacement(IntPtr handle, ref NativeWindowPlacement placement);
 
+    /// <summary>Reads native window style metadata.</summary>
     [DllImport("user32.dll", EntryPoint = "GetWindowLongW", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr handle, int index);
 
+    /// <summary>Applies native position, size, visibility, and stacking flags.</summary>
     [DllImport("user32.dll", EntryPoint = "SetWindowPos", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr handle, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+
+    #endregion
+
 }

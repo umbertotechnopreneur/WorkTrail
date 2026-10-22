@@ -67,6 +67,8 @@ public sealed record WorldClockConversionFailureState(
 /// <summary>Owns the active world-clock surface and projects timer and viewport state.</summary>
 public sealed class WorldClockWindowLayoutState
 {
+    #region Fields
+
     /// <summary>Gets the packaged skyline width used to retain native scene detail when decoding layers.</summary>
     public const int ScenePixelWidth = 1280;
     private const double ScenePixelHeight = 720d;
@@ -74,8 +76,16 @@ public sealed class WorldClockWindowLayoutState
     private WorldClockWindowSizing? _appliedWindowSizing;
     private bool _preserveRestoredSize;
 
+    #endregion
+
+    #region Properties
+
     /// <summary>Gets the currently active top-level surface.</summary>
     public WorldClockWindowSurface Surface { get; private set; } = WorldClockWindowSurface.Clocks;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Shows one top-level surface without resetting the current clock projection.</summary>
     /// <param name="surface">Surface to make current.</param>
@@ -96,7 +106,10 @@ public sealed class WorldClockWindowLayoutState
     {
         var ticksIntoMinute = instant.UtcDateTime.Ticks % TimeSpan.TicksPerMinute;
         var ticksUntilNextMinute = TimeSpan.TicksPerMinute - ticksIntoMinute;
-        var remaining = TimeSpan.FromTicks(ticksUntilNextMinute) + MinuteBoundaryMargin - (now - instant);
+        var delayFromSnapshot = TimeSpan.FromTicks(ticksUntilNextMinute) + MinuteBoundaryMargin;
+        var elapsedSinceSnapshot = now - instant;
+        var remaining = delayFromSnapshot - elapsedSinceSnapshot;
+
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.FromMilliseconds(1);
     }
 
@@ -123,7 +136,9 @@ public sealed class WorldClockWindowLayoutState
 
         var minimumWidth = minimumColumnWidth * clockCount;
         // Fill the viewport even for one or two cities; scroll only below the readable column width.
-        return new WorldClockColumnsLayout(minimumWidth, Math.Max(minimumWidth, viewportWidth));
+        var contentWidth = Math.Max(minimumWidth, viewportWidth);
+
+        return new WorldClockColumnsLayout(minimumWidth, contentWidth);
     }
 
     /// <summary>Caps vertical scene growth at native resolution, allowing only the enlargement needed to cover the column width.</summary>
@@ -145,7 +160,10 @@ public sealed class WorldClockWindowLayoutState
         }
 
         // Taller windows add empty space above the scene. Very wide columns still fill edge to edge.
-        var maximumHeight = Math.Max(ScenePixelHeight / rasterizationScale, columnWidth * (ScenePixelHeight / ScenePixelWidth));
+        var nativeLogicalHeight = ScenePixelHeight / rasterizationScale;
+        var heightToCoverWidth = columnWidth * (ScenePixelHeight / ScenePixelWidth);
+        var maximumHeight = Math.Max(nativeLogicalHeight, heightToCoverWidth);
+
         return Math.Min(columnHeight, maximumHeight);
     }
 
@@ -164,6 +182,7 @@ public sealed class WorldClockWindowLayoutState
             _ => 1120
         };
         var minimum = WindowStateService.GetMinimumSize(WindowStateKeys.WorldClocks);
+
         return new(preferredWidth, 680,
             minimum.Width, minimum.Height);
     }
@@ -181,7 +200,10 @@ public sealed class WorldClockWindowLayoutState
             throw new ArgumentOutOfRangeException(nameof(rootHeight));
         }
 
-        return new(Math.Min(480d, rootWidth - 24d) - 2d, Math.Min(720d, rootHeight - 24d) - 2d);
+        var contentWidth = Math.Min(480d, rootWidth - 24d) - 2d;
+        var contentMaxHeight = Math.Min(720d, rootHeight - 24d) - 2d;
+
+        return new(contentWidth, contentMaxHeight);
     }
 
     /// <summary>Preserves successfully restored manual bounds on the first populated snapshot.</summary>
@@ -191,6 +213,7 @@ public sealed class WorldClockWindowLayoutState
     public WorldClockWindowResizeRequest? GetWindowResizeRequest(int clockCount)
     {
         var sizing = CalculateWindowSizing(clockCount);
+
         return Surface == WorldClockWindowSurface.Options || sizing == _appliedWindowSizing
             ? null
             : new(sizing, ResizeToPreferred: !_preserveRestoredSize);
@@ -225,9 +248,17 @@ public sealed class WorldClockWindowLayoutState
             throw new ArgumentException("Viewport and measured content heights must be finite.");
         }
 
-        return viewportHeight >= expandedContentHeight
-            ? WorldClockDetailLevel.Expanded
-            : viewportHeight >= summaryContentHeight ? WorldClockDetailLevel.Summary : WorldClockDetailLevel.Essential;
+        if (viewportHeight >= expandedContentHeight)
+        {
+            return WorldClockDetailLevel.Expanded;
+        }
+
+        if (viewportHeight >= summaryContentHeight)
+        {
+            return WorldClockDetailLevel.Summary;
+        }
+
+        return WorldClockDetailLevel.Essential;
     }
 
     /// <summary>Keeps an existing explicit projection, or transactionally restores a live projection.</summary>
@@ -241,4 +272,6 @@ public sealed class WorldClockWindowLayoutState
                 IsLive: false,
                 CustomProjectionValid: false,
                 RestoreLastSnapshotControls: false);
+
+    #endregion
 }

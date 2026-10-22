@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
@@ -25,7 +24,13 @@ namespace WorkTrail.Services;
 /// <summary>Reports pointer presence across a native window and its content islands.</summary>
 public static class WindowPointerService
 {
+
+    #region Fields
     private const uint RootAncestor = 2;
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Reads hover and mouse contact without installing global input hooks or changing focus.</summary>
     public static WindowPointerState Read(IntPtr windowHandle)
@@ -56,6 +61,11 @@ public static class WindowPointerService
         return new WindowPointerState(IsAvailable: true, inside, pressed);
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Matches a native point in physical desktop coordinates.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -63,18 +73,29 @@ public static class WindowPointerService
         public int Y;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reads the pointer position in desktop coordinates.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out NativePoint point);
 
+    /// <summary>Resolves the native window beneath a desktop point.</summary>
     [DllImport("user32.dll")]
     private static extern IntPtr WindowFromPoint(NativePoint point);
 
+    /// <summary>Resolves a window ancestor according to the supplied native relation.</summary>
     [DllImport("user32.dll")]
     private static extern IntPtr GetAncestor(IntPtr windowHandle, uint flags);
 
+    /// <summary>Reads the native pressed state of a virtual key.</summary>
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int virtualKey);
+
+    #endregion
+
 }
 
 /// <summary>Contains the read-only native pointer state needed by adaptive window chrome.</summary>

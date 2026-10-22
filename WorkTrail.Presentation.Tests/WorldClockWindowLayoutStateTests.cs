@@ -22,20 +22,29 @@ using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
+/// <summary>Checks surface selection, refresh scheduling, and conversion rollback projections.</summary>
 public sealed class WorldClockWindowLayoutStateTests
 {
+    #region Implementation
+
+    /// <summary>Defaults to clocks and switches surfaces without replacing their shared owner state.</summary>
     [Fact]
     public void Surface_DefaultsToClocksAndSwitchesWithoutLosingTheOwnerState()
     {
         var state = new WorldClockWindowLayoutState();
 
         Assert.Equal(WorldClockWindowSurface.Clocks, state.Surface);
+
         state.ShowSurface(WorldClockWindowSurface.Options);
+
         Assert.Equal(WorldClockWindowSurface.Options, state.Surface);
+
         state.ShowSurface(WorldClockWindowSurface.Clocks);
+
         Assert.Equal(WorldClockWindowSurface.Clocks, state.Surface);
     }
 
+    /// <summary>Rejects undefined surface identifiers before changing the active surface.</summary>
     [Fact]
     public void ShowSurface_RejectsUndefinedValues()
     {
@@ -45,6 +54,7 @@ public sealed class WorldClockWindowLayoutStateTests
             state.ShowSurface((WorldClockWindowSurface)int.MaxValue));
     }
 
+    /// <summary>Schedules the next refresh just after the following UTC minute boundary.</summary>
     [Theory]
     [InlineData("2026-08-30T12:34:00.0000000+00:00", 60.1d)]
     [InlineData("2026-08-30T12:34:15.2500000+00:00", 44.85d)]
@@ -80,6 +90,7 @@ public sealed class WorldClockWindowLayoutStateTests
             WorldClockWindowLayoutState.DelayUntilNextMinute(snapshot, snapshot.AddMinutes(3)));
     }
 
+    /// <summary>Distributes viewport width equally without reducing columns below the readable minimum.</summary>
     [Theory]
     [InlineData(1, 1200d, 320d, 1200d)]
     [InlineData(2, 500d, 640d, 640d)]
@@ -98,6 +109,7 @@ public sealed class WorldClockWindowLayoutStateTests
         Assert.Equal(expectedWidth, layout.Width);
     }
 
+    /// <summary>Rejects clock counts outside the supported layout range.</summary>
     [Theory]
     [InlineData(0)]
     [InlineData(13)]
@@ -105,6 +117,7 @@ public sealed class WorldClockWindowLayoutStateTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             WorldClockWindowLayoutState.CalculateColumnsLayout(clockCount, 800d));
 
+    /// <summary>Selects preferred window dimensions from the number of selected cities.</summary>
     [Theory]
     [InlineData(1, 480, 680, 480, 240)]
     [InlineData(2, 780, 680, 480, 240)]
@@ -124,6 +137,7 @@ public sealed class WorldClockWindowLayoutStateTests
         Assert.Equal(minimumHeight, sizing.MinimumLogicalHeight);
     }
 
+    /// <summary>Restores live controls only when the failed conversion began in live mode.</summary>
     [Theory]
     [InlineData(true, true, true, true)]
     [InlineData(false, false, false, false)]
@@ -139,4 +153,6 @@ public sealed class WorldClockWindowLayoutStateTests
         Assert.Equal(expectedValid, state.CustomProjectionValid);
         Assert.Equal(expectedRestoreControls, state.RestoreLastSnapshotControls);
     }
+
+    #endregion
 }

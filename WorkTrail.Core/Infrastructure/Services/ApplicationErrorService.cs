@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -29,9 +28,15 @@ namespace WorkTrail.Services;
 /// <summary>Persists unexpected failures and shows a native dialog even before WinUI creates a window.</summary>
 public static class ApplicationErrorService
 {
+
+    #region Fields
     private static readonly object LogGate = new();
     private static ILogger? _logger;
     private static int _dialogActive;
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Connects the error reporter to the application's normal logging pipeline.</summary>
     /// <param name="logger">The initialized process logger.</param>
@@ -49,17 +54,7 @@ public static class ApplicationErrorService
     /// <param name="deferDialog">Moves acknowledgement off a finalizer thread after the log has been saved.</param>
     public static void Report(Exception exception, string source, string language = "system", bool deferDialog = false)
     {
-        try
-        {
-            Volatile.Read(ref _logger)?.LogCritical(exception, "Unexpected application failure. Source={Source}", source);
-        }
-        catch (Exception loggingFailure)
-        {
-            Debug.WriteLine($"WorkTrail logging failed: {loggingFailure.GetType().Name}");
-        }
-
-        // This independent, synchronously flushed log also works before logging initialization or process termination.
-        var logPath = TryWriteExceptionLog(exception, source);
+        var logPath = Record(exception, source);
         if (!OperatingSystem.IsWindows() || Interlocked.CompareExchange(ref _dialogActive, 1, 0) != 0)
         {
             return;
@@ -74,6 +69,7 @@ public static class ApplicationErrorService
                 {
                     return;
                 }
+
             }
             catch (Exception schedulingFailure)
             {
@@ -82,6 +78,27 @@ public static class ApplicationErrorService
         }
         ShowErrorDialog(exception, logPath, language);
     }
+
+    /// <summary>Persists an unexpected failure when a live WinUI surface already presents its visible error.</summary>
+    /// <returns>The emergency diagnostic log path, or null if logging also fails.</returns>
+    public static string? Record(Exception exception, string source)
+    {
+        try
+        {
+            Volatile.Read(ref _logger)?.LogCritical(exception, "Unexpected application failure. Source={Source}", source);
+        }
+        catch (Exception loggingFailure)
+        {
+            Debug.WriteLine($"WorkTrail logging failed: {loggingFailure.GetType().Name}");
+        }
+
+        // This independent, synchronously flushed log also works before logging initialization or process termination.
+        return TryWriteExceptionLog(exception, source);
+    }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Shows one acknowledgement dialog and releases the modal guard even if native UI fails.</summary>
     /// <param name="exception">The failure already saved to the diagnostic log.</param>
@@ -169,4 +186,7 @@ public static class ApplicationErrorService
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("user32.dll", EntryPoint = "MessageBoxW", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
     private static extern int MessageBox(IntPtr owner, string text, string caption, uint flags);
+
+    #endregion
+
 }

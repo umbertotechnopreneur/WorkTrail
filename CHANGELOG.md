@@ -1,99 +1,45 @@
 # Changelog
 
-This changelog records notable changes to WorkTrail for users and contributors.
-Entries under `Unreleased` describe implemented changes that have not yet been released.
-
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and tagged releases will follow [Semantic Versioning](https://semver.org/) once
-the first public preview defines what later versions need to stay compatible with.
+This changelog records notable implemented changes that have not yet been released.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Release history will begin with the first explicitly authorized tagged public preview.
+Historical implementation milestones remain in [.github/tasks/archive.md](.github/tasks/archive.md).
 
 ## [Unreleased]
 
 ### Added
 
-- Structured AI confidence for continued and ended visible activity, stored separately from measured input.
-- Observation-based daily AI timesheets with validated task assignments, locally calculated estimated intervals, explicit gaps and device conflicts, persistent corrections, and segment-based Excel export.
-- Saved activity spans in week/day calendars and the screenshot gallery, with draft provenance, a selectable timeline and thumbnail labels. Viewing saved spans works offline.
-- Direct window screenshots use Windows Graphics Capture to preserve covered content. Size checks and secondary-window visibility filters run before capture; auxiliary WorkTrail panels are excluded without moving them. Transparent areas use a neutral backing color instead of black when Windows omits the desktop Acrylic effect.
-- World Time menu in the player title bar, with a live saved-city preview and direct access to clocks, maps, the astronomical calendar, local sky and Moon windows.
-- Configurable near-duplicate filtering for automatic screenshots, with conservative visual comparison and periodic refresh; manual captures bypass similarity filtering.
-- Title-only application rules: Spotify keeps its literal foreground title in existing activity data, without image crops; its visible background area is masked in monitor panoramas, including manual captures.
-- Context-specific screenshot micro-prompts, process-scoped title hints and selected secondary-window crops. Browser titles remain heuristic hints, not verified domains; low-attention analysis reads titles only.
-- Internal screenshot capture rules with active/secondary window crops, monitor identities, separate AI/gallery destinations, application attention presets and an analysis blacklist.
-- Codex CLI screenshot descriptions using ChatGPT sign-in, with installation detection, setup guidance and actionable connection errors.
-- Inline history settings with a configurable storage warning (1 GB by default) and confirmed deletion of an inclusive date range.
-- Process memory monitoring with a 1 GiB limit, a native Windows warning before restart, logged recovery events, and preservation of the tracking state.
-- VibeWare symbol in CLI output, with a tracked source asset.
-- VIP snapshots with a cancellable countdown, optional notes, a featured gallery strip, gold crown badges, and calendar indicators.
-- Windows screenshot notifications with image previews and a saved opt-out available in Settings or in the notification itself.
-- Stable UI automation selectors, localized accessible names, and a conversion register organized by screen.
-- Three Excel report themes selectable in the export wizard and editable through Excel's native themes, including for saved batches.
-- Temporary Excel previews limited to ten records per worksheet.
-- In-app help explaining the available AI-summary grouping options.
-- Concise SPDX MIT headers and automated source-header verification.
-- Records of where the project's AI-generated artwork came from, kept separate from third-party media.
-- Forms for reporting bugs, requesting features, and suggesting documentation fixes, plus a pull-request template.
-- A guide to how the app is organized for contributors.
-- Dependabot updates for NuGet, npm, and GitHub Actions dependencies.
+- First-run home-city setup with a reusable offline city selector and a suggestion based on the Windows time zone.
+- Stable UI automation selectors and localized accessible names for the launcher and weather credential editor.
+- SPDX MIT headers, source-header verification, artwork provenance records and contributor guidance.
+- Issue forms, a pull-request template and dependency update automation.
 
 ### Changed
 
-- Scheduled screenshots remain eligible while reading without input; ordinary foreground/title changes no longer discard a capture. Privacy and similarity checks remain in force.
-- Timesheet reconstruction uses independent daily requests; daily/weekly grouping affects presentation. Local review, corrections, evidence lookup and export reuse saved results without AI calls.
-- Repository task records retain concise open outcomes, milestones and engineering lessons. Generated output cleanup keeps only the latest validated package and minimal current metadata.
-- Screenshot descriptions use Balanced or Complete profiles, inspect visible content by monitor and omit application-imposed response caps. Manual captures request Complete analysis with high attention without changing the saved preference or privacy exclusions.
-- Activating any WorkTrail window brings the other open app windows forward while keeping focus on the selected window.
-- AI settings offer CLI or API connections through Codex CLI or an OpenAI API key; switching connections requires explicit AI activation.
-- Guided setup offers the same CLI/API choice, and history settings keep storage controls and deletion dates on compact rows.
-- Free history is retained for one calendar month; Premium can retain one to twelve months. Automatic cleanup checks the policy daily while the app is running.
-- The main player shows a VibeWare footer with an accessible link to the manifesto and accounts for the footer when fitting its contents.
-- The world-clock reference header, window title, tooltip, and accessible name show the reference date's ISO week number and week-year.
-- Moving and resizing primary work surfaces show transient alignment guides and snap eligible edges using DPI-scaled ten/twenty logical-pixel snap/preview distances; dialogs, About and temporary windows do not participate.
-- About uses a compact layout, a trail banner, updated localized copy, the full package version, and transparent VibeWare branding with project and manifesto links.
-- Premium restrictions across exports, labels, clocks, schedules, data transfer, and retention share a localized upgrade prompt with a Microsoft Store action.
-- The tray menu provides notification and tracking toggles, VIP capture, clocks, astronomical views, Settings, About, and a command to reveal all already-open WorkTrail windows.
-- In-app toasts use compact severity-colored surfaces with icons and no countdown progress bar.
-- Excel exports share a branded A4 introduction, worksheet navigation, readable supporting tables, and a full-text appendix. Timesheets use the reviewed estimated intervals for detail, summaries and provisional billing.
-- Export screens use compact option grids, explain the four report tabs, and provide a collapsible Excel preview card with artwork for light and dark themes.
-- AI summaries remain visible in an editable text area, and ordinary file-format or column changes preserve the draft.
-- Excel preview generation now shows progress and the completed file path below the card, with separate commands to open the workbook or copy its absolute path.
-- Debug builds preserve diagnostic data by disabling scheduled retention; manual cleanup remains available.
-- Activity scores use input and active time only. Screenshot monitor identity and the visual gallery are preserved.
-- Settings navigation uses consistent hover behavior, and the main-window position label is translated consistently.
-- The privacy guide explains what happens when you reset the app and delete its saved data.
+- Main is a compact launcher for independent world clocks, the astronomical calendar, local sky, Moon, day/night map and globe. Essential preferences, Windows startup and tray commands remain.
+- Closing Main offers an Acrylic dialog to keep widgets running in the notification area, exit the app or cancel. The tray can reopen the launcher, reveal existing windows or exit the app.
+- The launcher pairs an Acrylic city backdrop with a left-aligned reference-city heading, responsive watercolor tiles, larger titles and short localized descriptions. Artwork fades between resting and hover saturation over 300 milliseconds.
+- Launcher tiles grow vertically with the viewport, clip at the scroll boundary and replace their small icons with larger watercolor artwork. Footer actions fill the available width.
+- First-party C# classes and methods have clearer documentation and responsibility regions; dense calculations and control flow use named steps and more readable spacing. Active PowerShell helpers include function documentation and expanded resource cleanup.
+- Widget startup reads preferences and bundled calendar data without opening existing activity history. Saved cities, window placement and the separate ExcelPlanner prototype are preserved.
+- Application services and IPC expose the retained widget operations only. The local runtime protocol is version 8.
+- Repository task records and current product documentation describe the reduced app.
 
 ### Fixed
 
-- Restore each window's saved taskbar visibility when it becomes visible. Astronomy menu checkmarks use the committed preference after opening or changing the setting.
-- Keyboard and click hooks own a dedicated Windows message loop, so tracking started from runtime commands does not depend on the caller's thread to deliver input events. Input observation failures are logged and shown instead of silently becoming zero counts.
-- Skip the entire screenshot request when the active window is blacklisted or capture-excluded, including maximized Spotify. Other monitors and secondary windows no longer produce a fallback capture for that request.
-
-- Preserve field-level AI configuration errors when analysis is rejected after retaining a screenshot, and restore the export AI-usage option's accessible name.
-- Windows retain their monitor, position and dimensions across restarts, adapting saved geometry to current display DPI and keeping disconnected-monitor placements visible.
-- Each snapshot shows one Windows notification using the active-window or focused-monitor image, including multi-monitor captures.
-- Icon-only Windows controls declare accessible names matching their tooltips, the Excel theme selector shows its localized header, and the export window keeps a single Premium badge in its title bar.
-- Repeated screenshot capture failures show one notification until capture succeeds, while retries and local error logging continue.
-- Timesheet amounts recalculate from the editable hourly rate; missing or invalid rates leave amounts blank instead of implying zero charges.
-- Switching between ordinary export tabs preserves the generated preview, while changing report type or source data invalidates it.
-- Automatic batch metadata refreshes no longer disable the export wizard or overwrite a newer job selection.
-- Export grouping help uses its localized title, and saved batch lists no longer report an empty archive when no job is selected.
-- Cleanup progress windows keep their title bar and close button visible; Close and Cancel stop remaining work before dismissing the dialog.
-- Interrupted screenshot publication and deletion recovery no longer prevent startup, and incomplete capture provenance is reported without blocking the rest of a gallery day.
-- Retention cleanup reuses a single screenshot inventory and supports cancellation during SQLite deletion.
-- Batch report jobs retain their recovery state independently of the export window, and uncertain submissions are reconciled before another paid submission is attempted.
-- Export windows keep their title bar and close button visible; the labels editor restores its saved placement and centers on its owner on first opening.
+- Launcher destinations reuse the former World Time panel with visible localized captions, accent icons and shared window chrome. Empty text-button content now receives its visible translation, including the weather credential editor.
+- Restored dynamic astronomical translations and the clock week label so valid city data can render in every shipped language. Widget rendering failures are also written to the local diagnostic log.
+- Saved taskbar visibility is applied when an astronomy window becomes visible; menu checkmarks follow the committed preference.
+- Window placement adapts saved geometry to current DPI and keeps disconnected-monitor positions visible.
+- The launcher opens on the display containing the pointer. The lunar widget uses a cropped surface image and a stable title-bar inset to keep the Moon visible.
+- Old saved window flags cannot prevent the current widget workspace from opening.
 
 ### Removed
 
-- Copilot instructions and repository prompt files; development rules live in AGENTS.md.
-- Monthly AI spending, price-list downloads, pricing dialogs and cost estimates in settings, storage and exports. Request and token counts remain available.
-- Hardware sensor collection, CPU/GPU readings, the sensor window, LibreHardwareMonitor and bundled PawnIO installation.
-- OCR capture processing, refinement calls, stored OCR text, controls, search fields, export columns and the obsolete adapter test project/documentation. AI visual descriptions remain available through CLI or API.
-
-- Taskbar-widget controls from Settings.
+- Activity tracking, input hooks, screenshots and gallery, AI connections, timesheets and reports, history search, activity calendar, CLI and their supporting projects, settings and UI.
+- The tracking taskbar widget, hardware sensor collection, CPU/GPU readings, LibreHardwareMonitor, bundled PawnIO installation and OCR processing.
+- Copilot instructions and repository prompts; development rules live in AGENTS.md.
 
 ### Security
 
-- Automated workflows use only the permissions they need and pin GitHub Actions to specific commits.
-
-Release history will begin with the first tagged public preview.
+- Workflows use scoped permissions and GitHub Actions pinned to specific commits.

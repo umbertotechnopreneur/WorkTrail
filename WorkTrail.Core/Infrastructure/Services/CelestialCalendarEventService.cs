@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using WorkTrail.Application;
 
 namespace WorkTrail.Services;
@@ -24,6 +23,9 @@ namespace WorkTrail.Services;
 /// <summary>Places offline calendar observances in the same city-local celestial event timeline.</summary>
 internal static class CelestialCalendarEventService
 {
+
+    #region Methods and properties
+    /// <summary>Projects selected holidays and saints onto the city-local agenda.</summary>
     internal static IReadOnlyList<CelestialAgendaEvent> Build(
         CelestialSnapshot snapshot, TimeZoneInfo zone,
         IReadOnlyList<CelestialCalendarHoliday> holidays,
@@ -70,7 +72,11 @@ internal static class CelestialCalendarEventService
 
             foreach (var saint in dailySaints)
             {
-                if (anchor >= endUtc) continue;
+                if (anchor >= endUtc)
+                {
+                    continue;
+                }
+
                 events.Add(new CelestialAgendaEvent(CelestialEventKind.Saint, anchor, null,
                     TimeZoneInfo.ConvertTime(anchor, zone), null,
                     CalendarLabel: saint.NameLatin, CalendarEntryKey: saint.EventKey, CalendarDate: date));
@@ -80,6 +86,14 @@ internal static class CelestialCalendarEventService
         return events;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Converts the calendar display anchor of nine in the morning to UTC.</summary>
     private static DateTimeOffset AtNineLocal(DateOnly date, TimeZoneInfo zone) =>
         new(TimeZoneInfo.ConvertTimeToUtc(date.ToDateTime(new TimeOnly(9, 0)), zone));
+
+    #endregion
+
 }

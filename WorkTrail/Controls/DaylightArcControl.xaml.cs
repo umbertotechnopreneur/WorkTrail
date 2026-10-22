@@ -27,6 +27,8 @@ namespace WorkTrail.Controls;
 /// <summary>Passively renders a normalized 24-hour daylight arc.</summary>
 public sealed partial class DaylightArcControl : UserControl
 {
+    #region Fields
+
     public static readonly DependencyProperty CurrentHourProperty = DependencyProperty.Register(
         nameof(CurrentHour), typeof(double), typeof(DaylightArcControl), new PropertyMetadata(0d, OnVisualPropertyChanged));
 
@@ -39,6 +41,10 @@ public sealed partial class DaylightArcControl : UserControl
     public static readonly DependencyProperty IsDaylightProperty = DependencyProperty.Register(
         nameof(IsDaylight), typeof(bool), typeof(DaylightArcControl), new PropertyMetadata(false, OnVisualPropertyChanged));
 
+    #endregion
+
+    #region Initialization
+
     /// <summary>
     /// Initializes the passive daylight-arc control and its XAML visual tree.
     /// </summary>
@@ -46,6 +52,10 @@ public sealed partial class DaylightArcControl : UserControl
     {
         InitializeComponent();
     }
+
+    #endregion
+
+    #region Implementation
 
     public double CurrentHour
     {
@@ -71,11 +81,14 @@ public sealed partial class DaylightArcControl : UserControl
         set => SetValue(IsDaylightProperty, value);
     }
 
+    /// <summary>Redraws the control after a visual dependency property changes.</summary>
     private static void OnVisualPropertyChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>
         ((DaylightArcControl)sender).UpdateVisual();
 
+    /// <summary>Recalculates the daylight arc for the current viewport.</summary>
     private void ArcRoot_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateVisual();
 
+    /// <summary>Recalculates the control's geometry and visibility from its current properties.</summary>
     private void UpdateVisual()
     {
         if (FullArc is null || DayArc is null || CurrentMarker is null || CurrentMarkerGlow is null || ActualWidth <= 0d)
@@ -95,6 +108,7 @@ public sealed partial class DaylightArcControl : UserControl
         Canvas.SetTop(CurrentMarker, marker.Y - 5d);
     }
 
+    /// <summary>Constructs the daylight path between two clamped hours of the day.</summary>
     private Geometry BuildArc(double startHour, double endHour)
     {
         const int segmentCount = 72;
@@ -114,6 +128,7 @@ public sealed partial class DaylightArcControl : UserControl
         return geometry;
     }
 
+    /// <summary>Projects an hour of the day onto the elliptical daylight arc.</summary>
     private Point PointAt(double hour)
     {
         var normalized = Math.Clamp(hour / 24d, 0d, 1d);
@@ -125,4 +140,6 @@ public sealed partial class DaylightArcControl : UserControl
             (ActualWidth / 2d) - (horizontalRadius * Math.Cos(angle)),
             baseY - (verticalRadius * Math.Sin(angle)));
     }
+
+    #endregion
 }

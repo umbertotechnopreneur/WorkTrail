@@ -22,25 +22,59 @@ param(
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '../WorkTrail/Assets/Celestial/Artwork')
 )
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
+#endregion
+
+#region Implementation
+
 function C([int]$a, [int]$r, [int]$g, [int]$b) {
+    <#
+    .SYNOPSIS
+    Creates an ARGB drawing color from separate channel values.
+    #>
+
     [System.Drawing.Color]::FromArgb($a, $r, $g, $b)
 }
 
 function Fill-Ellipse($g, $color, [single]$x, [single]$y, [single]$w, [single]$h) {
+    <#
+    .SYNOPSIS
+    Fills an ellipse and releases the temporary drawing brush.
+    #>
+
     $brush = [System.Drawing.SolidBrush]::new($color)
-    try { $g.FillEllipse($brush, $x, $y, $w, $h) } finally { $brush.Dispose() }
+    try {
+        $g.FillEllipse($brush, $x, $y, $w, $h)
+    } finally {
+        $brush.Dispose()
+    }
 }
 
 function Fill-Polygon($g, $color, [System.Drawing.PointF[]]$points) {
+    <#
+    .SYNOPSIS
+    Fills a polygon and releases the temporary drawing brush.
+    #>
+
     $brush = [System.Drawing.SolidBrush]::new($color)
-    try { $g.FillPolygon($brush, $points) } finally { $brush.Dispose() }
+    try {
+        $g.FillPolygon($brush, $points)
+    } finally {
+        $brush.Dispose()
+    }
 }
 
 function Fill-GradientEllipse($g, $centerColor, $edgeColor, [single]$x, [single]$y, [single]$w, [single]$h) {
+    <#
+    .SYNOPSIS
+    Fills an ellipse with a fading radial gradient and releases its drawing resources.
+    #>
+
     $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
     $path.AddEllipse($x, $y, $w, $h)
     $brush = [System.Drawing.Drawing2D.PathGradientBrush]::new($path)
@@ -48,20 +82,48 @@ function Fill-GradientEllipse($g, $centerColor, $edgeColor, [single]$x, [single]
         $brush.CenterColor = $centerColor
         $brush.SurroundColors = [System.Drawing.Color[]]@($edgeColor)
         $g.FillPath($brush, $path)
-    } finally { $brush.Dispose(); $path.Dispose() }
+    } finally {
+        $brush.Dispose();
+        $path.Dispose()
+    }
 }
 
 function Draw-Line($g, $color, [single]$width, [single]$x1, [single]$y1, [single]$x2, [single]$y2) {
+    <#
+    .SYNOPSIS
+    Draws a line with a temporary pen that is disposed after use.
+    #>
+
     $pen = [System.Drawing.Pen]::new($color, $width)
-    try { $pen.StartCap = 'Round'; $pen.EndCap = 'Round'; $g.DrawLine($pen, $x1, $y1, $x2, $y2) } finally { $pen.Dispose() }
+    try {
+        $pen.StartCap = 'Round';
+        $pen.EndCap = 'Round';
+        $g.DrawLine($pen, $x1, $y1, $x2, $y2)
+    } finally {
+        $pen.Dispose()
+    }
 }
 
 function Draw-Ellipse($g, $color, [single]$width, [single]$x, [single]$y, [single]$w, [single]$h) {
+    <#
+    .SYNOPSIS
+    Draws an ellipse outline and releases the temporary pen.
+    #>
+
     $pen = [System.Drawing.Pen]::new($color, $width)
-    try { $g.DrawEllipse($pen, $x, $y, $w, $h) } finally { $pen.Dispose() }
+    try {
+        $g.DrawEllipse($pen, $x, $y, $w, $h)
+    } finally {
+        $pen.Dispose()
+    }
 }
 
 function Draw-String($g, [string]$value, [string]$fontName, [single]$size, $color, [single]$x, [single]$y, [single]$w, [single]$h) {
+    <#
+    .SYNOPSIS
+    Draws text inside a rectangle and releases its font, brush, and alignment resources.
+    #>
+
     $font = [System.Drawing.Font]::new($fontName, $size, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
     $brush = [System.Drawing.SolidBrush]::new($color)
     $format = [System.Drawing.StringFormat]::new()
@@ -69,30 +131,77 @@ function Draw-String($g, [string]$value, [string]$fontName, [single]$size, $colo
         $format.Alignment = 'Center'
         $format.LineAlignment = 'Center'
         $g.DrawString($value, $font, $brush, [System.Drawing.RectangleF]::new($x, $y, $w, $h), $format)
-    } finally { $format.Dispose(); $brush.Dispose(); $font.Dispose() }
+    } finally {
+        $format.Dispose();
+        $brush.Dispose();
+        $font.Dispose()
+    }
 }
 
 function Get-Motif([string]$key, [string]$name) {
+    <#
+    .SYNOPSIS
+    Selects a symbolic motif from the event key and name, with a deterministic neutral fallback.
+    #>
+
     $both = "$key $name"
-    if ($both -match 'Mary|Maria|Marian|OurLady|Assumption|Visitation|Immaculate|Guadalupe|Loreto|Rosary|Carmel') { return 'rose' }
-    if ($both -match 'Peter|Petr') { return 'keys' }
-    if ($both -match 'Paul|Paul') { return 'sword' }
-    if ($both -match 'Francis|Frances|Francisc') { return 'bird' }
-    if ($both -match 'StAgnes|\bAgnes\b|\bAgnetis\b') { return 'lamb' }
-    if ($both -match 'Cecilia|Caecilia') { return 'harp' }
-    if ($both -match 'Patrick|Patric') { return 'trefoil' }
-    if ($both -match 'Lucy|Lucia') { return 'lamp' }
-    if ($both -match 'Joseph|Ioseph') { return 'lily' }
-    if ($both -match 'Nicholas|Nicol') { return 'gift' }
-    if ($both -match 'George|Georg') { return 'spear' }
-    if ($both -match 'Angels|Archangel|Angel') { return 'wing' }
-    if ($both -match 'Evangelist|Evangelista|Doctor|doctor|doctorum|doctora') { return 'book' }
-    if ($both -match 'martyr|Martyr|martyrum') { return 'palm' }
-    if ($both -match 'episcop|bishop|Pope|papa|pontific') { return 'staff' }
-    if ($both -match 'virgin|virgini|Virgo') { return 'lily' }
-    if ($both -match 'apostol|Apostol|Ap$') { return 'scroll' }
-    if ($both -match 'abbot|abbas|monach|religios') { return 'cross' }
-    if ($both -match 'presbyter|priest|sacerdot') { return 'chalice' }
+    if ($both -match 'Mary|Maria|Marian|OurLady|Assumption|Visitation|Immaculate|Guadalupe|Loreto|Rosary|Carmel') {
+        return 'rose'
+    }
+    if ($both -match 'Peter|Petr') {
+        return 'keys'
+    }
+    if ($both -match 'Paul|Paul') {
+        return 'sword'
+    }
+    if ($both -match 'Francis|Frances|Francisc') {
+        return 'bird'
+    }
+    if ($both -match 'StAgnes|\bAgnes\b|\bAgnetis\b') {
+        return 'lamb'
+    }
+    if ($both -match 'Cecilia|Caecilia') {
+        return 'harp'
+    }
+    if ($both -match 'Patrick|Patric') {
+        return 'trefoil'
+    }
+    if ($both -match 'Lucy|Lucia') {
+        return 'lamp'
+    }
+    if ($both -match 'Joseph|Ioseph') {
+        return 'lily'
+    }
+    if ($both -match 'Nicholas|Nicol') {
+        return 'gift'
+    }
+    if ($both -match 'George|Georg') {
+        return 'spear'
+    }
+    if ($both -match 'Angels|Archangel|Angel') {
+        return 'wing'
+    }
+    if ($both -match 'Evangelist|Evangelista|Doctor|doctor|doctorum|doctora') {
+        return 'book'
+    }
+    if ($both -match 'martyr|Martyr|martyrum') {
+        return 'palm'
+    }
+    if ($both -match 'episcop|bishop|Pope|papa|pontific') {
+        return 'staff'
+    }
+    if ($both -match 'virgin|virgini|Virgo') {
+        return 'lily'
+    }
+    if ($both -match 'apostol|Apostol|Ap$') {
+        return 'scroll'
+    }
+    if ($both -match 'abbot|abbas|monach|religios') {
+        return 'cross'
+    }
+    if ($both -match 'presbyter|priest|sacerdot') {
+        return 'chalice'
+    }
     # Neutral decorative emblems add variety where the source does not identify
     # an established attribute. Their choice does not assert saint iconography.
     $neutral = @('star','book','rose','lily','lamp','bird','scroll','cross','trefoil','chalice')
@@ -101,6 +210,11 @@ function Get-Motif([string]$key, [string]$name) {
 }
 
 function Draw-Motif($g, [string]$motif, [single]$cx, [single]$cy, [single]$scale, $gold, $ivory) {
+    <#
+    .SYNOPSIS
+    Draws the selected symbolic emblem at the supplied position and scale.
+    #>
+
     # These are symbolic decorative marks, not purported historical portraits or relics.
     switch ($motif) {
         'book' {
@@ -168,7 +282,11 @@ function Draw-Motif($g, [string]$motif, [single]$cx, [single]$cy, [single]$scale
             Draw-Line $g $gold (7*$scale) ($cx-24*$scale) ($cy+36*$scale) ($cx+24*$scale) ($cy+36*$scale)
         }
         'wing' {
-            foreach($side in @(-1,1)) { for($i=0;$i -lt 4;$i++){ Fill-Ellipse $g $ivory ($cx+$side*(12+$i*13)*$scale-18*$scale) ($cy-29*$scale+$i*10*$scale) (30*$scale) (52*$scale) } }
+            foreach($side in @(-1,1)) {
+                for($i=0;$i -lt 4;$i++){
+                    Fill-Ellipse $g $ivory ($cx+$side*(12+$i*13)*$scale-18*$scale) ($cy-29*$scale+$i*10*$scale) (30*$scale) (52*$scale)
+                }
+            }
         }
         'lamb' {
             Fill-Ellipse $g $ivory ($cx-35*$scale) ($cy-16*$scale) (56*$scale) (39*$scale)
@@ -187,7 +305,9 @@ function Draw-Motif($g, [string]$motif, [single]$cx, [single]$cy, [single]$scale
             Draw-Line $g $gold (7*$scale) ($cx-28*$scale) ($cy-40*$scale) ($cx+34*$scale) ($cy-21*$scale)
             Draw-Line $g $gold (7*$scale) ($cx-28*$scale) ($cy+43*$scale) ($cx+28*$scale) ($cy+38*$scale)
             Draw-Line $g $gold (7*$scale) ($cx+34*$scale) ($cy-21*$scale) ($cx+28*$scale) ($cy+38*$scale)
-            foreach($i in 0..4) { Draw-Line $g $ivory (2*$scale) ($cx-14*$scale+$i*10*$scale) ($cy-35*$scale+$i*3*$scale) ($cx-14*$scale+$i*10*$scale) ($cy+39*$scale) }
+            foreach($i in 0..4) {
+                Draw-Line $g $ivory (2*$scale) ($cx-14*$scale+$i*10*$scale) ($cy-35*$scale+$i*3*$scale) ($cx-14*$scale+$i*10*$scale) ($cy+39*$scale)
+            }
         }
         'trefoil' {
             Fill-Ellipse $g $ivory ($cx-16*$scale) ($cy-45*$scale) (32*$scale) (36*$scale)
@@ -221,22 +341,32 @@ function Draw-Motif($g, [string]$motif, [single]$cx, [single]$cy, [single]$scale
     }
 }
 
+#endregion
+
 $calendar = Get-Content -LiteralPath $DataPath -Raw | ConvertFrom-Json
-if (-not $calendar.saints) { throw "No saints found in $DataPath" }
+if (-not $calendar.saints) {
+    throw "No saints found in $DataPath"
+}
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $generated = 0
 foreach ($saint in $calendar.saints) {
     $key = [string]$saint.eventKey
-    if ($key -notmatch '^[A-Za-z][A-Za-z0-9]*$') { throw "Unsafe saint event key: $key" }
+    if ($key -notmatch '^[A-Za-z][A-Za-z0-9]*$') {
+        throw "Unsafe saint event key: $key"
+    }
     $out = Join-Path $OutputDirectory "saint-$key-v1.png"
-    if (Test-Path -LiteralPath $out) { continue } # Keep individual ImageGen originals.
+    if (Test-Path -LiteralPath $out) {
+        continue
+    } # Keep individual ImageGen originals.
     $hash = [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($key))
     $seed = [System.BitConverter]::ToInt32($hash, 0) -band 0x7fffffff
     $random = [System.Random]::new($seed)
     $motif = Get-Motif $key ([string]$saint.nameLatin)
     $baseName = $key -creplace '^(Owner)?OurLadyOf|^Sts?',''
     $mark = $baseName -creplace '[^A-Z]',''
-    if ($mark.Length -lt 2) { $mark = $baseName.Substring(0, [math]::Min(2, $baseName.Length)).ToUpperInvariant() }
+    if ($mark.Length -lt 2) {
+        $mark = $baseName.Substring(0, [math]::Min(2, $baseName.Length)).ToUpperInvariant()
+    }
     $mark = $mark.Substring(0, [math]::Min(3, $mark.Length))
     $bitmap = [System.Drawing.Bitmap]::new(512,512,[System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bitmap)
@@ -252,17 +382,37 @@ foreach ($saint in $calendar.saints) {
             $vignette.CenterColor = C 250 23 39 69
             $vignette.SurroundColors = [System.Drawing.Color[]]@((C 0 12 24 45))
             $g.FillPath($vignette, $path)
-        } finally { $vignette.Dispose(); $path.Dispose() }
+        } finally {
+            $vignette.Dispose();
+            $path.Dispose()
+        }
         $gold = C 245 224 183 105
         $ivory = C 246 245 233 202
         $outline = C 95 228 181 100
         $variation = $seed % 5
         switch ($variation) {
-            0 { Draw-Ellipse $g $outline 3 100 95 312 355; Draw-Ellipse $g (C 70 245 219 165) 2 117 112 278 322 }
-            1 { Draw-Line $g $outline 3 134 398 187 119; Draw-Line $g $outline 3 378 398 325 119; Draw-Ellipse $g $outline 3 184 75 144 144 }
-            2 { Draw-Ellipse $g $outline 3 79 146 352 279; Draw-Line $g $outline 2 93 330 418 330 }
-            3 { Draw-Line $g $outline 3 99 376 191 105; Draw-Line $g $outline 3 413 376 321 105; Draw-Line $g $outline 3 191 105 321 105 }
-            4 { Draw-Ellipse $g $outline 3 92 90 328 328; Draw-Line $g (C 65 228 181 100) 2 91 254 421 254 }
+            0 {
+                Draw-Ellipse $g $outline 3 100 95 312 355;
+                Draw-Ellipse $g (C 70 245 219 165) 2 117 112 278 322
+            }
+            1 {
+                Draw-Line $g $outline 3 134 398 187 119;
+                Draw-Line $g $outline 3 378 398 325 119;
+                Draw-Ellipse $g $outline 3 184 75 144 144
+            }
+            2 {
+                Draw-Ellipse $g $outline 3 79 146 352 279;
+                Draw-Line $g $outline 2 93 330 418 330
+            }
+            3 {
+                Draw-Line $g $outline 3 99 376 191 105;
+                Draw-Line $g $outline 3 413 376 321 105;
+                Draw-Line $g $outline 3 191 105 321 105
+            }
+            4 {
+                Draw-Ellipse $g $outline 3 92 90 328 328;
+                Draw-Line $g (C 65 228 181 100) 2 91 254 421 254
+            }
         }
         # Key-seeded celestial points form a unique, repeatable constellation.
         $starCount = 4 + ($seed % 4)
@@ -275,7 +425,9 @@ foreach ($saint in $calendar.saints) {
             $points += ,([System.Drawing.PointF]::new($sx,$sy))
             Fill-Ellipse $g (C 230 255 224 160) ($sx-3) ($sy-3) 6 6
         }
-        for ($i=0; $i -lt $points.Count-1; $i++) { Draw-Line $g (C 65 232 208 158) 2 $points[$i].X $points[$i].Y $points[$i+1].X $points[$i+1].Y }
+        for ($i=0; $i -lt $points.Count-1; $i++) {
+            Draw-Line $g (C 65 232 208 158) 2 $points[$i].X $points[$i].Y $points[$i+1].X $points[$i+1].Y
+        }
         # The foreground emblem is deliberately large enough to read at 60px.
         # The halo and floating constellation echo the cinematic celestial UI.
         Fill-GradientEllipse $g (C 125 211 165 91) (C 0 211 165 91) 77 74 358 344
@@ -302,8 +454,14 @@ foreach ($saint in $calendar.saints) {
             $finalGraphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
             $finalGraphics.DrawImage($bitmap, [System.Drawing.Rectangle]::new(0,0,256,256), [System.Drawing.Rectangle]::new(0,0,512,512), [System.Drawing.GraphicsUnit]::Pixel)
             $final.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
-        } finally { $finalGraphics.Dispose(); $final.Dispose() }
+        } finally {
+            $finalGraphics.Dispose();
+            $final.Dispose()
+        }
         $generated++
-    } finally { $g.Dispose(); $bitmap.Dispose() }
+    } finally {
+        $g.Dispose();
+        $bitmap.Dispose()
+    }
 }
 "Generated $generated symbolic PNGs. Existing files preserved."

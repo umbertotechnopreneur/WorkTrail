@@ -27,6 +27,8 @@ namespace WorkTrail;
 /// <summary>Applies the Z translation required for a global ThemeShadow on InfoBars.</summary>
 public static class InfoBarElevationBehavior
 {
+    #region Fields
+
     private const float Elevation = 12f;
 
     public static readonly DependencyProperty IsEnabledProperty = DependencyProperty.RegisterAttached(
@@ -34,6 +36,10 @@ public static class InfoBarElevationBehavior
         typeof(bool),
         typeof(InfoBarElevationBehavior),
         new PropertyMetadata(false, IsEnabledChanged));
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>
     /// Gets whether the elevation behavior is enabled for an <see cref="InfoBar"/>.
@@ -45,6 +51,7 @@ public static class InfoBarElevationBehavior
     /// </summary>
     public static void SetIsEnabled(DependencyObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
+    /// <summary>Attaches or removes the presentation behavior when its enabled property changes.</summary>
     private static void IsEnabledChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)
     {
         if (dependencyObject is not InfoBar infoBar)
@@ -56,4 +63,6 @@ public static class InfoBarElevationBehavior
         ElementCompositionPreview.SetIsTranslationEnabled(infoBar, isEnabled);
         infoBar.Translation = isEnabled ? new Vector3(0f, 0f, Elevation) : Vector3.Zero;
     }
+
+    #endregion
 }

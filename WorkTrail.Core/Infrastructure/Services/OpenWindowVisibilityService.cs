@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using WorkTrail.Application;
@@ -26,8 +25,15 @@ namespace WorkTrail.Services;
 /// <summary>Reveals live UI peers without creating windows or transferring foreground focus.</summary>
 internal sealed class OpenWindowVisibilityService(IOpenWindowVisibilityInterop? interop = null)
 {
+
+    #region Fields
     private readonly IOpenWindowVisibilityInterop _interop = interop ?? new NativeOpenWindowVisibilityInterop();
 
+    #endregion
+
+    #region Methods and properties
+
+    /// <summary>Raises valid open peers without transferring foreground focus or recreating windows.</summary>
     internal int Reveal(WindowRevealRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -50,7 +56,11 @@ internal sealed class OpenWindowVisibilityService(IOpenWindowVisibilityInterop? 
 
         foreach (var handle in handles)
         {
-            if (_interop.Read(handle) is { } peer) ValidatePeer(main, peer);
+            if (_interop.Read(handle) is { } peer)
+            {
+                ValidatePeer(main, peer);
+            }
+
         }
 
         var revealed = 0;
@@ -58,7 +68,11 @@ internal sealed class OpenWindowVisibilityService(IOpenWindowVisibilityInterop? 
         foreach (var handle in handles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!CanReveal(request.MainWindowHandle, main.Identity)) break;
+            if (!CanReveal(request.MainWindowHandle, main.Identity))
+            {
+                break;
+            }
+
             var peer = _interop.Read(handle);
             if (peer is null || !peer.Enabled)
             {
@@ -71,14 +85,26 @@ internal sealed class OpenWindowVisibilityService(IOpenWindowVisibilityInterop? 
             {
                 if (!peer.Visible || peer.Minimized)
                 {
-                    if (!CanReveal(request.MainWindowHandle, main.Identity)) break;
+                    if (!CanReveal(request.MainWindowHandle, main.Identity))
+                    {
+                        break;
+                    }
+
                     _interop.ShowWithoutActivation(handle, peer.Minimized);
                 }
 
-                if (!CanReveal(request.MainWindowHandle, main.Identity)) break;
+                if (!CanReveal(request.MainWindowHandle, main.Identity))
+                {
+                    break;
+                }
+
                 // Existing always-on-top choices keep their own band; ordinary peers stay below the main window.
                 _interop.PlaceWithoutActivation(handle, insertAfter, preserveZOrder: peer.Topmost);
-                if (!peer.Topmost) insertAfter = handle;
+                if (!peer.Topmost)
+                {
+                    insertAfter = handle;
+                }
+
                 revealed++;
             }
             catch (Win32Exception) when (_interop.Read(handle) is null)
@@ -90,11 +116,17 @@ internal sealed class OpenWindowVisibilityService(IOpenWindowVisibilityInterop? 
         return revealed;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Checks that the expected main window still owns foreground activation.</summary>
     private bool CanReveal(long mainHandle, NativeWindowIdentity expectedIdentity) =>
         _interop.ForegroundWindow == mainHandle
         && _interop.Read(mainHandle) is { Enabled: true, Visible: true, Minimized: false } main
         && main.Identity == expectedIdentity;
 
+    /// <summary>Rejects peers outside the main window's process and UI thread.</summary>
     private static void ValidatePeer(OpenNativeWindowState main, OpenNativeWindowState peer)
     {
         // The runtime may be in another process: compare peers to the supplied UI main, not to this runtime's PID.
@@ -103,13 +135,21 @@ internal sealed class OpenWindowVisibilityService(IOpenWindowVisibilityInterop? 
             throw new ArgumentException("Peer windows must belong to the main window's process and UI thread.");
         }
     }
+
+    #endregion
+
 }
 
+/// <summary>Identifies the process and UI thread that own a native window.</summary>
 internal sealed record NativeWindowIdentity(uint ProcessId, uint ThreadId);
+/// <summary>Captures the native state needed to reveal a live peer safely.</summary>
 internal sealed record OpenNativeWindowState(NativeWindowIdentity Identity, bool Enabled, bool Visible, bool Minimized, bool Topmost = false);
 
+/// <summary>Abstracts the native reads and positioning needed for peer revelation.</summary>
 internal interface IOpenWindowVisibilityInterop
 {
+
+    #region Methods and properties
     long ForegroundWindow { get; }
     /// <summary>Reads a live native window or returns null when it has already closed.</summary>
     OpenNativeWindowState? Read(long handle);
@@ -117,10 +157,16 @@ internal interface IOpenWindowVisibilityInterop
     void ShowWithoutActivation(long handle, bool minimized);
     /// <summary>Raises a peer without activation, movement, resizing, or changing an existing topmost preference.</summary>
     void PlaceWithoutActivation(long handle, long insertAfter, bool preserveZOrder);
+
+    #endregion
+
 }
 
+/// <summary>Implements peer visibility through nonactivating USER32 operations.</summary>
 internal sealed class NativeOpenWindowVisibilityInterop : IOpenWindowVisibilityInterop
 {
+
+    #region Fields
     private const int GwlExStyle = -20;
     private const long WsExTopmost = 0x00000008;
     private const int SwShowNoActivate = 4;
@@ -133,19 +179,31 @@ internal sealed class NativeOpenWindowVisibilityInterop : IOpenWindowVisibilityI
     private const uint SwpNoOwnerZOrder = 0x0200;
     private const uint SwpAsyncWindowPos = 0x4000;
 
+    #endregion
+
+    #region Methods and properties
+
     public long ForegroundWindow => GetForegroundWindow().ToInt64();
 
     /// <inheritdoc />
     public OpenNativeWindowState? Read(long handle)
     {
         var native = new IntPtr(handle);
-        if (!IsWindow(native)) return null;
+        if (!IsWindow(native))
+        {
+            return null;
+        }
+
         var thread = GetWindowThreadProcessId(native, out var process);
         if (thread == 0)
         {
             var identityError = Marshal.GetLastPInvokeError();
             // A UI close may race any native read after IsWindow. Only a still-live handle represents an interop failure.
-            if (!IsWindow(native)) return null;
+            if (!IsWindow(native))
+            {
+                return null;
+            }
+
             throw new Win32Exception(identityError, "Unable to read the native window identity.");
         }
         Marshal.SetLastPInvokeError(0);
@@ -153,7 +211,11 @@ internal sealed class NativeOpenWindowVisibilityInterop : IOpenWindowVisibilityI
         var error = Marshal.GetLastPInvokeError();
         if (extendedStyle == 0 && error != 0)
         {
-            if (!IsWindow(native)) return null;
+            if (!IsWindow(native))
+            {
+                return null;
+            }
+
             throw new Win32Exception(error, "Unable to read the native window style.");
         }
         return new(new(process, thread), IsWindowEnabled(native), IsWindowVisible(native), IsIconic(native), (extendedStyle & WsExTopmost) != 0);
@@ -175,35 +237,55 @@ internal sealed class NativeOpenWindowVisibilityInterop : IOpenWindowVisibilityI
     {
         // Asynchronous positioning avoids blocking the UI thread when this facade is served through IPC.
         var flags = SwpNoMove | SwpNoSize | SwpNoActivate | SwpShowWindow | SwpNoOwnerZOrder | SwpAsyncWindowPos;
-        if (preserveZOrder) flags |= SwpNoZOrder;
+        if (preserveZOrder)
+        {
+            flags |= SwpNoZOrder;
+        }
+
         if (!SetWindowPos(new IntPtr(handle), new IntPtr(insertAfter), 0, 0, 0, 0, flags))
         {
             throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to reveal the native window without activation.");
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Returns the native foreground window handle.</summary>
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+    /// <summary>Reads the process and UI thread owning a window handle.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+    /// <summary>Reads pointer-sized native window metadata.</summary>
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
     private static extern IntPtr GetWindowLongPtr(IntPtr window, int index);
+    /// <summary>Checks whether a native window handle is still live.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindow(IntPtr window);
+    /// <summary>Checks whether native input is enabled for a window.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowEnabled(IntPtr window);
+    /// <summary>Checks the native window visibility flag.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr window);
+    /// <summary>Checks whether the native window is minimized.</summary>
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsIconic(IntPtr window);
+    /// <summary>Requests a window visibility change without blocking on its owning thread.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShowWindowAsync(IntPtr window, int command);
+    /// <summary>Applies native position, size, visibility, and stacking flags.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+
+    #endregion
+
 }

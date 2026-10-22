@@ -35,6 +35,8 @@ namespace WorkTrail;
 /// <summary>Applies default bounds and delegates persisted placement to the shared application facade.</summary>
 internal sealed class WindowPlacementService : IDisposable
 {
+    #region Fields
+
     private static readonly HashSet<WindowPlacementService> ActivePlacements = [];
     private static bool s_preservingWorkspace;
     private static Task? s_shutdownPreparation;
@@ -75,6 +77,10 @@ internal sealed class WindowPlacementService : IDisposable
     private bool? _showInTaskbar;
     private readonly CancellationTokenSource _revealLifetime = new();
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Binds a context menu to its owning window's last committed taskbar preference.</summary>
     internal static Func<bool> GetTaskbarVisibilityReader(Window window)
     {
@@ -94,13 +100,16 @@ internal sealed class WindowPlacementService : IDisposable
         ApplyTaskbarVisibility();
     }
 
+    /// <summary>Applies the requested taskbar visibility to the native window.</summary>
     private void ApplyTaskbarVisibility()
     {
         // Initial WinUI activation creates the shell button. Applying only while hidden can leave
         // the AppWindow flag and the taskbar button out of sync even though settings were restored.
         if (!_disposed && _appWindow.IsVisible && _showInTaskbar is { } showInTaskbar
             && _appWindow.IsShownInSwitchers != showInTaskbar)
+        {
             _appWindow.IsShownInSwitchers = showInTaskbar;
+        }
     }
 
     /// <summary>Lets the composition root report recoverable persistence failures on the owning window.</summary>
@@ -122,6 +131,11 @@ internal sealed class WindowPlacementService : IDisposable
             .Select(placement => placement._windowHandle.ToInt64())
             .ToArray();
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Tracks native geometry and connects deferred persistence for this window.</summary>
     internal WindowPlacementService(
         IWorkTrailApplication application,
         Window window,
@@ -165,16 +179,11 @@ internal sealed class WindowPlacementService : IDisposable
         AttachXamlRoot();
         try
         {
-            if (_windowKey != WindowStateKeys.Main)
-                _application.ExcludeAuxiliaryWindowFromCapture(_windowHandle.ToInt64());
-
             // Only independent work surfaces participate, both as moving windows and alignment targets.
             // Dialogs, About, licenses and temporary operations retain native free movement.
             if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks
                 or WindowStateKeys.WorldMap or WindowStateKeys.LunarPhase or WindowStateKeys.LocalSky
-                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap or WindowStateKeys.Search
-                or WindowStateKeys.Screenshots or WindowStateKeys.Schedule
-                or WindowStateKeys.ReportExport)
+                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap)
             {
                 _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
             }
@@ -187,6 +196,11 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Publishes a native snapping failure to the application owner.</summary>
     private void ReportSnappingFailure(Exception exception)
     {
         Trace.TraceError("Window snapping failed. WindowKey={0} Exception={1}", _windowKey, exception);
@@ -195,7 +209,10 @@ internal sealed class WindowPlacementService : IDisposable
         {
             try
             {
-                if (!_disposed && SnappingFailed is { } report) await report(_window, exception);
+                if (!_disposed && SnappingFailed is { } report)
+                {
+                    await report(_window, exception);
+                }
             }
             catch (Exception notificationFailure)
             {
@@ -218,18 +235,23 @@ internal sealed class WindowPlacementService : IDisposable
             || Math.Abs(WindowInteropService.GetRasterizationScale(_windowHandle) - _appliedDisplayScale) >= 0.001d
             || (_xamlRoot is not null && Math.Abs(_xamlRoot.RasterizationScale - _appliedDisplayScale) >= 0.001d));
 
+    /// <summary>Initializes placement and presentation after the root enters the visual tree.</summary>
     private void Root_Loaded(object sender, RoutedEventArgs args)
     {
         AttachXamlRoot();
         QueueDpiRefresh();
     }
 
+    /// <summary>Stops pending presentation work and releases window event subscriptions and resources.</summary>
     private void Window_Closed(object sender, WindowEventArgs args) => Dispose();
 
+    /// <summary>Updates window interaction state after native activation changes.</summary>
     private async void Window_Activated(object sender, WindowActivatedEventArgs args)
     {
         if (args.WindowActivationState != WindowActivationState.Deactivated)
+        {
             ApplyTaskbarVisibility();
+        }
         if (args.WindowActivationState == WindowActivationState.Deactivated
             || _disposed || _closeSaveStarted || _shutdownPrepared || s_preservingWorkspace
             || _revealingOpenWindows)
@@ -244,7 +266,10 @@ internal sealed class WindowPlacementService : IDisposable
             // The clicked window anchors the group. Core raises peers without transferring foreground focus.
             var activeHandle = _windowHandle.ToInt64();
             var peers = GetOpenPeerWindowHandles(activeHandle);
-            if (peers.Count == 0) return;
+            if (peers.Count == 0)
+            {
+                return;
+            }
             var result = await _application.RevealOpenWindowsAsync(
                 new WindowRevealRequest(activeHandle, peers), cancellationToken);
             if (!result.Succeeded)
@@ -277,9 +302,13 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Reconciles presentation with native window state and geometry changes.</summary>
     private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
     {
-        if (args.DidVisibilityChange) ApplyTaskbarVisibility();
+        if (args.DidVisibilityChange)
+        {
+            ApplyTaskbarVisibility();
+        }
         QueueDpiRefresh();
         if (_placementReady && !_disposed && !_closeSaveStarted && !s_preservingWorkspace
             && (args.DidPositionChange || args.DidSizeChange || args.DidVisibilityChange))
@@ -289,6 +318,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Flushes debounced window geometry after movement settles.</summary>
     private async void SaveTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         try
@@ -302,6 +332,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Intercepts native closure while the window's close policy completes.</summary>
     private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         // Main owns its confirmation and flushes the whole workspace before shutdown.
@@ -330,6 +361,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Notifies the owner of a persistence failure while preserving window lifetime.</summary>
     private async Task NotifyPersistenceFailureAsync(Exception exception)
     {
         Trace.TraceError("Window persistence failed. WindowKey={0} Exception={1}", _windowKey, exception);
@@ -354,6 +386,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Persists placement before scheduling the final native close.</summary>
     private async Task CloseAfterSaveAsync()
     {
         try
@@ -368,7 +401,10 @@ internal sealed class WindowPlacementService : IDisposable
             // Core can complete synchronously; defer the final close until the original native Closing event unwinds.
             if (!_root.DispatcherQueue.TryEnqueue(() =>
                 {
-                    if (!_disposed) _window.Close();
+                    if (!_disposed)
+                    {
+                        _window.Close();
+                    }
                 }))
             {
                 throw new InvalidOperationException("Unable to queue the persisted window close.");
@@ -395,6 +431,7 @@ internal sealed class WindowPlacementService : IDisposable
         return s_shutdownPreparation = FlushWorkspaceAsync();
     }
 
+    /// <summary>Saves every live window while preserving explicit closes already in progress.</summary>
     private static async Task FlushWorkspaceAsync()
     {
         try
@@ -404,7 +441,10 @@ internal sealed class WindowPlacementService : IDisposable
             {
                 foreach (var placement in ActivePlacements.Where(static placement => !placement._shutdownPrepared).ToArray())
                 {
-                    if (placement._disposed) continue;
+                    if (placement._disposed)
+                    {
+                        continue;
+                    }
                     placement._saveTimer.Stop();
                     if (placement._closeSaveStarted)
                     {
@@ -444,8 +484,10 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Queues geometry updates after the XAML root's scale or layout changes.</summary>
     private void XamlRoot_Changed(XamlRoot sender, XamlRootChangedEventArgs args) => QueueDpiRefresh();
 
+    /// <summary>Moves change subscriptions to the window's current XAML root.</summary>
     private void AttachXamlRoot()
     {
         if (ReferenceEquals(_xamlRoot, _root.XamlRoot))
@@ -465,6 +507,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Coalesces DPI updates until native and XAML geometry are ready.</summary>
     private void QueueDpiRefresh()
     {
         if (_disposed)
@@ -492,6 +535,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Reconciles layout and minimum bounds after native and XAML DPI agree.</summary>
     private void RefreshDpiLayout()
     {
         try
@@ -540,11 +584,14 @@ internal sealed class WindowPlacementService : IDisposable
         var availableWidth = Math.Max(1, area.Width - (margin * 2));
         var availableHeight = Math.Max(1, area.Height - (margin * 2));
         var minimumSize = UpdateMinimumSize(scale, area);
-        var width = Math.Min(availableWidth, Math.Max(minimumSize.Width, (int)Math.Ceiling(_logicalDefaultWidth * scale)));
-        var height = Math.Min(availableHeight, Math.Max(minimumSize.Height, (int)Math.Ceiling(_logicalDefaultHeight * scale)));
+        var defaultPhysicalWidth = (int)Math.Ceiling(_logicalDefaultWidth * scale);
+        var defaultPhysicalHeight = (int)Math.Ceiling(_logicalDefaultHeight * scale);
+        var width = Math.Min(availableWidth, Math.Max(minimumSize.Width, defaultPhysicalWidth));
+        var height = Math.Min(availableHeight, Math.Max(minimumSize.Height, defaultPhysicalHeight));
         _appWindow.Resize(new SizeInt32(width, height));
     }
 
+    /// <summary>Applies the default size and centers it in the selected work area.</summary>
     internal void ApplyDefaultBounds(FrameworkElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -554,10 +601,36 @@ internal sealed class WindowPlacementService : IDisposable
         var availableWidth = Math.Max(1, area.Width - (margin * 2));
         var availableHeight = Math.Max(1, area.Height - (margin * 2));
         var minimumSize = UpdateMinimumSize(scale, area);
-        var width = Math.Min(availableWidth, Math.Max(minimumSize.Width, (int)Math.Ceiling(_logicalDefaultWidth * scale)));
-        var height = Math.Min(availableHeight, Math.Max(minimumSize.Height, (int)Math.Ceiling(_logicalDefaultHeight * scale)));
+        var defaultPhysicalWidth = (int)Math.Ceiling(_logicalDefaultWidth * scale);
+        var defaultPhysicalHeight = (int)Math.Ceiling(_logicalDefaultHeight * scale);
+        var width = Math.Min(availableWidth, Math.Max(minimumSize.Width, defaultPhysicalWidth));
+        var height = Math.Min(availableHeight, Math.Max(minimumSize.Height, defaultPhysicalHeight));
         _appWindow.Resize(new SizeInt32(width, height));
         CenterInWorkArea(area);
+    }
+
+    /// <summary>Centers the launcher on the pointer's display while retaining its saved size.</summary>
+    internal void CenterOnCursorDisplay(FrameworkElement root)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        if (_disposed || _closeSaveStarted || s_preservingWorkspace)
+        {
+            return;
+        }
+        var area = CursorWorkArea();
+        var presenter = _appWindow.Presenter as OverlappedPresenter;
+        var maximized = presenter?.State == OverlappedPresenterState.Maximized;
+        if (presenter is not null && presenter.State != OverlappedPresenterState.Restored)
+        {
+            presenter.Restore();
+        }        // Move before clamping so the native window reports the destination display's DPI.
+        CenterInWorkArea(area);
+        KeepCurrentBoundsInWorkArea(root, area);
+        CenterInWorkArea(area);
+        if (maximized)
+        {
+            presenter!.Maximize();
+        }
     }
 
     /// <summary>Restores saved bounds without replacing the user's position with an application-selected anchor.</summary>
@@ -567,6 +640,7 @@ internal sealed class WindowPlacementService : IDisposable
         return _restoreTask ??= RestoreCoreAsync(root, cancellationToken);
     }
 
+    /// <summary>Restores saved placement before allowing subsequent debounced saves.</summary>
     private async Task<bool> RestoreCoreAsync(FrameworkElement root, CancellationToken cancellationToken)
     {
         _restoreAttempted = true;
@@ -589,7 +663,10 @@ internal sealed class WindowPlacementService : IDisposable
         // Restored coordinates are authoritative; only clamp bounds that no longer fit the active display topology.
         KeepCurrentBoundsInWorkArea(root);
         _placementReady = true;
-        if (!_closeSaveStarted && !s_preservingWorkspace) _saveTimer.Start();
+        if (!_closeSaveStarted && !s_preservingWorkspace)
+        {
+            _saveTimer.Start();
+        }
         return result.Value is not null;
     }
 
@@ -610,7 +687,10 @@ internal sealed class WindowPlacementService : IDisposable
             return;
         }
 
-        if (_disposed || _closeSaveStarted || s_preservingWorkspace) return;
+        if (_disposed || _closeSaveStarted || s_preservingWorkspace)
+        {
+            return;
+        }
         var area = centerOnCursorDisplay ? CursorWorkArea() : OpeningWorkArea();
         KeepCurrentBoundsInWorkArea(root, area);
         CenterInWorkArea(area);
@@ -623,9 +703,14 @@ internal sealed class WindowPlacementService : IDisposable
     internal async Task RestoreAndCenterOnOwnerAsync(FrameworkElement root, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(root);
-        if (await RestoreAsync(root, cancellationToken)) return;
-        if (_disposed || _closeSaveStarted || s_preservingWorkspace) return;
-
+        if (await RestoreAsync(root, cancellationToken))
+        {
+            return;
+        }
+        if (_disposed || _closeSaveStarted || s_preservingWorkspace)
+        {
+            return;
+        }
         var owner = AppWindow.GetFromWindowId(_displayAnchorId)
             ?? throw new InvalidOperationException("The dialog owner is unavailable for centering.");
         var area = OpeningWorkArea();
@@ -676,6 +761,7 @@ internal sealed class WindowPlacementService : IDisposable
         KeepCurrentBoundsInWorkArea(root);
     }
 
+    /// <summary>Queues placement persistence only while the window remains eligible for saving.</summary>
     internal Task SaveAsync(CancellationToken cancellationToken)
     {
         if (_disposed || _closeSaveStarted || _closeSaveCompleted || _shutdownPrepared || s_preservingWorkspace)
@@ -686,6 +772,7 @@ internal sealed class WindowPlacementService : IDisposable
         return QueueSaveAsync(cancellationToken);
     }
 
+    /// <summary>Serializes placement writes and permits a later retry after a failed save.</summary>
     private Task QueueSaveAsync(CancellationToken cancellationToken)
     {
         if (_pendingSave.IsFaulted || _pendingSave.IsCanceled)
@@ -701,14 +788,24 @@ internal sealed class WindowPlacementService : IDisposable
     /// <summary>Flushes a guarded dialog's placement and freezes queued writes before its own completion path closes it.</summary>
     internal Task SaveForExplicitCloseAsync(CancellationToken cancellationToken)
     {
-        if (_disposed || _closeSaveCompleted || _shutdownPrepared) return _pendingSave;
-        if (s_preservingWorkspace) return s_shutdownPreparation ?? _pendingSave;
-        if (_closeSaveStarted) return _pendingClose;
+        if (_disposed || _closeSaveCompleted || _shutdownPrepared)
+        {
+            return _pendingSave;
+        }
+        if (s_preservingWorkspace)
+        {
+            return s_shutdownPreparation ?? _pendingSave;
+        }
+        if (_closeSaveStarted)
+        {
+            return _pendingClose;
+        }
         _closeSaveStarted = true;
         _saveTimer.Stop();
         return _pendingClose = PersistExplicitCloseAsync(cancellationToken);
     }
 
+    /// <summary>Persists placement and the closed flag before releasing a guarded dialog.</summary>
     private async Task PersistExplicitCloseAsync(CancellationToken cancellationToken)
     {
         try
@@ -729,6 +826,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Waits for earlier persistence and restoration before saving current placement.</summary>
     private async Task PersistAsync(Task previousSave, CancellationToken cancellationToken)
     {
         await previousSave;
@@ -749,7 +847,10 @@ internal sealed class WindowPlacementService : IDisposable
             }
         }
 
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         if (_placementReady)
         {
             var result = await _application.SaveWindowStateAsync(
@@ -768,6 +869,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Persists whether the workspace should reopen this window.</summary>
     private async Task SaveOpenStateAsync(bool isOpen, CancellationToken cancellationToken)
     {
         var result = await _application.SetWindowOpenStateAsync(_windowKey, isOpen, cancellationToken);
@@ -802,6 +904,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
+    /// <summary>Clamps current native bounds to the available monitor work area.</summary>
     internal void KeepCurrentBoundsInWorkArea(FrameworkElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -809,6 +912,7 @@ internal sealed class WindowPlacementService : IDisposable
         KeepCurrentBoundsInWorkArea(root, area);
     }
 
+    /// <summary>Clamps current native bounds to the available monitor work area.</summary>
     private void KeepCurrentBoundsInWorkArea(FrameworkElement root, RectInt32 area)
     {
         var scale = ResolveScale(root);
@@ -850,7 +954,7 @@ internal sealed class WindowPlacementService : IDisposable
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>Stops placement updates and removes the native subclass before releasing the window.</summary>
     public void Dispose()
     {
         if (_disposed)
@@ -887,6 +991,7 @@ internal sealed class WindowPlacementService : IDisposable
         _snapping?.Dispose();
     }
 
+    /// <summary>Resolves the scale used to translate logical layout sizes into native pixels.</summary>
     private double ResolveScale(FrameworkElement root)
     {
         AttachXamlRoot();
@@ -895,6 +1000,7 @@ internal sealed class WindowPlacementService : IDisposable
         return scale;
     }
 
+    /// <summary>Updates native minimum dimensions within the selected monitor's usable bounds.</summary>
     private SizeInt32 UpdateMinimumSize(double scale, RectInt32 workArea)
     {
         var margin = (int)Math.Ceiling(_logicalScreenMargin * scale);
@@ -906,6 +1012,7 @@ internal sealed class WindowPlacementService : IDisposable
         return _minimumPhysicalSize;
     }
 
+    /// <summary>Centers the current native window size in the supplied monitor work area.</summary>
     private void CenterInWorkArea(RectInt32 workArea)
     {
         _appWindow.Move(new PointInt32(
@@ -913,9 +1020,11 @@ internal sealed class WindowPlacementService : IDisposable
             workArea.Y + Math.Max(0, (workArea.Height - _appWindow.Size.Height) / 2)));
     }
 
+    /// <summary>Selects the display work area associated with the window's opening anchor.</summary>
     private RectInt32 OpeningWorkArea() =>
         DisplayArea.GetFromWindowId(_displayAnchorId, DisplayAreaFallback.Primary).WorkArea;
 
+    /// <summary>Finds the monitor work area containing the current native pointer.</summary>
     private static RectInt32 CursorWorkArea()
     {
         if (!GetCursorPos(out var cursorPosition))
@@ -929,6 +1038,7 @@ internal sealed class WindowPlacementService : IDisposable
             DisplayAreaFallback.Primary).WorkArea;
     }
 
+    /// <summary>Installs the native message hook used to enforce minimum window dimensions.</summary>
     private void InstallMinimumSizeSubclass()
     {
         if (_subclassInstalled)
@@ -944,6 +1054,7 @@ internal sealed class WindowPlacementService : IDisposable
         _subclassInstalled = true;
     }
 
+    /// <summary>Handles native minimum-size messages and forwards all other window messages.</summary>
     private IntPtr WindowSubclassProc(IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam, nuint subclassId, nuint referenceData)
     {
         if (message == WmGetMinMaxInfo)
@@ -962,8 +1073,10 @@ internal sealed class WindowPlacementService : IDisposable
         return DefSubclassProc(windowHandle, message, wParam, lParam);
     }
 
+    /// <summary>Defines the native callback signature used by the minimum-size window subclass.</summary>
     private delegate IntPtr NativeWindowSubclassProc(IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam, nuint subclassId, nuint referenceData);
 
+    /// <summary>Represents a native point using the Win32 integer layout.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -971,28 +1084,39 @@ internal sealed class WindowPlacementService : IDisposable
         public int Y;
     }
 
+    /// <summary>Matches the Win32 minimum and maximum tracking-size message payload.</summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct MinMaxInfo
     {
+        #region Fields
+
         public NativePoint Reserved;
         public NativePoint MaxSize;
         public NativePoint MaxPosition;
         public NativePoint MinTrackSize;
         public NativePoint MaxTrackSize;
+
+        #endregion
     }
 
+    /// <summary>Registers the native subclass callback for the window handle.</summary>
     [DllImport("Comctl32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowSubclass(IntPtr hWnd, NativeWindowSubclassProc pfnSubclass, nuint uIdSubclass, nuint dwRefData);
 
+    /// <summary>Removes the native subclass callback before its owner is released.</summary>
     [DllImport("Comctl32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RemoveWindowSubclass(IntPtr hWnd, NativeWindowSubclassProc pfnSubclass, nuint uIdSubclass);
 
+    /// <summary>Reads the pointer position in native screen coordinates.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out NativePoint point);
 
+    /// <summary>Forwards a native message through the remaining subclass chain.</summary>
     [DllImport("Comctl32.dll", SetLastError = true)]
     private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+    #endregion
 }

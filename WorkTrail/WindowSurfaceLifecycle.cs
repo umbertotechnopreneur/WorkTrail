@@ -22,10 +22,16 @@ namespace WorkTrail;
 /// <summary>Tracks one window's loaded gate, initialization task, and cancellation lifetime.</summary>
 internal sealed class WindowSurfaceLifecycle : IDisposable
 {
+    #region Fields
+
     private readonly CancellationTokenSource _cancellation = new();
     private readonly TaskCompletionSource _loaded = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task? _initializationTask;
     private bool _disposed;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Gets the token cancelled when the owning window closes.</summary>
     internal CancellationToken Token => _cancellation.Token;
@@ -65,6 +71,7 @@ internal sealed class WindowSurfaceLifecycle : IDisposable
         }
     }
 
+    /// <summary>Reports asynchronous surface initialization failures without abandoning their task.</summary>
     private async Task ObserveInitializationAsync(Task initializationTask)
     {
         try
@@ -82,7 +89,7 @@ internal sealed class WindowSurfaceLifecycle : IDisposable
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>Cancels initialization and releases the window lifetime token and callbacks.</summary>
     public void Dispose()
     {
         if (_disposed)
@@ -96,4 +103,6 @@ internal sealed class WindowSurfaceLifecycle : IDisposable
         _cancellation.Dispose();
         _disposed = true;
     }
+
+    #endregion
 }

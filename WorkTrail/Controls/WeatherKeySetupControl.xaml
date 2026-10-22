@@ -1,0 +1,14 @@
+<!-- SPDX-License-Identifier: MIT -->
+<UserControl x:Class="WorkTrail.Controls.WeatherKeySetupControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel x:Name="RootPanel" Padding="24" Spacing="16">
+        <TextBlock Tag="WeatherSetup.Title" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Tag="WeatherSetup.Explanation" TextWrapping="Wrap" />
+        <PasswordBox x:Name="KeyBox" Tag="WeatherSetup.Key" PasswordRevealMode="Hidden" AutomationProperties.AutomationId="WeatherKey.Key" />
+        <Button x:Name="SaveButton" Tag="WeatherSetup.Save" Content="Verify and save" AutomationProperties.AutomationId="WeatherKey.Save" Click="Save_Click" />
+        <Button x:Name="HelpButton" Tag="WeatherSetup.CreateKey" Content="Create a key" AutomationProperties.AutomationId="WeatherKey.Help" Click="Help_Click" />
+        <Button x:Name="BackButton" Tag="Dialog.Cancel" Content="Cancel" AutomationProperties.AutomationId="WeatherKey.Back" Click="Back_Click" />
+        <InfoBar x:Name="StatusBar" IsOpen="False" Severity="Error" IsClosable="True" />
+    </StackPanel>
+</UserControl>

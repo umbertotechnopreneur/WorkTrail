@@ -29,14 +29,18 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Serializes tests that temporarily replace the shared build information manifest.</summary>
 [CollectionDefinition("Build information manifest", DisableParallelization = true)]
 public sealed class BuildInformationManifestCollection
 {
 }
 
+/// <summary>Checks that product information and public license files retain the MIT contract.</summary>
 [Collection("Build information manifest")]
 public sealed class OpenSourceLicenseContractTests
 {
+    #region Fields
+
     private const string CanonicalLicenseName = "MIT License";
     private const string CanonicalLicenseText =
         """
@@ -63,6 +67,11 @@ public sealed class OpenSourceLicenseContractTests
         SOFTWARE.
         """;
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reports the canonical MIT license through the application product-information contract.</summary>
     [Fact]
     public async Task ProductInformation_ReportsTheMitLicense()
     {
@@ -92,16 +101,7 @@ public sealed class OpenSourceLicenseContractTests
 
             var store = new LocalStore(dataDirectory);
             var utilities = new UtilityService();
-            await using var application = new WorkTrailApplication(
-                store,
-                utilities,
-                new TrackingDomainService(store),
-                new ScreenCaptureService(utilities.GetAppVersion()),
-                new OpenAiAnalysisService(
-                    store,
-                    new ScreenCaptureService(utilities.GetAppVersion())),
-                new StartupService(),
-                new BuildInformationService());
+            await using var application = new WorkTrailApplication(store, utilities: utilities);
 
             var result = await application.GetProductInformationAsync(CancellationToken.None);
 
@@ -123,15 +123,18 @@ public sealed class OpenSourceLicenseContractTests
         }
     }
 
+    /// <summary>Keeps the public license and repository notices consistent with the MIT grant.</summary>
     [Fact]
     public void PublicLicense_DeclaresTheMitContract()
     {
         var license = File.ReadAllText(RepositoryFile("LICENSE"));
+
         Assert.Equal(
             CanonicalLicenseText.ReplaceLineEndings("\n").TrimEnd('\n'),
             license.ReplaceLineEndings("\n").TrimEnd('\n'));
     }
 
+    /// <summary>Finds a checked-in fixture by walking upward from the test output to the repository root.</summary>
     private static string RepositoryFile(params string[] pathSegments)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -145,13 +148,16 @@ public sealed class OpenSourceLicenseContractTests
         throw new DirectoryNotFoundException("Could not locate the WorkTrail repository root.");
     }
 
+    /// <summary>Creates an isolated directory for persistence fixtures owned by the current test.</summary>
     private static string CreateTemporaryDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "WorkTrail.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
+
         return path;
     }
 
+    /// <summary>Removes the test fixture directory, retrying transient file locks before reporting failure.</summary>
     private static async Task DeleteTemporaryDirectoryAsync(string path)
     {
         for (var attempt = 0; attempt < 5; attempt++)
@@ -159,6 +165,7 @@ public sealed class OpenSourceLicenseContractTests
             try
             {
                 Directory.Delete(path, recursive: true);
+
                 return;
             }
             catch (IOException) when (attempt < 4)
@@ -171,4 +178,6 @@ public sealed class OpenSourceLicenseContractTests
             }
         }
     }
+
+    #endregion
 }

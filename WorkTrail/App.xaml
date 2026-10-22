@@ -28,14 +28,17 @@ VBWR E -->
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <ResourceDictionary Source="Controls/TitleBarOverflowButtonStyles.xaml"/>
                 <ResourceDictionary Source="Controls/SurfaceChipStyles.xaml"/>
-                <ResourceDictionary Source="Controls/ScreenshotChromeStyles.xaml"/>
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <LinearGradientBrush x:Key="ActivityLineBrush" StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#FFFF5C5C" Offset="0"/><GradientStop Color="#CFFF8B77" Offset="0.55"/><GradientStop Color="#00FF8B77" Offset="1"/></LinearGradientBrush>
-                    <SolidColorBrush x:Key="BrandCoralBrush" Color="#FFF9665B" />
-                    <SolidColorBrush x:Key="PlayerAccentTextBrush" Color="#FFB7422E" />
+                    <SolidColorBrush x:Key="LauncherClocksBrush" Color="#1766BE" />
+                    <SolidColorBrush x:Key="LauncherMapBrush" Color="#B26A00" />
+                    <SolidColorBrush x:Key="LauncherCalendarBrush" Color="#C23E54" />
+                    <SolidColorBrush x:Key="LauncherSkyBrush" Color="#8251BF" />
+                    <SolidColorBrush x:Key="LauncherGlobeBrush" Color="#00856B" />
+                    <SolidColorBrush x:Key="LauncherMoonBrush" Color="#5B59B8" />
+                    <AcrylicBrush x:Key="WorkTrailDialogBackground" TintColor="#F5F3FA" TintOpacity="0.65" FallbackColor="#F5F3FA" />
                     <SolidColorBrush x:Key="InfoBarInformationalSeverityBackgroundBrush" Color="#FFD9F0FF" />
                     <SolidColorBrush x:Key="InfoBarSuccessSeverityBackgroundBrush" Color="#FFDCF6E4" />
                     <SolidColorBrush x:Key="InfoBarWarningSeverityBackgroundBrush" Color="#FFFFE6B3" />
@@ -49,14 +52,17 @@ VBWR E -->
                     <StaticResource x:Key="InfoBarWarningSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <StaticResource x:Key="InfoBarErrorSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <SolidColorBrush x:Key="ToastBorderBrush" Color="#FF6A94B6" />
-                    <SolidColorBrush x:Key="TrackingStatusToastBackgroundBrush" Color="#FF173148" />
                     <SolidColorBrush x:Key="ToastTextBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="ToastSecondaryTextBrush" Color="#FFD6E8F3" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <LinearGradientBrush x:Key="ActivityLineBrush" StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#FFFF6B6B" Offset="0"/><GradientStop Color="#BFFF927B" Offset="0.55"/><GradientStop Color="#00FF927B" Offset="1"/></LinearGradientBrush>
-                    <SolidColorBrush x:Key="BrandCoralBrush" Color="#FFF9665B" />
-                    <SolidColorBrush x:Key="PlayerAccentTextBrush" Color="#FFFF9B82" />
+                    <SolidColorBrush x:Key="LauncherClocksBrush" Color="#74B7FF" />
+                    <SolidColorBrush x:Key="LauncherMapBrush" Color="#FFC65C" />
+                    <SolidColorBrush x:Key="LauncherCalendarBrush" Color="#FF91A1" />
+                    <SolidColorBrush x:Key="LauncherSkyBrush" Color="#C29BFF" />
+                    <SolidColorBrush x:Key="LauncherGlobeBrush" Color="#62DBBC" />
+                    <SolidColorBrush x:Key="LauncherMoonBrush" Color="#B0ADFF" />
+                    <AcrylicBrush x:Key="WorkTrailDialogBackground" TintColor="#25232D" TintOpacity="0.65" FallbackColor="#25232D" />
                     <SolidColorBrush x:Key="InfoBarInformationalSeverityBackgroundBrush" Color="#FF103B5A" />
                     <SolidColorBrush x:Key="InfoBarSuccessSeverityBackgroundBrush" Color="#FF173F31" />
                     <SolidColorBrush x:Key="InfoBarWarningSeverityBackgroundBrush" Color="#FF513D12" />
@@ -70,13 +76,17 @@ VBWR E -->
                     <StaticResource x:Key="InfoBarWarningSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <StaticResource x:Key="InfoBarErrorSeverityIconForeground" ResourceKey="TextFillColorPrimaryBrush" />
                     <SolidColorBrush x:Key="ToastBorderBrush" Color="#FF789BB8" />
-                    <SolidColorBrush x:Key="TrackingStatusToastBackgroundBrush" Color="#FF173148" />
                     <SolidColorBrush x:Key="ToastTextBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="ToastSecondaryTextBrush" Color="#FFD6E8F3" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
-                    <StaticResource x:Key="BrandCoralBrush" ResourceKey="SystemColorHighlightColorBrush" />
-                    <StaticResource x:Key="PlayerAccentTextBrush" ResourceKey="SystemColorHighlightColorBrush" />
+                    <SolidColorBrush x:Key="LauncherClocksBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LauncherMapBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LauncherCalendarBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LauncherSkyBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LauncherGlobeBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LauncherMoonBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="WorkTrailDialogBackground" Color="{ThemeResource SystemColorWindowColor}" />
                     <StaticResource x:Key="InfoBarInformationalSeverityBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
                     <StaticResource x:Key="InfoBarSuccessSeverityBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
                     <StaticResource x:Key="InfoBarWarningSeverityBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
@@ -90,23 +100,20 @@ VBWR E -->
                     <StaticResource x:Key="InfoBarWarningSeverityIconForeground" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="InfoBarErrorSeverityIconForeground" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="ToastBorderBrush" ResourceKey="SystemColorWindowTextColorBrush" />
-                    <StaticResource x:Key="TrackingStatusToastBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
                     <StaticResource x:Key="ToastTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />
                     <StaticResource x:Key="ToastSecondaryTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
+            <Style x:Key="WorkTrailDialogStyle" TargetType="ContentDialog">
+                <Setter Property="Background" Value="{ThemeResource WorkTrailDialogBackground}" />
+            </Style>
             <Style TargetType="ScrollViewer">
                 <Setter Property="local:ScrollBarRevealBehavior.IsEnabled" Value="True" />
             </Style>
             <Style TargetType="ScrollBar">
                 <Setter Property="Opacity" Value="0" />
             </Style>
-            <Style x:Key="DashboardMetricLabelTextBlockStyle" TargetType="TextBlock">
-                <Setter Property="CharacterSpacing" Value="100" />
-                <Setter Property="FontSize" Value="12" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="{ThemeResource PlayerAccentTextBrush}" />
-            </Style>
+
             <Style TargetType="InfoBar">
                 <Setter Property="BorderBrush" Value="{ThemeResource ToastBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />

@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -27,6 +26,8 @@ namespace WorkTrail.Services;
 /// <summary>Finds, opens, bounds, and redacts the existing rolling application log.</summary>
 public sealed partial class ApplicationLogService
 {
+
+    #region Fields
     private const long MaximumSharedSourceBytes = 1_048_576;
     private const int MaximumRetainedExports = 4;
     private static readonly TimeSpan MaximumExportAge = TimeSpan.FromDays(1);
@@ -34,6 +35,10 @@ public sealed partial class ApplicationLogService
     private readonly string? _logDirectory;
     private readonly string _exportDirectory;
     private readonly WindowsFileShareService _fileShare;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates a support-log service over the process-wide Serilog directory.</summary>
     public ApplicationLogService(
@@ -48,6 +53,10 @@ public sealed partial class ApplicationLogService
             "support-logs");
         _fileShare = fileShare ?? new WindowsFileShareService();
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Opens the newest rolling log with the Windows shell.</summary>
     public string OpenLatestLog()
@@ -136,6 +145,11 @@ public sealed partial class ApplicationLogService
         return redacted;
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Reads the bounded end of a log, discarding a potentially incomplete first line.</summary>
     private static string ReadBoundedTail(string sourcePath)
     {
         using var stream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -150,6 +164,7 @@ public sealed partial class ApplicationLogService
         return reader.ReadToEnd();
     }
 
+    /// <summary>Removes expired or excess support-log exports without blocking the requested share.</summary>
     private void PruneExports()
     {
         try
@@ -172,21 +187,30 @@ public sealed partial class ApplicationLogService
         }
     }
 
+    /// <summary>Matches drive-qualified paths for support-log redaction.</summary>
     [GeneratedRegex(@"(?im)\b[a-z]:\\[^\r\n]*")]
     private static partial Regex WindowsPathPattern();
 
+    /// <summary>Matches network share paths for support-log redaction.</summary>
     [GeneratedRegex(@"(?im)\\\\[^\r\n]*")]
     private static partial Regex UncPathPattern();
 
+    /// <summary>Matches bearer credentials without retaining their token value.</summary>
     [GeneratedRegex(@"(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*")]
     private static partial Regex AuthorizationPattern();
 
+    /// <summary>Matches common secret assignments in structured or plain diagnostic text.</summary>
     [GeneratedRegex("""(?i)"?\b(?:api[_-]?key|token|secret|authorization|dsn)\b"?\s*[:=]\s*(?:"(?:\\.|[^"\r\n])*"|[^\s,}\r\n]+)""")]
     private static partial Regex SecretAssignmentPattern();
 
+    /// <summary>Matches recognizable OpenAI key prefixes for redaction.</summary>
     [GeneratedRegex(@"(?i)\bsk-[A-Za-z0-9_-]{8,}")]
     private static partial Regex OpenAiKeyPattern();
 
+    /// <summary>Matches raw GUID identifiers in compact or hyphenated form.</summary>
     [GeneratedRegex(@"(?i)\b(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b")]
     private static partial Regex GuidPattern();
+
+    #endregion
+
 }

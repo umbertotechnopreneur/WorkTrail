@@ -30,6 +30,8 @@ namespace WorkTrail;
 /// <summary>Displays the runtime third-party license inventory in a themed Acrylic window.</summary>
 internal sealed partial class ThirdPartyLicensesWindow : Window
 {
+    #region Fields
+
     private const int LogicalWindowWidth = 760;
     private const int LogicalWindowHeight = 650;
     private const int LogicalScreenMargin = 22;
@@ -39,6 +41,10 @@ internal sealed partial class ThirdPartyLicensesWindow : Window
     private readonly WindowPlacementService _placement;
     private readonly IWorkTrailApplication _application;
     private readonly LocalizationService _strings;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates the passive, localized license inventory window.</summary>
     internal ThirdPartyLicensesWindow(
@@ -71,11 +77,17 @@ internal sealed partial class ThirdPartyLicensesWindow : Window
         Closed += LicensesWindow_Closed;
     }
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Gets the catalog rows rendered by the list surface.</summary>
     public IReadOnlyList<ThirdPartyLicense> LicenseRows => ThirdPartyLicenseCatalog.RuntimeDependencies;
 
+    /// <summary>Closes the current information window.</summary>
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
+    /// <summary>Opens the repository through the application link service.</summary>
     private async void RepositoryButton_Click(object sender, RoutedEventArgs e)
     {
         RepositoryButton.IsEnabled = false;
@@ -89,12 +101,14 @@ internal sealed partial class ThirdPartyLicensesWindow : Window
         }
     }
 
+    /// <summary>Restores window placement and initializes presentation after the visual tree is ready.</summary>
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         _placement.ApplyDefaultBounds(RootGrid);
         await _placement.RestoreOrCenterAsync(RootGrid, CancellationToken.None);
     }
 
+    /// <summary>Persists placement and releases the licenses window's resources.</summary>
     private async void LicensesWindow_Closed(object sender, WindowEventArgs args)
     {
         _ = await _placement.TrySaveForCloseAsync(CancellationToken.None);
@@ -102,6 +116,7 @@ internal sealed partial class ThirdPartyLicensesWindow : Window
         _placement.Dispose();
     }
 
+    /// <summary>Configures the information window's native presentation constraints.</summary>
     private void ConfigureWindowBehavior()
     {
         if (_appWindow.Presenter is OverlappedPresenter presenter)
@@ -110,4 +125,6 @@ internal sealed partial class ThirdPartyLicensesWindow : Window
             presenter.IsMaximizable = false;
         }
     }
+
+    #endregion
 }

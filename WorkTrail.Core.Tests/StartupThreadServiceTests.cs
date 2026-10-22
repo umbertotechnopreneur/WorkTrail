@@ -26,8 +26,11 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks apartment transitions and failure propagation during activation redirection.</summary>
 public sealed class StartupThreadServiceTests
 {
+    #region Implementation
+
     /// <summary>Checks that startup stays on STA while redirection executes on MTA and completes before returning.</summary>
     [Fact]
     public void CompleteActivationRedirection_RunsOnMtaAndWaitsWithoutChangingTheStaCaller()
@@ -41,6 +44,7 @@ public sealed class StartupThreadServiceTests
             {
                 Assert.Equal(ApartmentState.MTA, Thread.CurrentThread.GetApartmentState());
                 Assert.NotEqual(callerThreadId, Environment.CurrentManagedThreadId);
+
                 await Task.Yield();
                 completed = true;
             });
@@ -89,6 +93,7 @@ public sealed class StartupThreadServiceTests
         Assert.Throws<InvalidOperationException>(() => StartupThreadService.CompleteActivationRedirection(() => null!));
     }
 
+    /// <summary>Runs the supplied assertion on an STA thread and propagates its original failure to the test.</summary>
     private static void RunOnStaThread(Action action)
     {
         ExceptionDispatchInfo? failure = null;
@@ -109,7 +114,11 @@ public sealed class StartupThreadServiceTests
 
         callerThread.SetApartmentState(ApartmentState.STA);
         callerThread.Start();
+
         Assert.True(callerThread.Join(TimeSpan.FromSeconds(15)), "The STA redirection caller did not complete.");
+
         failure?.Throw();
     }
+
+    #endregion
 }

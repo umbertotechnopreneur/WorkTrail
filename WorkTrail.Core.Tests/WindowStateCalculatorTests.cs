@@ -22,8 +22,12 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks restored window bounds across monitor changes, DPI scaling, and minimum sizes.</summary>
 public sealed class WindowStateCalculatorTests
 {
+    #region Implementation
+
+    /// <summary>Rebases saved bounds using the previous monitor origin and DPI scale.</summary>
     [Fact]
     public void Restore_RebasesDpiAndPositionRelativeToTheSavedMonitor()
     {
@@ -35,6 +39,7 @@ public sealed class WindowStateCalculatorTests
         };
         var restored = WindowStateCalculator.RebaseToMonitor(saved,
             new WindowWorkArea(-1920, 0, 1920, 1080), "display-new", 96, new WindowMinimumSize(100, 100));
+
         Assert.Equal(-1820, restored.X);
         Assert.Equal(100, restored.Y);
         Assert.Equal(600, restored.Width);
@@ -43,26 +48,31 @@ public sealed class WindowStateCalculatorTests
         Assert.Equal("monitor-identity", restored.MonitorId);
     }
 
+    /// <summary>Retains exact saved bounds when the monitor and DPI are unchanged.</summary>
     [Fact]
     public void Restore_UnchangedMonitorAndDpiRetainsExactBoundsIncludingEdges()
     {
         var area = new WindowWorkArea(-1920, -200, 1920, 1080);
         var saved = new WindowState(-1920, -200, 900, 600, "display") { Dpi = 144, MonitorWorkArea = area };
+
         Assert.Equal(saved, WindowStateCalculator.RebaseToMonitor(saved, area, "display", 144, new WindowMinimumSize(100, 100)));
     }
 
+    /// <summary>Keeps physical dimensions when an older placement does not record its original DPI.</summary>
     [Fact]
     public void Restore_LegacyPlacementKeepsPhysicalSizeWithoutGuessingItsOldDpi()
     {
         var saved = new WindowState(100, 80, 900, 600, "display");
         var restored = WindowStateCalculator.RebaseToMonitor(saved,
             new WindowWorkArea(0, 0, 1920, 1080), "display", 144, new WindowMinimumSize(100, 100));
+
         Assert.Equal(saved.Width, restored.Width);
         Assert.Equal(saved.Height, restored.Height);
         Assert.Equal(saved.X, restored.X);
         Assert.Equal(144u, restored.Dpi);
     }
 
+    /// <summary>Moves placement from a removed display into the available work area after scaling.</summary>
     [Fact]
     public void Restore_RemovedDisplayClampsScaledBoundsToTheAvailableWorkArea()
     {
@@ -73,30 +83,26 @@ public sealed class WindowStateCalculatorTests
         };
         var restored = WindowStateCalculator.RebaseToMonitor(saved,
             new WindowWorkArea(0, 40, 1280, 680), "primary", 144, new WindowMinimumSize(470, 240));
+
         Assert.Equal(0, restored.X);
         Assert.Equal(40, restored.Y);
         Assert.Equal(1280, restored.Width);
         Assert.Equal(680, restored.Height);
     }
 
+    /// <summary>Uses the same minimum dimensions for restored bounds and native window sizing.</summary>
     [Fact]
     public void WindowStateMinimumSizes_AreSharedByRestoreAndNativeSizing()
     {
         Assert.Equal(new WindowMinimumSize(470, 240), WindowStateService.GetMinimumSize(WindowStateKeys.Main));
-        Assert.Equal(new WindowMinimumSize(760, 560), WindowStateService.GetMinimumSize(WindowStateKeys.ActivityCalendar));
-        Assert.Equal(new WindowMinimumSize(640, 560), WindowStateService.GetMinimumSize(WindowStateKeys.AiScreenshotReprocessing));
-        Assert.Equal(new WindowMinimumSize(760, 540), WindowStateService.GetMinimumSize(WindowStateKeys.Screenshots));
-        Assert.Equal(new WindowMinimumSize(560, 156), WindowStateService.GetMinimumSize(WindowStateKeys.Search));
-        Assert.Equal(new WindowMinimumSize(560, 420), WindowStateService.GetMinimumSize(WindowStateKeys.SearchIndexing));
-        Assert.Equal(new WindowMinimumSize(620, 480), WindowStateService.GetMinimumSize(WindowStateKeys.Schedule));
         Assert.Equal(new WindowMinimumSize(320, 196), WindowStateService.GetMinimumSize(WindowStateKeys.Dialog));
         Assert.Equal(new WindowMinimumSize(480, 240), WindowStateService.GetMinimumSize(WindowStateKeys.WorldClocks));
         Assert.Equal(new WindowMinimumSize(192, 160), WindowStateService.GetMinimumSize(WindowStateKeys.WorldMap));
         Assert.Equal(new WindowMinimumSize(192, 192), WindowStateService.GetMinimumSize(WindowStateKeys.LunarPhase));
         Assert.Equal(new WindowMinimumSize(500, 560), WindowStateService.GetMinimumSize(WindowStateKeys.WorldClockCityPicker));
-        Assert.Equal(new WindowMinimumSize(480, 480), WindowStateService.GetMinimumSize(WindowStateKeys.AiConnectionTest));
     }
 
+    /// <summary>Preserves compact world-clock bounds below the former detailed-layout minimum.</summary>
     [Fact]
     public void WorldClockRestore_PreservesManualWidgetBoundsBelowTheFormerDetailedMinimum()
     {
@@ -142,6 +148,7 @@ public sealed class WindowStateCalculatorTests
         Assert.Equal(workArea.Bottom - height, restored.Y);
     }
 
+    /// <summary>Expands undersized saved bounds to the supported window minimum.</summary>
     [Fact]
     public void ClampToWorkArea_ExpandsTinyPersistedBoundsToWindowMinimum()
     {
@@ -157,6 +164,7 @@ public sealed class WindowStateCalculatorTests
         Assert.Equal(@"\\.\DISPLAY2", restored.MonitorDeviceName);
     }
 
+    /// <summary>Limits even the minimum window dimensions to the available work area.</summary>
     [Fact]
     public void ClampToWorkArea_BoundsMinimumToSmallWorkArea()
     {
@@ -171,4 +179,6 @@ public sealed class WindowStateCalculatorTests
         Assert.Equal(20, restored.Y);
         Assert.Equal(@"\\.\DISPLAY2", restored.MonitorDeviceName);
     }
+
+    #endregion
 }

@@ -25,6 +25,7 @@ namespace WorkTrail;
 /// <summary>Shares presentation-only transitions between application surfaces.</summary>
 internal static class UiTransitions
 {
+
     /// <summary>Fades a newly shown panel into view without changing its geometry.</summary>
     public static void FadeIn(FrameworkElement element)
     {

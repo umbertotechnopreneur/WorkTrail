@@ -33,6 +33,8 @@ namespace WorkTrail;
 /// <summary>Shares placement and live DTO refreshes between passive astronomical windows.</summary>
 internal sealed class AstronomyWindowController
 {
+    #region Fields
+
     private readonly Window _window;
     private readonly FrameworkElement _root;
     private readonly ProgressRing _loadingIndicator;
@@ -55,6 +57,10 @@ internal sealed class AstronomyWindowController
     private bool _refreshInProgress;
     private bool _wasMinimized;
     private int _projectionVersion;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Connects a passive astronomical surface to the shared application facade and window infrastructure.</summary>
     internal AstronomyWindowController(
@@ -93,7 +99,7 @@ internal sealed class AstronomyWindowController
             leftInset,
             rightInset,
             interactiveElements ?? (() => []),
-            overlayContent: true);
+            useTallTitleBar: true);
         _placement = new WindowPlacementService(
             application, window, _appWindow, windowKey, defaultWidth, defaultHeight, 0);
         _refreshTimer = window.DispatcherQueue.CreateTimer();
@@ -104,6 +110,10 @@ internal sealed class AstronomyWindowController
         _root.Loaded += Root_Loaded;
         _placement.ApplyDefaultBounds(_root);
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Applies the current theme and language without changing the selected reference instant.</summary>
     internal void ApplySettings(AppSettings settings)
@@ -172,6 +182,7 @@ internal sealed class AstronomyWindowController
         _window.Close();
     }
 
+    /// <summary>Initializes placement and presentation after the root enters the visual tree.</summary>
     private async void Root_Loaded(object sender, RoutedEventArgs e)
     {
         if (_loaded)
@@ -204,12 +215,14 @@ internal sealed class AstronomyWindowController
         }
     }
 
+    /// <summary>Stops the current timer tick before requesting the next live projection.</summary>
     private async void RefreshTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         sender.Stop();
         await RefreshCurrentAsync();
     }
 
+    /// <summary>Requests a current projection while guarding against concurrent refreshes and closure.</summary>
     private async Task RefreshCurrentAsync()
     {
         if (!_isLive || _closed || _refreshInProgress || _lifetimeCancellation.IsCancellationRequested)
@@ -263,6 +276,7 @@ internal sealed class AstronomyWindowController
         }
     }
 
+    /// <summary>Schedules the next projection refresh from the current reference instant.</summary>
     private void ScheduleRefresh(bool useRetryDelay = false)
     {
         _refreshTimer.Stop();
@@ -279,6 +293,7 @@ internal sealed class AstronomyWindowController
         _refreshTimer.Start();
     }
 
+    /// <summary>Reconciles presentation with native window state and geometry changes.</summary>
     private async void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
     {
         var minimized = sender.Presenter is OverlappedPresenter presenter
@@ -298,8 +313,13 @@ internal sealed class AstronomyWindowController
         }
     }
 
+    /// <summary>Presents a localized failure in the window's existing notification surface.</summary>
     private void ShowFailure(string key, Exception? exception = null)
     {
+        if (exception is not null)
+        {
+            ApplicationErrorService.Record(exception, "AstronomyReference");
+        }
         if (_closed || _lifetimeCancellation.IsCancellationRequested)
         {
             return;
@@ -309,6 +329,7 @@ internal sealed class AstronomyWindowController
         _dialogs.Notifications.ShowError(_notificationBanner, T("WorldClock.ErrorTitle"), message);
     }
 
+    /// <summary>Stops pending presentation work and releases window event subscriptions and resources.</summary>
     private void Window_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
@@ -323,5 +344,8 @@ internal sealed class AstronomyWindowController
         _lifetimeCancellation.Dispose();
     }
 
+    /// <summary>Translates a resource key using the current UI language.</summary>
     private string T(string key) => _strings.Translate(key);
+
+    #endregion
 }

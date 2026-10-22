@@ -24,17 +24,23 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Protects the boundary between public repository workflows and private Store publication.</summary>
 public sealed class StorePublishingWorkflowContractTests
 {
+    #region Implementation
+
+    /// <summary>Keeps Microsoft Store publication out of the checked-in automation workflows.</summary>
     [Fact]
     public void RepositoryWorkflows_DoNotPublishToMicrosoftStore()
     {
         var workflowPaths = Directory.GetFiles(RepositoryFile(".github", "workflows"), "*.yml");
+
         Assert.NotEmpty(workflowPaths);
 
         foreach (var workflowPath in workflowPaths)
         {
             var workflow = File.ReadAllText(workflowPath);
+
             Assert.DoesNotContain("msstore", workflow, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("submission publish", workflow, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("STORE_AUTOPUBLISH", workflow, StringComparison.Ordinal);
@@ -43,6 +49,7 @@ public sealed class StorePublishingWorkflowContractTests
         }
     }
 
+    /// <summary>Keeps private Store listing material and its publication workflow outside the repository.</summary>
     [Fact]
     public void PrivateStoreListingAndItsWorkflow_AreNotBundledWithRepository()
     {
@@ -50,6 +57,7 @@ public sealed class StorePublishingWorkflowContractTests
         Assert.False(File.Exists(RepositoryFile(".github", "workflows", "store-listing.yml")));
     }
 
+    /// <summary>Finds a checked-in fixture by walking upward from the test output to the repository root.</summary>
     private static string RepositoryFile(params string[] pathSegments)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -62,4 +70,6 @@ public sealed class StorePublishingWorkflowContractTests
 
         throw new DirectoryNotFoundException("Could not locate the WorkTrail repository root.");
     }
+
+    #endregion
 }

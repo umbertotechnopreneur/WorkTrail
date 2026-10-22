@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Net;
 using SGPdotNET.CoordinateSystem;
 using SGPdotNET.Observation;
@@ -29,6 +28,8 @@ namespace WorkTrail.Services;
 /// <summary>Projects catalog satellites from recent public orbital elements into the observer's local sky.</summary>
 internal static class CelestialSatelliteService
 {
+
+    #region Fields
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(2);
     private static readonly TimeSpan MaximumEpochAge = TimeSpan.FromDays(3);
     private static readonly TimeSpan CurrentSkyWindow = TimeSpan.FromHours(2);
@@ -37,6 +38,10 @@ internal static class CelestialSatelliteService
     private static DateTimeOffset? _lastRefreshAttemptUtc;
     private static bool _requestDisabled;
     private static IReadOnlyDictionary<int, Tle> _elementsByCatalogNumber = new Dictionary<int, Tle>();
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Returns above-horizon positions only when the requested instant and orbital elements are recent.</summary>
     internal static async Task<IReadOnlyList<CelestialSatellitePosition>> GetPositionsAsync(
@@ -47,14 +52,19 @@ internal static class CelestialSatelliteService
         var instant = snapshot.InstantUtc.ToUniversalTime();
         var now = DateTimeOffset.UtcNow;
         if ((instant - now).Duration() > CurrentSkyWindow)
+        {
             return [];
+        }
 
         var catalog = CelestialSkyCatalog.Current;
         await RefreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_requestDisabled)
+            {
                 return [];
+            }
+
             now = DateTimeOffset.UtcNow;
             if (_lastRefreshAttemptUtc is null || now - _lastRefreshAttemptUtc >= RefreshInterval)
             {
@@ -98,11 +108,15 @@ internal static class CelestialSatelliteService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!_elementsByCatalogNumber.TryGetValue(identity.NoradCatalogNumber, out var elements))
+                {
                     continue;
+                }
 
                 var epoch = new DateTimeOffset(DateTime.SpecifyKind(elements.Epoch, DateTimeKind.Utc));
                 if ((instant - epoch).Duration() > MaximumEpochAge)
+                {
                     continue;
+                }
 
                 try
                 {
@@ -110,7 +124,10 @@ internal static class CelestialSatelliteService
                     var altitude = observation.Elevation.Degrees;
                     var azimuth = observation.Azimuth.Degrees;
                     if (double.IsFinite(altitude) && double.IsFinite(azimuth) && altitude >= 0)
+                    {
                         positions.Add(new CelestialSatellitePosition(identity.Id, altitude, azimuth, epoch));
+                    }
+
                 }
                 catch (SGPdotNET.Exception.SatellitePropagationException)
                 {
@@ -125,4 +142,7 @@ internal static class CelestialSatelliteService
             RefreshGate.Release();
         }
     }
+
+    #endregion
+
 }

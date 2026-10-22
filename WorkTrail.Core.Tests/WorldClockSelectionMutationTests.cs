@@ -30,8 +30,12 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks persisted clock selection changes without accidental weather requests.</summary>
 public sealed class WorldClockSelectionMutationTests
 {
+    #region Implementation
+
+    /// <summary>Persists clock selection independently of weather, then requests weather only for enabled live projections.</summary>
     [Fact]
     public async Task AddAndRemove_PersistWithoutRequestingWeather_AndProjectionChoosesTheMode()
     {
@@ -39,7 +43,9 @@ public sealed class WorldClockSelectionMutationTests
         try
         {
             var store = new LocalStore(dataDirectory);
+
             Assert.True(store.LoadSettings().WorldClockWeatherEnabled);
+
             store.SaveSettings(store.LoadSettings() with
             {
                 WorldClockCityIds = ["ho-chi-minh-city"]
@@ -56,17 +62,7 @@ public sealed class WorldClockSelectionMutationTests
                 writtenKeyName = keyName;
                 writtenSecret = secret;
             });
-            var capture = new ScreenCaptureService(utilities.GetAppVersion());
-            await using var application = new WorkTrailApplication(
-                store,
-                utilities,
-                new TrackingDomainService(store),
-                capture,
-                new OpenAiAnalysisService(store, capture),
-                new StartupService(),
-                new BuildInformationService(),
-                worldClockService: worldClocks,
-                startScheduledSnapshotTimer: false);
+            await using var application = new WorkTrailApplication(store, utilities: utilities, worldClockService: worldClocks);
 
             var invalidWeatherKey = await application.SetWorldClockWeatherKeyAsync("short", CancellationToken.None);
 
@@ -149,9 +145,20 @@ public sealed class WorldClockSelectionMutationTests
         }
     }
 
+    #endregion
+
+    #region Test doubles
+
+    /// <summary>Counts weather requests and fails them to exercise optional-provider diagnostics.</summary>
     private sealed class FailingWeatherProvider : IWorldClockWeatherProvider
     {
+        #region Fields
+
         private int _callCount;
+
+        #endregion
+
+        #region Properties
 
         public string Name => "failing-test-provider";
 
@@ -161,12 +168,17 @@ public sealed class WorldClockSelectionMutationTests
 
         public int CallCount => Volatile.Read(ref _callCount);
 
-        /// <inheritdoc />
+        #endregion
+
+        #region Implementation
+
+        /// <summary>Accepts validation so the fixture can isolate subsequent observation failures.</summary>
         public Task<WorldClockWeatherApiKeyValidation> ValidateApiKeyAsync(
             string secret,
             CancellationToken cancellationToken) =>
             Task.FromResult(WorldClockWeatherApiKeyValidation.Accepted);
 
+        /// <summary>Counts the attempted request and raises the synthetic optional-weather failure.</summary>
         public Task<WorldClockWeatherObservation> GetCurrentAsync(
             WorldClockWeatherLocation location,
             CancellationToken cancellationToken)
@@ -175,8 +187,15 @@ public sealed class WorldClockSelectionMutationTests
             Interlocked.Increment(ref _callCount);
             throw new HttpRequestException("Synthetic optional-weather failure.");
         }
+
+        #endregion
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Finds a checked-in fixture by walking upward from the test output to the repository root.</summary>
     private static string RepositoryFile(params string[] pathSegments)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -190,13 +209,16 @@ public sealed class WorldClockSelectionMutationTests
         throw new DirectoryNotFoundException("Could not locate the WorkTrail repository root.");
     }
 
+    /// <summary>Creates an isolated directory for persistence fixtures owned by the current test.</summary>
     private static string CreateTemporaryDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "WorkTrail.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
+
         return path;
     }
 
+    /// <summary>Removes the test fixture directory, retrying transient file locks before reporting failure.</summary>
     private static async Task DeleteTemporaryDirectoryAsync(string path)
     {
         for (var attempt = 0; attempt < 5; attempt++)
@@ -204,6 +226,7 @@ public sealed class WorldClockSelectionMutationTests
             try
             {
                 Directory.Delete(path, recursive: true);
+
                 return;
             }
             catch (IOException) when (attempt < 4)
@@ -212,4 +235,6 @@ public sealed class WorldClockSelectionMutationTests
             }
         }
     }
+
+    #endregion
 }

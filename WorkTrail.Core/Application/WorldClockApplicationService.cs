@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using WorkTrail.Services;
 
 namespace WorkTrail.Application;
@@ -26,11 +25,18 @@ namespace WorkTrail.Application;
 /// </summary>
 internal sealed class WorldClockApplicationService : IDisposable
 {
+
+    #region Fields
     private readonly WorldClockService _worldClocks;
     private readonly SettingsSnapshot _settingsSnapshot;
     private readonly Action<string, string> _setApiKey;
     private readonly Action<AppSettings> _persistSettings;
 
+    #endregion
+
+    #region Initialization
+
+    /// <summary>Connects clock queries to the shared settings snapshot and persistence delegates.</summary>
     internal WorldClockApplicationService(
         WorldClockService worldClocks,
         SettingsSnapshot settingsSnapshot,
@@ -43,12 +49,18 @@ internal sealed class WorldClockApplicationService : IDisposable
         _persistSettings = persistSettings ?? throw new ArgumentNullException(nameof(persistSettings));
     }
 
+    #endregion
+
+    #region Methods and properties
+
+    /// <summary>Returns the approved clock-city catalog as an application result.</summary>
     internal OperationResult<WorldClockCityCatalog> GetCatalog() =>
         OperationResult<WorldClockCityCatalog>.Success(
             "world_clocks.catalog.loaded",
             "WorldClocksCatalogLoaded",
             _worldClocks.GetCatalog());
 
+    /// <summary>Builds current local clocks with optional provider weather.</summary>
     internal async Task<OperationResult<WorldClockSnapshot>> GetCurrentAsync(CancellationToken cancellationToken)
     {
         var settings = _settingsSnapshot.Value;
@@ -64,6 +76,7 @@ internal sealed class WorldClockApplicationService : IDisposable
             snapshot);
     }
 
+    /// <summary>Projects a reference local time and translates conversion failures into validation issues.</summary>
     internal OperationResult<WorldClockSnapshot> Convert(WorldClockConversionRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -89,16 +102,42 @@ internal sealed class WorldClockApplicationService : IDisposable
         }
     }
 
+    /// <summary>Builds an offline reference snapshot and resolves the launcher home city at the same instant.</summary>
     internal async Task<OperationResult<WorldClockSnapshot>> GetCelestialReferenceAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var selection = _settingsSnapshot.Value.WorldClockCityIds;
+        var settings = _settingsSnapshot.Value;
         // Catalog I/O and first-use day crossings must not block an in-process WinUI caller.
-        var snapshot = await Task.Run(() => _worldClocks.BuildCurrentCelestialSnapshot(selection), cancellationToken).ConfigureAwait(false);
+        var snapshot = await Task.Run(() =>
+        {
+            var reference = _worldClocks.BuildCurrentCelestialSnapshot(settings.WorldClockCityIds);
+            string? homeCityId = settings.HomeCityId;
+            if (string.IsNullOrWhiteSpace(homeCityId))
+            {
+                homeCityId = reference.Clocks.FirstOrDefault()?.CityId
+                    ?? HomeCitySuggestion.Resolve(_worldClocks.GetCatalog().Cities, TimeZoneInfo.Local);
+            }
+            if (string.IsNullOrWhiteSpace(homeCityId))
+            {
+                return reference;
+            }
+
+            // A saved home city still supplies the launcher when its independent clock has been removed.
+            var homeReference = reference.Clocks.Any(clock => clock.CityId == homeCityId)
+                ? reference : _worldClocks.BuildSnapshot([homeCityId], reference.InstantUtc);
+            var homeClock = homeReference.Clocks.First(clock => clock.CityId == homeCityId);
+            var position = homeReference.Map.Cities.First(city => city.CityId == homeCityId);
+            return reference with
+            {
+                HomeCity = new WorldClockHomeCity(homeClock.CityId, homeClock.CityName, homeClock.CountryCode,
+                    position.Latitude, position.Longitude, homeClock.SkylineAssetPath)
+            };
+        }, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         return OperationResult<WorldClockSnapshot>.Success("celestial.reference.loaded", "WorldClocksLoaded", snapshot);
     }
 
+    /// <summary>Canonicalizes a city identifier and checks it against the approved catalog.</summary>
     internal string NormalizeAndValidateCityId(string cityId)
     {
         var normalizedId = cityId?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -106,6 +145,7 @@ internal sealed class WorldClockApplicationService : IDisposable
         return normalizedId;
     }
 
+    /// <summary>Adds an approved city unless it is already selected or the selection is full.</summary>
     internal OperationResult<WorldClockSelectionState> AddValidated(string normalizedId)
     {
         var selection = WorldClockSelection.NormalizePersisted(_settingsSnapshot.Value.WorldClockCityIds).ToList();
@@ -133,6 +173,7 @@ internal sealed class WorldClockApplicationService : IDisposable
             new WorldClockSelectionState(selection.ToArray(), WorldClockSelection.MaximumClocks));
     }
 
+    /// <summary>Removes a selected city and persists the resulting order.</summary>
     internal OperationResult<WorldClockSelectionState> Remove(string cityId)
     {
         var normalizedId = cityId?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -152,6 +193,7 @@ internal sealed class WorldClockApplicationService : IDisposable
             new WorldClockSelectionState(selection.ToArray(), WorldClockSelection.MaximumClocks));
     }
 
+    /// <summary>Moves an approved city one position while preserving selection bounds.</summary>
     internal OperationResult<WorldClockSelectionState> MoveValidated(
         string normalizedId,
         WorldClockMoveDirection direction)
@@ -189,6 +231,7 @@ internal sealed class WorldClockApplicationService : IDisposable
             new WorldClockSelectionState(selection.ToArray(), WorldClockSelection.MaximumClocks));
     }
 
+    /// <summary>Validates the provider key before writing it to the Windows environment.</summary>
     internal async Task<OperationResult<string>> SetWeatherKeyAsync(
         string secret,
         CancellationToken cancellationToken)
@@ -226,7 +269,7 @@ internal sealed class WorldClockApplicationService : IDisposable
             if (validation == WorldClockWeatherApiKeyValidation.RateLimited)
             {
                 return OperationResult<string>.Failure(
-                    "world_clocks.weather.key.rate_limited", "ProviderSetup.Error.Limits");
+                    "world_clocks.weather.key.rate_limited", "WeatherSetup.Limits");
             }
 
             if (validation != WorldClockWeatherApiKeyValidation.Accepted)
@@ -251,4 +294,7 @@ internal sealed class WorldClockApplicationService : IDisposable
 
     /// <inheritdoc />
     public void Dispose() => _worldClocks.Dispose();
+
+    #endregion
+
 }

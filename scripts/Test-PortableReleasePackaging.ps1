@@ -27,6 +27,8 @@ Fixtures remain under artifacts/portable-release-tests/ for inspection.
 [CmdletBinding()]
 param()
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -36,12 +38,28 @@ $archiveScript = Join-Path $PSScriptRoot 'New-PortableReleaseArchive.ps1'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $script:passed = 0
 
+#endregion
+
+#region Implementation
+
 function Assert-PortableTest {
+    <#
+    .SYNOPSIS
+    Reports a failed portable-package contract assertion.
+    #>
+
     param([bool]$Condition, [string]$Message)
-    if (-not $Condition) { throw $Message }
+    if (-not $Condition) {
+        throw $Message
+    }
 }
 
 function Invoke-TestScript {
+    <#
+    .SYNOPSIS
+    Runs a packaging script in a child PowerShell process and captures its result.
+    #>
+
     param([string]$Path, [string[]]$Arguments)
 
     $start = [Diagnostics.ProcessStartInfo]::new((Get-Command pwsh -ErrorAction Stop).Source)
@@ -59,10 +77,17 @@ function Invoke-TestScript {
         $process.WaitForExit()
         return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult() }
     }
-    finally { $process.Dispose() }
+    finally {
+        $process.Dispose()
+    }
 }
 
 function Invoke-Archive {
+    <#
+    .SYNOPSIS
+    Invokes archive creation for the supplied portable-package fixture.
+    #>
+
     param([string]$Source, [string]$Output, [string]$Platform = 'x64', [string]$Version = '1.2.3')
 
     return Invoke-TestScript -Path $archiveScript -Arguments @('-PublishDirectory', $Source,
@@ -70,10 +95,17 @@ function Invoke-Archive {
 }
 
 function Assert-Rejected {
+    <#
+    .SYNOPSIS
+    Verifies that an invalid packaging fixture is rejected.
+    #>
+
     param([string]$Name, [string]$Source, [string]$Message, [string]$Output,
         [string]$Version = '1.2.3', [switch]$ExistingOutput)
 
-    if ([string]::IsNullOrEmpty($Output)) { $Output = Join-Path $fixtureRoot "$Name-output" }
+    if ([string]::IsNullOrEmpty($Output)) {
+        $Output = Join-Path $fixtureRoot "$Name-output"
+    }
     $result = Invoke-Archive -Source $Source -Output $Output -Version $Version
     Assert-PortableTest ($result.ExitCode -ne 0) "$Name unexpectedly succeeded."
     Assert-PortableTest ($result.Output -like "*$Message*") "$Name failed for the wrong reason: $($result.Output)"
@@ -85,6 +117,11 @@ function Assert-Rejected {
 }
 
 function Write-SyntheticPe {
+    <#
+    .SYNOPSIS
+    Writes the minimal PE header needed by the architecture-validation fixture.
+    #>
+
     param([string]$Path, [string]$Platform)
 
     # Only DOS/PE signature and machine fields are needed; these fixtures are never run.
@@ -92,12 +129,21 @@ function Write-SyntheticPe {
     [BitConverter]::GetBytes([uint16]0x5A4D).CopyTo($bytes, 0)
     [BitConverter]::GetBytes([uint32]64).CopyTo($bytes, 0x3C)
     [BitConverter]::GetBytes([uint32]0x00004550).CopyTo($bytes, 64)
-    $machine = if ($Platform -eq 'x64') { 0x8664 } else { 0xAA64 }
+    $machine = if ($Platform -eq 'x64') {
+        0x8664
+    } else {
+        0xAA64
+    }
     [BitConverter]::GetBytes([uint16]$machine).CopyTo($bytes, 68)
     [IO.File]::WriteAllBytes($Path, $bytes)
 }
 
 function New-SyntheticPublish {
+    <#
+    .SYNOPSIS
+    Creates an isolated publish fixture with the files required by archive validation.
+    #>
+
     param([string]$Name, [string]$Platform = 'x64')
 
     $directory = Join-Path $fixtureRoot $Name
@@ -120,12 +166,23 @@ function New-SyntheticPublish {
 }
 
 function Read-ZipText {
+    <#
+    .SYNOPSIS
+    Reads one text entry and disposes its reader while leaving the caller-owned archive open.
+    #>
+
     param([IO.Compression.ZipArchive]$Archive, [string]$Name)
     $entry = $Archive.GetEntry($Name)
     Assert-PortableTest ($null -ne $entry) "Archive entry missing: $Name"
     $reader = [IO.StreamReader]::new($entry.Open())
-    try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
+    try {
+        return $reader.ReadToEnd()
+    } finally {
+        $reader.Dispose()
+    }
 }
+
+#endregion
 
 foreach ($platform in @('x64', 'ARM64')) {
     $source = New-SyntheticPublish -Name "valid-$platform" -Platform $platform
@@ -156,11 +213,17 @@ foreach ($platform in @('x64', 'ARM64')) {
             $entry = $archive.GetEntry($name)
             Assert-PortableTest ($null -ne $entry) "$platform checksum has no payload: $name"
             $stream = $entry.Open()
-            try { $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) }
-            finally { $stream.Dispose() }
+            try {
+                $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream))
+            }
+            finally {
+                $stream.Dispose()
+            }
             Assert-PortableTest ($actualHash -ceq $expectedHash) "$platform payload checksum differs: $name"
             $original = Join-Path $source $name
-            if ($name -in @('LICENSE', 'TRADEMARKS.md', 'THIRD_PARTY_NOTICES.md')) { $original = Join-Path $repositoryRoot $name }
+            if ($name -in @('LICENSE', 'TRADEMARKS.md', 'THIRD_PARTY_NOTICES.md')) {
+                $original = Join-Path $repositoryRoot $name
+            }
             if (Test-Path -LiteralPath $original -PathType Leaf) {
                 Assert-PortableTest ($actualHash -ceq (Get-FileHash -LiteralPath $original -Algorithm SHA256).Hash) "$platform changed source content: $name"
             }
@@ -172,7 +235,9 @@ foreach ($platform in @('x64', 'ARM64')) {
             Assert-PortableTest ($hashedNames.Contains($name)) "$platform omitted publish file: $name"
         }
     }
-    finally { $archive.Dispose() }
+    finally {
+        $archive.Dispose()
+    }
     $script:passed++
     Write-Host "PASS: $platform portable payload, metadata, complete checksums, and archive hash"
 }

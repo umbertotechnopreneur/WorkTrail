@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Globalization;
 
 namespace WorkTrail.Services;
@@ -24,6 +23,8 @@ namespace WorkTrail.Services;
 /// <summary>Defines the canonical language contracts shared by every WorkTrail frontend.</summary>
 public static class ProductLanguageCatalog
 {
+
+    #region Fields
     /// <summary>Identifies the Windows-derived language choice.</summary>
     public const string SystemLanguage = "system";
 
@@ -45,16 +46,16 @@ public static class ProductLanguageCatalog
     ];
 
     private static readonly string[] UiChoiceValues = [SystemLanguage, .. UiLocaleValues];
-    private static readonly string[] SearchChoiceValues = [SystemLanguage, .. UiLocaleValues];
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets every locale for which the product ships a complete UI catalog.</summary>
     public static IReadOnlyList<string> UiLocales { get; } = Array.AsReadOnly(UiLocaleValues);
 
     /// <summary>Gets persisted choices accepted by the UI language setting.</summary>
     public static IReadOnlyList<string> UiChoices { get; } = Array.AsReadOnly(UiChoiceValues);
-
-    /// <summary>Gets persisted choices accepted by local-search language analysis.</summary>
-    public static IReadOnlyList<string> SearchChoices { get; } = Array.AsReadOnly(SearchChoiceValues);
 
     /// <summary>Resolves a canonical UI choice, consulting Windows only for <c>system</c>.</summary>
     public static string ResolveUiLanguage(string? requestedLanguage, CultureInfo systemCulture)
@@ -75,36 +76,14 @@ public static class ProductLanguageCatalog
         return ResolveSystemUiLanguage(systemCulture);
     }
 
-    /// <summary>Resolves the analyzer language without coupling search to the selected UI locale.</summary>
-    public static string ResolveSearchLanguage(string requestedLanguage, CultureInfo systemCulture)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(requestedLanguage);
-        ArgumentNullException.ThrowIfNull(systemCulture);
-
-        var canonical = Canonical(SearchChoiceValues, requestedLanguage.Trim())
-            ?? throw new ArgumentException(
-                $"Unsupported WorkTrail search locale '{requestedLanguage}'.",
-                nameof(requestedLanguage));
-        if (!canonical.Equals(SystemLanguage, StringComparison.Ordinal))
-        {
-            return canonical;
-        }
-
-        var supportedSystemLocale = ResolveSystemUiLanguage(systemCulture);
-        if (!supportedSystemLocale.Equals(EnglishLanguage, StringComparison.Ordinal)
-            || systemCulture.TwoLetterISOLanguageName.Equals("en", StringComparison.OrdinalIgnoreCase))
-        {
-            return supportedSystemLocale;
-        }
-
-        // Preserve an unsupported Windows language for StandardAnalyzer instead of applying
-        // English stemming. zh-Hant likewise remains distinct from the shipped zh-Hans catalog.
-        return string.IsNullOrWhiteSpace(systemCulture.Name) ? EnglishLanguage : systemCulture.Name;
-    }
-
     /// <summary>Returns the canonical UI setting choice, or <see langword="null"/> when unsupported.</summary>
     public static string? CanonicalUiChoice(string? value) => Canonical(UiChoiceValues, value);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Maps Windows language variants to a supported product locale.</summary>
     private static string ResolveSystemUiLanguage(CultureInfo systemCulture)
     {
         var name = systemCulture.Name;
@@ -143,6 +122,7 @@ public static class ProductLanguageCatalog
         };
     }
 
+    /// <summary>Returns the supported spelling of a language choice after trimming.</summary>
     private static string? Canonical(IEnumerable<string> choices, string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -153,4 +133,7 @@ public static class ProductLanguageCatalog
         var trimmed = value.Trim();
         return choices.FirstOrDefault(choice => choice.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
     }
+
+    #endregion
+
 }

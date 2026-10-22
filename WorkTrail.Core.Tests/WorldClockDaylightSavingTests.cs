@@ -24,8 +24,11 @@ using Xunit;
 
 namespace WorkTrail.Core.Tests;
 
+/// <summary>Checks daylight-saving season endpoints, signed offsets, and expiring rules.</summary>
 public sealed class WorldClockDaylightSavingTests
 {
+    #region Implementation
+
     /// <summary>Checks northern/southern seasons, fractional shifts, midnight changes, and the exact boundary.</summary>
     [Theory]
     [InlineData("W. Europe Standard Time", "2026-09-05T12:00:00Z", "2026-10-25T01:00:00Z")]
@@ -96,6 +99,9 @@ public sealed class WorldClockDaylightSavingTests
         Assert.False(zone.IsDaylightSavingTime(end));
     }
 
+    /// <summary>Creates a midnight fixed-date transition for synthetic daylight-saving rules.</summary>
     private static TimeZoneInfo.TransitionTime FixedTransition(int month, int day) =>
         TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, 3, 0, 0), month, day);
+
+    #endregion
 }

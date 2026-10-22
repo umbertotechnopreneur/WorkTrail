@@ -29,6 +29,8 @@ namespace WorkTrail.Runtime;
 /// <summary>Removes local identity and secret-bearing values before a Sentry event leaves the process.</summary>
 internal static class SentryEventSanitizer
 {
+    #region Fields
+
     private static readonly Regex WindowsPath = new(
         @"(?:[a-z]:[\\/]|\\\\)[^\r\n\""']*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
@@ -48,6 +50,10 @@ internal static class SentryEventSanitizer
     private static readonly Regex RawIdentifier = new(
         @"\b[0-9a-f]{32}\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Sanitizes an event, or drops it when the SDK payload cannot be made private safely.</summary>
     internal static SentryEvent? Sanitize(SentryEvent sentryEvent)
@@ -94,6 +100,7 @@ internal static class SentryEventSanitizer
             breadcrumb.Level);
     }
 
+    /// <summary>Removes identity and unrestricted payload fields before remote telemetry transmission.</summary>
     private static bool SanitizeCore(SentryEvent sentryEvent)
     {
         sentryEvent.User = null!;
@@ -157,6 +164,7 @@ internal static class SentryEventSanitizer
         return mutableExtra.Count == 0;
     }
 
+    /// <summary>Removes local paths, source context, and captured variables from stack frames.</summary>
     private static void SanitizeStackTrace(SentryStackTrace? stackTrace)
     {
         if (stackTrace?.Frames is null)
@@ -176,6 +184,7 @@ internal static class SentryEventSanitizer
         }
     }
 
+    /// <summary>Keeps only a redacted filename from a potentially local path.</summary>
     private static string? FileNameOnly(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -186,4 +195,6 @@ internal static class SentryEventSanitizer
         var separator = Math.Max(value.LastIndexOf('\\'), value.LastIndexOf('/'));
         return RedactText(separator >= 0 ? value[(separator + 1)..] : value);
     }
+
+    #endregion
 }

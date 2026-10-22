@@ -39,12 +39,23 @@ param(
     [string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot)
 )
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
 $utf8 = [Text.UTF8Encoding]::new($false)
 
+#endregion
+
+#region Implementation
+
 function Invoke-Git {
+    <#
+    .SYNOPSIS
+    Runs Git with byte-preserving streams so staged blobs retain their encoding.
+    #>
+
     param(
         [Parameter(Mandatory)][string[]]$Arguments,
         [byte[]]$InputBytes,
@@ -57,7 +68,9 @@ function Invoke-Git {
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
     $start.RedirectStandardInput = $null -ne $InputBytes
-    foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+    foreach ($argument in $Arguments) {
+        $start.ArgumentList.Add($argument)
+    }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $start
     $output = [IO.MemoryStream]::new()
@@ -86,21 +99,37 @@ function Invoke-Git {
 }
 
 function Get-GitPaths {
+    <#
+    .SYNOPSIS
+    Reads null-delimited Git paths without splitting filenames that contain spaces.
+    #>
+
     param([string[]]$Arguments)
     $result = Invoke-Git -Arguments $Arguments
     return $utf8.GetString($result.Bytes).Split([char]0, [StringSplitOptions]::RemoveEmptyEntries)
 }
 
 function Invoke-WhitespaceFormatter {
+    <#
+    .SYNOPSIS
+    Formats only the supplied paths in bounded command-line batches.
+    #>
+
     param([string]$Root, [string[]]$Paths, [switch]$Check)
-    if ($Paths.Count -eq 0) { return }
+    if ($Paths.Count -eq 0) {
+        return
+    }
     # One folder workspace avoids repeated MSBuild loads and keeps local/CI rules identical.
     $remaining = [Collections.Generic.List[string]]::new()
     $length = 0
+
+    # A final null sentinel flushes the last batch without duplicating the formatter invocation.
     foreach ($path in @($Paths) + @($null)) {
         if ($remaining.Count -gt 0 -and ($null -eq $path -or $length + $path.Length -gt 20000)) {
             $arguments = @('format', 'whitespace', $Root, '--folder', '--verbosity', 'minimal', '--include') + $remaining.ToArray()
-            if ($Check) { $arguments += '--verify-no-changes' }
+            if ($Check) {
+                $arguments += '--verify-no-changes'
+            }
             & dotnet @arguments
             if ($LASTEXITCODE -ne 0) {
                 throw 'C# whitespace formatting failed. Run pwsh -NoProfile -File ./scripts/Format-Code.ps1 and review the changes.'
@@ -110,17 +139,28 @@ function Invoke-WhitespaceFormatter {
         }
         if ($null -ne $path) {
             $remaining.Add($path)
+            # Leave room for separators and quoting as well as the path itself.
             $length += $path.Length + 3
         }
     }
 }
 
 function Test-SameBytes {
+    <#
+    .SYNOPSIS
+    Compares blob contents before deciding whether the index needs an update.
+    #>
+
     param([byte[]]$Left, [byte[]]$Right)
     return [Convert]::ToBase64String($Left) -ceq [Convert]::ToBase64String($Right)
 }
 
 function Get-ContainedPath {
+    <#
+    .SYNOPSIS
+    Resolves a relative path and rejects paths outside the requested root.
+    #>
+
     param([string]$Root, [string]$RelativePath)
     $rootPath = [IO.Path]::GetFullPath($Root)
     $fullPath = [IO.Path]::GetFullPath((Join-Path $rootPath $RelativePath))
@@ -129,6 +169,8 @@ function Get-ContainedPath {
     }
     return $fullPath
 }
+
+#endregion
 
 $scratch = $null
 $scratchParent = Join-Path $RepositoryRoot 'artifacts/format'
@@ -152,7 +194,9 @@ try {
     if ($changedRules.Count -gt 0) {
         $paths = @(Get-GitPaths -Arguments @('ls-files', '-z', '--', '*.cs'))
     }
-    if ($paths.Count -eq 0) { return }
+    if ($paths.Count -eq 0) {
+        return
+    }
 
     $scratch = Get-ContainedPath -Root $scratchParent -RelativePath ([Guid]::NewGuid().ToString('N'))
     [void][IO.Directory]::CreateDirectory($scratch)
@@ -179,7 +223,9 @@ try {
     foreach ($path in $paths) {
         $entry = $entries[$path]
         $formatted = [IO.File]::ReadAllBytes($entry.Snapshot)
-        if (Test-SameBytes -Left $entry.Bytes -Right $formatted) { continue }
+        if (Test-SameBytes -Left $entry.Bytes -Right $formatted) {
+            continue
+        }
 
         $currentEntry = $utf8.GetString((Invoke-Git -Arguments @('ls-files', '--stage', '-z', '--', $path)).Bytes)
         $expectedEntry = "$($entry.Mode) $($entry.ObjectId) 0" + [char]9 + $path + [char]0
@@ -187,7 +233,9 @@ try {
             throw 'The index changed during formatting. Review the staged changes before retrying the commit.'
         }
         $newId = $utf8.GetString((Invoke-Git -Arguments @('hash-object', '-w', '--path', $path, '--stdin') -InputBytes $formatted).Bytes).Trim()
-        if ($newId -eq $entry.ObjectId) { continue }
+        if ($newId -eq $entry.ObjectId) {
+            continue
+        }
         $clean = Invoke-Git -Arguments @('diff', '--quiet', '--', $path) -AllowedExitCodes @(0, 1)
         if ($clean.ExitCode -eq 0) {
             $workingPath = Get-ContainedPath -Root $RepositoryRoot -RelativePath $path

@@ -33,6 +33,8 @@ namespace WorkTrail;
 /// <summary>Hosts three independently restorable celestial surfaces with the shared disappearing title bar.</summary>
 internal sealed partial class CelestialWindow : Window
 {
+    #region Fields
+
     private readonly IWorkTrailApplication _application;
     private readonly MicaDialogService _dialogs;
     private readonly AstronomyWindowController _controller;
@@ -48,6 +50,10 @@ internal sealed partial class CelestialWindow : Window
     private RenderRequestKey? _pendingRender;
     private RenderRequestKey? _displayedRender;
     private CelestialSnapshot? _skySnapshot;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates a sky, agenda, or Earth globe window over the application facade.</summary>
     internal CelestialWindow(IWorkTrailApplication application, MicaDialogService dialogs, AppSettings settings, string windowKey)
@@ -82,6 +88,10 @@ internal sealed partial class CelestialWindow : Window
         Closed += CelestialWindow_Closed;
         ApplySettings(settings);
     }
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Updates the acrylic theme, localized controls, and current projection.</summary>
     internal void ApplySettings(AppSettings settings)
@@ -131,6 +141,7 @@ internal sealed partial class CelestialWindow : Window
     /// <summary>Discards a failed opening without changing persisted placement.</summary>
     internal void CloseAfterFailedOpening() => _controller.CloseAfterFailedOpening();
 
+    /// <summary>Updates the window's passive presentation from an application-provided snapshot.</summary>
     private void RenderSnapshot(WorldClockSnapshot snapshot)
     {
         _reference = snapshot;
@@ -158,6 +169,7 @@ internal sealed partial class CelestialWindow : Window
         RefreshProjection();
     }
 
+    /// <summary>Refreshes the projection for the newly selected reference city.</summary>
     private void CitySelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_changingCities)
@@ -166,9 +178,13 @@ internal sealed partial class CelestialWindow : Window
         }
     }
 
+    /// <summary>Opens agenda preferences and applies the committed selection.</summary>
     private async void AgendaOptionsButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_windowKey != WindowStateKeys.AstronomyAgenda || _reference is null) return;
+        if (_windowKey != WindowStateKeys.AstronomyAgenda || _reference is null)
+        {
+            return;
+        }
         var city = new ComboBox
         {
             Header = T("Celestial.Agenda.Options.City"),
@@ -193,7 +209,10 @@ internal sealed partial class CelestialWindow : Window
         content.Children.Add(city);
         content.Children.Add(saints);
         content.Children.Add(new TextBlock { Text = T("Celestial.Agenda.Options.Countries"), TextWrapping = TextWrapping.Wrap });
-        foreach (var box in countryBoxes) content.Children.Add(box);
+        foreach (var box in countryBoxes)
+        {
+            content.Children.Add(box);
+        }
         content.Children.Add(new TextBlock
         {
             Text = T("Celestial.Agenda.Options.Coverage"),
@@ -204,8 +223,14 @@ internal sealed partial class CelestialWindow : Window
         var dialogContent = new ScrollViewer { Content = content, MaxHeight = 450, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         if (!await _dialogs.ConfirmAsync(this, new DialogRequest(
                 T("Celestial.Agenda.Options"), T("Celestial.Agenda.Options.Coverage"),
-                T("Labels.Save"), T("Dialog.Cancel")), dialogContent)) return;
-        if (city.SelectedValue is not string cityId) return;
+                T("Dialog.Save"), T("Dialog.Cancel")), dialogContent))
+        {
+            return;
+        }
+        if (city.SelectedValue is not string cityId)
+        {
+            return;
+        }
         try
         {
             var selectedCodes = countryBoxes.Where(box => box.IsChecked == true)
@@ -223,14 +248,29 @@ internal sealed partial class CelestialWindow : Window
             }
 
             _changingCities = true;
-            try { CitySelector.SelectedValue = cityId; }
-            finally { _changingCities = false; }
+            try
+            {
+                CitySelector.SelectedValue = cityId;
+            }
+            finally
+            {
+                _changingCities = false;
+            }
             ApplySettings(result.Value);
         }
-        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested) { }
-        catch (Exception exception) { if (!_closed) ShowFailure("Celestial.Unavailable", exception); }
+        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            if (!_closed)
+            {
+                ShowFailure("Celestial.Unavailable", exception);
+            }
+        }
     }
 
+    /// <summary>Updates the visible sky layers from the user's selection.</summary>
     private void SkyVisibilitySwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_windowKey != WindowStateKeys.LocalSky || _skySnapshot is null)
@@ -243,6 +283,7 @@ internal sealed partial class CelestialWindow : Window
         RenderBodies(_skySnapshot);
     }
 
+    /// <summary>Coalesces matching render requests and cancels projections superseded by city, time, or size changes.</summary>
     private async void RefreshProjection()
     {
         if (_closed || _reference is null)
@@ -277,6 +318,7 @@ internal sealed partial class CelestialWindow : Window
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
         _projectionCancellation = cancellation;
         _pendingRender = requestKey;
+        // A live refresh or resize can retain the previous image for the same city and instant.
         var retainContent = _displayedRender is { } displayed && displayed.CityId == requestKey.CityId
             && displayed.IsLive == isLive && (isLive || displayed.TimeSlot == timeSlot);
         EmptyState.Visibility = Visibility.Collapsed;
@@ -382,10 +424,13 @@ internal sealed partial class CelestialWindow : Window
         }
     }
 
+    /// <summary>Scrolls the visible celestial-body cards backward.</summary>
     private void PreviousBodiesButton_Click(object sender, RoutedEventArgs e) => ScrollBodies(-1);
 
+    /// <summary>Scrolls the visible celestial-body cards forward.</summary>
     private void NextBodiesButton_Click(object sender, RoutedEventArgs e) => ScrollBodies(1);
 
+    /// <summary>Moves the body-card viewport in the requested direction.</summary>
     private void ScrollBodies(int direction)
     {
         var step = Math.Max(80d, BodiesScroll.ViewportWidth * 0.75d);
@@ -393,10 +438,13 @@ internal sealed partial class CelestialWindow : Window
         BodiesScroll.ChangeView(offset, null, null);
     }
 
+    /// <summary>Updates navigation availability after body-card scrolling.</summary>
     private void BodiesScroll_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdateBodiesNavigation();
 
+    /// <summary>Updates navigation availability after the body-card viewport changes size.</summary>
     private void BodiesScroll_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateBodiesNavigation();
 
+    /// <summary>Enables body-card navigation only where additional scroll content exists.</summary>
     private void UpdateBodiesNavigation()
     {
         if (PreviousBodiesButton is null || NextBodiesButton is null || BodiesScroll is null)
@@ -408,6 +456,7 @@ internal sealed partial class CelestialWindow : Window
         NextBodiesButton.IsEnabled = BodiesScroll.HorizontalOffset < BodiesScroll.ScrollableWidth - 1d;
     }
 
+    /// <summary>Builds the visible celestial-body cards from the supplied snapshot.</summary>
     private void RenderBodies(CelestialSnapshot snapshot)
     {
         BodyItems.Children.Clear();
@@ -504,6 +553,7 @@ internal sealed partial class CelestialWindow : Window
         }
     }
 
+    /// <summary>Builds localized agenda sections and event cards for the reference city.</summary>
     private void RenderAgenda(CelestialSnapshot snapshot)
     {
         AgendaRows.Children.Clear();
@@ -514,7 +564,9 @@ internal sealed partial class CelestialWindow : Window
         foreach (var item in snapshot.Agenda)
         {
             if (rowIndex++ == referenceIndex)
+            {
                 AgendaRows.Children.Add(CreateAgendaReferenceMarker(snapshot, referenceLabel));
+            }
             var date = DateOnly.FromDateTime(item.StartLocal.DateTime);
             if (date != previousDate)
             {
@@ -672,6 +724,7 @@ internal sealed partial class CelestialWindow : Window
             row.Children.Add(illustration);
             var details = new StackPanel { Spacing = 7, Margin = new Thickness(0, 12, 12, 12), VerticalAlignment = VerticalAlignment.Center };
             if (item.IsAtReferenceInstant)
+            {
                 details.Children.Add(new TextBlock
                 {
                     Text = referenceLabel,
@@ -680,6 +733,7 @@ internal sealed partial class CelestialWindow : Window
                     TextWrapping = TextWrapping.Wrap,
                     Foreground = ThemeBrush("AccentTextFillColorPrimaryBrush")
                 });
+            }
             details.Children.Add(new TextBlock
             {
                 Text = EventTitle(item),
@@ -754,8 +808,9 @@ internal sealed partial class CelestialWindow : Window
         }
 
         if (referenceIndex == snapshot.Agenda.Count)
+        {
             AgendaRows.Children.Add(CreateAgendaReferenceMarker(snapshot, referenceLabel));
-
+        }
         if (snapshot.Agenda.Count == 0)
         {
             EmptyState.Text = T("Celestial.Agenda.NoEvents");
@@ -763,6 +818,7 @@ internal sealed partial class CelestialWindow : Window
         }
     }
 
+    /// <summary>Creates the agenda marker identifying the snapshot's reference instant.</summary>
     private FrameworkElement CreateAgendaReferenceMarker(CelestialSnapshot snapshot, string label)
     {
         var marker = new Grid { ColumnSpacing = 10, Margin = new Thickness(0, 6, 0, 6) };
@@ -798,6 +854,7 @@ internal sealed partial class CelestialWindow : Window
         return marker;
     }
 
+    /// <summary>Selects the localized title for the supplied agenda event kind.</summary>
     private string EventTitle(CelestialAgendaEvent item) => item.Kind switch
     {
         CelestialEventKind.MoonPlanetConjunction => _strings.Format("Celestial.Agenda.ConjunctionTitle",
@@ -810,6 +867,7 @@ internal sealed partial class CelestialWindow : Window
         _ => T($"CelestialEvent{item.Kind}")
     };
 
+    /// <summary>Formats the localized holiday detail for an agenda event.</summary>
     private string CalendarHolidayDetail(CelestialAgendaEvent item)
     {
         var code = item.CalendarCountryCode ?? throw new InvalidDataException("A holiday must identify its country.");
@@ -819,6 +877,7 @@ internal sealed partial class CelestialWindow : Window
         return $"{name} · {T("Celestial.Agenda.HolidaySource")}{quality}";
     }
 
+    /// <summary>Selects packaged calendar artwork for the supplied agenda event.</summary>
     private static BitmapImage CalendarArtwork(CelestialAgendaEvent item)
     {
         var name = item.Kind switch
@@ -835,6 +894,7 @@ internal sealed partial class CelestialWindow : Window
         return new BitmapImage(new Uri($"ms-appx:///Assets/Celestial/Artwork/{name}"));
     }
 
+    /// <summary>Formats the localized space-weather event detail.</summary>
     private string SpaceWeatherDetail(CelestialAgendaEvent item)
     {
         var source = T("Celestial.SpaceWeather.Source");
@@ -843,6 +903,7 @@ internal sealed partial class CelestialWindow : Window
         return intensity is null ? $"{description} · {source}" : $"{description} · {intensity} · {source}";
     }
 
+    /// <summary>Selects the packaged illustration for a space-weather event kind.</summary>
     private static BitmapImage SpaceWeatherArtwork(SpaceWeatherEventKind kind) => new(new Uri(kind switch
     {
         SpaceWeatherEventKind.GeomagneticStorm => "ms-appx:///Assets/Celestial/Artwork/geomagnetic-storm-v1.png",
@@ -851,6 +912,7 @@ internal sealed partial class CelestialWindow : Window
         _ => throw new InvalidDataException("The space-weather condition has no approved artwork.")
     }));
 
+    /// <summary>Selects the packaged illustration for a named calendar date.</summary>
     private static BitmapImage ImportantDateArtwork(string id) => new(new Uri(id switch
     {
         "birthday" => "ms-appx:///Assets/Celestial/Artwork/birthday-v1.png",
@@ -859,10 +921,12 @@ internal sealed partial class CelestialWindow : Window
         _ => throw new InvalidDataException("The important date has no approved artwork.")
     }));
 
+    /// <summary>Identifies planetary bodies separately from the Sun and Moon.</summary>
     private static bool IsPlanet(CelestialBodyKind kind) => kind is CelestialBodyKind.Mercury or CelestialBodyKind.Venus
         or CelestialBodyKind.Mars or CelestialBodyKind.Jupiter or CelestialBodyKind.Saturn
         or CelestialBodyKind.Uranus or CelestialBodyKind.Neptune;
 
+    /// <summary>Updates the zodiac presentation from the supplied snapshot.</summary>
     private void RenderZodiac(CelestialZodiacSnapshot zodiac)
     {
         ZodiacExpander.Visibility = Visibility.Visible;
@@ -908,15 +972,18 @@ internal sealed partial class CelestialWindow : Window
         }
     }
 
+    /// <summary>Resolves the packaged illustration for a tropical zodiac sign.</summary>
     private static BitmapImage ZodiacImage(TropicalZodiacSign sign) =>
         new(new Uri($"ms-appx:///Assets/Celestial/Zodiac/{sign.ToString().ToLowerInvariant()}.png"));
 
+    /// <summary>Updates the localized explanatory status for the current surface.</summary>
     private void SetStatus(string key)
     {
         StatusText.Text = T(key);
         UiLocalization.SetAccessibleLabel(StatusText, StatusText.Text);
     }
 
+    /// <summary>Adapts content layout and caption hit testing to the new viewport size.</summary>
     private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var compact = e.NewSize.Width < 400d || e.NewSize.Height < 320d;
@@ -947,14 +1014,20 @@ internal sealed partial class CelestialWindow : Window
         }
     }
 
+    /// <summary>Renders the latest geometry after the resize debounce interval.</summary>
     private void ResizeTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         sender.Stop();
         RefreshProjection();
     }
 
+    /// <summary>Presents a localized failure in the window's existing notification surface.</summary>
     private void ShowFailure(string key, Exception? exception = null)
     {
+        if (exception is not null)
+        {
+            ApplicationErrorService.Record(exception, "CelestialProjection");
+        }
         if (_closed)
         {
             return;
@@ -968,6 +1041,7 @@ internal sealed partial class CelestialWindow : Window
         _dialogs.Notifications.ShowError(NotificationBanner, Title, message);
     }
 
+    /// <summary>Clears stale visuals before displaying an unrelated projection.</summary>
     private void ClearRenderedContent()
     {
         _displayedRender = null;
@@ -980,6 +1054,7 @@ internal sealed partial class CelestialWindow : Window
         ZodiacExpander.Visibility = Visibility.Collapsed;
     }
 
+    /// <summary>Cancels pending projections and releases timers when the celestial window closes.</summary>
     private void CelestialWindow_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
@@ -993,6 +1068,7 @@ internal sealed partial class CelestialWindow : Window
         _lifetimeCancellation.Dispose();
     }
 
+    /// <summary>Resolves a presentation brush from the current theme resources.</summary>
     private Brush ThemeBrush(string key) => key switch
     {
         "TextFillColorPrimaryBrush" => PrimaryPalette.Background,
@@ -1003,7 +1079,11 @@ internal sealed partial class CelestialWindow : Window
         _ => throw new ArgumentException("Unsupported celestial theme brush.", nameof(key))
     };
 
+    /// <summary>Translates a resource key using the current UI language.</summary>
     private string T(string key) => _strings.Translate(key);
 
+    /// <summary>Identifies equivalent city, time, and geometry requests for projection coalescing.</summary>
     private sealed record RenderRequestKey(string? CityId, long TimeSlot, bool IsLive, int PixelWidth, int PixelHeight);
+
+    #endregion
 }

@@ -64,10 +64,12 @@ VBWR E -->
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
-    <Content Include="Assets\WorkTrail*.png" />
-    <Content Update="Assets\WorkTrailExcelPreviewLight.png;Assets\WorkTrailExcelPreviewDark.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Update="Assets\WorkTrailNuclearize.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\WorkTrailAboutHeroTrailV1.png;Assets\WorkTrailSplashScreen*.png;Assets\WorkTrailSquare150Logo*.png;Assets\WorkTrailSquare44Logo*.png;Assets\WorkTrailStoreLogo*.png;Assets\WorkTrailWide310x150Logo*.png" />
     <Content Include="Assets\WorkTrailIcon.ico" />
+    <Content Include="Assets\Launcher\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="Assets\Celestial\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -107,6 +109,7 @@ VBWR E -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <PackageReference Include="Serilog" Version="4.4.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
@@ -148,14 +151,7 @@ VBWR E -->
 
   <ItemGroup>
     <ProjectReference Include="..\WorkTrail.Core\WorkTrail.Core.csproj" />
-    <ProjectReference Include="..\WorkTrail.Cli\WorkTrail.Cli.csproj" />
     <ProjectReference Include="..\WorkTrail.Presentation\WorkTrail.Presentation.csproj" />
-    <ProjectReference Include="..\WorkTrail.Taskbar\WorkTrail.Taskbar.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Models\**\*.cs" />
-    <Compile Remove="Providers\**\*.cs" />
   </ItemGroup>
 
 </Project>

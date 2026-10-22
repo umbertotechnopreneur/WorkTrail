@@ -23,6 +23,18 @@ tracked `.csproj` files and distributed world-clock data/media assets.
 
 ## Runtime Dependencies
 
+Added on 2026-10-22: [Microsoft.Graphics.Win2D 1.4.0](https://www.nuget.org/packages/Microsoft.Graphics.Win2D/1.4.0)
+provides the launcher's animated watercolor saturation. The NuGet binary is covered by
+the [Microsoft Win2D software license terms](https://www.microsoft.com/web/webpi/eula/eula_win2d_10012014.htm)
+declared in its package metadata, rather than this project's MIT license.
+
+First-import evidence for this unchanged package: downloaded from
+`https://api.nuget.org/v3-flatcontainer/microsoft.graphics.win2d/1.4.0/microsoft.graphics.win2d.1.4.0.nupkg`,
+SHA-256 `E13866088B3C50205AAE36E9E4CB3C23B21D11C4B4590DDCBEAAFA9EA2C79F48`.
+Microsoft Defender scanned the staged archive and extracted files with
+`MpCmdRun.exe -Scan -ScanType 3 -File <staged-import-directory>` on 2026-10-22;
+the command completed with exit code 0 and reported no threats.
+
 | Package | Badges | License / terms | Used by |
 | --- | --- | --- | --- |
 | [CosineKitty.AstronomyEngine 2.1.19](https://www.nuget.org/packages/CosineKitty.AstronomyEngine/2.1.19) | NuGet | [MIT](https://github.com/cosinekitty/astronomy/blob/v2.1.19/LICENSE) | TrackMeUp.Core; shared solar/lunar/planet ephemerides, rise/set, twilight, lunar quarters and seasons |

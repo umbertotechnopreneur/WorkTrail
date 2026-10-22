@@ -41,6 +41,8 @@ namespace WorkTrail;
 /// <summary>Owns the native/XAML contract shared by WorkTrail custom title bars.</summary>
 internal sealed class CustomTitleBarController : IDisposable
 {
+    #region Fields
+
     private static readonly HashSet<CustomTitleBarController> Controllers = [];
     private static bool _autoHideEnabled = true;
     private readonly Window _window;
@@ -51,10 +53,8 @@ internal sealed class CustomTitleBarController : IDisposable
     private readonly ColumnDefinition _rightInsetColumn;
     private readonly Func<IEnumerable<FrameworkElement>> _interactiveElements;
     private readonly Grid _rootGrid;
-    private readonly bool _supportsContentOverlay;
     private readonly bool _allowAutoHide;
     private TitleBarOverlayLayout? _overlayLayout;
-    private bool _overlayContentEnabled;
     private readonly Border _revealSurface;
     private readonly InputNonClientPointerSource _pointerSource;
     private readonly DispatcherQueueTimer _pointerTimer;
@@ -75,6 +75,10 @@ internal sealed class CustomTitleBarController : IDisposable
     private bool _layoutUpdateQueued;
     private bool _disposed;
 
+    #endregion
+
+    #region Initialization
+
     // window hosts the custom caption.
     // appWindow supplies the native caption and pointer regions.
     // root contains the title bar and window content.
@@ -83,8 +87,9 @@ internal sealed class CustomTitleBarController : IDisposable
     // rightInsetColumn reserves space for native caption buttons.
     // interactiveElements identifies title-bar controls that receive pointer input.
     // useTallTitleBar selects the native caption height.
-    // overlayContent allows the caption to float above content when hidden automatically.
     // allowAutoHide lets this window follow the global auto-hide preference.
+
+    /// <summary>Attaches caption input, native hit testing, and visibility transitions to the window.</summary>
     internal CustomTitleBarController(
         Window window,
         AppWindow appWindow,
@@ -94,7 +99,6 @@ internal sealed class CustomTitleBarController : IDisposable
         ColumnDefinition rightInsetColumn,
         Func<IEnumerable<FrameworkElement>> interactiveElements,
         bool useTallTitleBar = true,
-        bool overlayContent = false,
         bool allowAutoHide = true)
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
@@ -106,8 +110,6 @@ internal sealed class CustomTitleBarController : IDisposable
         _interactiveElements = interactiveElements ?? throw new ArgumentNullException(nameof(interactiveElements));
         _rootGrid = root as Grid
             ?? throw new ArgumentException("Shared title bars require a grid window root.", nameof(root));
-        _overlayContentEnabled = overlayContent;
-        _supportsContentOverlay = overlayContent;
         _allowAutoHide = allowAutoHide;
         _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
         _visibleOpacity = _dragRegion.Opacity;
@@ -165,6 +167,10 @@ internal sealed class CustomTitleBarController : IDisposable
         Controllers.Add(this);
     }
 
+    #endregion
+
+    #region Implementation
+
     /// <summary>Applies the persisted global preference to both existing and subsequently created title bars.</summary>
     internal static void ApplyAutoHideSetting(bool enabled)
     {
@@ -182,26 +188,14 @@ internal sealed class CustomTitleBarController : IDisposable
     }
 
     /// <summary>Gets the vertical space consumed by docked chrome, excluding a floating overlay.</summary>
-    internal double ReservedHeight => _overlayLayout?.ReservedHeight
-        ?? (_supportsContentOverlay && _overlayContentEnabled && AutoHideEnabled ? 0d : _dragRegion.ActualHeight);
+    internal double ReservedHeight => 0d;
 
     private bool AutoHideEnabled => _allowAutoHide && _autoHideEnabled;
 
-    /// <summary>Temporarily docks the title bar when a widget displays interactive settings.</summary>
-    internal void SetOverlayContentEnabled(bool enabled)
-    {
-        if (!_supportsContentOverlay)
-        {
-            throw new InvalidOperationException("This title bar was not configured for content overlays.");
-        }
-
-        _overlayContentEnabled = enabled;
-        ApplyOverlayLayout();
-    }
-
+    /// <summary>Applies the stable caption overlay without resizing content on hover.</summary>
     private void ApplyOverlayLayout()
     {
-        if (!_supportsContentOverlay || !_dragRegion.IsLoaded)
+        if (!_dragRegion.IsLoaded)
         {
             return;
         }
@@ -209,12 +203,11 @@ internal sealed class CustomTitleBarController : IDisposable
         // WinUI does not attach XAML parents during window construction. Capture the original
         // rows only after Loaded, when the header belongs to its live visual tree.
         _overlayLayout ??= new TitleBarOverlayLayout(_rootGrid, _dragRegion);
-        var overlay = _overlayContentEnabled && AutoHideEnabled;
-        _overlayLayout.SetEnabled(overlay);
+        _overlayLayout.Apply();
         // Span the content only for layout; the shield's fixed height limits input to the floating caption.
-        Grid.SetRowSpan(_revealSurface, overlay ? Math.Max(1, _rootGrid.RowDefinitions.Count) : 1);
-        _revealSurface.Height = overlay ? _overlayLayout.HeaderHeight : double.NaN;
-        _revealSurface.VerticalAlignment = overlay ? VerticalAlignment.Top : VerticalAlignment.Stretch;
+        Grid.SetRowSpan(_revealSurface, Math.Max(1, _rootGrid.RowDefinitions.Count));
+        _revealSurface.Height = _overlayLayout.HeaderHeight;
+        _revealSurface.VerticalAlignment = VerticalAlignment.Top;
         QueueLayoutUpdate();
     }
 
@@ -269,6 +262,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Connects the loaded caption to its current XAML root and layout.</summary>
     private void DragRegion_Loaded(object sender, RoutedEventArgs e)
     {
         ApplyOverlayLayout();
@@ -278,14 +272,17 @@ internal sealed class CustomTitleBarController : IDisposable
         RefreshPointerVisibility();
     }
 
+    /// <summary>Refreshes caption visibility from the current native pointer position.</summary>
     private void PointerTimer_Tick(DispatcherQueueTimer sender, object args) => RefreshPointerVisibility();
 
+    /// <summary>Advances the pending caption visibility transition.</summary>
     private void TransitionTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         // Recheck the actual pointer before committing a delayed transition over native or WebView content.
         RefreshPointerVisibility();
     }
 
+    /// <summary>Updates caption hover state using native client and non-client pointer coordinates.</summary>
     private void RefreshPointerVisibility()
     {
         if (_disposed || !_root.IsLoaded || !_appWindow.IsVisible)
@@ -310,6 +307,7 @@ internal sealed class CustomTitleBarController : IDisposable
         ApplyChromeVisibility();
     }
 
+    /// <summary>Updates caption reveal state from pointer movement in the content root.</summary>
     private void Root_PointerHovered(object sender, PointerRoutedEventArgs args)
     {
         if (args.Pointer.PointerDeviceType != PointerDeviceType.Mouse
@@ -324,6 +322,7 @@ internal sealed class CustomTitleBarController : IDisposable
         ApplyChromeVisibility();
     }
 
+    /// <summary>Rechecks caption visibility after the pointer leaves the content root.</summary>
     private void Root_PointerExited(object sender, PointerRoutedEventArgs args)
     {
         if (args.Pointer.PointerDeviceType == PointerDeviceType.Mouse)
@@ -333,6 +332,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Updates caption interaction state for a pressed pointer.</summary>
     private void Root_PointerPressed(object sender, PointerRoutedEventArgs args)
     {
         if (args.Pointer.PointerDeviceType != PointerDeviceType.Mouse && !_visibility.IsRevealContactPending)
@@ -341,6 +341,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Tracks pointer movement over the native caption area.</summary>
     private void NonClient_PointerHovered(InputNonClientPointerSource sender, NonClientPointerEventArgs args)
     {
         if (args.PointerDeviceType == PointerDeviceType.Mouse)
@@ -351,9 +352,11 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Rechecks caption visibility after leaving native caption input.</summary>
     private void NonClient_PointerExited(InputNonClientPointerSource sender, NonClientPointerEventArgs args) =>
         RefreshPointerVisibility();
 
+    /// <summary>Releases the native caption interaction state.</summary>
     private void NonClient_PointerReleased(InputNonClientPointerSource sender, NonClientPointerEventArgs args)
     {
         if (args.PointerDeviceType != PointerDeviceType.Mouse)
@@ -362,6 +365,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Captures a touch contact used to reveal hidden caption controls.</summary>
     private void RevealSurface_PointerPressed(object sender, PointerRoutedEventArgs args)
     {
         args.Handled = true;
@@ -378,6 +382,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Completes the captured reveal gesture and updates caption visibility.</summary>
     private void RevealSurface_PointerReleased(object sender, PointerRoutedEventArgs args)
     {
         args.Handled = true;
@@ -402,15 +407,18 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Cancels a reveal gesture interrupted by the input system.</summary>
     private void RevealSurface_PointerCanceled(object sender, PointerRoutedEventArgs args)
     {
         args.Handled = true;
         CancelRevealContact(args.Pointer.PointerId);
     }
 
+    /// <summary>Clears the reveal gesture when its pointer capture is lost.</summary>
     private void RevealSurface_PointerCaptureLost(object sender, PointerRoutedEventArgs args) =>
         CancelRevealContact(args.Pointer.PointerId);
 
+    /// <summary>Releases the tracked reveal contact without completing its gesture.</summary>
     private void CancelRevealContact(uint pointerId)
     {
         if (_revealPointerId == pointerId)
@@ -421,6 +429,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Makes caption controls available for touch interaction.</summary>
     private void RevealForTouch()
     {
         _touchRevealUntil = DateTimeOffset.UtcNow.AddSeconds(5);
@@ -428,6 +437,7 @@ internal sealed class CustomTitleBarController : IDisposable
         ApplyChromeVisibility(immediate: true);
     }
 
+    /// <summary>Reveals caption controls for keyboard navigation.</summary>
     private void Root_PreviewKeyDown(object sender, KeyRoutedEventArgs args)
     {
         _touchRevealUntil = null;
@@ -435,6 +445,7 @@ internal sealed class CustomTitleBarController : IDisposable
         ApplyChromeVisibility(immediate: true);
     }
 
+    /// <summary>Keeps caption controls visible while they hold keyboard focus.</summary>
     private void Root_GotFocus(object sender, RoutedEventArgs args)
     {
         if (HasKeyboardFocusInTitleBar())
@@ -445,6 +456,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Checks whether focus belongs to the caption visual subtree.</summary>
     private bool HasKeyboardFocusInTitleBar()
     {
         if (_xamlRoot is null
@@ -464,6 +476,7 @@ internal sealed class CustomTitleBarController : IDisposable
         return false;
     }
 
+    /// <summary>Updates window interaction state after native activation changes.</summary>
     private void Window_Activated(object sender, WindowActivatedEventArgs args)
     {
         _isWindowActive = args.WindowActivationState != WindowActivationState.Deactivated;
@@ -478,6 +491,7 @@ internal sealed class CustomTitleBarController : IDisposable
         RefreshPointerVisibility();
     }
 
+    /// <summary>Reconciles presentation with native window state and geometry changes.</summary>
     private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
     {
         if (args.DidVisibilityChange)
@@ -495,6 +509,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Applies caption interaction and visibility from the shared transition state.</summary>
     private void ApplyChromeVisibility(bool immediate = false)
     {
         if (_disposed)
@@ -540,6 +555,7 @@ internal sealed class CustomTitleBarController : IDisposable
         QueueLayoutUpdate();
     }
 
+    /// <summary>Animates the caption surface toward its requested visibility.</summary>
     private void FadeChrome(bool visible)
     {
         // Read the animated value before stopping so a reversal continues without an opacity jump.
@@ -568,16 +584,20 @@ internal sealed class CustomTitleBarController : IDisposable
         _fadeStoryboard.Begin();
     }
 
+    /// <summary>Refreshes native caption hit testing after its layout changes.</summary>
     private void DragRegion_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateLayout();
 
+    /// <summary>Refreshes caption colors after the effective XAML theme changes.</summary>
     private void Root_ActualThemeChanged(FrameworkElement sender, object args)
     {
         ApplyTheme(sender.ActualTheme);
         ThemeChanged?.Invoke(sender.ActualTheme);
     }
 
+    /// <summary>Queues geometry updates after the XAML root's scale or layout changes.</summary>
     private void XamlRoot_Changed(XamlRoot sender, XamlRootChangedEventArgs args) => QueueLayoutUpdate();
 
+    /// <summary>Moves change subscriptions to the window's current XAML root.</summary>
     private void AttachXamlRoot(XamlRoot? xamlRoot)
     {
         if (ReferenceEquals(_xamlRoot, xamlRoot))
@@ -597,6 +617,7 @@ internal sealed class CustomTitleBarController : IDisposable
         }
     }
 
+    /// <summary>Updates caption insets and native hit-test regions from current XAML bounds.</summary>
     private void UpdateLayout()
     {
         if (_disposed || !_window.ExtendsContentIntoTitleBar || _dragRegion.XamlRoot is not { } xamlRoot)
@@ -650,6 +671,7 @@ internal sealed class CustomTitleBarController : IDisposable
         pointerSource.SetRegionRects(NonClientRegionKind.Passthrough, passthroughRects);
     }
 
+    /// <summary>Converts element bounds into physical coordinates for native hit testing.</summary>
     private static RectInt32 ElementRect(FrameworkElement element, double scale)
     {
         var transform = element.TransformToVisual(null);
@@ -661,6 +683,7 @@ internal sealed class CustomTitleBarController : IDisposable
             (int)Math.Round(bounds.Height * scale));
     }
 
+    /// <summary>Selects caption colors for the effective light or dark theme.</summary>
     private static TitleBarPalette ResolvePalette(ElementTheme effectiveTheme)
     {
         if (new AccessibilitySettings().HighContrast)
@@ -692,7 +715,7 @@ internal sealed class CustomTitleBarController : IDisposable
             Color.FromArgb(40, 0, 0, 0));
     }
 
-    /// <inheritdoc />
+    /// <summary>Detaches caption input, stops transition timers, and releases composition resources.</summary>
     public void Dispose()
     {
         if (_disposed)
@@ -732,6 +755,7 @@ internal sealed class CustomTitleBarController : IDisposable
         ThemeChanged = null;
     }
 
+    /// <summary>Groups the caption colors used for the effective window theme.</summary>
     private sealed record TitleBarPalette(
         Color Foreground,
         Color InactiveForeground,
@@ -739,4 +763,6 @@ internal sealed class CustomTitleBarController : IDisposable
         Color PressedForeground,
         Color HoverBackground,
         Color PressedBackground);
+
+    #endregion
 }

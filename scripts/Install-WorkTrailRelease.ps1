@@ -33,10 +33,21 @@ param(
     [switch]$ForceApplicationShutdown
 )
 
+#region Initialization
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+#endregion
+
+#region Implementation
+
 function Assert-ObjectFields {
+    <#
+    .SYNOPSIS
+    Rejects manifest objects whose fields differ from the expected contract.
+    #>
+
     param($Value, [string[]]$Fields, [string]$Context)
 
     if ($Value -isnot [System.Collections.IDictionary] -or
@@ -47,6 +58,11 @@ function Assert-ObjectFields {
 }
 
 function Resolve-ReleaseFile {
+    <#
+    .SYNOPSIS
+    Resolves a release file while rejecting traversal and reparse-point paths.
+    #>
+
     param([string]$RelativePath)
 
     # Reject traversal and links before any package is read or passed to Windows.
@@ -75,12 +91,19 @@ function Resolve-ReleaseFile {
 }
 
 function Read-PackageManifest {
+    <#
+    .SYNOPSIS
+    Reads the MSIX identity with bounded XML parsing and disposes archive streams.
+    #>
+
     param([string]$Path)
 
     $archive = [System.IO.Compression.ZipFile]::OpenRead($Path)
     try {
         $entries = @($archive.Entries | Where-Object { $_.FullName -ceq 'AppxManifest.xml' })
-        if ($entries.Count -ne 1) { throw "Package must contain one AppxManifest.xml: '$Path'." }
+        if ($entries.Count -ne 1) {
+            throw "Package must contain one AppxManifest.xml: '$Path'."
+        }
         $settings = [System.Xml.XmlReaderSettings]::new()
         $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
         $settings.XmlResolver = $null
@@ -93,9 +116,13 @@ function Read-PackageManifest {
                 $document.XmlResolver = $null
                 $document.Load($reader)
             }
-            finally { $reader.Dispose() }
+            finally {
+                $reader.Dispose()
+            }
         }
-        finally { $stream.Dispose() }
+        finally {
+            $stream.Dispose()
+        }
         $identity = $document.SelectSingleNode('/*[local-name()="Package"]/*[local-name()="Identity"]')
         if ($null -eq $identity -or [string]::IsNullOrWhiteSpace($identity.GetAttribute('Name')) -or
             [string]::IsNullOrWhiteSpace($identity.GetAttribute('Publisher')) -or
@@ -110,10 +137,17 @@ function Read-PackageManifest {
             Document = $document
         }
     }
-    finally { $archive.Dispose() }
+    finally {
+        $archive.Dispose()
+    }
 }
 
 function Assert-PackageFile {
+    <#
+    .SYNOPSIS
+    Checks a release package against its recorded hash and signature requirements.
+    #>
+
     param($Description, [string]$Context)
 
     Assert-ObjectFields $Description @('file', 'sha256') $Context
@@ -133,9 +167,13 @@ function Assert-PackageFile {
     return $path
 }
 
+#endregion
+
 $releaseRoot = [System.IO.Path]::GetFullPath($ReleaseDirectory)
 $rootItem = Get-Item -LiteralPath $releaseRoot -Force
-if (-not $rootItem.PSIsContainer) { throw 'ReleaseDirectory must be an existing directory.' }
+if (-not $rootItem.PSIsContainer) {
+    throw 'ReleaseDirectory must be an existing directory.'
+}
 for ($ancestor = $rootItem; $null -ne $ancestor; $ancestor = $ancestor.Parent) {
     if (($ancestor.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
         throw 'ReleaseDirectory cannot contain symbolic links or junctions.'
@@ -159,7 +197,9 @@ if (@($release.version.Split('.') | Where-Object { [long]$_ -gt 65534 }).Count -
 if ($release.signing -ceq 'unsigned') {
     throw 'This release is unsigned and is not installable until signing. Obtain a signed release; this script never installs or trusts certificates.'
 }
-if (-not $IsWindows) { throw 'WorkTrail installation requires Windows.' }
+if (-not $IsWindows) {
+    throw 'WorkTrail installation requires Windows.'
+}
 $osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if ($osArchitecture -ine $release.platform) {
     throw "This release targets $($release.platform), but Windows is running on $osArchitecture. Download the matching release."
@@ -213,12 +253,16 @@ if (@($dependencies.Keys | Where-Object { $_ -cnotin $requiredNames }).Count -gt
 
 # All validation is complete. Deployment errors terminate; package trust is never changed.
 $installArguments = @{ Path = $packagePath; ForceTargetApplicationShutdown = $ForceApplicationShutdown; ErrorAction = 'Stop' }
-if ($dependencyPaths.Count -gt 0) { $installArguments.DependencyPath = $dependencyPaths.ToArray() }
+if ($dependencyPaths.Count -gt 0) {
+    $installArguments.DependencyPath = $dependencyPaths.ToArray()
+}
 Add-AppxPackage @installArguments
 $installed = @(Get-AppxPackage -Name $application.Name | Where-Object {
         $_.Name -ceq $application.Name -and $_.Publisher -ceq $application.Publisher -and
         $_.Version -eq $application.Version -and $_.Architecture.ToString() -ieq $application.Architecture -and
         $_.Status.ToString() -ceq 'Ok'
     })
-if ($installed.Count -ne 1) { throw 'Deployment completed, but the expected package identity, version, architecture, and healthy status could not be verified.' }
+if ($installed.Count -ne 1) {
+    throw 'Deployment completed, but the expected package identity, version, architecture, and healthy status could not be verified.'
+}
 Write-Host "Installed WorkTrail $($release.version) ($($release.platform))." -ForegroundColor Green

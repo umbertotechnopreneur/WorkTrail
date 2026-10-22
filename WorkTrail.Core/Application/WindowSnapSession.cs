@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Application;
 
 /// <summary>Describes visible window edges in physical desktop pixels, including negative monitor coordinates.</summary>
@@ -51,10 +50,16 @@ public enum WindowSnapEdges
 /// <summary>Calculates DPI-scaled edge snapping for movement and resizing on the starting monitor.</summary>
 public sealed class WindowSnapSession
 {
+
+    #region Fields
     private int _snapDistance;
     private int _guideDistance;
     private readonly WindowSnapRectangle _monitorBounds;
     private readonly WindowSnapRectangle _workArea;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Starts an operation on a physical monitor using ten/twenty logical-pixel snap/guide distances at the supplied DPI.</summary>
     public WindowSnapSession(WindowSnapRectangle monitorBounds, WindowSnapRectangle workArea, uint dpi = 96)
@@ -70,6 +75,10 @@ public sealed class WindowSnapSession
         _workArea = workArea;
         UpdateDpi(dpi);
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Updates physical thresholds after a DPI change without resetting an escaped operation.</summary>
     public void UpdateDpi(uint dpi)
@@ -104,7 +113,10 @@ public sealed class WindowSnapSession
     /// </summary>
     public WindowSnapRectangle Move(WindowSnapRectangle proposedBounds, IReadOnlyList<WindowSnapRectangle> peerBounds)
     {
-        if (!Prepare(proposedBounds, peerBounds)) return proposedBounds;
+        if (!Prepare(proposedBounds, peerBounds))
+        {
+            return proposedBounds;
+        }
 
         Alignment? horizontal = null;
         Alignment? vertical = null;
@@ -148,12 +160,18 @@ public sealed class WindowSnapSession
         if (edges == WindowSnapEdges.None || (edges & ~(WindowSnapEdges.Left | WindowSnapEdges.Top | WindowSnapEdges.Right | WindowSnapEdges.Bottom)) != 0
             || (edges & (WindowSnapEdges.Left | WindowSnapEdges.Right)) == (WindowSnapEdges.Left | WindowSnapEdges.Right)
             || (edges & (WindowSnapEdges.Top | WindowSnapEdges.Bottom)) == (WindowSnapEdges.Top | WindowSnapEdges.Bottom))
+        {
             throw new ArgumentOutOfRangeException(nameof(edges));
+        }
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(minimumWidth);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(minimumHeight);
         ArgumentOutOfRangeException.ThrowIfLessThan(maximumWidth, minimumWidth);
         ArgumentOutOfRangeException.ThrowIfLessThan(maximumHeight, minimumHeight);
-        if (!Prepare(proposedBounds, peerBounds)) return proposedBounds;
+        if (!Prepare(proposedBounds, peerBounds))
+        {
+            return proposedBounds;
+        }
 
         var moveLeft = (edges & WindowSnapEdges.Left) != 0;
         var moveTop = (edges & WindowSnapEdges.Top) != 0;
@@ -206,6 +224,11 @@ public sealed class WindowSnapSession
             !moveTop && HorizontalGuide is { IsSnapped: true } ? vertical!.Value.Coordinate : proposedBounds.Bottom);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Validates candidate bounds and suppresses snapping after a deliberate monitor escape.</summary>
     private bool Prepare(WindowSnapRectangle proposedBounds, IReadOnlyList<WindowSnapRectangle> peerBounds)
     {
         ArgumentNullException.ThrowIfNull(peerBounds);
@@ -236,6 +259,7 @@ public sealed class WindowSnapSession
         return true;
     }
 
+    /// <summary>Publishes the selected alignments and their current snap state.</summary>
     private void SetGuides(Alignment? horizontal, Alignment? vertical)
     {
         VerticalGuide = ToGuide(horizontal);
@@ -243,12 +267,23 @@ public sealed class WindowSnapSession
         IsSnapped = VerticalGuide is { IsSnapped: true } || HorizontalGuide is { IsSnapped: true };
     }
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Pairs a candidate translation with its target desktop coordinate.</summary>
     private readonly record struct Alignment(int Delta, int Coordinate);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Classifies an alignment against the current DPI-scaled snap distance.</summary>
     private WindowSnapGuide? ToGuide(Alignment? alignment) => alignment is { } value
         ? new WindowSnapGuide(value.Coordinate, Math.Abs(value.Delta) <= _snapDistance)
         : null;
 
+    /// <summary>Evaluates all leading and trailing edge pairings against a peer.</summary>
     private void ConsiderEdges(ref Alignment? best, int first, int last, int targetFirst, int targetLast, int monitorFirst, int monitorLast)
     {
         Consider(ref best, targetFirst, first, first, last, monitorFirst, monitorLast);
@@ -257,14 +292,20 @@ public sealed class WindowSnapSession
         Consider(ref best, targetFirst, last, first, last, monitorFirst, monitorLast);
     }
 
+    /// <summary>Rejects targets that would violate the permitted resize extent.</summary>
     private void ConsiderResize(ref Alignment? best, int target, int edge, int fixedEdge, bool moveFirst,
         int minimumExtent, int maximumExtent, int monitorFirst, int monitorLast)
     {
         var extent = moveFirst ? (long)fixedEdge - target : (long)target - fixedEdge;
-        if (extent < minimumExtent || extent > maximumExtent) return;
+        if (extent < minimumExtent || extent > maximumExtent)
+        {
+            return;
+        }
+
         Consider(ref best, target, edge, edge, edge, monitorFirst, monitorLast);
     }
 
+    /// <summary>Keeps the nearest eligible alignment with deterministic coordinate tie breaks.</summary>
     private void Consider(ref Alignment? best, int target, int edge, int first, int last, int monitorFirst, int monitorLast)
     {
         var delta = (long)target - edge;
@@ -282,13 +323,16 @@ public sealed class WindowSnapSession
         }
     }
 
+    /// <summary>Checks perpendicular overlap including the allowed snap margin.</summary>
     private bool NearIntervals(int first, int last, int peerFirst, int peerLast) =>
         (long)first <= (long)peerLast + _snapDistance && (long)peerFirst <= (long)last + _snapDistance;
 
+    /// <summary>Checks whether one physical rectangle lies entirely inside another.</summary>
     private static bool Contains(WindowSnapRectangle container, WindowSnapRectangle value) =>
         value.Left >= container.Left && value.Right <= container.Right
         && value.Top >= container.Top && value.Bottom <= container.Bottom;
 
+    /// <summary>Rejects empty or unrepresentable physical rectangle extents.</summary>
     private static void Validate(WindowSnapRectangle bounds, string parameterName)
     {
         var width = (long)bounds.Right - bounds.Left;
@@ -298,4 +342,7 @@ public sealed class WindowSnapSession
             throw new ArgumentException("Snap rectangles must have positive, representable physical pixel extents.", parameterName);
         }
     }
+
+    #endregion
+
 }

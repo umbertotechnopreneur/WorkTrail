@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 namespace WorkTrail.Application;
 
 /// <summary>Represents native drag handling owned by one frontend window and disposed on that window's UI thread.</summary>

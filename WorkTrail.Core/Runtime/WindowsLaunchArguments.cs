@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
@@ -25,6 +24,8 @@ namespace WorkTrail.Runtime;
 /// <summary>Decodes Windows launch payloads without reading another process's command line.</summary>
 public static class WindowsLaunchArguments
 {
+
+    #region Methods and properties
     /// <summary>Parses packaged argument payloads and unpackaged command lines using Windows quoting rules.</summary>
     /// <param name="arguments">The arguments supplied by the redirected launch activation.</param>
     /// <param name="executableFileName">The application executable name, without its directory.</param>
@@ -43,7 +44,7 @@ public static class WindowsLaunchArguments
         var argumentVector = CommandLineToArgvW("activation " + arguments, out var argumentCount);
         if (argumentVector == IntPtr.Zero)
         {
-            // Native parsing failure is terminal; dropping options could accidentally enable tracking.
+            // Native parsing failure is terminal; dropping options could change the requested launch behavior.
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
@@ -70,9 +71,18 @@ public static class WindowsLaunchArguments
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Delegates Windows command-line quoting to the native argument parser.</summary>
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
     private static extern IntPtr CommandLineToArgvW(string commandLine, out int argumentCount);
 
+    /// <summary>Releases the native argument vector allocated by Windows.</summary>
     [DllImport("kernel32.dll", ExactSpelling = true)]
     private static extern IntPtr LocalFree(IntPtr memory);
+
+    #endregion
+
 }

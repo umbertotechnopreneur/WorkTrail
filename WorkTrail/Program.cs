@@ -28,10 +28,16 @@ namespace WorkTrail;
 /// <summary>Starts WinUI only after enforcing one long-lived WorkTrail process per user.</summary>
 public static class Program
 {
+    #region Fields
+
     private const string MainInstanceKey = "WorkTrail.Main";
     private static readonly object ActivationGate = new();
     private static readonly Queue<RedirectedActivationRequest> PendingActivations = new();
     private static App? _application;
+
+    #endregion
+
+    #region Implementation
 
     /// <summary>Redirects long-lived activations before XAML, services, or windows are initialized.</summary>
     /// <param name="arguments">The bootstrap arguments supplied by Windows or the command line.</param>
@@ -110,10 +116,12 @@ public static class Program
         });
     }
 
+    /// <summary>Identifies launches that must route through the main application instance.</summary>
     private static bool RequiresSingleInstance(IReadOnlyList<string> arguments)
     {
         // Invalid bootstrap arguments fail before redirection, including when another instance is already running.
-        return LaunchOptions.Parse(arguments).Mode is not (LaunchMode.Cli or LaunchMode.Help or LaunchMode.Version);
+        _ = LaunchOptions.Parse(arguments);
+        return true;
     }
 
     /// <summary>Routes repeated Windows activations and reports callback failures centrally.</summary>
@@ -143,16 +151,12 @@ public static class Program
     }
 
     // activation owns the Windows payload only for the duration of this callback.
+
+    /// <summary>Copies activation data into the runtime-independent redirect request.</summary>
     private static RedirectedActivationRequest CaptureRedirectedActivation(AppActivationArguments activation)
     {
         ArgumentNullException.ThrowIfNull(activation);
         var kind = activation.Kind;
-        if (kind == ExtendedActivationKind.Protocol
-            && activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol)
-        {
-            // Copy the URI while the WinRT callback owns its payload; the app validates fixed actions.
-            return new RedirectedActivationRequest(LaunchOptions.Parse([]), kind, protocol.Uri.AbsoluteUri);
-        }
         var options = kind switch
         {
             ExtendedActivationKind.Launch when activation.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch =>
@@ -169,9 +173,11 @@ public static class Program
 
         // Copy the only collection so the immutable request owns every value needed after the sender has exited.
         return new RedirectedActivationRequest(
-            options with { RemainingArguments = Array.AsReadOnly(options.RemainingArguments.ToArray()) },
+            options,
             kind);
     }
+
+    #endregion
 }
 
 /// <summary>Contains the managed snapshot consumed after a redirected WinRT activation callback returns.</summary>

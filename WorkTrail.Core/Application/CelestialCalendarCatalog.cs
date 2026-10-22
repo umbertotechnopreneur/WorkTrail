@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -47,6 +46,8 @@ internal sealed record CelestialCalendarCountrySource(string Code, string Name, 
 /// <summary>Validates the fixed JSON asset before any catalog rows are persisted or displayed.</summary>
 internal static class CelestialCalendarCatalog
 {
+
+    #region Fields
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -55,9 +56,18 @@ internal static class CelestialCalendarCatalog
 
     private static readonly Lazy<CelestialCalendarDataset> Loaded = new(Load);
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Gets the reviewed catalog embedded in WorkTrail.Core.</summary>
     internal static CelestialCalendarDataset Current => Loaded.Value;
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Loads and validates the embedded holiday and sanctoral dataset before publishing it.</summary>
     private static CelestialCalendarDataset Load()
     {
         using var stream = typeof(CelestialCalendarCatalog).Assembly.GetManifestResourceStream(
@@ -88,7 +98,10 @@ internal static class CelestialCalendarCatalog
             if (!CelestialCalendarCountries.All.Any(country => country.Code == item.Code)
                 || string.IsNullOrWhiteSpace(item.Name) || string.IsNullOrWhiteSpace(item.Scope)
                 || !IsHttps(item.SourceUrl))
+            {
                 throw new InvalidDataException($"Invalid celestial calendar country: {item.Code}");
+            }
+
             return new CelestialCalendarCountrySource(item.Code, item.Name, item.Scope, item.SourceUrl);
         }).ToArray();
         if (countries.Select(item => item.Code).Distinct(StringComparer.Ordinal).Count() != countries.Length)
@@ -105,7 +118,10 @@ internal static class CelestialCalendarCatalog
                 || item.Quality is not ("rule_based" or "estimated" or "provisional")
                 || string.IsNullOrWhiteSpace(item.Name) || !IsArtworkFileName(item.ArtworkFileName)
                 || !IsHttps(item.SourceUrl))
+            {
                 throw new InvalidDataException("Invalid celestial calendar holiday entry.");
+            }
+
             return new CelestialCalendarHoliday(date, item.Country, item.Name, item.Kind,
                 item.Quality, item.ArtworkFileName, item.SourceUrl);
         }).ToArray();
@@ -119,7 +135,10 @@ internal static class CelestialCalendarCatalog
             _ = new DateOnly(2000, item.Month, item.Day);
             if (string.IsNullOrWhiteSpace(item.EventKey) || string.IsNullOrWhiteSpace(item.NameLatin)
                 || !IsHttps(item.SourceUrl))
+            {
                 throw new InvalidDataException("Invalid celestial calendar saint entry.");
+            }
+
             return new CelestialCalendarSaint(item.Month, item.Day, item.EventKey,
                 item.NameLatin, item.SourceUrl);
         }).ToArray();
@@ -134,26 +153,41 @@ internal static class CelestialCalendarCatalog
             raw.SaintsSource.Revision, Array.AsReadOnly(countries), Array.AsReadOnly(holidays), Array.AsReadOnly(saints));
     }
 
+    /// <summary>Parses a catalog date using its invariant ISO format.</summary>
     private static DateOnly ParseDate(string value) => DateOnly.TryParseExact(value, "yyyy-MM-dd",
         CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
         ? date : throw new InvalidDataException($"Invalid celestial calendar date: {value}");
 
+    /// <summary>Checks that a provenance link is an absolute HTTPS address.</summary>
     private static bool IsHttps(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps;
 
+    /// <summary>Restricts artwork references to simple PNG filenames.</summary>
     private static bool IsArtworkFileName(string value) => value.EndsWith(".png", StringComparison.Ordinal)
         && value.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.');
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Represents the serialized calendar catalog before validation.</summary>
     private sealed record RawDataset(
         int SchemaVersion, string CoverageStart, string CoverageEnd, string HolidayLibrary,
         string HolidayScope, RawSaintSource SaintsSource,
         IReadOnlyList<RawCountry> Countries, IReadOnlyList<RawHoliday> Holidays,
         IReadOnlyList<RawSaint> Saints);
 
+    /// <summary>Carries the source revision and coverage of the sanctoral catalog.</summary>
     private sealed record RawSaintSource(string Source, string Revision, string Scope, int DatesCovered, int Entries);
+    /// <summary>Carries country scope and provenance from the calendar resource.</summary>
     private sealed record RawCountry(string Code, string Name, string Scope, string SourceUrl);
+    /// <summary>Carries an unvalidated national observance and its artwork reference.</summary>
     private sealed record RawHoliday(
         string Date, string Country, string Name, string Kind, string Quality,
         string ArtworkFileName, string SourceUrl);
+    /// <summary>Carries an unvalidated fixed-date sanctoral entry.</summary>
     private sealed record RawSaint(int Month, int Day, string EventKey, string NameLatin, string SourceUrl);
+
+    #endregion
+
 }

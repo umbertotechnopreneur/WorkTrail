@@ -16,7 +16,6 @@
  *
  * VBWR E */
 
-
 using CosineKitty;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -27,11 +26,17 @@ namespace WorkTrail.Services;
 /// <summary>Defines the stable world-clock selection contract.</summary>
 public static class WorldClockSelection
 {
+
+    #region Fields
     /// <summary>Maximum number of clocks visible in the comparison window.</summary>
     public const int MaximumClocks = 12;
 
-    /// <summary>Initial selection matching the approved local-plus-capitals composition.</summary>
-    public static IReadOnlyList<string> Defaults { get; } = ["ho-chi-minh-city", "london", "tokyo"];
+    #endregion
+
+    #region Methods and properties
+
+    /// <summary>No city is assumed before the owner chooses a home city.</summary>
+    public static IReadOnlyList<string> Defaults { get; } = [];
 
     /// <summary>Validates persisted identifiers without requiring catalog I/O during settings deserialization.</summary>
     public static IReadOnlyList<string> NormalizePersisted(IReadOnlyList<string>? cityIds)
@@ -59,14 +64,24 @@ public static class WorldClockSelection
 
         return normalized;
     }
+
+    #endregion
+
 }
 
 /// <summary>Maps locally calculated daylight events to decorative packaged atmosphere layers.</summary>
 internal static class WorldClockAtmosphereResolver
 {
+
+    #region Fields
     private const string BackdropRoot = "Assets/WorldClocks/Overlays/Backdrops";
     private const string ForegroundRoot = "Assets/WorldClocks/Overlays/Foregrounds";
 
+    #endregion
+
+    #region Methods and properties
+
+    /// <summary>Selects decorative atmosphere layers from local light phase and current weather.</summary>
     internal static WorldClockAtmosphere Resolve(
         DateTimeOffset localTime,
         DateTimeOffset? sunrise,
@@ -161,6 +176,11 @@ internal static class WorldClockAtmosphereResolver
         return new WorldClockAtmosphere(phase, backdrops, foregrounds);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Returns distance from an event only inside its configured phase interval.</summary>
     private static double? EventDistance(
         DateTimeOffset localTime,
         DateTimeOffset? localEvent,
@@ -175,15 +195,24 @@ internal static class WorldClockAtmosphereResolver
         var delta = (localTime - localEvent.Value).TotalMinutes;
         return delta >= startMinutes && delta < endMinutes ? Math.Abs(delta) : null;
     }
+
+    #endregion
+
 }
 
 /// <summary>Calculates clocks locally and optionally attaches fresh current weather through a bounded Core service.</summary>
 public sealed class WorldClockService : IDisposable
 {
+
+    #region Fields
     private readonly string _catalogPath;
     private readonly WorldClockWeatherService _currentWeather;
     private readonly TimeProvider _timeProvider;
     private IReadOnlyDictionary<string, CityRecord>? _cities;
+
+    #endregion
+
+    #region Initialization
 
     /// <summary>Creates a service over the packaged catalog and the optional environment-configured weather provider.</summary>
     public WorldClockService(
@@ -197,6 +226,7 @@ public sealed class WorldClockService : IDisposable
     {
     }
 
+    /// <summary>Connects the packaged city catalog, time source, and weather provider.</summary>
     internal WorldClockService(
         string? catalogPath,
         IWorldClockWeatherProvider weatherProvider,
@@ -207,6 +237,10 @@ public sealed class WorldClockService : IDisposable
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _currentWeather = new WorldClockWeatherService(weatherProvider, _timeProvider, logger);
     }
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Gets every approved city in the distributed world-clock catalog.</summary>
     public WorldClockCityCatalog GetCatalog()
@@ -326,6 +360,11 @@ public sealed class WorldClockService : IDisposable
         CancellationToken cancellationToken) =>
         _currentWeather.ValidateApiKeyAsync(secret, cancellationToken);
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Adds the shared current NOAA condition to each projected clock.</summary>
     private static async Task<WorldClockSnapshot> AttachCurrentSpaceWeatherAsync(
         WorldClockSnapshot snapshot,
         CancellationToken cancellationToken)
@@ -342,6 +381,7 @@ public sealed class WorldClockService : IDisposable
         return snapshot with { Clocks = clocks.AsReadOnly() };
     }
 
+    /// <summary>Projects selected cities at one instant with local astronomy, seasons, and weather.</summary>
     private static WorldClockSnapshot BuildSnapshotCore(
         IReadOnlyList<string> selection,
         IReadOnlyDictionary<string, CityRecord> cities,
@@ -404,6 +444,10 @@ public sealed class WorldClockService : IDisposable
                 mapCities));
     }
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Resolves a selected city's local civil time and projects every selected clock at that instant.</summary>
     internal WorldClockSnapshot BuildSnapshotForLocalTime(
         IReadOnlyList<string>? cityIds,
@@ -460,6 +504,11 @@ public sealed class WorldClockService : IDisposable
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Loads and validates the read-only packaged SQLite city catalog once.</summary>
     private IReadOnlyDictionary<string, CityRecord> LoadCities()
     {
         if (_cities is not null)
@@ -522,6 +571,7 @@ public sealed class WorldClockService : IDisposable
         return result;
     }
 
+    /// <summary>Selects the packaged seasonal skyline according to hemisphere and month.</summary>
     private static string ResolveSeason(string hemisphere, int month) => hemisphere switch
     {
         "north" => month is >= 4 and <= 9 ? "summer" : "winter",
@@ -530,6 +580,11 @@ public sealed class WorldClockService : IDisposable
         _ => throw new InvalidDataException($"Unsupported season model '{hemisphere}'.")
     };
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Contains catalog location metadata and seasonal skyline paths.</summary>
     private sealed record CityRecord(
         string Id,
         string Name,
@@ -542,10 +597,18 @@ public sealed class WorldClockService : IDisposable
         string SummerAssetPath,
         string WinterAssetPath);
 
+    #endregion
+
+    #region Methods and properties
+
     /// <summary>Releases optional current-weather cache timers.</summary>
     public void Dispose() => _currentWeather.Dispose();
+
+    #endregion
+
 }
 
+/// <summary>Carries stable application and field-validation codes for local-time conversion errors.</summary>
 internal sealed class WorldClockConversionException(
     string code,
     string messageKey,
@@ -561,12 +624,24 @@ internal sealed class WorldClockConversionException(
 /// <summary>Shares the astronomical engine and bounded exact-instant caches across clocks, Moon, sky, and globe.</summary>
 internal static class LocalAstronomy
 {
+
+    #region Fields
     private static readonly object CacheGate = new();
     private static readonly Dictionary<long, GlobalResult> GlobalCache = new();
     private static readonly Dictionary<DayKey, (DateTimeOffset? Rise, DateTimeOffset? Set)> DayCache = new();
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Contains local solar crossings, altitude, and lunar phase at one instant.</summary>
     internal sealed record Result(DateTimeOffset? Sunrise, DateTimeOffset? Sunset, double SunAltitudeDegrees, double MoonPhaseAngleDegrees);
+    /// <summary>Contains shared geocentric coordinates and solar and lunar angles.</summary>
     internal sealed record GlobalResult(double SunLatitude, double SunLongitude, double MoonLatitude, double MoonLongitude, double MoonPhaseAngleDegrees, double SolarEclipticLongitudeDegrees);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Calculates apparent rise/set crossings for the city-local date and the shared lunar phase.</summary>
     public static Result Calculate(double latitude, double longitude, TimeZoneInfo timeZone, DateTimeOffset utcNow)
@@ -587,7 +662,11 @@ internal static class LocalAstronomy
                 var rise = Astronomy.SearchRiseSet(Body.Sun, observer, Direction.Rise, start, limit);
                 var set = Astronomy.SearchRiseSet(Body.Sun, observer, Direction.Set, start, limit);
                 crossings = (ToInstant(rise, endUtc), ToInstant(set, endUtc));
-                if (DayCache.Count >= 64) DayCache.Remove(DayCache.Keys.First());
+                if (DayCache.Count >= 64)
+                {
+                    DayCache.Remove(DayCache.Keys.First());
+                }
+
                 DayCache.Add(key, crossings);
             }
         }
@@ -605,7 +684,11 @@ internal static class LocalAstronomy
     {
         lock (CacheGate)
         {
-            if (GlobalCache.TryGetValue(utcNow.UtcTicks, out var cached)) return cached;
+            if (GlobalCache.TryGetValue(utcNow.UtcTicks, out var cached))
+            {
+                return cached;
+            }
+
             var time = new AstroTime(utcNow.UtcDateTime);
             var rotation = Astronomy.Rotation_EQJ_EQD(time);
             var sun = Astronomy.EquatorFromVector(Astronomy.RotateVector(rotation, Astronomy.GeoVector(Body.Sun, time, Aberration.Corrected)));
@@ -613,25 +696,49 @@ internal static class LocalAstronomy
             var sidereal = Astronomy.SiderealTime(time);
             var result = new GlobalResult(sun.dec, SignedLongitude(15 * (sun.ra - sidereal)),
                 moon.dec, SignedLongitude(15 * (moon.ra - sidereal)), Astronomy.MoonPhase(time), Astronomy.SunPosition(time).elon);
-            if (GlobalCache.Count >= 32) GlobalCache.Remove(GlobalCache.Keys.First());
+            if (GlobalCache.Count >= 32)
+            {
+                GlobalCache.Remove(GlobalCache.Keys.First());
+            }
+
             GlobalCache.Add(utcNow.UtcTicks, result);
             return result;
         }
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Returns a crossing only when it falls before the exclusive day boundary.</summary>
     private static DateTimeOffset? ToInstant(AstroTime? time, DateTimeOffset exclusiveEnd)
     {
-        if (time is null) return null;
+        if (time is null)
+        {
+            return null;
+        }
+
         var instant = new DateTimeOffset(time.ToUtcDateTime());
         return instant < exclusiveEnd ? instant : null;
     }
 
+    /// <summary>Projects an optional UTC crossing into the city time zone.</summary>
     private static DateTimeOffset? ToLocal(DateTimeOffset? utc, TimeZoneInfo zone) =>
         utc is { } instant ? TimeZoneInfo.ConvertTime(instant, zone) : null;
 
+    /// <summary>Normalizes geographic longitude into the signed half-turn interval.</summary>
     private static double SignedLongitude(double degrees) => ((degrees + 180) % 360 + 360) % 360 - 180;
 
+    #endregion
+
+    #region Nested types
+
+    /// <summary>Identifies a location and exact UTC bounds for the local-day cache.</summary>
     private sealed record DayKey(double Latitude, double Longitude, DateTimeOffset StartUtc, DateTimeOffset EndUtc);
+
+    #endregion
+
+    #region Methods and properties
 
     /// <summary>Resolves the first UTC instant of one local date and the following local date.</summary>
     internal static (DateTimeOffset StartUtc, DateTimeOffset EndUtc) GetUtcDayBounds(
@@ -649,6 +756,11 @@ internal static class LocalAstronomy
         return (startUtc, endUtc);
     }
 
+    #endregion
+
+    #region Implementation
+
+    /// <summary>Finds the first valid local-day instant across skipped or repeated midnight transitions.</summary>
     private static DateTimeOffset ResolveLocalDateStart(DateOnly localDate, TimeZoneInfo timeZone)
     {
         var localTime = DateTime.SpecifyKind(localDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
@@ -669,6 +781,7 @@ internal static class LocalAstronomy
 
             var lastInvalidTick = firstInvalidTick;
             var firstValidTick = firstValid.Ticks;
+            // Narrow the skipped civil-time interval to its first valid tick, rather than assuming a one-hour DST gap.
             while (firstValidTick - lastInvalidTick > 1)
             {
                 var candidateTick = lastInvalidTick + ((firstValidTick - lastInvalidTick) / 2);
@@ -686,9 +799,13 @@ internal static class LocalAstronomy
             localTime = new DateTime(firstValidTick, DateTimeKind.Unspecified);
         }
 
+        // The larger offset maps repeated midnight to its earliest UTC occurrence.
         var offset = timeZone.IsAmbiguousTime(localTime)
             ? timeZone.GetAmbiguousTimeOffsets(localTime).Max()
             : timeZone.GetUtcOffset(localTime);
         return new DateTimeOffset(localTime, offset).ToUniversalTime();
     }
+
+    #endregion
+
 }
