@@ -129,8 +129,8 @@
                                     Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
                                     PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Planner_Click">
                                 <StackPanel Spacing="5" VerticalAlignment="Center">
-                                    <TextBlock Tag="Planner.Title" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
-                                    <TextBlock Tag="Launcher.PlannerDescription" FontSize="14" Foreground="{ThemeResource LauncherTileDescriptionBrush}"
+                                    <TextBlock Tag="Planner.Title" Text="World availability" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.PlannerDescription" Text="Compare city availability, Moon and weather. Export to PDF." FontSize="14" Foreground="{ThemeResource LauncherTileDescriptionBrush}"
                                                TextWrapping="Wrap" MaxLines="2" />
                                 </StackPanel>
                             </Button>
@@ -271,8 +271,8 @@
                         </Button>
                         <Button x:Name="HideButton" Grid.Column="1" Tag="Tray.HideMainWindow" AutomationProperties.AutomationId="Launcher.Hide" Style="{StaticResource LauncherFooterButtonStyle}" Click="Hide_Click">
                             <StackPanel Spacing="4">
-                                <TextBlock Tag="Tray.HideMainWindow" TextWrapping="Wrap" TextAlignment="Center" />
-                                <TextBlock Tag="Launcher.HideDescription" FontSize="11" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Tag="Tray.HideMainWindow" Text="Hide in notification area" TextWrapping="Wrap" TextAlignment="Center" />
+                                <TextBlock Tag="Launcher.HideDescription" Text="Widgets keep running. Reopen WorkTrail from its tray icon." FontSize="11" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Button>
                         <Button x:Name="ExitButton" Grid.Column="2" Tag="Tray.CloseApplication" AutomationProperties.AutomationId="Launcher.Exit" Style="{StaticResource LauncherFooterButtonStyle}" Click="Exit_Click">

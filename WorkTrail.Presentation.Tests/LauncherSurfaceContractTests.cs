@@ -15,11 +15,11 @@ public sealed class LauncherSurfaceContractTests
 
     /// <summary>The launcher exposes every retained desktop tool through a stable selector.</summary>
     [Fact]
-    public void Launcher_HasTheSixDesktopDestinations()
+    public void Launcher_HasTheSevenDesktopDestinations()
     {
         var document = XDocument.Load(RepositoryFile("WorkTrail/MainWindow.xaml"));
         var identifiers = document.Descendants().Attributes("AutomationProperties.AutomationId").Select(item => item.Value).ToArray();
-        foreach (var key in new[] { "Clocks", "Calendar", "Sky", "Moon", "Map", "Globe" })
+        foreach (var key in new[] { "Clocks", "Planner", "Calendar", "Sky", "Moon", "Map", "Globe" })
         {
             Assert.Contains("Launcher." + key, identifiers);
         }
