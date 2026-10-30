@@ -9,6 +9,9 @@ Historical implementation milestones remain in [.github/tasks/archive.md](.githu
 
 ### Added
 
+- Direct launcher access to the availability planner, native language names with color flags, responsive settings with explanations, and confirmation before explicit application exit.
+- Independent availability planner with reusable city headers and virtualized timelines, existing skyline and Moon artwork, current OpenWeather observations, configurable working hours and personal exceptions, and source-backed holiday coverage indicators.
+- Direct A4 landscape PDF export of the planner interval, with vector text and timetable geometry, embedded skyline illustrations and repeated headers across pages.
 - First-run home-city setup with a reusable offline city selector and a suggestion based on the Windows time zone.
 - Stable UI automation selectors and localized accessible names for the launcher and weather credential editor.
 - SPDX MIT headers, source-header verification, artwork provenance records and contributor guidance.

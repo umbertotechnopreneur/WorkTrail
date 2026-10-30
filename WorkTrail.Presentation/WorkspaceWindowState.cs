@@ -30,6 +30,7 @@ public static class WorkspaceWindowState
     [
         WindowStateKeys.Main,
         WindowStateKeys.WorldClocks,
+        WindowStateKeys.AvailabilityPlanner,
         WindowStateKeys.WorldMap,
         WindowStateKeys.LunarPhase,
         WindowStateKeys.LocalSky,

@@ -86,6 +86,7 @@ internal static class AstronomyWindowMenu
             menu.Items.Add(new MenuFlyoutSeparator());
         }
 
+        AddItem("Planner.Title", "\uE787", () => openWindow(WindowStateKeys.AvailabilityPlanner), Color.FromArgb(255, 227, 74, 44));
         AddItem("Celestial.Sky.Title", "\uE9CE", () => openWindow(WindowStateKeys.LocalSky), Color.FromArgb(255, 173, 124, 245));
         AddItem("Celestial.Agenda.Title", "\uE787", () => openWindow(WindowStateKeys.AstronomyAgenda), Color.FromArgb(255, 125, 159, 248));
         AddItem("Celestial.Map.Title", "\uE774", () => openWindow(WindowStateKeys.CelestialMap), Color.FromArgb(255, 219, 141, 114));

@@ -114,8 +114,9 @@ public sealed partial class AboutWindow : Window
     {
         _placement.ApplyDefaultBounds(RootGrid);
         await _placement.RestoreOrCenterAsync(RootGrid, _lifetimeCancellation.Token);
-        // This fixed-size surface retains its saved position while adopting the compact content bounds.
+        // Adopt compact content bounds before centering the information window over its owner.
         _placement.ResizeForContent(RootGrid, LogicalWindowWidth, LogicalWindowHeight);
+        _placement.CenterOnOwner(RootGrid);
 
         try
         {

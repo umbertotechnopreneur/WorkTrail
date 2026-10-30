@@ -291,6 +291,13 @@ public sealed record RuntimeHealth(string Version, int ProtocolVersion, string I
 /// <summary>Provides the shared application boundary for desktop widgets and their settings.</summary>
 public interface IWorkTrailApplication : IAsyncDisposable
 {
+    /// <summary>Exports a frozen planner interval to a user-selected PDF in the window's owning process.</summary>
+    Task<OperationResult<string?>> ExportAvailabilityPdfAsync(long ownerWindowHandle, AvailabilityPdfRequest request, CancellationToken cancellationToken);
+    /// <summary>Returns five days of availability with independent current weather.</summary>
+    Task<OperationResult<AvailabilityPlannerSnapshot>> GetAvailabilityPlannerAsync(AvailabilityPlannerRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Validates and persists one city's planner rules.</summary>
+    Task<OperationResult<AvailabilitySchedule>> SaveAvailabilityScheduleAsync(AvailabilitySchedule schedule, CancellationToken cancellationToken);
 
     #region Methods and properties
     /// <summary>Attaches native drag snapping to the supplied UI-thread window.</summary>
