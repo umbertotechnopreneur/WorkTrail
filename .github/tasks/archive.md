@@ -6,6 +6,10 @@ live in [AGENTS.md](../../AGENTS.md); unresolved acceptance belongs in [todo.md]
 Builds, package registration, synthetic tests, native behavior and provider results
 are separate evidence. Detailed historical commands belong in Git/PR history.
 
+## 2026-10-30 — Availability planner and launcher controls
+
+Added an independent availability planner with reusable city and timetable controls, current weather, lunar data, saved schedules and vector PDF export. The launcher now links directly to the planner, shows native language names with vector flags, explains its settings and confirms explicit exit. Native visual acceptance remains open.
+
 ## 2026-10-22 — Desktop widget launcher
 
 The source now starts a compact launcher and independent clock/astronomy widgets. Capture, tracking, AI, timesheet, report, history-search and activity-calendar code paths were removed. This supersedes the earlier timesheet and screenshot-gallery milestones as current product behavior; their historical records remain below. Existing personal data and the separate ExcelPlanner prototype are preserved. Build, installation and native acceptance are recorded separately.

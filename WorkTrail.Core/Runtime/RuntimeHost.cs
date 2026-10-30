@@ -210,6 +210,17 @@ public sealed class RuntimeHost : IAsyncDisposable
 /// <summary>Provides a typed application facade backed by the local runtime pipe.</summary>
 public sealed class RuntimeClient : IWorkTrailApplication
 {
+    /// <inheritdoc />
+    public Task<OperationResult<string?>> ExportAvailabilityPdfAsync(long ownerWindowHandle, AvailabilityPdfRequest request, CancellationToken cancellationToken) =>
+        // The native picker belongs to the client window, just like local snapping registration.
+        WorkTrail.Services.AvailabilityPdfExportService.ExportAsync(ownerWindowHandle, request, cancellationToken);
+    /// <inheritdoc />
+    public Task<OperationResult<AvailabilityPlannerSnapshot>> GetAvailabilityPlannerAsync(AvailabilityPlannerRequest request, CancellationToken cancellationToken) =>
+        SendAsync<AvailabilityPlannerSnapshot>(RuntimeOperation.PlannerGetV1, request, cancellationToken, WorldClockQueryTimeout);
+
+    /// <inheritdoc />
+    public Task<OperationResult<AvailabilitySchedule>> SaveAvailabilityScheduleAsync(AvailabilitySchedule schedule, CancellationToken cancellationToken) =>
+        SendAsync<AvailabilitySchedule>(RuntimeOperation.PlannerScheduleSaveV1, schedule, cancellationToken);
 
     #region Fields
     private readonly WindowSnappingService _windowSnapping = new();

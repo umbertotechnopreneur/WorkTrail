@@ -173,7 +173,8 @@ public sealed partial class MainWindow : Window
         if (_launcherColumns != columns)
         {
             _launcherColumns = columns;
-            ArrangeCommands(LauncherTiles, [ClocksTile, MapTile, CalendarTile, SkyTile, GlobeTile, MoonTile], columns);
+            ArrangeCommands(LauncherTiles, [ClocksTile, MapTile, PlannerTile, CalendarTile, SkyTile, GlobeTile, MoonTile], columns);
+            ArrangeCommands(SettingsGrid, [StartupCard, SnappingCard, TitleBarCard, ThemeCombo, LanguageCombo], columns);
         }
         var footerColumns = args.NewSize.Width >= 420d ? 3 : 1;
         if (_footerColumns != footerColumns)
@@ -195,7 +196,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        var rowCount = 6 / _launcherColumns;
+        var rowCount = (7 + _launcherColumns - 1) / _launcherColumns;
 
         // Subtract measured settings/footer space so extra viewport height belongs to the tiles.
         // At the minimum height the content scrolls, including when settings are expanded.
@@ -285,8 +286,7 @@ public sealed partial class MainWindow : Window
             TitleBarToggle.IsOn = settings.AutoHideTitleBar;
             ThemeCombo.ItemsSource = new[] { T("Launcher.System"), T("Launcher.Light"), T("Launcher.Dark") };
             ThemeCombo.SelectedIndex = settings.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
-            LanguageCombo.ItemsSource = ProductLanguageCatalog.UiChoices;
-            LanguageCombo.SelectedItem = settings.UiLanguage;
+            LanguageCombo.Apply(settings.UiLanguage, T("Launcher.System"));
             _placement.ApplyTaskbarVisibility(settings.MainWindowShowInTaskbar);
             _trayIcon.MenuStateProvider = CreateTrayMenuState;
         }
@@ -376,6 +376,9 @@ public sealed partial class MainWindow : Window
     /// <summary>Requests the saved world-clock window.</summary>
     private void Clocks_Click(object sender, RoutedEventArgs args) => WorldClocksRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Opens the availability planner directly from the launcher.</summary>
+    private void Planner_Click(object sender, RoutedEventArgs args) => WorldTimeWindowRequested?.Invoke(WindowStateKeys.AvailabilityPlanner);
+
     /// <summary>Requests the astronomical agenda window.</summary>
     private void Calendar_Click(object sender, RoutedEventArgs args) => WorldTimeWindowRequested?.Invoke(WindowStateKeys.AstronomyAgenda);
 
@@ -395,7 +398,24 @@ public sealed partial class MainWindow : Window
     private void Hide_Click(object sender, RoutedEventArgs args) => HideLauncher();
 
     /// <summary>Requests orderly application shutdown.</summary>
-    private void Exit_Click(object sender, RoutedEventArgs args) => ExitRequested?.Invoke(this, EventArgs.Empty);
+    private async void Exit_Click(object sender, RoutedEventArgs args) => await ConfirmExitAsync();
+
+    /// <summary>Confirms explicit exit requests from both the launcher and the notification area.</summary>
+    private async Task ConfirmExitAsync()
+    {
+        if (_closePromptOpen || _allowClose) return;
+        _closePromptOpen = true;
+        try
+        {
+            ShowLauncher();
+            if (await _dialogs.ConfirmAsync(this, DialogRequest.Confirmation(T("Launcher.CloseTitle"),
+                T("Launcher.ExitMessage"), T("Launcher.Exit"), T("Dialog.Cancel")))
+                && !_lifetime.IsCancellationRequested)
+                ExitRequested?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception error) { ApplicationErrorService.Report(error, "LauncherExit", _settings.UiLanguage); }
+        finally { _closePromptOpen = false; }
+    }
 
     /// <summary>Brings the open workspace windows to the foreground.</summary>
     private async void ShowAll_Click(object sender, RoutedEventArgs args) => await RevealOpenWindowsAsync();
@@ -428,7 +448,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Persists the selected interface language after control initialization has completed.</summary>
     private async void Language_Changed(object sender, SelectionChangedEventArgs args)
     {
-        if (_applying || _saving || LanguageCombo.SelectedItem is not string language)
+        if (_applying || _saving || LanguageCombo.SelectedValue is not string language)
         {
             return;
         }
@@ -513,7 +533,7 @@ public sealed partial class MainWindow : Window
         T("Tray.AstronomicalCalendar"), T("Tray.DayNightMap"), T("Tray.DayNightGlobe"), T("MenuTitleOptions"), T("MenuTitleAbout"), !_allowClose);
 
     /// <summary>Marshals a notification-area exit request onto the UI dispatcher.</summary>
-    private void Tray_ExitRequested(object? sender, EventArgs args) => DispatcherQueue.TryEnqueue(() => ExitRequested?.Invoke(this, EventArgs.Empty));
+    private void Tray_ExitRequested(object? sender, EventArgs args) => DispatcherQueue.TryEnqueue(async () => await ConfirmExitAsync());
 
     /// <summary>Dispatches a notification-area command and reports failures on the UI thread.</summary>
     private void Tray_CommandRequested(TrayIconMenuCommand command) => DispatcherQueue.TryEnqueue(async () =>

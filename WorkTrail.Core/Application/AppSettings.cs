@@ -23,4 +23,5 @@ public sealed record AppSettings(
     IReadOnlyList<string>? AstronomyAgendaCountryCodes = null,
     bool AstronomyAgendaShowSaints = true,
     string HomeCityId = "",
-    bool WelcomeCompleted = false);
+    bool WelcomeCompleted = false,
+    IReadOnlyDictionary<string, WorkTrail.Application.AvailabilitySchedule>? AvailabilitySchedules = null);

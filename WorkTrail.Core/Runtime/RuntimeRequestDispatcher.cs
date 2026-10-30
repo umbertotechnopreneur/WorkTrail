@@ -66,6 +66,10 @@ internal sealed class RuntimeRequestDispatcher
         {
             return operation switch
             {
+                RuntimeOperation.PlannerGetV1 => ToResponse(request, await _application.GetAvailabilityPlannerAsync(
+                    Read<AvailabilityPlannerRequest>(request.Payload) ?? throw new InvalidDataException("A planner request is required."), cancellationToken)),
+                RuntimeOperation.PlannerScheduleSaveV1 => ToResponse(request, await _application.SaveAvailabilityScheduleAsync(
+                    Read<AvailabilitySchedule>(request.Payload) ?? throw new InvalidDataException("A schedule is required."), cancellationToken)),
                 RuntimeOperation.RuntimeHealth => ToResponse(request, await _application.GetRuntimeHealthAsync(cancellationToken)),
                 RuntimeOperation.WorldClocksGetV3 => ToResponse(request, await _application.GetWorldClocksAsync(cancellationToken)),
                 RuntimeOperation.CelestialReferenceV1 => ToResponse(request, await _application.GetCelestialReferenceAsync(cancellationToken)),

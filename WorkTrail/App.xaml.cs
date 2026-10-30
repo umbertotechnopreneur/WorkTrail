@@ -24,6 +24,8 @@ public partial class App : Microsoft.UI.Xaml.Application
     private readonly DispatcherQueue _dispatcherQueue;
     private MainWindow? _window;
     private WorldClockWindow? _worldClockWindow;
+    private AvailabilityPlannerWindow? _availabilityPlannerWindow;
+    private bool _availabilityPlannerOpening;
     private WorldMapWindow? _worldMapWindow;
     private LunarPhaseWindow? _lunarPhaseWindow;
     private readonly Dictionary<string, CelestialWindow> _celestialWindows = new(StringComparer.Ordinal);
@@ -172,6 +174,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 switch (key)
                 {
                     case WindowStateKeys.WorldClocks: await ShowWorldClockWindowAsync(application); break;
+                    case WindowStateKeys.AvailabilityPlanner: await ShowAvailabilityPlannerAsync(); break;
                     case WindowStateKeys.WorldMap: await ShowAstronomyWindowAsync(false); break;
                     case WindowStateKeys.LunarPhase: await ShowAstronomyWindowAsync(true); break;
                     case WindowStateKeys.LocalSky:
@@ -240,6 +243,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _worldMapWindow?.CloseForShutdown();
             _lunarPhaseWindow?.CloseForShutdown();
             _worldClockWindow?.CloseForShutdown();
+            _availabilityPlannerWindow?.CloseForShutdown();
             _window?.CloseForShutdown();
             if (_runtimeHost is not null)
             {
@@ -350,6 +354,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     /// <summary>Propagates committed preferences to open astronomy windows.</summary>
     private void ApplyAstronomyWindowSettings(AppSettings settings)
     {
+        _availabilityPlannerWindow?.ApplySettings(settings);
         _worldMapWindow?.ApplySettings(settings);
         _lunarPhaseWindow?.ApplySettings(settings);
         foreach (var window in _celestialWindows.Values)
@@ -504,9 +509,38 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
+    /// <summary>Opens one reusable planner surface through the shared runtime.</summary>
+    private async Task ShowAvailabilityPlannerAsync()
+    {
+        if (_availabilityPlannerWindow is not null) { _availabilityPlannerWindow.Activate(); return; }
+        if (_availabilityPlannerOpening) return;
+        _availabilityPlannerOpening = true;
+        try
+        {
+            var application = StartOrConnectRuntime();
+            var settings = await application.GetSettingsAsync(CancellationToken.None);
+            if (Volatile.Read(ref _shutdownStarted) != 0) return;
+            if (!settings.Succeeded || settings.Value is null) throw new InvalidOperationException("Planner settings are unavailable.");
+            var created = new AvailabilityPlannerWindow(application, settings.Value);
+            _availabilityPlannerWindow = created;
+            created.Closed += (sender, _) => { if (ReferenceEquals(sender, _availabilityPlannerWindow)) _availabilityPlannerWindow = null; };
+            created.Activate();
+        }
+        catch (Exception error)
+        {
+            ApplicationErrorService.Report(error, "AvailabilityPlannerOpening", _uiLanguage);
+        }
+        finally { _availabilityPlannerOpening = false; }
+    }
+
     /// <summary>Creates or activates the requested celestial surface.</summary>
     private async Task ShowCelestialWindowAsync(string key)
     {
+        if (key == WindowStateKeys.AvailabilityPlanner)
+        {
+            await ShowAvailabilityPlannerAsync();
+            return;
+        }
         if (!_celestialWindowsOpening.Add(key))
         {
             return;

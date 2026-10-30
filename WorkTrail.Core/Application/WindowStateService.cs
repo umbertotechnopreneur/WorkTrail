@@ -24,6 +24,8 @@ namespace WorkTrail.Application;
 /// <summary>Stable identifiers for the user-facing top-level windows.</summary>
 public static class WindowStateKeys
 {
+    /// <summary>Identifies the international availability planner.</summary>
+    public const string AvailabilityPlanner = "availability-planner";
     /// <summary>Identifies the main player window.</summary>
     public const string Main = "main";
 
@@ -100,6 +102,7 @@ public sealed class WindowStateService
             WindowStateKeys.Licenses => new(720, 520),
             WindowStateKeys.Dialog => new(320, 196),
             WindowStateKeys.WorldClocks => new(480, 240),
+            WindowStateKeys.AvailabilityPlanner => new(900, 640),
             WindowStateKeys.WorldMap => new(192, 160),
             WindowStateKeys.LunarPhase => new(192, 192),
             WindowStateKeys.LocalSky => new(320, 320),

@@ -37,7 +37,7 @@ public sealed class UiAutomationContractTests
     private static readonly HashSet<string> InteractiveControls = new(StringComparer.Ordinal)
     {
         "Button", "HyperlinkButton", "ToggleButton", "ToggleSwitch", "CheckBox", "RadioButton",
-        "ComboBox", "TextBox", "PasswordBox", "NumberBox", "Slider", "CalendarDatePicker",
+        "ComboBox", "LanguagePicker", "TextBox", "PasswordBox", "NumberBox", "Slider", "CalendarDatePicker",
         "DatePicker", "NavigationViewItem", "ListView", "GridView", "MenuFlyoutItem",
         "ToggleMenuFlyoutItem", "MenuFlyoutSubItem", "AutoSuggestBox", "Expander", "Thumb",
         "AppBarButton", "AppBarToggleButton"

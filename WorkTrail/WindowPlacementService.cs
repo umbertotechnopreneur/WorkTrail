@@ -35,6 +35,8 @@ namespace WorkTrail;
 /// <summary>Applies default bounds and delegates persisted placement to the shared application facade.</summary>
 internal sealed class WindowPlacementService : IDisposable
 {
+    /// <summary>Gets the registered owner handle for facade-owned native dialogs.</summary>
+    internal long OwnerWindowHandle => _windowHandle.ToInt64();
     #region Fields
 
     private static readonly HashSet<WindowPlacementService> ActivePlacements = [];
@@ -183,7 +185,7 @@ internal sealed class WindowPlacementService : IDisposable
             // Dialogs, About, licenses and temporary operations retain native free movement.
             if (_windowKey is WindowStateKeys.Main or WindowStateKeys.WorldClocks
                 or WindowStateKeys.WorldMap or WindowStateKeys.LunarPhase or WindowStateKeys.LocalSky
-                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap)
+                or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap or WindowStateKeys.AvailabilityPlanner)
             {
                 _snapping = _application.RegisterWindowSnapping(_windowHandle.ToInt64(), ReportSnappingFailure);
             }
@@ -711,6 +713,12 @@ internal sealed class WindowPlacementService : IDisposable
         {
             return;
         }
+        CenterOnOwner(root);
+    }
+
+    /// <summary>Centers the current bounds over the owning window while respecting its monitor's work area.</summary>
+    internal void CenterOnOwner(FrameworkElement root)
+    {
         var owner = AppWindow.GetFromWindowId(_displayAnchorId)
             ?? throw new InvalidOperationException("The dialog owner is unavailable for centering.");
         var area = OpeningWorkArea();

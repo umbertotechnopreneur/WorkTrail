@@ -24,6 +24,10 @@ namespace WorkTrail.Runtime;
 /// <summary>Identifies every operation supported by the versioned local runtime protocol.</summary>
 internal enum RuntimeOperation
 {
+    [RuntimeOperationWireName("planner.get.v1")]
+    PlannerGetV1,
+    [RuntimeOperationWireName("planner.schedule.save.v1")]
+    PlannerScheduleSaveV1,
     [RuntimeOperationWireName("runtime.health")]
     RuntimeHealth,
     [RuntimeOperationWireName("world_clocks.get.v3")]
