@@ -20,7 +20,7 @@ Use an ink navy background (`#101526`), warm ivory objects, fine connecting line
 | --- | --- | --- |
 | AgentInbox | Mint `#71DEB7` | Inboxes and calendars connected to one conversation |
 | PromptMeUp | Amber `#F6C453` | A request, a command, and the choice to run it |
-| WorkTrail | Lilac `#AF9BFF` | Past activity, search, and time |
+| WorkTrail | Lilac `#AF9BFF` | Time zones, availability, and desktop time widgets |
 
 This repository uses Lilac `#AF9BFF`. These colors describe documentation artwork, not a change to the app's interface theme.
 

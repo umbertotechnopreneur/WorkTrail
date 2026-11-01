@@ -260,6 +260,11 @@
                             </StackPanel>
                             <ComboBox x:Name="ThemeCombo" Grid.Row="1" Grid.Column="1" VerticalAlignment="Top" Tag="Launcher.Theme" AutomationProperties.AutomationId="Launcher.Theme" HorizontalAlignment="Stretch" SelectionChanged="Theme_Changed" />
                             <controls:LanguagePicker x:Name="LanguageCombo" Grid.Row="2" Tag="Launcher.Language" AutomationProperties.AutomationId="Launcher.Language" HorizontalAlignment="Stretch" SelectionChanged="Language_Changed" />
+                            <StackPanel x:Name="WeatherCard" Grid.Row="2" Grid.Column="1" Spacing="6">
+                                <ToggleSwitch x:Name="WeatherToggle" Tag="WorldClock.Options.Weather" AutomationProperties.AutomationId="Launcher.Weather" Toggled="Preference_Toggled" />
+                                <TextBlock Tag="WorldClock.Options.Weather.Description" Text="Show fresh current conditions for the selected cities." TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <Button Tag="WeatherSetup.Key" Content="OpenWeather API key" AutomationProperties.AutomationId="Launcher.WeatherKey" Click="WeatherKey_Click" />
+                            </StackPanel>
                         </Grid>
                     </Expander>
                     <InfoBar x:Name="StatusBar" IsOpen="False" Severity="Error" IsClosable="True" />

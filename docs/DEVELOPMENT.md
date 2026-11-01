@@ -1,6 +1,6 @@
 # Build WorkTrail from source
 
-Use Windows 11 x64 or ARM64, PowerShell 7, the .NET 10 SDK selected by `global.json`, and the Windows SDK/MSIX tools. Commercial binaries target these Windows architectures and use MSIX. Linux and macOS are source-only.
+Use Windows 11 x64 or ARM64, PowerShell 7, the .NET 10 SDK selected by `global.json`, and the Windows SDK. Ordinary distributable builds and GitHub releases use portable ZIPs only. Microsoft Store packaging is a separate, explicitly requested task. Linux and macOS are source-only.
 
 ## Prepare a checkout
 
@@ -16,7 +16,7 @@ Before the first use of an external library or binary, scan the downloaded archi
 The app project accepts `Debug` directly. Solution configurations map the shared projects separately; do not assume that `Debug|x64` is a solution configuration.
 
 ```powershell
-dotnet build ./WorkTrail/WorkTrail.csproj --configuration Debug -p:Platform=x64 -p:RuntimeIdentifier=win-x64 --artifacts-path ./artifacts/development -p:GenerateAppxPackageOnBuild=false -p:AppxPackageSigningEnabled=false
+dotnet build ./WorkTrail/WorkTrail.csproj --configuration Debug-Unpackaged -p:Platform=x64 -p:RuntimeIdentifier=win-x64 --artifacts-path ./artifacts/development -p:GenerateAppxPackageOnBuild=false -p:AppxPackageSigningEnabled=false
 dotnet test ./WorkTrail.Core.Tests/WorkTrail.Core.Tests.csproj --configuration Debug -p:Platform=x64 --artifacts-path ./artifacts/development --results-directory ./artifacts/development/test-results/core
 dotnet test ./WorkTrail.Presentation.Tests/WorkTrail.Presentation.Tests.csproj --configuration Debug -p:Platform=x64 --artifacts-path ./artifacts/development --results-directory ./artifacts/development/test-results/presentation
 pwsh -NoProfile -File ./scripts/Format-Code.ps1
@@ -27,6 +27,8 @@ These are contributor commands, not standing authorization for an agent to build
 
 ## Clean generated files
 
-Use ignored task-specific directories under `artifacts/`. After the last use, run `dotnet clean` with the matching configuration, platform, runtime and artifacts path, then remove task-owned leftovers after checking their resolved paths. Preserve only the latest validated MSIX for the requested channel/architecture, its checksum and minimal installation metadata. Preserve existing application data and shared SDK/NuGet caches.
+Use ignored task-specific directories under `artifacts/`. After the last use, run `dotnet clean` with the matching configuration, platform, runtime and artifacts path, then remove task-owned leftovers after checking their resolved paths. Preserve only the latest validated portable ZIP for the requested channel/architecture, its checksum and minimal validation metadata. Preserve existing application data and shared SDK/NuGet caches.
+
+To prepare requested portable distributables, use `WorkTrail.ps1 -Action PublishUnpackaged` and `New-PortableReleaseArchive.ps1` with the same approved version and architecture. See [release packaging](RELEASING.md). Do not use the MSIX installer helpers for GitHub release builds.
 
 A successful compile or test run does not prove installation, native window behavior or external provider behavior. See [the current open acceptance outcomes](../.github/tasks/todo.md).
