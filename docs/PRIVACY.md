@@ -1,10 +1,12 @@
 # WorkTrail privacy
 
-The current app provides desktop clocks and astronomy widgets. It does not record keyboard or mouse activity, inspect the active application, capture screenshots, analyze your work with AI, build timesheets or search activity history.
+The current app provides a time-zone availability planner, desktop clocks and astronomy widgets. It does not record keyboard or mouse activity, inspect the active application, capture screenshots, analyze your work with AI, build timesheets or search activity history.
 
 ## Local preferences and existing data
 
-WorkTrail saves the confirmed home city, first-run completion flag, selected cities, language, theme, window placement, open widget state and startup preferences in its local settings file. Welcome suggests a city from the Windows time zone and asks you to confirm it. It does not request precise location or access the network to make that suggestion. The city catalog works offline. The random installation identifier scopes the shared runtime. It is not an account.
+WorkTrail saves the confirmed home city, first-run completion flag, selected cities, availability schedules and personal exceptions, language, theme, window placement, open widget state and startup preferences in its local settings file. Welcome suggests a city from the Windows time zone and asks you to confirm it. It does not request precise location or access the network to make that suggestion. The city catalog works offline. The random installation identifier scopes the shared runtime. It is not an account.
+
+Planner PDF export renders the selected interval locally and writes it to the destination you choose. It does not upload the PDF or create events in an external calendar.
 
 Widget startup does not open or alter activity databases, screenshot folders or AI results left by earlier versions. Those files remain on your PC. This change does not erase them or configure an older installed copy that may still be running.
 

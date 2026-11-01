@@ -14,15 +14,15 @@ These instructions apply to every change in this repository.
 
 ## Distribution and delivery
 
-- Commercial support and binaries target Windows 11 x64 and ARM64 and use MSIX only. Linux and macOS are source-only; do not provide binaries, installers, or compatibility promises for them.
-- A requested build defaults to local Debug. Store packaging, upload, publication, release-pipeline changes, and tags each require explicit owner authorization. Keep Debug artifacts separate from Store artifacts; do not propose ZIP, standalone EXE, MSI, or alternate distribution without an explicit decision change.
+- Binaries target Windows 11 x64 and ARM64. GitHub Releases and ordinary local distributable builds use portable ZIPs only, with their checksums; do not attach MSIX, standalone EXE or MSI installers. Microsoft Store is a separate distribution channel. Linux and macOS are source-only; do not provide binaries, installers, or compatibility promises for them.
+- A requested build defaults to local Debug-Unpackaged; requested distributables are portable ZIPs compiled from the current source. Store packaging, upload, publication, release-pipeline changes, and tags each require explicit owner authorization. Keep Debug artifacts separate from Store artifacts.
 - Never create a branch or worktree, commit, or push without explicit owner authorization. An edit request does not authorize Git delivery.
 - For documentation or repository-instruction changes, stay on the current branch and keep changes local until delivery is requested; when authorized, include `[skip ci]` unless the owner requests CI.
 - For other work, protect `main`: use an authorized focused branch, open a pull request assigned to `umbertotechnopreneur` with matching existing labels, resolve checks and conversations, squash-merge, then delete the branch. Never bypass protections or checks. The macOS-only CI exception below is explicitly owner-authorized.
 - Prioritize CI platforms in this order: Windows, Linux, macOS. A failing, cancelled, unavailable, or stalled macOS-only check does not block an owner-authorized delivery when Windows, Linux, platform-independent required checks, and review requirements are satisfied.
 - In that case, the owner authorizes a supported administrator merge override for the macOS check only, without asking again. Keep branch protections configured, never override other failed checks or unresolved reviews, and report macOS validation accurately. This exception does not authorize starting builds, tests, Git delivery, installation, or publication by itself.
 - Local MSIX build, signing, and installation require explicit authorization. GitHub Actions is optional for packaging. Create an annotated `v<version>` tag only when that source version is on `main` and the owner explicitly requests it.
-- For an authorized Debug MSIX build or reinstall, use the fast path: reuse the known working configuration and certificate, build the package, attempt installation immediately, and verify only the installation result, installed version, and package status. Diagnose the signature, manifest, and dependencies only after an installation failure. Do not run unrequested UI tests. Keep full validation for Release and Store packages. Run any required cleanup silently and report it concisely.
+- Do not create MSIX packages during normal build or GitHub release tasks. A separately requested Store submission may use MSIX tooling. Do not run unrequested UI tests. Run required cleanup silently and report it concisely.
 - Preserve unrelated changes. Never commit credentials, tokens, private/local data, logs, generated artifacts, machine paths, `.env`, `bin/`, `obj/`, `artifacts/`, or `.vs/`.
 
 ## Mandatory artifact cleanup
@@ -30,7 +30,7 @@ These instructions apply to every change in this repository.
 - Every authorized local or CI build, test, packaging, installation, or artifact-download task includes cleanup of its own generated output. Apply this to Debug, Release, and Microsoft Store work, including failed attempts. This rule does not authorize starting builds or tests.
 - Use task-specific subdirectories under ignored `artifacts/` for temporary output. Before reusing a build directory, remove its obsolete transient contents while preserving pending deliverables. Do not run builds concurrently in the same checkout.
 - After the last use and before handoff, run `dotnet clean` with the matching configuration, platform, runtime, and output paths, then remove task-owned intermediates that it leaves behind: `publish`, `payload`, `bin`, `obj`, temporary caches, scratch files, transport archives, disposable test profiles, and unnecessary logs. Clean task-owned temporary directories too; `dotnet clean` alone is not sufficient. Do not retain whole historical build/run directories.
-- Retain only the latest validated MSIX for each requested channel and architecture, its checksum, and minimal current installation metadata. Delete all previous build/test output, validation records, logs, scratch directories, and superseded packages; historical verification is not a reason to retain generated files. Preserve a pending Store upload or rollback package only when the owner explicitly requests that exception for the current task.
+- Retain only the latest validated portable ZIP for each requested channel and architecture, its checksum, and minimal current validation metadata. Delete all previous build/test output, validation records, logs, scratch directories, and superseded packages; historical verification is not a reason to retain generated files. Preserve a pending Store upload or rollback package only when the owner explicitly requests that exception for the current task.
 - Cleanup includes pre-existing generated output under this repository's `artifacts/`, not only the current run. Inventory and verify the paths before deleting them. Never delete source, application databases, captured screenshots, settings, or shared SDK/NuGet caches. Do not accumulate historical build/run directories.
 - Before recursive removal or moving, resolve and verify every absolute target stays inside this repository's `artifacts/` or the exact temporary directory created by the task; do not follow links outside those roots. Use `pwsh -NoProfile` and literal-path filesystem operations. Delete inventoried obsolete output after preserving the current deliverable; never blindly wipe a shared/system temp directory, user data, or shared SDK/NuGet caches.
 - Verify the cleanup result and report briefly what deliverables remain. If locks, permissions, or approval review prevent cleanup, identify the remaining paths and approximate size; do not claim the directory is clean.
@@ -45,14 +45,14 @@ These instructions apply to every change in this repository.
 - Use PowerShell 7 only and invoke commands through `pwsh -NoProfile`. Prefer `pwsh -NoProfile -File <script.ps1>` and, for short commands, `pwsh -NoProfile -Command '<single-quoted command>'`; pass arguments explicitly instead of composing nested shell strings.
 - Prefer parser checks and dry runs before destructive scripts. Run builds only for supported Windows SDK x64/ARM64 targets.
 - Use ignored `artifacts/` as the only repository-local location for all temporary, generated, compiled, and packaging output created during work, including intermediates, logs, reports, and scratch files; organize them in dedicated subdirectories. Do not write such output at the repository root or beside source files. Scripts must not overwrite tracked manifest templates or release-version inputs.
-- If a task generated build/test output, follow Mandatory artifact cleanup after final use with the matching `dotnet clean` (x64 by default), then remove leftover task-owned intermediates. Preserve the newly validated installer and pending Store uploads; prune superseded packages only after checking their retention needs and verifying their resolved paths are under this repository's `artifacts/`.
+- If a task generated build/test output, follow Mandatory artifact cleanup after final use with the matching `dotnet clean` (x64 by default), then remove leftover task-owned intermediates. Preserve the newly validated portable ZIP and explicitly pending Store uploads; prune superseded packages only after checking their retention needs and verifying their resolved paths are under this repository's `artifacts/`.
 
 Authorized checks, when relevant:
 
 ```powershell
 git status
 dotnet restore .\WorkTrail\WorkTrail.csproj
-dotnet build .\WorkTrail\WorkTrail.csproj -p:Platform=x64
+dotnet build .\WorkTrail\WorkTrail.csproj -c Debug-Unpackaged -p:Platform=x64 -p:GenerateAppxPackageOnBuild=false -p:AppxPackageSigningEnabled=false
 ```
 
 ## Engineering invariants

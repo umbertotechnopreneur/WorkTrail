@@ -1,13 +1,15 @@
-# WorkTrail — Clocks, calendars and sky on your desktop
+# WorkTrail — See time zones and availability at a glance
 
 [![Build status](https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/umbertotechnopreneur/WorkTrail/actions/workflows/build.yml)
 ![Platform: Windows 11](https://img.shields.io/badge/platform-Windows_11-0078D4)
 ![Status: pre-production](https://img.shields.io/badge/status-pre--production-F9665B)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2EA44F)](LICENSE)
 
-I kept WorkTrail's clocks and sky windows open because they were useful. The tracking and report workflow had become more work than I wanted to manage. I removed that workflow and made the main window a launcher for the desktop tools I use.
+I work with people in different time zones. Converting one hour at a time does not tell me when our working days overlap, or whether an appointment falls on someone else's rest day. I built WorkTrail around a visual availability grid so I can compare the same moment across cities and choose a meeting time at a glance.
 
-Choose your home city on first launch, then open world clocks, an astronomical calendar, the local sky, the Moon, a day/night map or a globe. Each widget remembers its window position. Closing the launcher lets you keep the widgets running in the notification area or quit the app. Use the notification-area icon to reopen the launcher or show your open windows.
+Choose your home city, open **World availability**, and scroll across five days around the date you select. Compare local times, working hours, reserve margins, holidays and personal exceptions in one grid. Use it to plan meetings and appointments across time zones, then export the selected 16 or 24 hours to a PDF with selectable text and vector timetable cells.
+
+WorkTrail uses native **WinUI 3** windows. Keep the planner, world clocks, calendars, Moon and sky views open as independent desktop widgets. Windows remember their placement and can snap to screen edges or other WorkTrail windows. Hide the launcher in the notification area while your widgets stay open. I keep memory use, performance and resource cleanup in view as I develop; the source is open for inspection.
 
 **[Get started](#get-worktrail)** · [Desktop tools](docs/CELESTIAL_DESKTOP.md) · [Privacy](docs/PRIVACY.md) · [Build guide](docs/DEVELOPMENT.md)
 
@@ -19,7 +21,9 @@ Choose your home city on first launch, then open world clocks, an astronomical c
 
 ## Get WorkTrail
 
-WorkTrail is in development and has no public download yet. Windows distribution targets Windows 11 x64 and ARM64 through MSIX. Linux and macOS are source-only, without binaries or compatibility promises.
+WorkTrail targets **Windows 11 x64 and ARM64**. The Microsoft Store channel is separate from the [GitHub Releases](https://github.com/umbertotechnopreneur/WorkTrail/releases) channel. GitHub release downloads use **portable ZIPs**: extract the complete archive and run `WorkTrail.exe`. Keep its DLLs and resource folders together. Linux and macOS are source-only, without binaries or compatibility promises.
+
+The next portable release is being prepared. Its publication and download availability are separate from the source features described here.
 
 To work on the source, install PowerShell 7, the .NET 10 SDK and the Windows build tools described in the [development guide](docs/DEVELOPMENT.md). Start with:
 
@@ -33,13 +37,16 @@ On the first import of an external dependency, scan its archive and extracted fi
 
 ## Desktop tools
 
-- Compare saved cities and convert a local date and time across their time zones.
+- Compare availability across cities on a shared timeline, with 15-, 30- or 60-minute intervals and 16- or 24-hour views.
+- Convert a local date and time across saved cities, with their local dates and UTC offsets.
+- Save working hours, weekly rest days, reserve margins and personal day exceptions. Missing holiday coverage is shown explicitly.
+- Export the planner to A4 landscape PDF with repeated city headers, selectable text, vector cells and embedded skyline artwork.
 - Open the astronomical agenda with local solar and lunar events, national holidays and saints.
 - Inspect the local sky, lunar phase, day/night map and globe in separate windows.
 - Keep window placement, snapping, theme, language and Windows startup preferences.
-- Enable optional weather in the clock window with an OpenWeather API key.
+- Configure and verify an optional OpenWeather API key from launcher Settings, world-clock options or the planner. Current weather remains separate from the selected planning date.
 
-The launcher does not start activity tracking, keyboard/mouse hooks, screenshot capture, AI analysis, timesheets, reports or history search. Existing personal history and screenshot files are left in place. Weather, satellite data and space-weather information use external sources when requested by their views; details are in the [privacy notes](docs/PRIVACY.md).
+Weather, satellite data and space-weather information use external sources when requested by their views; details are in the [privacy notes](docs/PRIVACY.md). The planner helps you choose meeting and appointment times; it does not create or synchronize events in an external calendar.
 
 ## ExcelPlanner
 
@@ -55,7 +62,7 @@ Project-authored code and documentation use the [MIT License](LICENSE). The Work
 
 - [AgentInbox](https://github.com/umbertotechnopreneur/AgentInbox): connect your inboxes to your AI assistant.
 - [PromptMeUp](https://github.com/umbertotechnopreneur/PromptMeUp): Can't remember that command? Git, Bash, or PowerShell: describe what you want to do. hm is here to help.
-- [WorkTrail](https://github.com/umbertotechnopreneur/WorkTrail): clocks, calendars and sky on your desktop.
+- [WorkTrail](https://github.com/umbertotechnopreneur/WorkTrail): compare time zones and availability at a glance, with independent desktop widgets.
 
 I’m Umberto Giacobbi. I built and maintain WorkTrail, with help from contributors. Find me on [LinkedIn](https://www.linkedin.com/in/umbertogiacobbi/) or at [umbertogiacobbi.biz](https://umbertogiacobbi.biz/).
 

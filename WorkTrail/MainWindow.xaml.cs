@@ -174,7 +174,7 @@ public sealed partial class MainWindow : Window
         {
             _launcherColumns = columns;
             ArrangeCommands(LauncherTiles, [ClocksTile, MapTile, PlannerTile, CalendarTile, SkyTile, GlobeTile, MoonTile], columns);
-            ArrangeCommands(SettingsGrid, [StartupCard, SnappingCard, TitleBarCard, ThemeCombo, LanguageCombo], columns);
+            ArrangeCommands(SettingsGrid, [StartupCard, SnappingCard, TitleBarCard, ThemeCombo, LanguageCombo, WeatherCard], columns);
         }
         var footerColumns = args.NewSize.Width >= 420d ? 3 : 1;
         if (_footerColumns != footerColumns)
@@ -284,6 +284,7 @@ public sealed partial class MainWindow : Window
             StartupToggle.IsOn = settings.StartWithWindows;
             SnappingToggle.IsOn = settings.WindowSnappingEnabled;
             TitleBarToggle.IsOn = settings.AutoHideTitleBar;
+            WeatherToggle.IsOn = settings.WorldClockWeatherEnabled;
             ThemeCombo.ItemsSource = new[] { T("Launcher.System"), T("Launcher.Light"), T("Launcher.Dark") };
             ThemeCombo.SelectedIndex = settings.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
             LanguageCombo.Apply(settings.UiLanguage, T("Launcher.System"));
@@ -430,9 +431,36 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        var key = ReferenceEquals(sender, SnappingToggle) ? "window.snapping.enabled" : "window.titlebar.auto_hide";
+        var key = ReferenceEquals(sender, WeatherToggle) ? "world_clocks.weather.enabled"
+            : ReferenceEquals(sender, SnappingToggle) ? "window.snapping.enabled" : "window.titlebar.auto_hide";
         var value = ((ToggleSwitch)sender).IsOn ? "true" : "false";
         await SavePreferenceAsync(key, value);
+    }
+
+    /// <summary>Opens the existing masked credential editor and its provider verification action from launcher settings.</summary>
+    private async void WeatherKey_Click(object sender, RoutedEventArgs args)
+    {
+        if (_closePromptOpen || _allowClose) return;
+        _closePromptOpen = true;
+        var setup = new Controls.WeatherKeySetupControl();
+        var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, RequestedTheme = RootGrid.ActualTheme, Content = setup };
+        var verified = false;
+        void Dismiss(bool saved) { verified = saved; dialog.Hide(); }
+        setup.Dismissed += Dismiss;
+        try
+        {
+            await setup.InitializeAsync(_application, _strings, _lifetime.Token);
+            await dialog.ShowAsync();
+            if (verified && !_lifetime.IsCancellationRequested)
+            {
+                StatusBar.Severity = InfoBarSeverity.Success;
+                StatusBar.Message = T("WorldClock.Options.Weather.KeySaved");
+                StatusBar.IsOpen = true;
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception error) { ApplicationErrorService.Report(error, "LauncherWeatherKey", _settings.UiLanguage); }
+        finally { setup.Dismissed -= Dismiss; _closePromptOpen = false; }
     }
 
     /// <summary>Persists the selected theme after control initialization has completed.</summary>
@@ -595,6 +623,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Presents a localized failure in the window's existing notification surface.</summary>
     private void ShowFailure(string key)
     {
+        StatusBar.Severity = InfoBarSeverity.Error;
         StatusBar.Message = T(key);
         StatusBar.IsOpen = true;
     }

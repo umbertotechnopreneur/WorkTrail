@@ -14,6 +14,8 @@
   "Launcher.AutoHide": "Launcher.AutoHide",
   "Launcher.Theme": "Launcher.Theme",
   "Launcher.Language": "Launcher.Language",
+  "Launcher.Weather": "WorldClock.Options.Weather.Header",
+  "Launcher.WeatherKey": "WeatherSetup.Key",
   "Launcher.About": "MenuTitleAbout",
   "Launcher.Hide": "Tray.HideMainWindow",
   "Launcher.Exit": "Tray.CloseApplication",

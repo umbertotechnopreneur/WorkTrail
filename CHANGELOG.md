@@ -9,6 +9,7 @@ Historical implementation milestones remain in [.github/tasks/archive.md](.githu
 
 ### Added
 
+- OpenWeather key configuration and verification, plus the current-weather toggle, directly in launcher settings through the existing credential editor.
 - Direct launcher access to the availability planner, native language names with color flags, responsive settings with explanations, and confirmation before explicit application exit.
 - Independent availability planner with reusable city headers and virtualized timelines, existing skyline and Moon artwork, current OpenWeather observations, configurable working hours and personal exceptions, and source-backed holiday coverage indicators.
 - Direct A4 landscape PDF export of the planner interval, with vector text and timetable geometry, embedded skyline illustrations and repeated headers across pages.
@@ -19,6 +20,7 @@ Historical implementation milestones remain in [.github/tasks/archive.md](.githu
 
 ### Changed
 
+- Refocused project documentation on time-zone availability planning and desktop widgets; GitHub distribution uses portable ZIPs, separately from the Store channel.
 - Main is a compact launcher for independent world clocks, the astronomical calendar, local sky, Moon, day/night map and globe. Essential preferences, Windows startup and tray commands remain.
 - Closing Main offers an Acrylic dialog to keep widgets running in the notification area, exit the app or cancel. The tray can reopen the launcher, reveal existing windows or exit the app.
 - The launcher pairs an Acrylic city backdrop with a left-aligned reference-city heading, responsive watercolor tiles, larger titles and short localized descriptions. Artwork fades between resting and hover saturation over 300 milliseconds.
