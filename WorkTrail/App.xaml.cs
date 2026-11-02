@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.AppLifecycle;
 using System.Runtime.InteropServices;
 using WorkTrail.Application;
@@ -38,6 +39,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private bool _uiStarting;
     private bool _showMainWindowWhenUiReady;
     private string _uiLanguage = "system";
+    private AppSettings _committedSettings = new();
     private int _shutdownStarted;
 
     #endregion
@@ -122,11 +124,12 @@ public partial class App : Microsoft.UI.Xaml.Application
                 throw new InvalidOperationException($"Widget preferences could not be loaded ({result.Code}).");
             }
             var settings = result.Value;
+            _committedSettings = settings;
             ApplyTitleBarSettings(settings);
             var tray = new TrayIconService(_services.GetRequiredService<ILoggerFactory>().CreateLogger<TrayIconService>());
             _window = new MainWindow(application, options, settings, _dialogs, tray, Path.Combine(AppContext.BaseDirectory, "Assets", "WorkTrailIcon.ico"));
-            _window.SettingsApplied += ApplyTitleBarSettings;
-            _window.SettingsApplied += ApplyWorldClockWindowSettings;
+            _window.SettingsApplied += ApplyCommittedSettings;
+            _window.WeatherConfigurationChanged += RefreshWeatherWindows;
             _window.WorldClocksRequested += MainWindow_WorldClocksRequested;
             _window.WorldTimeWindowRequested += OpenAstronomyWindowFromMenu;
             _window.ExitRequested += MainWindow_ExitRequested;
@@ -318,11 +321,12 @@ public partial class App : Microsoft.UI.Xaml.Application
             }
 
             _worldClockWindow = new WorldClockWindow(application, _dialogs, settings.Value);
+            _worldClockWindow.WeatherSettingsRequested += ShowWeatherSettings;
             _worldClockWindow.WorldMapRequested += WorldClockWindow_WorldMapRequested;
             _worldClockWindow.LunarPhaseRequested += WorldClockWindow_LunarPhaseRequested;
             _worldClockWindow.CelestialWindowRequested += WorldClockWindow_CelestialWindowRequested;
             _worldClockWindow.ProjectionChanged += WorldClockWindow_ProjectionChanged;
-            _worldClockWindow.SettingsSaved += ApplyAstronomyWindowSettings;
+            _worldClockWindow.SettingsSaved += SettingsSaved;
             _worldClockWindow.Closed += WorldClockWindow_Closed;
             AttachAstronomyContextMenu(_worldClockWindow, WindowStateKeys.WorldClocks);
             _worldClockWindow.Activate();
@@ -343,11 +347,39 @@ public partial class App : Microsoft.UI.Xaml.Application
     }
 
 
-    /// <summary>Applies committed preferences to the existing clock window.</summary>
-    private void ApplyWorldClockWindowSettings(AppSettings settings)
+    /// <summary>Applies one committed settings snapshot to all open widget surfaces.</summary>
+    private void ApplyCommittedSettings(AppSettings settings)
     {
+        _committedSettings = settings;
+        ApplyTitleBarSettings(settings);
         _worldClockWindow?.ApplySettings(settings);
         ApplyAstronomyWindowSettings(settings);
+    }
+
+    /// <summary>Publishes a committed snapshot through the launcher and its existing widget broadcast.</summary>
+    private async Task PublishCommittedSettingsAsync(AppSettings settings)
+    {
+        if (_window is not null)
+        {
+            await _window.ApplyExternalSettingsAsync(settings);
+        }
+        else
+        {
+            ApplyCommittedSettings(settings);
+        }
+    }
+
+    /// <summary>Forwards a view's saved preferences to every open settings surface.</summary>
+    private async void SettingsSaved(AppSettings settings)
+    {
+        try
+        {
+            await PublishCommittedSettingsAsync(settings);
+        }
+        catch (Exception exception)
+        {
+            ApplicationErrorService.Report(exception, "SettingsPublication", _uiLanguage);
+        }
     }
 
 
@@ -428,73 +460,61 @@ public partial class App : Microsoft.UI.Xaml.Application
     /// <param name="windowKey">The persisted state key for the owning window.</param>
     private void AttachAstronomyContextMenu(Window window, string windowKey)
     {
-        window.Content.ContextFlyout = AstronomyWindowMenu.Create(
+        var menu = AstronomyWindowMenu.Create(
             () => new LocalizationService(_uiLanguage),
             OpenAstronomyWindowFromMenu,
+            windowKey,
             () => _window?.ShowLauncher(),
-            WindowPlacementService.GetTaskbarVisibilityReader(window),
-            showInTaskbar => SetAstronomyWindowShownInTaskbarAsync(windowKey, showInTaskbar),
+            () => WindowAppearanceSettings.Get(_committedSettings, windowKey),
+            appearance => SetWindowAppearanceAsync(window, windowKey, appearance),
+            () => _window?.ShowApplicationSettings(),
             window.Close);
+        window.Content.ContextFlyout = menu;
+        switch (window)
+        {
+            case WorldClockWindow clocks: clocks.SetWindowMenu(menu); break;
+            case CelestialWindow celestial: celestial.SetWindowMenu(menu); break;
+            case AvailabilityPlannerWindow planner: planner.SetWindowMenu(menu); break;
+        }
     }
 
 
-    /// <summary>Persists taskbar visibility for one astronomy settings group and refreshes every open projection.</summary>
-    /// <param name="windowKey">The state key of the window whose menu was used.</param>
-    /// <param name="showInTaskbar">Whether the settings group should appear in the taskbar and system switchers.</param>
-    /// <returns><see langword="true"/> when the setting was persisted and applied; otherwise, <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">The supplied window key has no astronomy taskbar setting.</exception>
-    private async Task<bool> SetAstronomyWindowShownInTaskbarAsync(string windowKey, bool showInTaskbar)
+    /// <summary>Persists the owning widget's presentation and publishes the committed result.</summary>
+    private async Task<bool> SetWindowAppearanceAsync(Window owner, string windowKey, WindowAppearance appearance)
     {
-        var settingKey = windowKey switch
-        {
-            WindowStateKeys.WorldMap => "window.world_map.show_in_taskbar",
-            WindowStateKeys.LunarPhase => "window.lunar_phase.show_in_taskbar",
-            WindowStateKeys.WorldClocks or WindowStateKeys.LocalSky or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap
-                => "window.world_clocks.show_in_taskbar",
-            _ => throw new ArgumentOutOfRangeException(nameof(windowKey), windowKey, "Unsupported astronomy window key.")
-        };
-
         try
         {
-            var application = StartOrConnectRuntime();
-            var result = await application.PatchSettingsAsync(
-                new SettingsPatch(new Dictionary<string, string?>
-                {
-                    [settingKey] = showInTaskbar ? "true" : "false"
-                }),
-                CancellationToken.None);
+            var result = await StartOrConnectRuntime().PatchSettingsAsync(
+                WindowAppearanceSettings.CreatePatch(windowKey, appearance), CancellationToken.None);
             if (!result.Succeeded || result.Value is null)
             {
-                _logger.LogWarning(
-                    "Astronomy taskbar visibility could not be saved. WindowKey={WindowKey} Code={Code}",
-                    windowKey,
-                    result.Code);
+                _logger.LogWarning("Widget appearance could not be saved. WindowKey={WindowKey} Code={Code}", windowKey, result.Code);
+                if (owner.Content is FrameworkElement { IsLoaded: true })
+                {
+                    var strings = new LocalizationService(_uiLanguage);
+                    await _dialogs.ShowInformativeAsync(owner, DialogRequest.Informative(
+                        strings.Translate("WorldClock.ErrorTitle"), strings.Translate(result.MessageKey), strings.Translate("Dialog.Ok")));
+                }
                 return false;
             }
-
-            if (_window is not null)
-            {
-                await _window.ApplyExternalSettingsAsync(result.Value);
-            }
-            else
-            {
-                ApplyWorldClockWindowSettings(result.Value);
-            }
-
+            await PublishCommittedSettingsAsync(result.Value);
             return true;
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Astronomy taskbar visibility could not be changed. WindowKey={WindowKey}", windowKey);
+            ApplicationErrorService.Report(exception, "WidgetAppearance", _uiLanguage);
             return false;
         }
     }
 
-
     /// <summary>Routes a menu selection to the corresponding astronomy window.</summary>
     private async void OpenAstronomyWindowFromMenu(string key)
     {
-        if (key == WindowStateKeys.WorldMap)
+        if (key == WindowStateKeys.WorldClocks)
+        {
+            await ShowWorldClockWindowAsync(StartOrConnectRuntime());
+        }
+        else if (key == WindowStateKeys.WorldMap)
         {
             await ShowAstronomyWindowAsync(isLunarPhase: false);
         }
@@ -522,8 +542,18 @@ public partial class App : Microsoft.UI.Xaml.Application
             if (Volatile.Read(ref _shutdownStarted) != 0) return;
             if (!settings.Succeeded || settings.Value is null) throw new InvalidOperationException("Planner settings are unavailable.");
             var created = new AvailabilityPlannerWindow(application, settings.Value);
+            created.WeatherSettingsRequested += ShowWeatherSettings;
+            created.OpenClocksRequested += OpenClocksFromPlanner;
+            created.SettingsSaved += SettingsSaved;
+            AttachAstronomyContextMenu(created, WindowStateKeys.AvailabilityPlanner);
             _availabilityPlannerWindow = created;
-            created.Closed += (sender, _) => { if (ReferenceEquals(sender, _availabilityPlannerWindow)) _availabilityPlannerWindow = null; };
+            created.Closed += (sender, _) =>
+            {
+                created.WeatherSettingsRequested -= ShowWeatherSettings;
+                created.OpenClocksRequested -= OpenClocksFromPlanner;
+                created.SettingsSaved -= SettingsSaved;
+                if (ReferenceEquals(sender, _availabilityPlannerWindow)) _availabilityPlannerWindow = null;
+            };
             created.Activate();
         }
         catch (Exception error)
@@ -531,6 +561,27 @@ public partial class App : Microsoft.UI.Xaml.Application
             ApplicationErrorService.Report(error, "AvailabilityPlannerOpening", _uiLanguage);
         }
         finally { _availabilityPlannerOpening = false; }
+    }
+
+    /// <summary>Routes weather configuration to the launcher settings.</summary>
+    private void ShowWeatherSettings() => _window?.ShowWeatherSettings();
+
+    private async void OpenClocksFromPlanner()
+    {
+        await ShowWorldClockWindowAsync(StartOrConnectRuntime());
+        _worldClockWindow?.ShowConfiguration();
+    }
+
+    /// <summary>Refreshes open weather consumers after a verified credential change.</summary>
+    private async void RefreshWeatherWindows()
+    {
+        try
+        {
+            await Task.WhenAll(_worldClockWindow?.RefreshWeatherAsync() ?? Task.CompletedTask,
+                _availabilityPlannerWindow?.RefreshWeatherAsync() ?? Task.CompletedTask);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { ApplicationErrorService.Report(error, "WeatherRefresh", _uiLanguage); }
     }
 
     /// <summary>Creates or activates the requested celestial surface.</summary>
@@ -565,14 +616,13 @@ public partial class App : Microsoft.UI.Xaml.Application
                 throw new InvalidOperationException($"Celestial window settings are unavailable ({settings.Code}).");
             }
             created = new CelestialWindow(application, _dialogs, settings.Value, key);
-            if (key is WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap)
-            {
-                AttachAstronomyContextMenu(created, key);
-            }
+            created.SettingsSaved += SettingsSaved;
+            AttachAstronomyContextMenu(created, key);
 
             _celestialWindows.Add(key, created);
             created.Closed += (sender, _) =>
             {
+                if (sender is CelestialWindow closed) closed.SettingsSaved -= SettingsSaved;
                 if (_celestialWindows.TryGetValue(key, out var current) && ReferenceEquals(current, sender))
                 {
                     _celestialWindows.Remove(key);
@@ -738,10 +788,11 @@ public partial class App : Microsoft.UI.Xaml.Application
         {
             _worldClockWindow.Closed -= WorldClockWindow_Closed;
             _worldClockWindow.WorldMapRequested -= WorldClockWindow_WorldMapRequested;
+            _worldClockWindow.WeatherSettingsRequested -= ShowWeatherSettings;
             _worldClockWindow.LunarPhaseRequested -= WorldClockWindow_LunarPhaseRequested;
             _worldClockWindow.CelestialWindowRequested -= WorldClockWindow_CelestialWindowRequested;
             _worldClockWindow.ProjectionChanged -= WorldClockWindow_ProjectionChanged;
-            _worldClockWindow.SettingsSaved -= ApplyAstronomyWindowSettings;
+            _worldClockWindow.SettingsSaved -= SettingsSaved;
             _worldClockWindow = null;
         }
     }

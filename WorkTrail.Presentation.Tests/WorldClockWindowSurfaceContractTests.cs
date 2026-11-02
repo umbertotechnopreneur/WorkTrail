@@ -196,9 +196,10 @@ public sealed class WorldClockWindowSurfaceContractTests
             && element.Attribute("Click")?.Value == "ApplyReferenceButton_Click");
         Assert.Contains("ReferenceTimeZoneText.Text", source, StringComparison.Ordinal);
         Assert.Contains("ApplyReferenceButton_Click", source, StringComparison.Ordinal);
-        Assert.Equal("WorldClock.Options.Open", optionsButton.Attribute("Tag")?.Value);
+        Assert.Equal("Window.Menu", optionsButton.Attribute("Tag")?.Value);
         Assert.Equal("{StaticResource WorkTrailTitleBarCommandButtonStyle}", optionsButton.Attribute("Style")?.Value);
-        Assert.Equal("OptionsButton_Click", optionsButton.Attribute("Click")?.Value);
+        Assert.Null(optionsButton.Attribute("Click"));
+        Assert.Contains("OptionsButton.Flyout = menu;", source, StringComparison.Ordinal);
         Assert.Contains(optionsButton.Descendants(), element => element.Name.LocalName == "SymbolIcon" && element.Attribute("Symbol")?.Value == "More");
         Assert.Equal("WorldClock.Options.Back", backButton.Attribute("Tag")?.Value);
         Assert.Equal("{StaticResource WorkTrailTitleBarCommandButtonStyle}", backButton.Attribute("Style")?.Value);
@@ -221,7 +222,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("ClocksSurface.IsHitTestVisible = true;", source, StringComparison.Ordinal);
         Assert.Contains("_layoutState.ShowSurface(WorldClockWindowSurface.Clocks);", source, StringComparison.Ordinal);
         Assert.Contains("OptionsButton.Focus(FocusState.Programmatic)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("new MenuFlyout", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new MenuFlyout()", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ToggleMenuFlyoutItem", source, StringComparison.Ordinal);
         Assert.Contains("SystemBackdrop = new GlassBackdrop();", source, StringComparison.Ordinal);
         Assert.Contains("_titleBar = new CustomTitleBarController(", source, StringComparison.Ordinal);
@@ -235,10 +236,10 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("titleBar.ButtonPressedBackgroundColor = palette.PressedBackground;", titleBarSource, StringComparison.Ordinal);
         Assert.Contains("new AccessibilitySettings().HighContrast", titleBarSource, StringComparison.Ordinal);
         Assert.Contains("NonClientRegionKind.Passthrough", titleBarSource, StringComparison.Ordinal);
-        Assert.Contains("presenter.IsAlwaysOnTop = alwaysOnTop;", source, StringComparison.Ordinal);
+        Assert.Contains("presenter.IsAlwaysOnTop = appearance.AlwaysOnTop;", source, StringComparison.Ordinal);
         Assert.Contains("await AddCityAsync();", source, StringComparison.Ordinal);
-        Assert.Contains(options.Descendants(), element => HasName(element, "WeatherEnabledSwitch") && element.Attribute("Tag")?.Value == "WorldClock.Options.Weather");
-        Assert.Contains(options.Descendants(), element => HasName(element, "WeatherEnabledSwitch") && element.Attribute("IsOn")?.Value == "True");
+        Assert.DoesNotContain(options.Descendants(), element => HasName(element, "WeatherEnabledSwitch")
+            || HasName(element, "WorldMapShowInTaskbarSwitch") || HasName(element, "LunarPhaseShowInTaskbarSwitch"));
         Assert.Contains(options.Descendants(), element => HasName(element, "SaveWeatherKeyButton") && element.Name.LocalName == "Button");
         Assert.Contains(options.Descendants(), element => HasName(element, "AlwaysOnTopSwitch") && element.Attribute("Tag")?.Value == "WorldClock.Options.AlwaysOnTop");
         Assert.Contains(options.Descendants(), element => HasName(element, "CitiesHost"));
@@ -247,7 +248,8 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Equal("WeatherProviderLinkButton_Click", weatherProviderLink.Attribute("Click")?.Value);
         Assert.Contains(options.Descendants(), element => element.Name.LocalName == "AdaptiveTrigger" && element.Attribute("MinWindowWidth")?.Value == "760");
         Assert.Contains("PatchSettingsAsync(", optionsSource, StringComparison.Ordinal);
-        Assert.Contains("[\"world_clocks.weather.enabled\"]", optionsSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("[\"world_clocks.weather.enabled\"]", optionsSource, StringComparison.Ordinal);
+        Assert.Contains("WindowAppearanceSettings.CreatePatch(", optionsSource, StringComparison.Ordinal);
         Assert.Contains("KeySetupRequested?.Invoke", optionsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("PasswordBox", options.ToString(), StringComparison.Ordinal);
         Assert.Contains("public event EventHandler? ProviderLinkRequested;", optionsSource, StringComparison.Ordinal);
@@ -642,9 +644,10 @@ public sealed class WorldClockWindowSurfaceContractTests
         var openButton = window.Descendants().Single(element => HasName(element, "WorldMapButton"));
         var mapControl = detachedWindow.Descendants().Single(element => HasName(element, "WorldMapControl"));
 
-        Assert.Equal("WorldClock.Map.Open", openButton.Attribute("Tag")?.Value);
+        Assert.Equal("Window.OpenView", openButton.Attribute("Tag")?.Value);
         Assert.Contains("WorldMapButton.Flyout = AstronomyWindowMenu.Create", windowSource, StringComparison.Ordinal);
-        Assert.Contains("openWindow(WindowStateKeys.WorldMap)", menuSource, StringComparison.Ordinal);
+        Assert.Contains("WindowViewCatalog.All", menuSource, StringComparison.Ordinal);
+        Assert.Contains("openWindow(view.WindowKey)", menuSource, StringComparison.Ordinal);
         Assert.Equal("True", openButton.Attribute("IsTabStop")?.Value);
         Assert.Equal("True", openButton.Attribute("AllowFocusOnInteraction")?.Value);
         Assert.Equal(AttributeValue(openButton, "AutomationProperties.Name"), AttributeValue(openButton, "ToolTipService.ToolTip"));
@@ -756,11 +759,12 @@ public sealed class WorldClockWindowSurfaceContractTests
 
             Assert.False(string.IsNullOrWhiteSpace(accessibleName));
             Assert.Equal(accessibleName, AttributeValue(button, "ToolTipService.ToolTip"));
-            Assert.StartsWith("WorldClock.", AttributeValue(button, "Tag"), StringComparison.Ordinal);
+            Assert.True(AttributeValue(button, "Tag").StartsWith("WorldClock.", StringComparison.Ordinal)
+                || AttributeValue(button, "Tag").StartsWith("Window.", StringComparison.Ordinal));
         });
-        Assert.Contains("UiLocalization.SetAccessibleLabel(OptionsButton, T(\"WorldClock.Options.Open\"));", windowSource, StringComparison.Ordinal);
+        Assert.Contains("UiLocalization.SetAccessibleLabel(OptionsButton, T(\"Window.Menu\"));", windowSource, StringComparison.Ordinal);
         Assert.Contains("UiLocalization.SetAccessibleLabel(HeaderBackButton, T(\"WorldClock.Options.Back\"));", windowSource, StringComparison.Ordinal);
-        Assert.Contains("UiLocalization.SetAccessibleLabel(WorldMapButton, T(\"Celestial.Windows\"));", windowSource, StringComparison.Ordinal);
+        Assert.Contains("UiLocalization.SetAccessibleLabel(WorldMapButton, T(\"Window.OpenView\"));", windowSource, StringComparison.Ordinal);
         Assert.Contains("UiLocalization.SetAccessibleLabel(LunarPhaseButton, T(\"WorldClock.MoonPhase.Open\"));", windowSource, StringComparison.Ordinal);
 
         var localizationSource = File.ReadAllText(RepositoryFile("WorkTrail", "UiLocalization.cs"));

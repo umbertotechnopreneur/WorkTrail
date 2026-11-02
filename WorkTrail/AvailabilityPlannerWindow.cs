@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -17,7 +18,6 @@ internal sealed class AvailabilityPlannerWindow : Window
     private readonly Grid _root = new();
     private readonly InfoBar _status = new() { IsClosable = true };
     private readonly ProgressBar _progress = new() { IsIndeterminate = true, Height = 3, Visibility = Visibility.Collapsed };
-    private readonly ContentControl _setupHost = new() { Visibility = Visibility.Collapsed, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 600 };
     private readonly WindowPlacementService _placement;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherQueueTimer _refresh;
@@ -27,6 +27,21 @@ internal sealed class AvailabilityPlannerWindow : Window
     private bool _loaded;
     private bool _closed;
     private bool _editing;
+    private bool _savingViewPreferences;
+    private DayOfWeek _firstDay = DayOfWeek.Monday;
+    private int _stepMinutes = 30;
+
+    /// <summary>Requests World Clock's city configuration.</summary>
+    internal event Action? OpenClocksRequested;
+
+    /// <summary>Publishes the committed week preference to the other app windows.</summary>
+    internal event Action<AppSettings>? SettingsSaved;
+
+    /// <summary>Requests the application's global weather settings.</summary>
+    internal event Action? WeatherSettingsRequested;
+
+    /// <summary>Refreshes weather while retaining the current reference and viewport.</summary>
+    internal Task RefreshWeatherAsync() => _closed ? Task.CompletedTask : LoadAsync(_planner.GetRequest(), false);
 
     /// <summary>Creates the work surface using the existing placement infrastructure.</summary>
     internal AvailabilityPlannerWindow(IWorkTrailApplication application, AppSettings settings)
@@ -39,7 +54,6 @@ internal sealed class AvailabilityPlannerWindow : Window
         _root.Children.Add(_progress);
         Grid.SetRow(_status, 1); _root.Children.Add(_status);
         Grid.SetRow(_planner, 2); _root.Children.Add(_planner);
-        Grid.SetRow(_setupHost, 2); _root.Children.Add(_setupHost);
         Content = _root;
         _placement = new WindowPlacementService(application, this, AppWindow, WindowStateKeys.AvailabilityPlanner, 1420, 960, 16);
         _placement.ApplyDefaultBounds(_root);
@@ -50,6 +64,9 @@ internal sealed class AvailabilityPlannerWindow : Window
         _planner.ScheduleRequested += EditSchedule;
         _planner.WeatherSetupRequested += ShowWeatherSetup;
         _planner.ExportPdfRequested += ExportPdf;
+        _planner.FirstDayOfWeekRequested += SaveFirstDayOfWeek;
+        _planner.ViewPreferencesRequested += SaveViewPreferences;
+        _planner.OpenClocksRequested += OpenClocks;
         _root.Loaded += Loaded;
         Closed += OnClosed;
         ApplySettings(settings);
@@ -63,8 +80,22 @@ internal sealed class AvailabilityPlannerWindow : Window
         _root.RequestedTheme = settings.Theme switch { "dark" => ElementTheme.Dark, "light" => ElementTheme.Light, _ => ElementTheme.Default };
         Title = "WorkTrail · " + _strings.Translate("Planner.Title");
         _planner.ApplyLocalization(_strings);
+        _firstDay = settings.PlannerFirstDayOfWeek;
+        _planner.SetFirstDayOfWeek(_firstDay);
         if (_snapshot is not null) _planner.Apply(_snapshot, _strings, false);
+        _stepMinutes = settings.PlannerStepMinutes;
+        _planner.SetViewPreferences(settings.PlannerVisibleHours, _stepMinutes);
+        var appearance = WindowAppearanceSettings.Get(settings, WindowStateKeys.AvailabilityPlanner);
+        _placement.ApplyTaskbarVisibility(appearance.ShowInTaskbar);
+        _root.Opacity = appearance.OpacityPercent / 100d;
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsAlwaysOnTop = appearance.AlwaysOnTop;
+        }
     }
+
+    /// <summary>Uses the same window menu for toolbar and contextual access.</summary>
+    internal void SetWindowMenu(MenuFlyout menu) => _planner.SetWindowMenu(menu);
 
     /// <summary>Closes after the composition root has retained the open workspace.</summary>
     internal void CloseForShutdown() { _lifetime.Cancel(); Close(); }
@@ -76,7 +107,7 @@ internal sealed class AvailabilityPlannerWindow : Window
         try
         {
             await _placement.RestoreAsync(_root, _lifetime.Token);
-            await LoadAsync(new(), true);
+            await LoadAsync(_planner.GetRequest(), true);
             if (!_closed) _refresh.Start();
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -151,20 +182,67 @@ internal sealed class AvailabilityPlannerWindow : Window
         finally { _editing = false; }
     }
 
-    private async void ShowWeatherSetup()
+    private void ShowWeatherSetup() => WeatherSettingsRequested?.Invoke();
+
+    private void OpenClocks() => OpenClocksRequested?.Invoke();
+
+    private async void SaveFirstDayOfWeek(DayOfWeek day)
     {
-        if (_editing) return;
-        _editing = true;
-        var setup = new WeatherKeySetupControl();
-        _setupHost.Content = setup; _setupHost.Visibility = Visibility.Visible; _planner.Visibility = Visibility.Collapsed;
-        setup.Dismissed += async verified =>
+        try
         {
-            _setupHost.Content = null; _setupHost.Visibility = Visibility.Collapsed; _planner.Visibility = Visibility.Visible; _editing = false;
-            if (verified && !_closed) await LoadAsync(_planner.GetRequest(), false);
-        };
-        try { await setup.InitializeAsync(_application, _strings, _lifetime.Token); }
+            var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
+            { ["planner.first_day_of_week"] = day == DayOfWeek.Sunday ? "sunday" : "monday" }), _lifetime.Token);
+            if (_closed) return;
+            if (result.Succeeded && result.Value is not null)
+            {
+                _firstDay = result.Value.PlannerFirstDayOfWeek;
+                _planner.SetFirstDayOfWeek(_firstDay);
+                SettingsSaved?.Invoke(result.Value);
+            }
+            else
+            {
+                _planner.SetFirstDayOfWeek(_firstDay);
+                _status.Message = _strings.Translate(result.MessageKey);
+                _status.Severity = InfoBarSeverity.Error; _status.IsOpen = true;
+            }
+        }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception error) { Report(error); }
+        catch (Exception error) { if (!_closed) { _planner.SetFirstDayOfWeek(_firstDay); Report(error); } }
+    }
+
+    /// <summary>Persists the timetable density and refreshes its projection when the step changes.</summary>
+    private async void SaveViewPreferences(int visibleHours, int stepMinutes)
+    {
+        if (_savingViewPreferences || _closed) return;
+        _savingViewPreferences = true;
+        _planner.SetViewPreferencesBusy(true);
+        try
+        {
+            var stepChanged = stepMinutes != _stepMinutes;
+            var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
+            {
+                ["planner.visible_hours"] = visibleHours.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["planner.step_minutes"] = stepMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            }), _lifetime.Token);
+            if (_closed) return;
+            if (!result.Succeeded || result.Value is null)
+            {
+                _status.Message = _strings.Translate(result.MessageKey);
+                _status.Severity = InfoBarSeverity.Error;
+                _status.IsOpen = true;
+                return;
+            }
+            ApplySettings(result.Value);
+            SettingsSaved?.Invoke(result.Value);
+            if (stepChanged) await LoadAsync(_planner.GetRequest(), false);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception error) { if (!_closed) Report(error); }
+        finally
+        {
+            _savingViewPreferences = false;
+            if (!_closed) _planner.SetViewPreferencesBusy(false);
+        }
     }
 
     private async void ExportPdf(AvailabilityPdfRequest request)
@@ -199,6 +277,8 @@ internal sealed class AvailabilityPlannerWindow : Window
         _lifetime.Cancel(); _request?.Cancel(); _placement.Dispose();
         _planner.Requested -= Request; _planner.ScheduleRequested -= EditSchedule; _planner.WeatherSetupRequested -= ShowWeatherSetup;
         _planner.ExportPdfRequested -= ExportPdf;
+        _planner.FirstDayOfWeekRequested -= SaveFirstDayOfWeek; _planner.OpenClocksRequested -= OpenClocks;
+        _planner.ViewPreferencesRequested -= SaveViewPreferences;
         _root.Loaded -= Loaded; Closed -= OnClosed;
         _lifetime.Dispose();
     }

@@ -114,7 +114,8 @@ internal static class AvailabilityPdfRenderer
                             using var fill = new SKPaint { Color = StateColor(cell.State) };
                             canvas.DrawRect(x, y, width, RowHeight, fill);
                             var prefix = cell.State == AvailabilityState.Unknown ? "? " : cell.State == AvailabilityState.Reserve ? "~ " : "";
-                            Text(canvas, prefix + cell.LocalStart.ToString("ddd HH:mm", strings.Culture), x + 5, y + 11, 8.5f, regular);
+                            Text(canvas, prefix + cell.LocalStart.ToString("ddd HH:mm", strings.Culture), x + 5, y + 11, 8.5f, regular,
+                                cell.IsNonWorkingDay ? SKColor.Parse("#B42318") : null);
                             canvas.DrawRect(x, y, width, RowHeight, line);
                         }
                         if (row.StartUtc <= snapshot.InstantUtc && snapshot.InstantUtc < row.EndUtc)

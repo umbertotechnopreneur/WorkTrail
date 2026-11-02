@@ -20,6 +20,8 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -47,6 +49,8 @@ internal sealed partial class CelestialWindow : Window
     private WorldClockSnapshot? _reference;
     private bool _changingCities;
     private bool _closed;
+    private bool _agendaOptionsOpen;
+    private bool _savingAgendaCity;
     private RenderRequestKey? _pendingRender;
     private RenderRequestKey? _displayedRender;
     private CelestialSnapshot? _skySnapshot;
@@ -93,6 +97,28 @@ internal sealed partial class CelestialWindow : Window
 
     #region Implementation
 
+    /// <summary>Publishes committed preferences to the launcher and other open views.</summary>
+    internal event Action<AppSettings>? SettingsSaved;
+
+    /// <summary>Adds calendar preferences to the shared navigation and widget menu.</summary>
+    internal void SetWindowMenu(MenuFlyout menu)
+    {
+        if (_windowKey == WindowStateKeys.AstronomyAgenda)
+        {
+            var settings = new MenuFlyoutItem
+            {
+                Tag = "Window.CalendarSettings",
+                Text = T("Window.CalendarSettings"),
+                Icon = new SymbolIcon(Symbol.Setting)
+            };
+            UiLocalization.SetAccessibleLabel(settings, settings.Text);
+            settings.Click += async (_, _) => await ShowAgendaOptionsAsync();
+            menu.Items.Insert(0, new MenuFlyoutSeparator());
+            menu.Items.Insert(0, settings);
+        }
+        AgendaOptionsButton.Flyout = menu;
+    }
+
     /// <summary>Updates the acrylic theme, localized controls, and current projection.</summary>
     internal void ApplySettings(AppSettings settings)
     {
@@ -124,10 +150,7 @@ internal sealed partial class CelestialWindow : Window
         UiLocalization.SetAccessibleLabel(ConstellationsVisibilitySwitch, T("Celestial.Sky.ShowConstellations"));
         ToolTipService.SetToolTip(PlanetsVisibilitySwitch, T("Celestial.Sky.ShowPlanets"));
         ToolTipService.SetToolTip(ConstellationsVisibilitySwitch, T("Celestial.Sky.ShowConstellations"));
-        AgendaOptionsButton.Visibility = _windowKey == WindowStateKeys.AstronomyAgenda
-            ? Visibility.Visible : Visibility.Collapsed;
-        UiLocalization.SetAccessibleLabel(AgendaOptionsButton, T("Celestial.Agenda.Options"));
-        ToolTipService.SetToolTip(AgendaOptionsButton, T("Celestial.Agenda.Options"));
+        UiLocalization.SetAccessibleLabel(AgendaOptionsButton, T("Window.Menu"));
         ZodiacNoteText.Text = T("Celestial.Zodiac.Note");
         _controller.ApplySettings(settings);
     }
@@ -170,69 +193,134 @@ internal sealed partial class CelestialWindow : Window
     }
 
     /// <summary>Refreshes the projection for the newly selected reference city.</summary>
-    private void CitySelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void CitySelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_changingCities)
+        if (_changingCities || _closed || _savingAgendaCity) return;
+        if (_windowKey != WindowStateKeys.AstronomyAgenda)
         {
             RefreshProjection();
+            return;
+        }
+        if (CitySelector.SelectedValue is not string cityId || cityId == _agendaSettings.AstronomyAgendaCityId) return;
+        _savingAgendaCity = true;
+        CitySelector.IsEnabled = false;
+        var previousCityId = _agendaSettings.AstronomyAgendaCityId;
+        try
+        {
+            var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
+            {
+                ["astronomy.agenda.city_id"] = cityId
+            }), _lifetimeCancellation.Token);
+            if (_closed) return;
+            if (!result.Succeeded || result.Value is null)
+            {
+                RestoreAgendaCity(previousCityId);
+                ShowFailure(result.MessageKey);
+                return;
+            }
+            ApplySettings(result.Value);
+            SettingsSaved?.Invoke(result.Value);
+            RefreshProjection();
+        }
+        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            if (!_closed)
+            {
+                RestoreAgendaCity(previousCityId);
+                ShowFailure("Celestial.Unavailable", error);
+            }
+        }
+        finally
+        {
+            _savingAgendaCity = false;
+            if (!_closed) CitySelector.IsEnabled = true;
         }
     }
 
-    /// <summary>Opens agenda preferences and applies the committed selection.</summary>
-    private async void AgendaOptionsButton_Click(object sender, RoutedEventArgs e)
+    /// <summary>Restores the committed calendar city without creating another save.</summary>
+    private void RestoreAgendaCity(string cityId)
     {
-        if (_windowKey != WindowStateKeys.AstronomyAgenda || _reference is null)
+        _changingCities = true;
+        try { CitySelector.SelectedValue = cityId; }
+        finally { _changingCities = false; }
+    }
+
+    /// <summary>Opens agenda preferences and applies the committed selection.</summary>
+    private async Task ShowAgendaOptionsAsync()
+    {
+        if (_windowKey != WindowStateKeys.AstronomyAgenda || _reference is null || _agendaOptionsOpen)
         {
             return;
         }
-        var city = new ComboBox
-        {
-            Header = T("Celestial.Agenda.Options.City"),
-            ItemsSource = _reference.Clocks,
-            DisplayMemberPath = "CityName",
-            SelectedValuePath = "CityId",
-            SelectedValue = CitySelector.SelectedValue,
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        var saints = new CheckBox
-        {
-            Content = T("Celestial.Agenda.Options.Saints"),
-            IsChecked = _agendaSettings.AstronomyAgendaShowSaints
-        };
-        var countryBoxes = CelestialCalendarCountries.All.Select(country => new CheckBox
-        {
-            Content = country.Name,
-            Tag = country.Code,
-            IsChecked = (_agendaSettings.AstronomyAgendaCountryCodes ?? []).Contains(country.Code, StringComparer.Ordinal)
-        }).ToArray();
-        var content = new StackPanel { Spacing = 10 };
-        content.Children.Add(city);
-        content.Children.Add(saints);
-        content.Children.Add(new TextBlock { Text = T("Celestial.Agenda.Options.Countries"), TextWrapping = TextWrapping.Wrap });
-        foreach (var box in countryBoxes)
-        {
-            content.Children.Add(box);
-        }
-        content.Children.Add(new TextBlock
-        {
-            Text = T("Celestial.Agenda.Options.Coverage"),
-            FontSize = 11,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = ThemeBrush("TextFillColorSecondaryBrush")
-        });
-        var dialogContent = new ScrollViewer { Content = content, MaxHeight = 450, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        if (!await _dialogs.ConfirmAsync(this, new DialogRequest(
-                T("Celestial.Agenda.Options"), T("Celestial.Agenda.Options.Coverage"),
-                T("Dialog.Save"), T("Dialog.Cancel")), dialogContent))
-        {
-            return;
-        }
-        if (city.SelectedValue is not string cityId)
-        {
-            return;
-        }
+        _agendaOptionsOpen = true;
         try
         {
+            var city = new ComboBox
+            {
+                Header = T("Celestial.Agenda.Options.City"),
+                ItemsSource = _reference.Clocks,
+                DisplayMemberPath = "CityName",
+                SelectedValuePath = "CityId",
+                SelectedValue = CitySelector.SelectedValue,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            var saints = new CheckBox
+            {
+                Content = T("Celestial.Agenda.Options.Saints"),
+                IsChecked = _agendaSettings.AstronomyAgendaShowSaints
+            };
+            var countryBoxes = CelestialCalendarCountries.All
+                .OrderBy(country => T("Calendar.Country." + country.Code), StringComparer.Create(_strings.Culture, true))
+                .Select(country => new CheckBox
+                {
+                    Content = new TextBlock { Text = T("Calendar.Country." + country.Code), TextWrapping = TextWrapping.Wrap, MaxWidth = 200 },
+                    Tag = country.Code,
+                    IsChecked = (_agendaSettings.AstronomyAgendaCountryCodes ?? []).Contains(country.Code, StringComparer.Ordinal)
+                }).ToArray();
+            var search = new TextBox { Header = T("Calendar.SearchCountries"), HorizontalAlignment = HorizontalAlignment.Stretch };
+            UiLocalization.SetAccessibleLabel(search, T("Calendar.SearchCountries"));
+            AutomationProperties.SetAutomationId(search, "Calendar.CountrySearch");
+            var selectedCount = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetLiveSetting(selectedCount, AutomationLiveSetting.Polite);
+            var countries = new Grid { ColumnSpacing = 12, RowSpacing = 4 };
+            countries.ColumnDefinitions.Add(new ColumnDefinition());
+            countries.ColumnDefinitions.Add(new ColumnDefinition());
+            foreach (var box in countryBoxes)
+            {
+                UiLocalization.SetAccessibleLabel(box, ((TextBlock)box.Content).Text);
+                AutomationProperties.SetAutomationId(box, "Calendar.Country." + (string)box.Tag);
+                box.Checked += (_, _) => UpdateSelectedCount();
+                box.Unchecked += (_, _) => UpdateSelectedCount();
+            }
+            search.TextChanged += (_, _) => FilterCountries();
+            UpdateSelectedCount();
+            FilterCountries();
+            var content = new StackPanel { Spacing = 10 };
+            content.Children.Add(city);
+            content.Children.Add(saints);
+            content.Children.Add(new TextBlock { Text = T("Celestial.Agenda.Options.Countries"), TextWrapping = TextWrapping.Wrap });
+            content.Children.Add(search);
+            content.Children.Add(selectedCount);
+            content.Children.Add(countries);
+            content.Children.Add(new TextBlock
+            {
+                Text = T("Celestial.Agenda.Options.Coverage"),
+                FontSize = 11,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = ThemeBrush("TextFillColorSecondaryBrush")
+            });
+            var dialogContent = new ScrollViewer { Content = content, MaxHeight = 450, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            if (!await _dialogs.ConfirmAsync(this, new DialogRequest(
+                    T("Celestial.Agenda.Options"), T("Celestial.Agenda.Options.Coverage"),
+                    T("Dialog.Save"), T("Dialog.Cancel")), dialogContent))
+            {
+                return;
+            }
+            if (city.SelectedValue is not string cityId)
+            {
+                return;
+            }
             var selectedCodes = countryBoxes.Where(box => box.IsChecked == true)
                 .Select(box => (string)box.Tag).ToArray();
             var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
@@ -257,6 +345,26 @@ internal sealed partial class CelestialWindow : Window
                 _changingCities = false;
             }
             ApplySettings(result.Value);
+            SettingsSaved?.Invoke(result.Value);
+
+            void UpdateSelectedCount() => selectedCount.Text = _strings.Format("Calendar.SelectedCountries", countryBoxes.Count(box => box.IsChecked == true));
+
+            void FilterCountries()
+            {
+                countries.Children.Clear();
+                countries.RowDefinitions.Clear();
+                var query = search.Text.Trim();
+                var visible = countryBoxes.Where(box => query.Length == 0
+                    || _strings.Culture.CompareInfo.IndexOf(((TextBlock)box.Content).Text, query, System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0
+                    || ((string)box.Tag).Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+                for (var index = 0; index < visible.Length; index++)
+                {
+                    if (index % 2 == 0) countries.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    Grid.SetRow(visible[index], index / 2);
+                    Grid.SetColumn(visible[index], index % 2);
+                    countries.Children.Add(visible[index]);
+                }
+            }
         }
         catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
         {
@@ -268,6 +376,7 @@ internal sealed partial class CelestialWindow : Window
                 ShowFailure("Celestial.Unavailable", exception);
             }
         }
+        finally { _agendaOptionsOpen = false; }
     }
 
     /// <summary>Updates the visible sky layers from the user's selection.</summary>

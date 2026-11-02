@@ -352,17 +352,17 @@ VBWR E -->
                     <Button
                         x:Name="WorldMapButton"
                         Grid.Column="1"
-                        AutomationProperties.Name="Open world day and night map in a new window"
+                        AutomationProperties.Name="Open view"
                         IsTabStop="True"
                         AllowFocusOnInteraction="True"
                         Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                        Tag="WorldClock.Map.Open"
-                        ToolTipService.ToolTip="Open world day and night map in a new window">
+                        Tag="Window.OpenView"
+                        ToolTipService.ToolTip="Open view">
                         <FontIcon
                             AutomationProperties.AccessibilityView="Raw"
                             FontFamily="Segoe Fluent Icons"
                             FontSize="16"
-                            Glyph="&#xE774;" />
+                            Glyph="&#xE700;" />
                     </Button>
                     <Button
                         x:Name="LunarPhaseButton"
@@ -383,13 +383,12 @@ VBWR E -->
                     <Button
                         x:Name="OptionsButton"
                         Grid.Column="3"
-                        AutomationProperties.Name="Open world clock options"
-                        Click="OptionsButton_Click"
+                        AutomationProperties.Name="Options and navigation"
                         IsTabStop="True"
                         AllowFocusOnInteraction="True"
                         Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                        Tag="WorldClock.Options.Open"
-                        ToolTipService.ToolTip="Open world clock options">
+                        Tag="Window.Menu"
+                        ToolTipService.ToolTip="Options and navigation">
                         <SymbolIcon
                             AutomationProperties.AccessibilityView="Raw"
                             Symbol="More" />

@@ -119,13 +119,13 @@ internal sealed class AstronomyWindowController
     internal void ApplySettings(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        _placement.ApplyTaskbarVisibility(_windowKey switch
+        var appearance = WindowAppearanceSettings.Get(settings, _windowKey);
+        _placement.ApplyTaskbarVisibility(appearance.ShowInTaskbar);
+        _root.Opacity = appearance.OpacityPercent / 100d;
+        if (_appWindow.Presenter is OverlappedPresenter presenter)
         {
-            WindowStateKeys.WorldMap => settings.WorldMapWindowShowInTaskbar,
-            WindowStateKeys.LunarPhase => settings.LunarPhaseWindowShowInTaskbar,
-            WindowStateKeys.LocalSky or WindowStateKeys.AstronomyAgenda or WindowStateKeys.CelestialMap => settings.WorldClockWindowShowInTaskbar,
-            _ => throw new InvalidOperationException("Unsupported astronomical window.")
-        });
+            presenter.IsAlwaysOnTop = appearance.AlwaysOnTop;
+        }
         _strings = new LocalizationService(settings.UiLanguage);
         _root.RequestedTheme = settings.Theme switch
         {

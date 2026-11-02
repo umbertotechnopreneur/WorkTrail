@@ -92,6 +92,102 @@ public sealed class AvailabilityPlannerServiceTests
 
     private static AvailabilitySchedule Schedule() => new("rome", new TimeOnly(9, 0), new TimeOnly(18, 0), []);
 
+    /// <summary>The reported five-city case keeps the selected day distinct from later scrolled days.</summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void NovemberCityColumnsKeepTheirTimesDatesAndHolidayCoverage(int visibleDay)
+    {
+        var reference = new DateTimeOffset(2026, 11, 1, 9, 45, 0, TimeSpan.Zero);
+        var definitions = new[]
+        {
+            (Id: "ho-chi-minh-city", Country: "VN", Zone: "SE Asia Standard Time", Hour: 16),
+            (Id: "denpasar", Country: "ID", Zone: "Singapore Standard Time", Hour: 17),
+            (Id: "domegge-di-cadore", Country: "IT", Zone: "W. Europe Standard Time", Hour: 10),
+            (Id: "new-york", Country: "US", Zone: "Eastern Standard Time", Hour: 4),
+            (Id: "hong-kong", Country: "HK", Zone: "China Standard Time", Hour: 17)
+        };
+        var template = Snapshot(reference);
+        var clocks = definitions.Select(city => template.Clocks[0] with
+        {
+            CityId = city.Id,
+            CountryCode = city.Country,
+            TimeZoneId = city.Zone,
+            LocalTime = TimeZoneInfo.ConvertTime(reference, TimeZoneInfo.FindSystemTimeZoneById(city.Zone))
+        }).ToArray();
+        var projection = template with { Clocks = clocks };
+        var settings = new AppSettings(HomeCityId: definitions[0].Id, AvailabilitySchedules: definitions.ToDictionary(
+            city => city.Id, city => Schedule() with { CityId = city.Id }));
+        var result = AvailabilityPlannerService.Build(projection, projection, definitions[0].Id, 30, settings, CancellationToken.None);
+        var visible = new DateTimeOffset(2026, 11, visibleDay, 9, 0, 0, TimeSpan.Zero);
+        var row = result.Rows.Single(item => item.StartUtc == visible);
+
+        Assert.Equal(new DateTime(2026, 11, 1), result.ReferenceLocalTime.Date);
+        Assert.Equal(definitions.Select(city => city.Id), result.Cities.Select(city => city.Clock.CityId));
+        for (var index = 0; index < definitions.Length; index++)
+        {
+            Assert.Equal(definitions[index].Hour, row.Cells[index].LocalStart.Hour);
+            Assert.Equal(new DateTime(2026, 11, visibleDay), row.Cells[index].LocalStart.Date);
+            Assert.Equal(visible, row.Cells[index].LocalStart.ToUniversalTime());
+        }
+        foreach (var index in new[] { 1, 4 })
+        {
+            // The national calendars now cover both cities; this fixture explicitly has no rest days.
+            Assert.Equal(AvailabilityState.Available, row.Cells[index].State);
+            Assert.Equal("Planner.WorkingHours", row.Cells[index].ReasonKey);
+            var midnight = result.Rows.Single(item => item.StartUtc == visible.AddHours(7)).Cells[index];
+            Assert.Equal(new DateTime(2026, 11, visibleDay + 1), midnight.LocalStart.Date);
+            Assert.Equal(TimeSpan.Zero, midnight.LocalStart.TimeOfDay);
+        }
+    }
+
+    /// <summary>Official calendars stop granting verified availability after their published coverage ends.</summary>
+    [Theory]
+    [InlineData("ID")]
+    [InlineData("HK")]
+    public void OfficialCalendarDoesNotExtendIntoUnpublishedYear(string countryCode)
+    {
+        var instant = new DateTimeOffset(2028, 1, 10, 9, 0, 0, TimeSpan.Zero);
+        var projection = Snapshot(instant);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+        projection = projection with
+        {
+            Clocks = [projection.Clocks[0] with
+        {
+            CountryCode = countryCode, TimeZoneId = zone.Id, LocalTime = TimeZoneInfo.ConvertTime(instant, zone)
+        }]
+        };
+        var settings = new AppSettings(AvailabilitySchedules: new Dictionary<string, AvailabilitySchedule> { ["rome"] = Schedule() });
+        var result = AvailabilityPlannerService.Build(projection, projection, "rome", 30, settings, CancellationToken.None);
+        var cell = result.Rows.Single(row => row.StartUtc == instant).Cells[0];
+        Assert.Equal(AvailabilityState.Unknown, cell.State);
+        Assert.Equal("Planner.CalendarUnknown", cell.ReasonKey);
+    }
+
+    /// <summary>The two New York 01:00 slots on fall-back day are separate instants with distinct offsets.</summary>
+    [Fact]
+    public void NewYorkRepeatedHourKeepsBothUtcInstants()
+    {
+        var instant = new DateTimeOffset(2026, 11, 1, 5, 0, 0, TimeSpan.Zero);
+        var projection = Snapshot(instant);
+        var clock = projection.Clocks[0] with
+        {
+            CityId = "new-york",
+            CountryCode = "US",
+            TimeZoneId = "Eastern Standard Time",
+            LocalTime = TimeZoneInfo.ConvertTime(instant, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"))
+        };
+        projection = projection with { Clocks = [clock] };
+        var result = AvailabilityPlannerService.Build(projection, projection, clock.CityId, 30, new AppSettings(), CancellationToken.None);
+        var first = result.Rows.Single(row => row.StartUtc == instant).Cells[0].LocalStart;
+        var second = result.Rows.Single(row => row.StartUtc == instant.AddHours(1)).Cells[0].LocalStart;
+
+        Assert.Equal(first.DateTime, second.DateTime);
+        Assert.Equal(1, first.Hour);
+        Assert.Equal(TimeSpan.FromHours(-4), first.Offset);
+        Assert.Equal(TimeSpan.FromHours(-5), second.Offset);
+    }
+
     private static AvailabilityPlannerSnapshot Build(DateTimeOffset instant, AvailabilitySchedule schedule)
     {
         var snapshot = Snapshot(instant);

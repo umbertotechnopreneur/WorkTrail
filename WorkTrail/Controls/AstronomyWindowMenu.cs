@@ -18,155 +18,191 @@
 
 
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using WorkTrail.Application;
 using WorkTrail.Services;
-using Windows.UI;
 
 namespace WorkTrail.Controls;
 
-/// <summary>Builds the shared navigation menu for the clocks and astronomy windows.</summary>
+/// <summary>Builds consistent navigation and per-window commands for desktop widgets.</summary>
 internal static class AstronomyWindowMenu
 {
-
-    /// <summary>Creates the navigation-only form of the shared astronomy menu.</summary>
+    /// <summary>Creates a navigation menu from the canonical desktop-view catalog.</summary>
     /// <param name="getStrings">Provides the current localization service.</param>
-    /// <param name="openWindow">Opens the requested astronomy window.</param>
-    /// <param name="closeWindow">Closes only the owning window when supplied.</param>
-    /// <returns>The configured shared navigation menu.</returns>
-    /// <exception cref="ArgumentNullException">A required callback is null.</exception>
+    /// <param name="openWindow">Opens or activates the requested desktop view.</param>
+    /// <param name="currentWindowKey">Identifies the view omitted from navigation.</param>
+    /// <returns>The localized navigation menu.</returns>
     internal static MenuFlyout Create(
         Func<LocalizationService> getStrings,
         Action<string> openWindow,
-        Action? closeWindow = null) =>
-        Create(getStrings, openWindow, null, null, null, closeWindow);
+        string? currentWindowKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(getStrings);
+        ArgumentNullException.ThrowIfNull(openWindow);
+        var menu = CreateMenu();
+        AddViews(menu.Items, openWindow, currentWindowKey);
+        ApplyLabels(menu.Items, getStrings());
+        menu.Opening += (_, _) => ApplyLabels(menu.Items, getStrings());
+        return menu;
+    }
 
-    /// <summary>Creates a localized menu for navigating and controlling its owning window.</summary>
+    /// <summary>Creates the shared widget menu with navigation and preferences for its owning window only.</summary>
     /// <param name="getStrings">Provides the current localization service.</param>
-    /// <param name="openWindow">Opens the requested astronomy window.</param>
+    /// <param name="openWindow">Opens or activates the requested desktop view.</param>
+    /// <param name="currentWindowKey">Identifies the owning view and omits it from navigation.</param>
     /// <param name="showMainWindow">Reveals and activates the main WorkTrail window.</param>
-    /// <param name="isShownInTaskbar">Gets the owning window's last committed taskbar preference.</param>
-    /// <param name="setShownInTaskbar">Persists a requested taskbar visibility change.</param>
+    /// <param name="getAppearance">Reads the owning window's committed preferences.</param>
+    /// <param name="setAppearance">Persists and publishes requested preferences through the application.</param>
+    /// <param name="showAppSettings">Reveals shared application settings.</param>
     /// <param name="closeWindow">Closes only the owning window when supplied.</param>
-    /// <returns>The configured shared context menu.</returns>
-    /// <exception cref="ArgumentNullException">A required callback is null.</exception>
-    /// <exception cref="ArgumentException">Only some of the window-control callbacks were supplied.</exception>
+    /// <returns>The localized widget menu, which can also host view-specific commands.</returns>
     internal static MenuFlyout Create(
         Func<LocalizationService> getStrings,
         Action<string> openWindow,
-        Action? showMainWindow,
-        Func<bool>? isShownInTaskbar,
-        Func<bool, Task<bool>>? setShownInTaskbar,
+        string currentWindowKey,
+        Action showMainWindow,
+        Func<WindowAppearance> getAppearance,
+        Func<WindowAppearance, Task<bool>> setAppearance,
+        Action showAppSettings,
         Action? closeWindow = null)
     {
         ArgumentNullException.ThrowIfNull(getStrings);
         ArgumentNullException.ThrowIfNull(openWindow);
-        var hasWindowControls = showMainWindow is not null;
-        if (hasWindowControls != (isShownInTaskbar is not null)
-            || hasWindowControls != (setShownInTaskbar is not null))
+        ArgumentException.ThrowIfNullOrWhiteSpace(currentWindowKey);
+        ArgumentNullException.ThrowIfNull(showMainWindow);
+        ArgumentNullException.ThrowIfNull(getAppearance);
+        ArgumentNullException.ThrowIfNull(setAppearance);
+        ArgumentNullException.ThrowIfNull(showAppSettings);
+
+        var menu = CreateMenu();
+        menu.Items.Add(Command("Tray.ShowMainWindow", "\uE80F", showMainWindow));
+        var views = Submenu("Window.OpenView", "\uE8A7");
+        AddViews(views.Items, openWindow, currentWindowKey);
+        menu.Items.Add(views);
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        var options = Submenu("Window.Options", "\uE713");
+        var taskbar = new ToggleMenuFlyoutItem { Tag = "Window.ShowInTaskbar", Icon = Icon("\uE737") };
+        var topmost = new ToggleMenuFlyoutItem { Tag = "Window.AlwaysOnTop", Icon = Icon("\uE718") };
+        var opacity = Submenu("Window.Opacity", "\uE790");
+        var presets = new Dictionary<int, ToggleMenuFlyoutItem>();
+        var saving = false;
+        taskbar.Click += async (_, _) => await CommitAsync(value => value with { ShowInTaskbar = taskbar.IsChecked });
+        topmost.Click += async (_, _) => await CommitAsync(value => value with { AlwaysOnTop = topmost.IsChecked });
+        foreach (var percent in new[] { 25, 50, 75, 100 })
         {
-            throw new ArgumentException("Window controls must provide all taskbar callbacks together.");
+            var item = new ToggleMenuFlyoutItem { Text = $"{percent}%" };
+            UiLocalization.SetAccessibleLabel(item, item.Text);
+            item.Click += async (_, _) => await CommitAsync(value => value with { OpacityPercent = percent });
+            presets.Add(percent, item);
+            opacity.Items.Add(item);
+        }
+        options.Items.Add(taskbar);
+        options.Items.Add(topmost);
+        options.Items.Add(opacity);
+        menu.Items.Add(options);
+        menu.Items.Add(Command("Window.AppSettings", "\uE713", showAppSettings));
+
+        if (closeWindow is not null)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(Command("Window.Close", "\uE8BB", closeWindow));
         }
 
+        Refresh();
+        menu.Opening += (_, _) => Refresh();
+        return menu;
+
+        // Preferences are committed by the host; failed mutations restore the last committed checks.
+        async Task CommitAsync(Func<WindowAppearance, WindowAppearance> change)
+        {
+            if (saving)
+            {
+                Refresh();
+                return;
+            }
+            saving = true;
+            options.IsEnabled = false;
+            try
+            {
+                _ = await setAppearance(change(getAppearance()));
+            }
+            catch (Exception exception)
+            {
+                ApplicationErrorService.Report(exception, "WindowMenuAppearance", getStrings().Language);
+            }
+            finally
+            {
+                saving = false;
+                Refresh();
+            }
+        }
+
+        void Refresh()
+        {
+            ApplyLabels(menu.Items, getStrings());
+            var appearance = getAppearance();
+            taskbar.IsChecked = appearance.ShowInTaskbar;
+            topmost.IsChecked = appearance.AlwaysOnTop;
+            foreach (var preset in presets)
+            {
+                preset.Value.IsChecked = preset.Key == appearance.OpacityPercent;
+            }
+            options.IsEnabled = !saving;
+        }
+    }
+
+    private static MenuFlyout CreateMenu()
+    {
         var presenterStyle = new Style(typeof(MenuFlyoutPresenter));
-        presenterStyle.Setters.Add(new Setter(FrameworkElement.MinWidthProperty, 320d));
-        presenterStyle.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(12)));
-        var menu = new MenuFlyout
+        presenterStyle.Setters.Add(new Setter(FrameworkElement.MinWidthProperty, 260d));
+        presenterStyle.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(10)));
+        return new MenuFlyout
         {
             ShouldConstrainToRootBounds = false,
             SystemBackdrop = new DesktopAcrylicBackdrop(),
             MenuFlyoutPresenterStyle = presenterStyle
         };
+    }
 
-        if (showMainWindow is not null)
+    private static void AddViews(IList<MenuFlyoutItemBase> items, Action<string> openWindow, string? currentWindowKey)
+    {
+        foreach (var view in WindowViewCatalog.All.Where(view => view.WindowKey != currentWindowKey))
         {
-            AddItem("Tray.ShowMainWindow", "\uE80F", showMainWindow);
-            menu.Items.Add(new MenuFlyoutSeparator());
+            items.Add(Command(view.LabelKey, view.Glyph, () => openWindow(view.WindowKey)));
         }
+    }
 
-        AddItem("Planner.Title", "\uE787", () => openWindow(WindowStateKeys.AvailabilityPlanner), Color.FromArgb(255, 227, 74, 44));
-        AddItem("Celestial.Sky.Title", "\uE9CE", () => openWindow(WindowStateKeys.LocalSky), Color.FromArgb(255, 173, 124, 245));
-        AddItem("Celestial.Agenda.Title", "\uE787", () => openWindow(WindowStateKeys.AstronomyAgenda), Color.FromArgb(255, 125, 159, 248));
-        AddItem("Celestial.Map.Title", "\uE774", () => openWindow(WindowStateKeys.CelestialMap), Color.FromArgb(255, 219, 141, 114));
-        menu.Items.Add(new MenuFlyoutSeparator());
-        AddItem("WorldClock.Map.MenuLabel", "\uE707", () => openWindow(WindowStateKeys.WorldMap), Color.FromArgb(255, 113, 203, 183));
-        ToggleMenuFlyoutItem? taskbarItem = null;
-        if (isShownInTaskbar is { } readTaskbarPreference && setShownInTaskbar is { } persistTaskbarVisibility)
+    private static MenuFlyoutItem Command(string labelKey, string glyph, Action action)
+    {
+        var item = new MenuFlyoutItem { Tag = labelKey, Icon = Icon(glyph) };
+        item.Click += (_, _) => action();
+        return item;
+    }
+
+    private static MenuFlyoutSubItem Submenu(string labelKey, string glyph) => new() { Tag = labelKey, Icon = Icon(glyph) };
+
+    private static FontIcon Icon(string glyph) => new() { Glyph = glyph, FontFamily = new FontFamily("Segoe Fluent Icons") };
+
+    private static void ApplyLabels(IEnumerable<MenuFlyoutItemBase> items, LocalizationService strings)
+    {
+        foreach (var item in items)
         {
-            menu.Items.Add(new MenuFlyoutSeparator());
-            var taskbarToggle = new ToggleMenuFlyoutItem
+            if (item.Tag is string labelKey)
             {
-                Tag = "Options.Window.ShowInTaskbar.Header",
-                MinWidth = 320
-            };
-            taskbarToggle.Click += async (_, _) =>
-            {
-                var requestedValue = taskbarToggle.IsChecked;
-                taskbarToggle.IsEnabled = false;
-                try
+                var label = strings.Translate(labelKey);
+                switch (item)
                 {
-                    _ = await persistTaskbarVisibility(requestedValue);
+                    case ToggleMenuFlyoutItem toggle: toggle.Text = label; break;
+                    case MenuFlyoutItem command: command.Text = label; break;
+                    case MenuFlyoutSubItem submenu: submenu.Text = label; break;
                 }
-                finally
-                {
-                    taskbarToggle.IsEnabled = true;
-                    taskbarToggle.IsChecked = readTaskbarPreference();
-                }
-            };
-            taskbarItem = taskbarToggle;
-            menu.Items.Add(taskbarToggle);
-        }
-
-        if (closeWindow is not null)
-        {
-            menu.Items.Add(new MenuFlyoutSeparator());
-            AddItem("Window.Close", string.Empty, closeWindow);
-        }
-
-        ApplyLanguage();
-        menu.Opening += (_, _) => ApplyLanguage();
-        return menu;
-
-        // textKey identifies the localized item label.
-        // glyph supplies the optional Fluent icon shown beside the label.
-        // action runs when the user selects the item.
-        // color optionally accents the supplied glyph.
-        // Adds a localized menu command with an optional colored glyph.
-        void AddItem(string textKey, string glyph, Action action, Color? color = null)
-        {
-            var item = new MenuFlyoutItem { Tag = textKey, MinWidth = 320 };
-            if (!string.IsNullOrEmpty(glyph))
-            {
-                var icon = new FontIcon { Glyph = glyph };
-                if (color is { } foreground)
-                {
-                    icon.Foreground = new SolidColorBrush(foreground);
-                }
-
-                item.Icon = icon;
+                UiLocalization.SetAccessibleLabel(item, label);
             }
-
-            item.Click += (_, _) => action();
-            menu.Items.Add(item);
-        }
-
-        // Refreshes menu labels, accessible names, and the current taskbar preference.
-        void ApplyLanguage()
-        {
-            var strings = getStrings();
-            foreach (var item in menu.Items.OfType<MenuFlyoutItem>())
+            if (item is MenuFlyoutSubItem child)
             {
-                item.Text = strings.Translate((string)item.Tag);
-                AutomationProperties.SetName(item, item.Text);
-            }
-
-            if (taskbarItem is { } taskbarToggle && isShownInTaskbar is { } readTaskbarVisibility)
-            {
-                taskbarToggle.Text = strings.Translate((string)taskbarToggle.Tag);
-                taskbarToggle.IsChecked = readTaskbarVisibility();
-                AutomationProperties.SetName(taskbarToggle, taskbarToggle.Text);
+                ApplyLabels(child.Items, strings);
             }
         }
     }

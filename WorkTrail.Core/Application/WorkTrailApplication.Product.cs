@@ -35,7 +35,8 @@ public sealed partial class WorkTrailApplication
             "MIT License",
             ProductRepositoryUrl,
             ProductAuthorUrl,
-            _buildInformation.Load());
+            _buildInformation.Load(),
+            CelestialCalendarCatalog.Current.Countries.Count);
         return Task.FromResult(OperationResult<ProductInformation>.Success("product.loaded", "ProductInformationLoaded", info));
     }
 

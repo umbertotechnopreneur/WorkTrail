@@ -1,0 +1,30 @@
+{
+  "countries": [
+    {
+      "code": "HK", "name": "Hong Kong", "scope": "Official general holidays; Sundays follow local weekend rules",
+      "years": {
+        "2026": {
+          "sourceUrl": "https://www.info.gov.hk/gia/general/202505/16/P2025051300353.htm",
+          "days": [["01-01","New Year's Day"],["02-17","Lunar New Year's Day"],["02-18","Second day of Lunar New Year"],["02-19","Third day of Lunar New Year"],["04-03","Good Friday"],["04-04","Day following Good Friday"],["04-06","Day following Ching Ming Festival"],["04-07","Day following Easter Monday"],["05-01","Labour Day"],["05-25","Day following Buddha's Birthday"],["06-19","Tuen Ng Festival"],["07-01","Hong Kong SAR Establishment Day"],["09-26","Day following Mid-Autumn Festival"],["10-01","National Day"],["10-19","Day following Chung Yeung Festival"],["12-25","Christmas Day"],["12-26","First weekday after Christmas Day"]]
+        },
+        "2027": {
+          "sourceUrl": "https://www.info.gov.hk/gia/general/202605/15/P2026051400300.htm",
+          "days": [["01-01","New Year's Day"],["02-06","Lunar New Year's Day"],["02-08","Third day of Lunar New Year"],["02-09","Fourth day of Lunar New Year"],["03-26","Good Friday"],["03-27","Day following Good Friday"],["03-29","Easter Monday"],["04-05","Ching Ming Festival"],["05-01","Labour Day"],["05-13","Buddha's Birthday"],["06-09","Tuen Ng Festival"],["07-01","Hong Kong SAR Establishment Day"],["09-16","Day following Mid-Autumn Festival"],["10-01","National Day"],["10-08","Chung Yeung Festival"],["12-25","Christmas Day"],["12-27","First weekday after Christmas Day"]]
+        }
+      }
+    },
+    {
+      "code": "ID", "name": "Indonesia", "scope": "Official national holidays; optional collective leave and regional observances excluded",
+      "years": {
+        "2026": {
+          "sourceUrl": "https://jdih.kemnaker.go.id/asset/data_puu/2025kb002.pdf",
+          "days": [["01-01","New Year's Day"],["01-16","Isra and Mi'raj"],["02-17","Lunar New Year"],["03-19","Nyepi"],["03-21","Eid al-Fitr"],["03-22","Eid al-Fitr"],["04-03","Good Friday"],["04-05","Easter Sunday"],["05-01","Labour Day"],["05-14","Ascension Day"],["05-27","Eid al-Adha"],["05-31","Vesak"],["06-01","Pancasila Day"],["06-16","Islamic New Year"],["08-17","Independence Day"],["08-25","Prophet Muhammad's Birthday"],["12-25","Christmas Day"]]
+        },
+        "2027": {
+          "sourceUrl": "https://www.kemenkopmk.go.id/node/6444",
+          "days": [["01-01","New Year's Day"],["01-05","Isra and Mi'raj"],["02-06","Lunar New Year"],["03-08","Nyepi"],["03-10","Eid al-Fitr"],["03-11","Eid al-Fitr"],["03-26","Good Friday"],["03-28","Easter Sunday"],["05-01","Labour Day"],["05-06","Ascension Day"],["05-17","Eid al-Adha"],["05-20","Vesak"],["06-01","Pancasila Day"],["06-06","Islamic New Year"],["08-15","Prophet Muhammad's Birthday"],["08-17","Independence Day"],["12-25","Christmas Day"],["12-26","Isra and Mi'raj"]]
+        }
+      }
+    }
+  ]
+}

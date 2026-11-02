@@ -52,6 +52,9 @@ public sealed partial class MainWindow : Window
     /// <summary>Publishes committed widget preferences to the open windows.</summary>
     public event Action<AppSettings>? SettingsApplied;
 
+    /// <summary>Requests fresh weather after the shared key has been verified and saved.</summary>
+    public event Action? WeatherConfigurationChanged;
+
     /// <summary>Requests orderly shutdown of every app window.</summary>
     public event EventHandler? ExitRequested;
 
@@ -84,6 +87,7 @@ public sealed partial class MainWindow : Window
         Closed += Window_Closed;
         _trayIcon.ExitRequested += Tray_ExitRequested;
         _trayIcon.CommandRequested += Tray_CommandRequested;
+        _trayIcon.ViewRequested += Tray_ViewRequested;
         _trayIcon.MenuStateProvider = CreateTrayMenuState;
         ApplySettings(settings with { UiLanguage = options.Language ?? settings.UiLanguage, Theme = options.Theme ?? settings.Theme });
     }
@@ -275,6 +279,7 @@ public sealed partial class MainWindow : Window
             RootGrid.RequestedTheme = settings.Theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
             RootGrid.Opacity = settings.MainWindowOpacityPercent / 100d;
             UiLocalization.Apply(RootGrid, _strings);
+            (WeatherSettingsHost.Content as Controls.WeatherKeySetupControl)?.ApplyLanguage(_strings);
             ApplyHomeCity(_homeCity);
             StartupToggle.Header = T("Launcher.Startup");
             SnappingToggle.Header = T("Launcher.Snapping");
@@ -437,30 +442,34 @@ public sealed partial class MainWindow : Window
         await SavePreferenceAsync(key, value);
     }
 
-    /// <summary>Opens the existing masked credential editor and its provider verification action from launcher settings.</summary>
-    private async void WeatherKey_Click(object sender, RoutedEventArgs args)
+    /// <summary>Reveals the common weather configuration inside global settings.</summary>
+    private void WeatherKey_Click(object sender, RoutedEventArgs args) => ShowWeatherSettings();
+
+    /// <summary>Activates global settings without replacing any clock or timesheet surface.</summary>
+    internal async void ShowWeatherSettings()
     {
         if (_closePromptOpen || _allowClose) return;
-        _closePromptOpen = true;
-        var setup = new Controls.WeatherKeySetupControl();
-        var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, RequestedTheme = RootGrid.ActualTheme, Content = setup };
-        var verified = false;
-        void Dismiss(bool saved) { verified = saved; dialog.Hide(); }
-        setup.Dismissed += Dismiss;
+        ShowLauncher();
+        SettingsExpander.IsExpanded = true;
         try
         {
-            await setup.InitializeAsync(_application, _strings, _lifetime.Token);
-            await dialog.ShowAsync();
-            if (verified && !_lifetime.IsCancellationRequested)
+            if (WeatherSettingsHost.Content is not Controls.WeatherKeySetupControl setup)
             {
-                StatusBar.Severity = InfoBarSeverity.Success;
-                StatusBar.Message = T("WorldClock.Options.Weather.KeySaved");
-                StatusBar.IsOpen = true;
+                setup = new Controls.WeatherKeySetupControl();
+                await setup.InitializeAsync(_application, _strings, _lifetime.Token);
+                setup.Saved += () => WeatherConfigurationChanged?.Invoke();
+                setup.Dismissed += _ =>
+                {
+                    WeatherSettingsHost.Content = null;
+                    WeatherSettingsHost.Visibility = Visibility.Collapsed;
+                };
+                WeatherSettingsHost.Content = setup;
+                WeatherSettingsHost.Visibility = Visibility.Visible;
             }
+            DispatcherQueue.TryEnqueue(() => WeatherSettingsHost.StartBringIntoView());
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception error) { ApplicationErrorService.Report(error, "LauncherWeatherKey", _settings.UiLanguage); }
-        finally { setup.Dismissed -= Dismiss; _closePromptOpen = false; }
     }
 
     /// <summary>Persists the selected theme after control initialization has completed.</summary>
@@ -557,8 +566,37 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Builds localized notification-area commands from the current launcher state.</summary>
-    private TrayIconMenuState CreateTrayMenuState() => new(T("Tray.ShowAllWindows"), T("Tray.WorldClocks"),
-        T("Tray.AstronomicalCalendar"), T("Tray.DayNightMap"), T("Tray.DayNightGlobe"), T("MenuTitleOptions"), T("MenuTitleAbout"), !_allowClose);
+    private TrayIconMenuState CreateTrayMenuState() => new(T("Tray.ShowAllWindows"),
+        WindowViewCatalog.All.ToDictionary(view => view.WindowKey, view => T(view.LabelKey), StringComparer.Ordinal),
+        T("Window.AppSettings"), T("MenuTitleAbout"), !_allowClose);
+
+    /// <summary>Reveals application settings from any navigation surface.</summary>
+    internal void ShowApplicationSettings()
+    {
+        ShowLauncher();
+        SettingsExpander.IsExpanded = true;
+        DispatcherQueue.TryEnqueue(() => SettingsExpander.StartBringIntoView());
+    }
+
+    /// <summary>Opens a canonical view after the native notification-area callback returns.</summary>
+    private void Tray_ViewRequested(string windowKey) => DispatcherQueue.TryEnqueue(() =>
+    {
+        try
+        {
+            if (windowKey == WindowStateKeys.WorldClocks)
+            {
+                WorldClocksRequested?.Invoke(this, EventArgs.Empty);
+            }
+            else
+            {
+                WorldTimeWindowRequested?.Invoke(windowKey);
+            }
+        }
+        catch (Exception exception)
+        {
+            ApplicationErrorService.Report(exception, "LauncherTrayView", _settings.UiLanguage);
+        }
+    });
 
     /// <summary>Marshals a notification-area exit request onto the UI dispatcher.</summary>
     private void Tray_ExitRequested(object? sender, EventArgs args) => DispatcherQueue.TryEnqueue(async () => await ConfirmExitAsync());
@@ -571,11 +609,7 @@ public sealed partial class MainWindow : Window
             switch (command)
             {
                 case TrayIconMenuCommand.ShowAllWindows: await RevealOpenWindowsAsync(); break;
-                case TrayIconMenuCommand.WorldClocks: WorldClocksRequested?.Invoke(this, EventArgs.Empty); break;
-                case TrayIconMenuCommand.AstronomicalCalendar: WorldTimeWindowRequested?.Invoke(WindowStateKeys.AstronomyAgenda); break;
-                case TrayIconMenuCommand.DayNightMap: WorldTimeWindowRequested?.Invoke(WindowStateKeys.WorldMap); break;
-                case TrayIconMenuCommand.DayNightGlobe: WorldTimeWindowRequested?.Invoke(WindowStateKeys.CelestialMap); break;
-                case TrayIconMenuCommand.Settings: ShowLauncher(); SettingsExpander.IsExpanded = true; break;
+                case TrayIconMenuCommand.Settings: ShowApplicationSettings(); break;
                 case TrayIconMenuCommand.About: ShowLauncher(); ShowAbout(); break;
             }
         }
@@ -726,6 +760,7 @@ public sealed partial class MainWindow : Window
         _ready.TrySetCanceled();
         _trayIcon.ExitRequested -= Tray_ExitRequested;
         _trayIcon.CommandRequested -= Tray_CommandRequested;
+        _trayIcon.ViewRequested -= Tray_ViewRequested;
         _trayIcon.MenuStateProvider = null;
         _trayIcon.Dispose();
         _titleBar.Dispose();

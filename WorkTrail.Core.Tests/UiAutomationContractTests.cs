@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using WorkTrail.Services;
 using Xunit;
@@ -32,7 +33,7 @@ public sealed class UiAutomationContractTests
 {
     #region Fields
 
-    private static readonly string[] ConvertedSurfaces = ["WorkTrail/MainWindow.xaml", "WorkTrail/Controls/WeatherKeySetupControl.xaml", "WorkTrail/Controls/CityPickerControl.xaml"];
+    private static readonly string[] ConvertedSurfaces = ["WorkTrail/MainWindow.xaml", "WorkTrail/Controls/WeatherKeySetupControl.xaml", "WorkTrail/Controls/CityPickerControl.xaml", "WorkTrail/Controls/AvailabilityTimelineGrid.xaml"];
 
     private static readonly HashSet<string> InteractiveControls = new(StringComparer.Ordinal)
     {
@@ -73,6 +74,13 @@ public sealed class UiAutomationContractTests
             }
         }
 
+        // The reusable planner builds its commands in code; include those stable declarations in the same contract.
+        var planner = File.ReadAllText(RepositoryFile("WorkTrail/Controls/AvailabilityPlannerControl.cs"));
+        foreach (Match match in Regex.Matches(planner, "Label\\([^,]+, \"([^\"]+)\", \"([^\"]+)\"\\)"))
+        {
+            Assert.True(identifiers.Add(match.Groups[1].Value));
+            Assert.Equal(match.Groups[2].Value, LocalizationService.AutomationNameKeys[match.Groups[1].Value]);
+        }
         Assert.Equal(LocalizationService.AutomationNameKeys.Keys.OrderBy(key => key), identifiers.OrderBy(key => key));
     }
 
@@ -100,10 +108,10 @@ public sealed class UiAutomationContractTests
         var english = new LocalizationService("en-US");
         var italian = new LocalizationService("it-IT");
 
-        Assert.True(english.TryTranslateAutomationName("Launcher.Clocks", out var englishName));
-        Assert.True(italian.TryTranslateAutomationName("Launcher.Clocks", out var italianName));
-        Assert.Equal(english.Translate("Launcher.Clocks"), englishName);
-        Assert.Equal(italian.Translate("Launcher.Clocks"), italianName);
+        Assert.True(english.TryTranslateAutomationName("Launcher.Settings", out var englishName));
+        Assert.True(italian.TryTranslateAutomationName("Launcher.Settings", out var italianName));
+        Assert.Equal(english.Translate("Launcher.Settings"), englishName);
+        Assert.Equal(italian.Translate("Launcher.Settings"), italianName);
         Assert.NotEqual(englishName, italianName);
     }
 

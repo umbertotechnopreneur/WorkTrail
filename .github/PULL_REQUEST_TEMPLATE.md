@@ -17,10 +17,9 @@ For a notable user or contributor change, update `CHANGELOG.md` under `Unrelease
 in this PR and summarize the entry here. Otherwise, write `No changelog entry`
 and briefly explain why, for example an internal refactor or documentation typo.
 
-Use `.github/tasks/archive.md` as supporting evidence for completed work and verify
-the entry against the final diff. Keep unfinished work in `.github/tasks/todo.md`
-and durable engineering lessons in `.github/tasks/lessons.md`. Do not copy task
-transcripts, private plans, or unverified fixes into the changelog.
+Describe the final diff. Keep unfinished work in `.github/tasks/todo.md` and reusable
+engineering lessons in `.github/tasks/lessons.md`. Do not create completed-task
+archives or copy run transcripts, private plans or unverified fixes into documentation.
 
 ## Screenshots
 

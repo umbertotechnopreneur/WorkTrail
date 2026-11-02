@@ -236,14 +236,14 @@ internal sealed class WorldClockApplicationService : IDisposable
         string secret,
         CancellationToken cancellationToken)
     {
-        var secretValue = secret ?? string.Empty;
+        var secretValue = secret?.Trim() ?? string.Empty;
         if (!OpenWeatherCurrentProvider.IsPlausibleApiKey(secretValue))
         {
             secretValue = string.Empty;
             return OperationResult<string>.Failure(
                 "world_clocks.weather.key.invalid",
-                "WorldClockWeatherKeyInvalid",
-                new ValidationIssue("secret", "invalid", "WorldClockWeatherKeyInvalid"));
+                "WorldClock.Options.Weather.KeyInvalid",
+                new ValidationIssue("secret", "invalid", "WorldClock.Options.Weather.KeyInvalid"));
         }
 
         try
@@ -255,15 +255,15 @@ internal sealed class WorldClockApplicationService : IDisposable
             {
                 return OperationResult<string>.Failure(
                     "world_clocks.weather.key.rejected",
-                    "WorldClockWeatherKeyRejected",
-                    new ValidationIssue("secret", "rejected", "WorldClockWeatherKeyRejected"));
+                    "WorldClock.Options.Weather.KeyRejected",
+                    new ValidationIssue("secret", "rejected", "WorldClock.Options.Weather.KeyRejected"));
             }
 
             if (validation == WorldClockWeatherApiKeyValidation.Unavailable)
             {
                 return OperationResult<string>.Failure(
                     "world_clocks.weather.key.validation_unavailable",
-                    "WorldClockWeatherKeyValidationUnavailable");
+                    "WorldClock.Options.Weather.KeyValidationUnavailable");
             }
 
             if (validation == WorldClockWeatherApiKeyValidation.RateLimited)
@@ -283,7 +283,7 @@ internal sealed class WorldClockApplicationService : IDisposable
             _worldClocks.InvalidateCurrentWeatherConfiguration();
             return OperationResult<string>.Success(
                 "world_clocks.weather.key.stored",
-                "WorldClockWeatherKeyStored",
+                "WorldClock.Options.Weather.KeySaved",
                 OpenWeatherCurrentProvider.ApiKeyEnvironmentVariable);
         }
         finally

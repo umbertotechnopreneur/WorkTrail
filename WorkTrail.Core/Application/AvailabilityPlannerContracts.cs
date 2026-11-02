@@ -17,11 +17,11 @@ public sealed record AvailabilityPlannerRequest(string? ReferenceCityId = null,
     DateTime? ReferenceLocalTime = null, int StepMinutes = 30);
 
 /// <summary>Contains one passive city header with its saved working rules.</summary>
-public sealed record AvailabilityPlannerCity(WorldClockItem Clock, AvailabilitySchedule Schedule);
+public sealed record AvailabilityPlannerCity(WorldClockItem Clock, AvailabilitySchedule Schedule, bool IsNonWorkingDay = false);
 
 /// <summary>Contains a local time slot and the reason for its availability.</summary>
 public sealed record AvailabilityCell(DateTimeOffset LocalStart, DateTimeOffset LocalEnd,
-    AvailabilityState State, string ReasonKey, string? Detail = null);
+    AvailabilityState State, string ReasonKey, string? Detail = null, bool IsNonWorkingDay = false);
 
 /// <summary>Represents the same UTC interval in all selected cities.</summary>
 public sealed record AvailabilityRow(DateTimeOffset StartUtc, DateTimeOffset EndUtc,

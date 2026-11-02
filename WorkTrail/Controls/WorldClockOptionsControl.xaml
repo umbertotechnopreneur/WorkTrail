@@ -139,14 +139,10 @@ VBWR E -->
                         Style="{StaticResource WorldClockOptionsSectionStyle}">
                         <StackPanel Spacing="16">
                             <StackPanel Spacing="7">
-                                <ToggleSwitch
-                                    x:Name="WeatherEnabledSwitch"
-                                    Header="Current weather"
-                                    IsOn="True"
-                                    OffContent="Off"
-                                    OnContent="On"
-                                    Tag="WorldClock.Options.Weather"
-                                    Toggled="WeatherEnabledSwitch_Toggled" />
+                                <TextBlock
+                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Tag="WorldClock.Options.Weather.Header"
+                                    Text="Current weather" />
                                 <TextBlock
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
@@ -193,6 +189,7 @@ VBWR E -->
                                     Style="{StaticResource BodyStrongTextBlockStyle}"
                                     Tag="WorldClock.Options.Weather.Setup"
                                     Text="Weather provider setup" />
+                                <TextBlock x:Name="WeatherConfigurationText" TextWrapping="Wrap" />
                                 <HyperlinkButton
                                     x:Name="WeatherProviderLinkButton"
                                     Padding="0,2,0,2"
@@ -245,15 +242,6 @@ VBWR E -->
                                 OnContent="On"
                                 Tag="WorldClock.Options.AlwaysOnTop"
                                 Toggled="AlwaysOnTopSwitch_Toggled" />
-                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                <ToggleSwitch x:Name="LunarPhaseShowInTaskbarSwitch"
-                                              Header="Show Moon window icon in taskbar" OnContent="" OffContent=""
-                                              Tag="WorldClock.Options.MoonTaskbar"
-                                              Toggled="AstronomyShowInTaskbarSwitch_Toggled" />
-                                <ToggleSwitch x:Name="WorldMapShowInTaskbarSwitch"
-                                              Header="Show world-map window icon in taskbar" OnContent="" OffContent=""
-                                              Tag="WorldClock.Options.MapTaskbar"
-                                              Toggled="AstronomyShowInTaskbarSwitch_Toggled" />
                               </StackPanel>
                             </Expander>
                         </StackPanel>

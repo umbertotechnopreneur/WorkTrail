@@ -5,7 +5,6 @@
 - Method: original PNG files copied byte-for-byte. Source and repository SHA-256 hashes were compared. No ImageGen, redrawing, retouching, cropping, recoloring, text changes or local pixel edits were used for these screenshots.
 - Presentation: the README arranges the separate screenshots in a three-column HTML strip, preserves each image's aspect ratio, and links every preview to its original-resolution PNG. The arrangement is documentation layout, not evidence that all windows were captured together or snapped into that arrangement.
 - Content: actual Italian UI, including the visible reference times, Ho Chi Minh City selection, Acrylic backgrounds, title bars where shown, native controls and surrounding desktop fragments. The captures are not regenerated demo interfaces.
-- Replaces: the inaccurate generated `trackmeup-celestial-desktop-strip-v1.png` panorama and its provenance record, which remain recoverable in Git history at checkpoint `1302c51`.
 - Rights: these screenshots document the project interface; they do not change the licenses or attribution of the app, embedded maps, icons or other artwork. Project names and brand assets remain subject to [TRADEMARKS.md](../../../TRADEMARKS.md); existing third-party notices remain applicable.
 
 ## Verified originals

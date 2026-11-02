@@ -9,5 +9,49 @@
         <DataTemplate x:Key="AvailabilityRowTemplate">
             <controls:AvailabilityTimelineRowControl />
         </DataTemplate>
+        <Style x:Key="TimelineItemStyle" TargetType="ListViewItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
     </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="92" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="GutterHeaderRow" Height="260" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="UTC" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,12" />
+            <ScrollViewer x:Name="GutterScroller" Grid.Row="1"
+                          VerticalScrollBarVisibility="Hidden" HorizontalScrollMode="Disabled"
+                          VerticalAlignment="Top" IsHitTestVisible="False">
+                <StackPanel x:Name="UtcLabels" />
+            </ScrollViewer>
+        </Grid>
+        <ScrollViewer x:Name="TimelineScroller" Grid.Column="1"
+                      HorizontalContentAlignment="Left" VerticalContentAlignment="Stretch"
+                      HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled"
+                      VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+            <!-- One shared width and origin keep city headings above their cells at every window size. -->
+            <Grid x:Name="TimelineSurface" HorizontalAlignment="Left">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel x:Name="CityHeaders" Orientation="Horizontal" />
+                <ListView x:Name="TimelineRows" Grid.Row="1" Padding="0" BorderThickness="0"
+                          AutomationProperties.AutomationId="Planner.Timeline"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          SelectionMode="Single" IsItemClickEnabled="True"
+                          ScrollViewer.HorizontalScrollMode="Disabled"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          ItemTemplate="{StaticResource AvailabilityRowTemplate}" />
+            </Grid>
+        </ScrollViewer>
+    </Grid>
 </UserControl>

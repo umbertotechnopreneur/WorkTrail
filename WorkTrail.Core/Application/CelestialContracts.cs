@@ -165,6 +165,14 @@ public static class CelestialCalendarCountries
         new("IN", "India"), new("BD", "Bangladesh"), new("JP", "Japan"),
         new("KR", "South Korea"), new("LA", "Laos"), new("KH", "Cambodia"),
         new("AU", "Australia"), new("NZ", "New Zealand"), new("SG", "Singapore"),
-        new("PL", "Poland")
+        new("PL", "Poland"), new("HK", "Hong Kong"), new("ID", "Indonesia"),
+        new("GB", "United Kingdom"), new("ES", "Spain"), new("PT", "Portugal"), new("NL", "Netherlands"),
+        new("BE", "Belgium"), new("CH", "Switzerland"), new("AT", "Austria"), new("IE", "Ireland"),
+        new("DK", "Denmark"), new("SE", "Sweden"), new("NO", "Norway"), new("FI", "Finland"),
+        new("CZ", "Czechia"), new("SK", "Slovakia"), new("HU", "Hungary"), new("RO", "Romania"),
+        new("BG", "Bulgaria"), new("GR", "Greece"), new("AR", "Argentina"), new("RU", "Russia"),
+        new("BY", "Belarus"), new("TR", "Turkey"), new("AE", "United Arab Emirates"), new("SA", "Saudi Arabia"),
+        new("BR", "Brazil"), new("MX", "Mexico"), new("ZA", "South Africa"), new("TH", "Thailand"),
+        new("MY", "Malaysia"), new("PH", "Philippines")
     ];
 }

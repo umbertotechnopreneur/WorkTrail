@@ -99,6 +99,17 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Notifies the composition root after world-clock options persist shared settings.</summary>
     internal event Action<AppSettings>? SettingsSaved;
 
+    /// <summary>Requests the application's global weather settings.</summary>
+    internal event Action? WeatherSettingsRequested;
+
+    /// <summary>Refreshes shared credential status for live and fixed-time projections.</summary>
+    internal async Task RefreshWeatherAsync()
+    {
+        if (_lifetimeCancellation.IsCancellationRequested) return;
+        if (_isLive) await RefreshCurrentAsync();
+        else if (_customProjectionValid) await ConvertFromControlsAsync();
+    }
+
     #endregion
 
     #region Initialization
@@ -114,7 +125,7 @@ public sealed partial class WorldClockWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
         _settings = settings;
         InitializeComponent();
-        WorldMapButton.Flyout = AstronomyWindowMenu.Create(() => _strings, OpenAstronomyWindow);
+        WorldMapButton.Flyout = AstronomyWindowMenu.Create(() => _strings, OpenAstronomyWindow, WindowStateKeys.WorldClocks);
 
         SystemBackdrop = new GlassBackdrop();
         _appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)));
@@ -170,8 +181,13 @@ public sealed partial class WorldClockWindow : Window
             "dark" => ElementTheme.Dark,
             _ => ElementTheme.Default
         };
-        WindowContent.Opacity = settings.WorldClockWindowOpacityPercent / 100d;
-        _placement.ApplyTaskbarVisibility(settings.WorldClockWindowShowInTaskbar);
+        var appearance = WindowAppearanceSettings.Get(settings, WindowStateKeys.WorldClocks);
+        WindowContent.Opacity = appearance.OpacityPercent / 100d;
+        _placement.ApplyTaskbarVisibility(appearance.ShowInTaskbar);
+        if (_appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsAlwaysOnTop = appearance.AlwaysOnTop;
+        }
         UiLocalization.Apply(RootGrid, _strings);
         UiLocalization.Apply(ReferenceInstantFlyoutContent, _strings);
         Title = T("WorldClock.Landmark");
@@ -179,9 +195,10 @@ public sealed partial class WorldClockWindow : Window
         UpdateHeaderForSurface();
         NowButton.Content = T("WorldClock.RestoreNow");
         ApplyReferenceButton.Content = T("WorldClock.Apply");
-        UiLocalization.SetAccessibleLabel(OptionsButton, T("WorldClock.Options.Open"));
+        UiLocalization.SetAccessibleLabel(OptionsButton, T("Window.Menu"));
         UiLocalization.SetAccessibleLabel(HeaderBackButton, T("WorldClock.Options.Back"));
-        UiLocalization.SetAccessibleLabel(WorldMapButton, T("Celestial.Windows"));
+        UiLocalization.SetAccessibleLabel(WorldMapButton, T("Window.OpenView"));
+        ToolTipService.SetToolTip(WorldMapButton, T("Window.OpenView"));
         UiLocalization.SetAccessibleLabel(LunarPhaseButton, T("WorldClock.MoonPhase.Open"));
         ReferenceCityComboBox.Header = T("WorldClock.ReferenceCity");
         ReferenceDatePicker.Header = T("WorldClock.ReferenceDate");
@@ -203,7 +220,7 @@ public sealed partial class WorldClockWindow : Window
         AutomationProperties.SetName(WeatherAttributionButton, weatherAttribution);
         ToolTipService.SetToolTip(WeatherAttributionButton, weatherAttribution);
         _optionsControl?.ApplyLanguage(_strings);
-        _optionsControl?.ApplyState(settings, _snapshot, _referenceCityId, IsAlwaysOnTop());
+        _optionsControl?.ApplyState(settings, _snapshot, _referenceCityId);
         _titleBar.ApplyTheme(RootGrid.RequestedTheme == ElementTheme.Default ? RootGrid.ActualTheme : RootGrid.RequestedTheme);
         if (_snapshot is not null)
         {
@@ -213,18 +230,26 @@ public sealed partial class WorldClockWindow : Window
         _titleBar.QueueLayoutUpdate();
     }
 
-    /// <summary>Switches from clock columns to their preference surface.</summary>
-    private void OptionsButton_Click(object sender, RoutedEventArgs e) => ShowOptionsSurface();
+    /// <summary>Uses a common window menu with a local entry for managing clock cities.</summary>
+    internal void SetWindowMenu(MenuFlyout menu)
+    {
+        var manageCities = new MenuFlyoutItem { Icon = new SymbolIcon(Symbol.World) };
+        void ApplyLabel()
+        {
+            manageCities.Text = T("Window.ManageCities");
+            AutomationProperties.SetName(manageCities, manageCities.Text);
+        }
+        ApplyLabel();
+        menu.Opening += (_, _) => ApplyLabel();
+        manageCities.Click += (_, _) => ShowOptionsSurface();
+        menu.Items.Insert(0, manageCities);
+        menu.Items.Insert(1, new MenuFlyoutSeparator());
+        OptionsButton.Flyout = menu;
+    }
 
-    /// <summary>Returns from key setup to options or from options to the clock surface.</summary>
+    /// <summary>Returns from options to the clock surface.</summary>
     private async void HeaderBackButton_Click(object sender, RoutedEventArgs e)
     {
-        if (OptionsHost.Content is WeatherKeySetupControl)
-        {
-            OptionsHost.Content = _optionsControl;
-            return;
-        }
-
         await ShowClocksSurfaceAsync();
     }
 
@@ -235,6 +260,10 @@ public sealed partial class WorldClockWindow : Window
         {
             WorldMapRequested?.Invoke(this, EventArgs.Empty);
         }
+        else if (windowKey == WindowStateKeys.LunarPhase)
+        {
+            LunarPhaseRequested?.Invoke(this, EventArgs.Empty);
+        }
         else
         {
             CelestialWindowRequested?.Invoke(windowKey);
@@ -244,11 +273,14 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Requests the independent lunar phase window.</summary>
     private void LunarPhaseButton_Click(object sender, RoutedEventArgs e) => LunarPhaseRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Opens city and schedule configuration from the timesheet menu.</summary>
+    internal void ShowConfiguration() => ShowOptionsSurface();
+
     /// <summary>Shows preference controls and pauses clock-surface interaction.</summary>
     private void ShowOptionsSurface()
     {
         var options = EnsureOptionsControl();
-        options.ApplyState(_settings, _snapshot, _referenceCityId, IsAlwaysOnTop());
+        options.ApplyState(_settings, _snapshot, _referenceCityId);
         ClocksSurface.IsHitTestVisible = false;
         OptionsPanel.Visibility = Visibility.Visible;
         _layoutState.ShowSurface(WorldClockWindowSurface.Options);
@@ -294,13 +326,11 @@ public sealed partial class WorldClockWindow : Window
         }
 
         var options = new WorldClockOptionsControl();
-        options.RefreshRequested += OptionsControl_RefreshRequested;
         options.AddRequested += OptionsControl_AddRequested;
         options.ReferenceRequested += OptionsControl_ReferenceRequested;
         options.RemoveRequested += OptionsControl_RemoveRequested;
         options.MoveUpRequested += OptionsControl_MoveUpRequested;
         options.MoveDownRequested += OptionsControl_MoveDownRequested;
-        options.AlwaysOnTopChanged += OptionsControl_AlwaysOnTopChanged;
         options.SettingsSaved += OptionsControl_SettingsSaved;
         options.WarningRequested += OptionsControl_WarningRequested;
         options.ProviderLinkRequested += OptionsControl_ProviderLinkRequested;
@@ -310,24 +340,11 @@ public sealed partial class WorldClockWindow : Window
             _settings,
             _snapshot,
             _referenceCityId,
-            IsAlwaysOnTop(),
             _strings,
             _lifetimeCancellation.Token);
         OptionsHost.Content = options;
         _optionsControl = options;
         return options;
-    }
-
-    /// <summary>Refreshes live clocks or reapplies the current fixed-time preference state.</summary>
-    private async void OptionsControl_RefreshRequested(object? sender, EventArgs e)
-    {
-        if (_isLive)
-        {
-            await RefreshCurrentAsync();
-            return;
-        }
-
-        _optionsControl?.ApplyState(_settings, _snapshot, _referenceCityId, IsAlwaysOnTop());
     }
 
     /// <summary>Opens the picker to add a clock city.</summary>
@@ -352,17 +369,6 @@ public sealed partial class WorldClockWindow : Window
     private async void OptionsControl_MoveDownRequested(object? sender, WorldClockCityEventArgs e) =>
         await MoveCityAsync(e, WorldClockMoveDirection.Down);
 
-    /// <summary>Applies the topmost state and refreshes the preference presentation.</summary>
-    private void OptionsControl_AlwaysOnTopChanged(bool alwaysOnTop)
-    {
-        if (_appWindow.Presenter is OverlappedPresenter presenter)
-        {
-            presenter.IsAlwaysOnTop = alwaysOnTop;
-        }
-
-        _optionsControl?.ApplyState(_settings, _snapshot, _referenceCityId, IsAlwaysOnTop());
-    }
-
     /// <summary>Applies committed clock preferences and publishes them to the owner.</summary>
     private void OptionsControl_SettingsSaved(AppSettings settings)
     {
@@ -377,25 +383,8 @@ public sealed partial class WorldClockWindow : Window
     private async void OptionsControl_ProviderLinkRequested(object? sender, EventArgs e) =>
         await OpenWeatherProviderLinkAsync();
 
-    /// <summary>Shows weather-key setup and refreshes live weather after verification.</summary>
-    private async void OptionsControl_KeySetupRequested(object? sender, EventArgs e)
-    {
-        var setup = new WeatherKeySetupControl();
-        setup.Dismissed += async verified =>
-        {
-            OptionsHost.Content = _optionsControl;
-            if (verified && _isLive)
-            {
-                await RefreshCurrentAsync();
-            }
-        };
-        OptionsHost.Content = setup;
-        await setup.InitializeAsync(_application, _strings, _lifetimeCancellation.Token);
-    }
-
-    /// <summary>Reads the topmost state from the current overlapped presenter.</summary>
-    private bool IsAlwaysOnTop() =>
-        _appWindow.Presenter is OverlappedPresenter presenter && presenter.IsAlwaysOnTop;
+    /// <summary>Reveals the shared weather editor in global settings.</summary>
+    private void OptionsControl_KeySetupRequested(object? sender, EventArgs e) => WeatherSettingsRequested?.Invoke();
 
     /// <summary>Adapts header actions to the active surface and available width.</summary>
     private void UpdateHeaderForSurface()
@@ -671,7 +660,7 @@ public sealed partial class WorldClockWindow : Window
             _layoutState.ResetWindowSizing();
             NowButton.Visibility = Visibility.Collapsed;
             UpdateWeatherStatus(snapshot.WeatherStatus);
-            _optionsControl?.ApplyState(_settings, snapshot, null, IsAlwaysOnTop());
+            _optionsControl?.ApplyState(_settings, snapshot, null);
             ShowLoading(false);
             UpdateRefreshTimerState();
             return;
@@ -701,7 +690,7 @@ public sealed partial class WorldClockWindow : Window
 
         NowButton.Visibility = Visibility.Visible;
         UpdateWeatherStatus(snapshot.WeatherStatus);
-        _optionsControl?.ApplyState(_settings, snapshot, _referenceCityId, IsAlwaysOnTop());
+        _optionsControl?.ApplyState(_settings, snapshot, _referenceCityId);
         UpdateRefreshTimerState();
     }
 
@@ -1412,13 +1401,11 @@ public sealed partial class WorldClockWindow : Window
 
         if (_optionsControl is not null)
         {
-            _optionsControl.RefreshRequested -= OptionsControl_RefreshRequested;
             _optionsControl.AddRequested -= OptionsControl_AddRequested;
             _optionsControl.ReferenceRequested -= OptionsControl_ReferenceRequested;
             _optionsControl.RemoveRequested -= OptionsControl_RemoveRequested;
             _optionsControl.MoveUpRequested -= OptionsControl_MoveUpRequested;
             _optionsControl.MoveDownRequested -= OptionsControl_MoveDownRequested;
-            _optionsControl.AlwaysOnTopChanged -= OptionsControl_AlwaysOnTopChanged;
             _optionsControl.SettingsSaved -= OptionsControl_SettingsSaved;
             _optionsControl.WarningRequested -= OptionsControl_WarningRequested;
             _optionsControl.ProviderLinkRequested -= OptionsControl_ProviderLinkRequested;

@@ -53,10 +53,6 @@ extraction, CLI and UI startup on clean Windows x64 and ARM64 machines without .
 or Windows App SDK preinstalled. Cross-compilation does not prove native ARM64
 execution. Publish a reviewed draft only after an explicit owner request.
 
-Historical evidence: the extracted x64 `v1.0.900` portable reported its version with
-exit code zero on the development workstation. That check did not establish full UI
-startup on a clean machine; native ARM64 execution was not verified.
-
 ## Local portable preparation and cleanup
 
 When explicitly requested, use `WorkTrail.ps1 -Action PublishUnpackaged` and
