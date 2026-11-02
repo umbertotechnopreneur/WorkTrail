@@ -19,6 +19,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using WorkTrail.Application;
 
 namespace WorkTrail.Services;
 
@@ -28,14 +29,6 @@ public sealed record TrayIconMenuLabels(string ShowMainWindow, string HideMainWi
 /// <summary>Identifies application commands forwarded from the native notification-area menu.</summary>
 public enum TrayIconMenuCommand : uint
 {
-    /// <summary>Shows international clocks.</summary>
-    WorldClocks = 6,
-    /// <summary>Shows the astronomical calendar.</summary>
-    AstronomicalCalendar = 7,
-    /// <summary>Shows the day/night map.</summary>
-    DayNightMap = 8,
-    /// <summary>Shows the day/night globe.</summary>
-    DayNightGlobe = 9,
     /// <summary>Shows application settings.</summary>
     Settings = 10,
     /// <summary>Shows About.</summary>
@@ -47,10 +40,7 @@ public enum TrayIconMenuCommand : uint
 /// <summary>Contains current localized action labels and availability for one tray menu opening.</summary>
 public sealed record TrayIconMenuState(
     string ShowAllWindows,
-    string WorldClocks,
-    string AstronomicalCalendar,
-    string DayNightMap,
-    string DayNightGlobe,
+    IReadOnlyDictionary<string, string> ViewLabels,
     string Settings,
     string About,
     bool WorkspaceReady);
@@ -84,6 +74,7 @@ public sealed class TrayIconService : IDisposable
     private const uint TrackPopupMenuWorkArea = 0x10000;
     private const uint MenuCommandToggleWindow = 1;
     private const uint MenuCommandCloseApplication = 2;
+    private const uint MenuCommandFirstView = 100;
     private const uint NullWindowMessage = 0;
     private const int ShowWindowHide = 0;
     private const int ShowWindowNormal = 1;
@@ -127,6 +118,9 @@ public sealed class TrayIconService : IDisposable
 
     /// <summary>Occurs when an application action is selected; handlers must defer work until the native callback returns.</summary>
     public event Action<TrayIconMenuCommand>? CommandRequested;
+
+    /// <summary>Occurs when a canonical desktop view is selected; handlers must defer work until the native callback returns.</summary>
+    public event Action<string>? ViewRequested;
 
     #endregion
 
@@ -418,6 +412,7 @@ public sealed class TrayIconService : IDisposable
 
         try
         {
+            IReadOnlyList<WindowViewDefinition> views = [];
             var toggleText = IsWindowVisible(_windowHandle)
                 ? _menuLabels.HideMainWindow
                 : _menuLabels.ShowMainWindow;
@@ -426,11 +421,11 @@ public sealed class TrayIconService : IDisposable
             {
                 AppendCommand(menu, (uint)TrayIconMenuCommand.ShowAllWindows, state.ShowAllWindows, state.WorkspaceReady);
                 AppendSeparator(menu);
-                AppendSeparator(menu);
-                AppendCommand(menu, (uint)TrayIconMenuCommand.WorldClocks, state.WorldClocks, state.WorkspaceReady);
-                AppendCommand(menu, (uint)TrayIconMenuCommand.AstronomicalCalendar, state.AstronomicalCalendar, state.WorkspaceReady);
-                AppendCommand(menu, (uint)TrayIconMenuCommand.DayNightMap, state.DayNightMap, state.WorkspaceReady);
-                AppendCommand(menu, (uint)TrayIconMenuCommand.DayNightGlobe, state.DayNightGlobe, state.WorkspaceReady);
+                views = WindowViewCatalog.All;
+                for (var index = 0; index < views.Count; index++)
+                {
+                    AppendCommand(menu, MenuCommandFirstView + (uint)index, state.ViewLabels[views[index].WindowKey], state.WorkspaceReady);
+                }
                 AppendSeparator(menu);
                 AppendCommand(menu, (uint)TrayIconMenuCommand.Settings, state.Settings, state.WorkspaceReady);
                 AppendCommand(menu, (uint)TrayIconMenuCommand.About, state.About, state.WorkspaceReady);
@@ -459,6 +454,10 @@ public sealed class TrayIconService : IDisposable
             else if (command == MenuCommandCloseApplication)
             {
                 ExitRequested?.Invoke(this, EventArgs.Empty);
+            }
+            else if (command >= MenuCommandFirstView && command - MenuCommandFirstView < (uint)views.Count)
+            {
+                ViewRequested?.Invoke(views[(int)(command - MenuCommandFirstView)].WindowKey);
             }
             else if (Enum.IsDefined(typeof(TrayIconMenuCommand), command))
             {

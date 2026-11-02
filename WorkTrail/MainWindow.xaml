@@ -129,13 +129,13 @@
                                     Style="{StaticResource LauncherTileStyle}" PointerEntered="LauncherTile_PointerEntered"
                                     PointerExited="LauncherTile_PointerExited" PointerCanceled="LauncherTile_PointerExited" Click="Planner_Click">
                                 <StackPanel Spacing="5" VerticalAlignment="Center">
-                                    <TextBlock Tag="Planner.Title" Text="World availability" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
-                                    <TextBlock Tag="Launcher.PlannerDescription" Text="Compare city availability, Moon and weather. Export to PDF." FontSize="14" Foreground="{ThemeResource LauncherTileDescriptionBrush}"
+                                    <TextBlock Tag="Planner.Title" Text="World Timesheet" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                                    <TextBlock Tag="Launcher.PlannerDescription" Text="Compare time zones, availability, Moon and weather. Print or save as PDF." FontSize="14" Foreground="{ThemeResource LauncherTileDescriptionBrush}"
                                                TextWrapping="Wrap" MaxLines="2" />
                                 </StackPanel>
                             </Button>
                             <Rectangle Style="{StaticResource LauncherCornerArtStyle}">
-                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/world-clocks-v1.png" /></Rectangle.Fill>
+                                <Rectangle.Fill><controls:LauncherArtworkBrush Source="ms-appx:///Assets/Launcher/world-timesheet-v1.png" /></Rectangle.Fill>
                             </Rectangle>
                         </Grid>
                         <Grid x:Name="ClocksTile" Grid.Row="0" Grid.Column="0" Height="112">
@@ -243,6 +243,7 @@
                                 <TextBlock Tag="Launcher.Settings" Text="Settings" VerticalAlignment="Center" />
                             </StackPanel>
                         </Expander.Header>
+                        <StackPanel Spacing="18">
                         <Grid x:Name="SettingsGrid" ColumnSpacing="24" RowSpacing="18">
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -266,6 +267,8 @@
                                 <Button Tag="WeatherSetup.Key" Content="OpenWeather API key" AutomationProperties.AutomationId="Launcher.WeatherKey" Click="WeatherKey_Click" />
                             </StackPanel>
                         </Grid>
+                        <ContentControl x:Name="WeatherSettingsHost" Visibility="Collapsed" HorizontalContentAlignment="Stretch" />
+                        </StackPanel>
                     </Expander>
                     <InfoBar x:Name="StatusBar" IsOpen="False" Severity="Error" IsClosable="True" />
                     <Grid x:Name="LauncherFooter" ColumnSpacing="12" RowSpacing="10">

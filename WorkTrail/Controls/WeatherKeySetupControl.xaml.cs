@@ -15,6 +15,7 @@ public sealed partial class WeatherKeySetupControl : UserControl
     private LocalizationService _strings = null!;
     private CancellationTokenSource? _lifetime;
     private bool _busy;
+    private bool _saved;
 
     #endregion
 
@@ -28,6 +29,7 @@ public sealed partial class WeatherKeySetupControl : UserControl
 {
     _lifetime?.Cancel();
     _lifetime?.Dispose();
+    _lifetime = null;
     KeyBox.Password = "";
 };
     }
@@ -39,15 +41,25 @@ public sealed partial class WeatherKeySetupControl : UserControl
     /// <summary>Returns to world-clock options after save or cancellation.</summary>
     public event Action<bool>? Dismissed;
 
+    /// <summary>Publishes a verified and persisted key so open widgets can refresh immediately.</summary>
+    public event Action? Saved;
+
     /// <summary>Initializes the weather-only editor without requesting provider data.</summary>
     public Task InitializeAsync(IWorkTrailApplication application, LocalizationService strings, CancellationToken ownerToken)
     {
         _application = application;
-        _strings = strings;
         _lifetime = CancellationTokenSource.CreateLinkedTokenSource(ownerToken);
-        UiLocalization.Apply(RootPanel, strings);
-        UiLocalization.SetAccessibleLabel(KeyBox, strings.Translate("WeatherSetup.Key"));
+        ApplyLanguage(strings);
         return Task.CompletedTask;
+    }
+
+    /// <summary>Refreshes the editor labels when the global language changes.</summary>
+    public void ApplyLanguage(LocalizationService strings)
+    {
+        _strings = strings;
+        UiLocalization.Apply(RootPanel, strings);
+        KeyBox.Header = strings.Translate("WeatherSetup.Key");
+        UiLocalization.SetAccessibleLabel(KeyBox, strings.Translate("WeatherSetup.Key"));
     }
 
     /// <summary>Saves and verifies the entered weather-provider key through the application facade.</summary>
@@ -58,36 +70,50 @@ public sealed partial class WeatherKeySetupControl : UserControl
             return;
         }
         _busy = true;
-        SaveButton.IsEnabled = BackButton.IsEnabled = false;
+        var lifetime = _lifetime;
+        SaveButton.IsEnabled = BackButton.IsEnabled = KeyBox.IsEnabled = false;
+        StatusBar.IsOpen = false;
+        ProgressPanel.Visibility = Visibility.Visible;
+        VerificationProgress.IsActive = true;
         try
         {
-            var result = await _application.SetWorldClockWeatherKeyAsync(KeyBox.Password, _lifetime.Token);
-            if (_lifetime.IsCancellationRequested)
+            var result = await _application.SetWorldClockWeatherKeyAsync(KeyBox.Password, lifetime.Token);
+            if (lifetime.IsCancellationRequested)
             {
                 return;
             }
             if (result.Succeeded)
             {
                 KeyBox.Password = "";
-                Dismissed?.Invoke(true);
+                _saved = true;
+                StatusBar.Severity = InfoBarSeverity.Success;
+                StatusBar.Message = _strings.Translate(result.MessageKey);
+                StatusBar.IsOpen = true;
+                Saved?.Invoke();
             }
             else
             {
+                StatusBar.Severity = InfoBarSeverity.Error;
                 StatusBar.Message = _strings.Translate(result.MessageKey);
                 StatusBar.IsOpen = true;
             }
         }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
         {
+            StatusBar.Severity = InfoBarSeverity.Error;
+            StatusBar.Message = _strings.Translate("WeatherSetup.SaveFailed");
+            StatusBar.IsOpen = true;
             ApplicationErrorService.Report(exception, "WeatherKey", _strings.RequestedLanguage);
         }
         finally
         {
             _busy = false;
-            SaveButton.IsEnabled = BackButton.IsEnabled = true;
+            VerificationProgress.IsActive = false;
+            ProgressPanel.Visibility = Visibility.Collapsed;
+            SaveButton.IsEnabled = BackButton.IsEnabled = KeyBox.IsEnabled = true;
         }
     }
 
@@ -99,6 +125,7 @@ public sealed partial class WeatherKeySetupControl : UserControl
             var result = await _application.OpenProductLinkAsync("openweather-keys", _lifetime?.Token ?? CancellationToken.None);
             if (!result.Succeeded)
             {
+                StatusBar.Severity = InfoBarSeverity.Error;
                 StatusBar.Message = _strings.Translate(result.MessageKey);
                 StatusBar.IsOpen = true;
             }
@@ -112,8 +139,8 @@ public sealed partial class WeatherKeySetupControl : UserControl
         }
     }
 
-    /// <summary>Dismisses key setup without reporting a newly verified key.</summary>
-    private void Back_Click(object sender, RoutedEventArgs args) => Dismissed?.Invoke(false);
+    /// <summary>Closes the editor after the user has had time to read the result.</summary>
+    private void Back_Click(object sender, RoutedEventArgs args) => Dismissed?.Invoke(_saved);
 
     #endregion
 }

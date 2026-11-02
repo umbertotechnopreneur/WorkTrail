@@ -127,6 +127,7 @@ public sealed partial class AboutWindow : Window
             }
 
             VersionText.Text = result.Value.Build.PackageVersion;
+            CalendarCountText.Text = _strings.Format("About.CalendarCount", result.Value.CalendarCountryCount);
             BuiltAtText.Text = result.Value.Build.BuiltAtLocal.ToString("g", _strings.Culture);
             CommitText.Text = result.Value.Build.GitCommitShort;
             DirtyIndicator.Visibility = result.Value.Build.GitDirty ? Visibility.Visible : Visibility.Collapsed;
@@ -134,6 +135,10 @@ public sealed partial class AboutWindow : Window
         catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
         {
             // The window is closing; no presentation update is required.
+        }
+        catch (Exception error)
+        {
+            ApplicationErrorService.Report(error, "AboutProductInformation", _strings.RequestedLanguage);
         }
     }
 

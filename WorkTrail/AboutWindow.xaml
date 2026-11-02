@@ -127,8 +127,11 @@ VBWR E -->
                                 Tag="About.Description"
                                 FontSize="15"
                                 Opacity="0.82"
-                                Text="Retrace your day, find past desktop activity, and pick up where you left off."
+                                Text="Open the tools you need. Each widget keeps its own window and position."
                                 TextWrapping="WrapWholeWords" />
+
+                            <TextBlock x:Name="CalendarCountText" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock Tag="About.CalendarScope" FontSize="12" Opacity="0.8" TextWrapping="Wrap" />
 
                             <Grid ColumnSpacing="18" RowSpacing="5">
                                 <Grid.ColumnDefinitions>

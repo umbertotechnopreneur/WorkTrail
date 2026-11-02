@@ -1100,15 +1100,15 @@ internal sealed class OpenWeatherCurrentProvider : IWorldClockWeatherProvider
             : (null, "invalid-api-key");
     }
 
-    /// <summary>Reads credentials in process, user, then machine scope without logging their values.</summary>
+    /// <summary>Reads the saved user credential before inherited process and machine configuration.</summary>
     private static (string? ApiKey, string State) ReadEnvironmentConfiguration()
     {
         try
         {
             foreach (var target in new[]
                      {
-                         EnvironmentVariableTarget.Process,
                          EnvironmentVariableTarget.User,
+                         EnvironmentVariableTarget.Process,
                          EnvironmentVariableTarget.Machine
                      })
             {

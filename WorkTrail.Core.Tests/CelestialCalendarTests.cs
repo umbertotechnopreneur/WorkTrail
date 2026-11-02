@@ -42,8 +42,12 @@ public sealed class CelestialCalendarTests
 
         Assert.Equal(new DateOnly(2026, 1, 1), catalog.CoverageStart);
         Assert.Equal(new DateOnly(2028, 3, 31), catalog.CoverageEnd);
-        Assert.Equal(17, catalog.Countries.Count);
-        Assert.Equal(565, catalog.Holidays.Count);
+        Assert.Equal(49, catalog.Countries.Count);
+        Assert.Equal(1512, catalog.Holidays.Count);
+        Assert.Equal(17, catalog.Holidays.Count(h => h.Country == "HK" && h.Date.Year == 2027));
+        Assert.Equal(18, catalog.Holidays.Count(h => h.Country == "ID" && h.Date.Year == 2027));
+        Assert.All(catalog.Countries.Where(c => c.Code is "HK" or "ID"),
+            c => Assert.Equal(new DateOnly(2027, 12, 31), c.CoverageEnd));
         Assert.Equal(211, catalog.Saints.Count);
         Assert.All(catalog.Holidays, holiday => Assert.Matches("^[A-Za-z0-9._-]+\\.png$", holiday.ArtworkFileName));
         Assert.Contains(catalog.Holidays, holiday => holiday.ArtworkFileName == "new-year-v1.png");

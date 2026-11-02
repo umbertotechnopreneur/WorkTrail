@@ -27,15 +27,17 @@ public sealed class PlannerCityHeader : UserControl
             Stretch = Stretch.Uniform,
             IsHitTestVisible = false
         });
-        panel.Children.Add(Label((clock.CityId == referenceId ? "⌂ " : "") + clock.CityName, 17, true));
-        panel.Children.Add(Label($"{clock.CountryCode}  UTC{clock.LocalTime:zzz}", 11));
-        panel.Children.Add(Label(clock.LocalTime.ToString("HH:mm", strings.Culture), 23, true));
-        panel.Children.Add(Label(clock.LocalTime.ToString("ddd d MMM", strings.Culture), 11));
+        panel.Children.Add(Label((clock.CityId == referenceId ? "⌂ " : "") + clock.CityName, 18, true));
+        panel.Children.Add(Label($"{clock.CountryCode}  UTC{clock.LocalTime:zzz}", 12));
+        panel.Children.Add(Label(clock.LocalTime.ToString("HH:mm", strings.Culture), 25, true));
+        var localDate = Label(clock.LocalTime.ToString("ddd d MMM", strings.Culture), 13);
+        if (city.IsNonWorkingDay) localDate.Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorCriticalBrush"];
+        panel.Children.Add(localDate);
         var weather = clock.Weather;
         var weatherText = weather is { IsFresh: true }
             ? $"{WeatherGlyph(weather.ConditionKey)}  {weather.TemperatureCelsius.ToString("0", strings.Culture)}°C  {strings.Translate("WorldClock.WeatherCondition." + weather.ConditionKey)}"
             : strings.Translate("WorldClock.WeatherNoData");
-        var weatherLabel = Label(weatherText, 12);
+        var weatherLabel = Label(weatherText, 13);
         weatherLabel.TextWrapping = TextWrapping.Wrap;
         ToolTipService.SetToolTip(weatherLabel, weather is null ? weatherText
             : strings.Format("Planner.WeatherObserved", weather.ObservedAtUtc.ToString("g", strings.Culture) + " UTC"));
@@ -46,7 +48,7 @@ public sealed class PlannerCityHeader : UserControl
             Content = hours + "  ⚙",
             HorizontalAlignment = HorizontalAlignment.Center,
             Padding = new Thickness(6, 2, 6, 2),
-            FontSize = 12
+            FontSize = 13
         };
         UiLocalization.SetAccessibleLabel(edit, strings.Format("Planner.EditCity", clock.CityName));
         edit.Click += (_, _) => ScheduleRequested?.Invoke(city);

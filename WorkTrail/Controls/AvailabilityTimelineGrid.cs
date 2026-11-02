@@ -13,22 +13,11 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
 {
     /// <summary>Gets the shared logical column width used by headers and timeline cells.</summary>
     public const double CityWidth = 178;
-    private readonly StackPanel _headers = new() { Orientation = Orientation.Horizontal };
-    private readonly StackPanel _utcLabels = new();
-    private readonly ScrollViewer _gutter = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, HorizontalScrollMode = ScrollMode.Disabled, IsHitTestVisible = false };
-    private readonly ListView _rows = new() { SelectionMode = ListViewSelectionMode.Single, IsItemClickEnabled = true };
-    private readonly ScrollViewer _horizontal = new()
-    {
-        HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-        HorizontalScrollMode = ScrollMode.Enabled,
-        VerticalScrollMode = ScrollMode.Disabled,
-        VerticalScrollBarVisibility = ScrollBarVisibility.Disabled
-    };
     private ScrollViewer? _vertical;
     private AvailabilityPlannerSnapshot? _snapshot;
     private LocalizationService? _strings;
     private int _visibleHours = 24;
-    private double _rowHeight = 30;
+    private double _rowHeight = 44;
     private bool _rendering;
 
     /// <summary>Occurs when the user selects a shared UTC interval.</summary>
@@ -45,52 +34,23 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
     public AvailabilityTimelineGrid()
     {
         InitializeComponent();
-        var root = new Grid();
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(82) });
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var timeline = new Grid();
-        timeline.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        timeline.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        timeline.Children.Add(_headers);
-        Grid.SetRow(_rows, 1);
-        timeline.Children.Add(_rows);
-        _horizontal.Content = timeline;
-        Grid.SetColumn(_horizontal, 1);
-        root.Children.Add(_horizontal);
-        var gutterLayout = new Grid();
-        gutterLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(260) });
-        gutterLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        gutterLayout.Children.Add(new TextBlock
+        CityHeaders.SizeChanged += (_, e) => GutterHeaderRow.Height = new GridLength(e.NewSize.Height);
+        TimelineRows.SelectionChanged += (_, _) =>
         {
-            Text = "UTC",
-            VerticalAlignment = VerticalAlignment.Bottom,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 12)
-        });
-        _gutter.Content = _utcLabels;
-        Grid.SetRow(_gutter, 1);
-        gutterLayout.Children.Add(_gutter);
-        root.Children.Add(gutterLayout);
-        _headers.SizeChanged += (_, e) => gutterLayout.RowDefinitions[0].Height = new GridLength(e.NewSize.Height);
-        _rows.ItemTemplate = (DataTemplate)Resources["AvailabilityRowTemplate"];
-        var style = new Style(typeof(ListViewItem));
-        style.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(0)));
-        style.Setters.Add(new Setter(ListViewItem.MarginProperty, new Thickness(0)));
-        style.Setters.Add(new Setter(ListViewItem.MinHeightProperty, 0d));
-        style.Setters.Add(new Setter(ListViewItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
-        _rows.ItemContainerStyle = style;
-        _rows.SelectionChanged += (_, _) =>
-        {
-            if (!_rendering && _rows.SelectedItem is AvailabilityRowPresentation item) SelectionChanged?.Invoke(item.Row);
+            if (!_rendering && TimelineRows.SelectedItem is AvailabilityRowPresentation item) SelectionChanged?.Invoke(item.Row);
         };
-        _rows.Loaded += (_, _) =>
+        TimelineRows.Loaded += (_, _) =>
         {
-            _vertical = FindScrollViewer(_rows);
+            _vertical = FindScrollViewer(TimelineRows);
             if (_vertical is not null) _vertical.ViewChanged += SyncGutter;
         };
-        _rows.Unloaded += (_, _) => { if (_vertical is not null) _vertical.ViewChanged -= SyncGutter; _vertical = null; };
-        SizeChanged += (_, _) => UpdateDensity();
-        Content = root;
+        TimelineRows.Unloaded += (_, _) => { if (_vertical is not null) _vertical.ViewChanged -= SyncGutter; _vertical = null; };
+        TimelineRows.SizeChanged += (_, e) =>
+        {
+            // A horizontal scrollbar reduces the rows' viewport; UTC must keep the same scrollable extent.
+            GutterScroller.Height = e.NewSize.Height;
+            UpdateDensity();
+        };
     }
 
     /// <summary>Updates city headers and rows while optionally retaining the explored scroll position.</summary>
@@ -103,25 +63,27 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
         _snapshot = snapshot;
         _strings = strings;
         _visibleHours = visibleHours;
-        _headers.Children.Clear();
+        CityHeaders.Children.Clear();
         foreach (var city in snapshot.Cities)
         {
             var header = new PlannerCityHeader { Width = CityWidth };
             header.Apply(city, snapshot.ReferenceCityId, strings);
             header.ScheduleRequested += item => ScheduleRequested?.Invoke(item);
-            _headers.Children.Add(header);
+            CityHeaders.Children.Add(header);
         }
-        _rows.Width = CityWidth * snapshot.Cities.Count;
-        AutomationProperties.SetName(_rows, strings.Translate("Planner.Title"));
+        TimelineSurface.Width = CityWidth * snapshot.Cities.Count;
+        AutomationProperties.SetName(TimelineRows, strings.Translate("Planner.Title"));
+        _rowHeight = DesiredRowHeight();
         RebuildRows();
         DispatcherQueue.TryEnqueue(() =>
         {
             if (!ReferenceEquals(_snapshot, snapshot)) return;
+            TimelineRows.UpdateLayout();
             if (navigate)
             {
                 var row = snapshot.Rows.FirstOrDefault(r => r.StartUtc <= snapshot.InstantUtc && r.EndUtc > snapshot.InstantUtc);
-                var item = (_rows.ItemsSource as AvailabilityRowPresentation[])?.FirstOrDefault(i => i.Row == row);
-                if (item is not null) { _rows.SelectedItem = item; _rows.ScrollIntoView(item, ScrollIntoViewAlignment.Leading); }
+                var item = (TimelineRows.ItemsSource as AvailabilityRowPresentation[])?.FirstOrDefault(i => i.Row == row);
+                if (item is not null) { TimelineRows.SelectedItem = item; TimelineRows.ScrollIntoView(item, ScrollIntoViewAlignment.Leading); }
             }
             else
             {
@@ -134,7 +96,7 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
     private void UpdateDensity()
     {
         if (_snapshot is null) return;
-        var height = Math.Max(28, Math.Min(48, (ActualHeight - _headers.ActualHeight - 18) / (_visibleHours * 60d / _snapshot.StepMinutes)));
+        var height = DesiredRowHeight();
         if (Math.Abs(height - _rowHeight) < 1) return;
         var rowOffset = (_vertical?.VerticalOffset ?? 0) / _rowHeight;
         _rowHeight = height;
@@ -142,32 +104,41 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
         _vertical?.ChangeView(null, rowOffset * _rowHeight, null, true);
     }
 
+    private double DesiredRowHeight() => _snapshot is null ? 44
+        : Math.Clamp(TimelineRows.ActualHeight / (_visibleHours * 60d / _snapshot.StepMinutes), 44, 56);
+
     private void RebuildRows()
     {
         if (_snapshot is null || _strings is null) return;
-        var selected = (_rows.SelectedItem as AvailabilityRowPresentation)?.Row.StartUtc;
+        var selected = (TimelineRows.SelectedItem as AvailabilityRowPresentation)?.Row.StartUtc;
         _rendering = true;
+        // Fix container height before realization: recycled templates can initially measure as empty.
+        // The virtualizer and the UTC gutter must use the same extent, including off-screen rows.
+        var style = new Style(typeof(ListViewItem)) { BasedOn = (Style)Resources["TimelineItemStyle"] };
+        style.Setters.Add(new Setter(ListViewItem.HeightProperty, _rowHeight));
+        TimelineRows.ItemContainerStyle = style;
         var items = _snapshot.Rows.Select(row => new AvailabilityRowPresentation(row, _snapshot.Cities, _strings, _rowHeight)).ToArray();
-        _rows.ItemsSource = items;
-        _rows.SelectedItem = items.FirstOrDefault(i => i.Row.StartUtc == selected);
-        _utcLabels.Children.Clear();
+        TimelineRows.ItemsSource = items;
+        TimelineRows.SelectedItem = items.FirstOrDefault(i => i.Row.StartUtc == selected);
+        UtcLabels.Children.Clear();
         foreach (var row in _snapshot.Rows)
         {
             var now = row.StartUtc <= _snapshot.NowUtc && row.EndUtc > _snapshot.NowUtc;
             var label = new TextBlock
             {
-                Text = (now ? "● " : "") + row.StartUtc.ToString(row.StartUtc.TimeOfDay == TimeSpan.Zero ? "d MMM\nHH:mm" : "HH:mm", _strings.Culture),
-                FontSize = 12,
+                Text = (now ? "● " : "") + row.StartUtc.ToString("HH:mm\nddd d MMM", _strings.Culture),
+                FontSize = 14,
+                TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             ToolTipService.SetToolTip(label, row.StartUtc.ToString("ddd d MMM HH:mm", _strings.Culture) + " UTC");
-            _utcLabels.Children.Add(new Border { Height = _rowHeight, Child = label });
+            UtcLabels.Children.Add(new Border { Height = _rowHeight, Child = label });
         }
         _rendering = false;
     }
 
-    private void SyncGutter(object? sender, ScrollViewerViewChangedEventArgs e) => _gutter.ChangeView(null, _vertical?.VerticalOffset, null, true);
+    private void SyncGutter(object? sender, ScrollViewerViewChangedEventArgs e) => GutterScroller.ChangeView(null, _vertical?.VerticalOffset, null, true);
 
     private static ScrollViewer? FindScrollViewer(DependencyObject root)
     {

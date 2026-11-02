@@ -160,7 +160,7 @@ public sealed class WorldClockApplicationServiceTests
 
         var invalid = await service.SetWeatherKeyAsync("short", CancellationToken.None);
         var secret = new string('a', 32);
-        var stored = await service.SetWeatherKeyAsync(secret, CancellationToken.None);
+        var stored = await service.SetWeatherKeyAsync("  " + secret + "\r\n", CancellationToken.None);
 
         Assert.False(invalid.Succeeded);
         Assert.Equal("world_clocks.weather.key.invalid", invalid.Code);
@@ -173,6 +173,8 @@ public sealed class WorldClockApplicationServiceTests
         Assert.Equal("world_clocks.weather.key.stored", stored.Code);
         Assert.Equal(OpenWeatherCurrentProvider.ApiKeyEnvironmentVariable, stored.Value);
         Assert.DoesNotContain(secret, JsonSerializer.Serialize(stored), StringComparison.Ordinal);
+        AssertLocalized(invalid.MessageKey);
+        AssertLocalized(stored.MessageKey);
     }
 
     /// <summary>Ensures rejected or unverifiable keys never reach the Windows environment writer.</summary>
@@ -195,6 +197,7 @@ public sealed class WorldClockApplicationServiceTests
         Assert.False(result.Succeeded);
         Assert.Equal(expectedCode, result.Code);
         Assert.Empty(writes);
+        AssertLocalized(result.MessageKey);
     }
 
     /// <summary>A quota response cannot verify a candidate or replace a previously working key.</summary>
@@ -212,6 +215,14 @@ public sealed class WorldClockApplicationServiceTests
         Assert.False(result.Succeeded);
         Assert.Equal("world_clocks.weather.key.rate_limited", result.Code);
         Assert.Empty(writes);
+        AssertLocalized(result.MessageKey);
+    }
+
+    /// <summary>Ensures a provider outcome can be shown in every supported language.</summary>
+    private static void AssertLocalized(string key)
+    {
+        foreach (var locale in LocalizationService.SupportedLanguages)
+            Assert.False(string.IsNullOrWhiteSpace(new LocalizationService(locale).Translate(key)));
     }
 
     /// <summary>Creates the application service with test-controlled selection persistence and weather validation.</summary>

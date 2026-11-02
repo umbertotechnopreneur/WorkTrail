@@ -33,7 +33,8 @@ public sealed class LocalizationServiceTests
         var strings = new LocalizationService(locale);
         foreach (var key in new[] { "Launcher.Settings", "Launcher.Clocks", "Launcher.Calendar", "Launcher.Sky",
             "Launcher.Moon", "Launcher.Map", "Launcher.Globe", "Launcher.Startup", "Launcher.Snapping", "Launcher.Theme",
-            "Launcher.Language", "WeatherSetup.Title", "WeatherSetup.Key", "WeatherSetup.Save" })
+            "Launcher.Language", "WeatherSetup.Title", "WeatherSetup.Key", "WeatherSetup.Save",
+            "WeatherSetup.Verifying", "WeatherSetup.SaveFailed", "WeatherSetup.Close", "About.CalendarScope" })
 
         {
             Assert.NotEqual(key, strings.Translate(key));
@@ -43,6 +44,15 @@ public sealed class LocalizationServiceTests
         {
             Assert.NotEqual(pair.Value, strings.Translate(pair.Value));
         }
+        foreach (var key in WindowViewCatalog.All.Select(view => view.LabelKey)
+            .Concat(CelestialCalendarCountries.All.Select(country => "Calendar.Country." + country.Code))
+            .Concat(new[] { "Window.Menu", "Window.OpenView", "Window.Options", "Window.AlwaysOnTop", "Window.Opacity",
+                "Window.AppSettings", "Window.ManageCities", "Window.CalendarSettings", "Window.ShowInTaskbar", "Calendar.SearchCountries" }))
+        {
+            Assert.NotEqual(key, strings.Translate(key));
+            Assert.False(string.IsNullOrWhiteSpace(strings.Translate(key)));
+        }
+        Assert.DoesNotContain("{0}", strings.Format("Calendar.SelectedCountries", 1), StringComparison.Ordinal);
     }
 
     /// <summary>Every dynamic identity displayed by sky, agenda, and clocks resolves in every shipped language.</summary>
@@ -72,7 +82,8 @@ public sealed class LocalizationServiceTests
             .Concat(CatalogKeys("meteor-showers", "showers", "CelestialMeteor"))
             .Concat(CatalogKeys("important-dates", "dates", "CelestialImportantDate"))
             .Concat(new[] { "WorldClock.Week", "Dialog.Save", "Launcher.CloseTitle", "Launcher.CloseMessage",
-                "Launcher.CloseToTray", "Launcher.Exit", "Welcome.Title", "Welcome.Message", "Welcome.Manual", "Welcome.Continue" });
+                "Launcher.CloseToTray", "Launcher.Exit", "Welcome.Title", "Welcome.Message", "Welcome.Manual", "Welcome.Continue",
+                "Planner.Title", "Planner.CalendarUnknown", "Planner.State.Unknown" });
         foreach (var key in keys)
         {
             Assert.False(string.IsNullOrWhiteSpace(strings.Translate(key)), key);

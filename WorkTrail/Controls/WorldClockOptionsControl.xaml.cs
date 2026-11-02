@@ -42,8 +42,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
     private int _worldClockOpacityPercent = 100;
     private int _pendingWorldClockOpacityPercent = 100;
     private bool _worldClockShowInTaskbar = true;
-    private bool _worldMapShowInTaskbar = true;
-    private bool _lunarPhaseShowInTaskbar = true;
+    private bool _worldClockAlwaysOnTop;
 
     #endregion
 
@@ -55,9 +54,6 @@ public sealed partial class WorldClockOptionsControl : UserControl
     #endregion
 
     #region Implementation
-
-    /// <summary>Occurs when the selected clocks must be refreshed.</summary>
-    public event EventHandler? RefreshRequested;
 
     /// <summary>Occurs when the city picker should be shown.</summary>
     public event EventHandler? AddRequested;
@@ -73,9 +69,6 @@ public sealed partial class WorldClockOptionsControl : UserControl
 
     /// <summary>Occurs when a city should move one position toward the end of the list.</summary>
     public event EventHandler<WorldClockCityEventArgs>? MoveDownRequested;
-
-    /// <summary>Occurs when the native always-on-top presenter state should change.</summary>
-    public event Action<bool>? AlwaysOnTopChanged;
 
     /// <summary>Occurs after the application returns a fully persisted settings snapshot.</summary>
     public event Action<AppSettings>? SettingsSaved;
@@ -95,7 +88,6 @@ public sealed partial class WorldClockOptionsControl : UserControl
         AppSettings settings,
         WorldClockSnapshot? snapshot,
         string? referenceCityId,
-        bool alwaysOnTop,
         LocalizationService strings,
         CancellationToken lifetimeToken)
     {
@@ -106,31 +98,26 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _lifetimeToken = lifetimeToken;
         UiLocalization.Apply(this, _strings);
         ApplyLocalizedPresentation();
-        ApplyState(settings, snapshot, referenceCityId, alwaysOnTop);
+        ApplyState(settings, snapshot, referenceCityId);
     }
 
-    /// <summary>Refreshes controls from the latest settings, projection, and native presenter state.</summary>
+    /// <summary>Refreshes controls from the latest committed preferences and projection.</summary>
     public void ApplyState(
         AppSettings settings,
         WorldClockSnapshot? snapshot,
-        string? referenceCityId,
-        bool alwaysOnTop)
+        string? referenceCityId)
     {
         ArgumentNullException.ThrowIfNull(settings);
         _updatingControls = true;
         try
         {
-            WeatherEnabledSwitch.IsOn = settings.WorldClockWeatherEnabled;
             _worldClockOpacityPercent = settings.WorldClockWindowOpacityPercent;
             _pendingWorldClockOpacityPercent = _worldClockOpacityPercent;
             _worldClockShowInTaskbar = settings.WorldClockWindowShowInTaskbar;
-            _worldMapShowInTaskbar = settings.WorldMapWindowShowInTaskbar;
-            _lunarPhaseShowInTaskbar = settings.LunarPhaseWindowShowInTaskbar;
+            _worldClockAlwaysOnTop = settings.WorldClockWindowAlwaysOnTop;
             WorldClockOpacitySlider.Value = _worldClockOpacityPercent;
             WorldClockShowInTaskbarSwitch.IsOn = _worldClockShowInTaskbar;
-            WorldMapShowInTaskbarSwitch.IsOn = _worldMapShowInTaskbar;
-            LunarPhaseShowInTaskbarSwitch.IsOn = _lunarPhaseShowInTaskbar;
-            AlwaysOnTopSwitch.IsOn = alwaysOnTop;
+            AlwaysOnTopSwitch.IsOn = _worldClockAlwaysOnTop;
         }
         finally
         {
@@ -149,64 +136,21 @@ public sealed partial class WorldClockOptionsControl : UserControl
         ApplyLocalizedPresentation();
     }
 
-    /// <summary>Persists the weather preference and restores the control when saving fails.</summary>
-    private async void WeatherEnabledSwitch_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_updatingControls || _application is null || _busy)
-        {
-            return;
-        }
-
-        var requested = WeatherEnabledSwitch.IsOn;
-        SetBusy(true);
-        try
-        {
-            var result = await _application.PatchSettingsAsync(
-                new SettingsPatch(new Dictionary<string, string?>
-                {
-                    ["world_clocks.weather.enabled"] = requested ? "true" : "false"
-                }),
-                _lifetimeToken);
-            if (result.Succeeded && result.Value is not null)
-            {
-                SettingsSaved?.Invoke(result.Value);
-                RefreshRequested?.Invoke(this, EventArgs.Empty);
-                return;
-            }
-
-            RestoreWeatherToggle(!requested);
-            WarningRequested?.Invoke("Options.SaveError");
-        }
-        catch (OperationCanceledException) when (_lifetimeToken.IsCancellationRequested)
-        {
-            // Closing the detached surface cancels the optional settings mutation.
-        }
-        catch (Exception)
-        {
-            RestoreWeatherToggle(!requested);
-            WarningRequested?.Invoke("Options.SaveError");
-        }
-        finally
-        {
-            SetBusy(false);
-        }
-    }
-
     /// <summary>Requests the weather-key setup surface.</summary>
     private void SaveWeatherKeyButton_Click(object sender, RoutedEventArgs e) =>
         KeySetupRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Publishes the requested topmost-window preference.</summary>
-    private void AlwaysOnTopSwitch_Toggled(object sender, RoutedEventArgs e)
+    /// <summary>Persists the requested topmost preference for this clock window.</summary>
+    private async void AlwaysOnTopSwitch_Toggled(object sender, RoutedEventArgs e)
     {
-        if (!_updatingControls)
+        if (!_updatingControls && _application is not null && !_busy)
         {
-            AlwaysOnTopChanged?.Invoke(AlwaysOnTopSwitch.IsOn);
+            await SaveWindowPresentationAsync(_worldClockOpacityPercent, _worldClockShowInTaskbar, AlwaysOnTopSwitch.IsOn);
         }
     }
 
     /// <summary>Tracks opacity changes and saves them when appropriate for the input state.</summary>
-    private async void WorldClockOpacitySlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    private void WorldClockOpacitySlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         if (_updatingControls)
         {
@@ -229,7 +173,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
     {
         if (_application is not null && !_busy && _pendingWorldClockOpacityPercent != _worldClockOpacityPercent)
         {
-            await SaveWindowPresentationAsync(_pendingWorldClockOpacityPercent, _worldClockShowInTaskbar);
+            await SaveWindowPresentationAsync(_pendingWorldClockOpacityPercent, _worldClockShowInTaskbar, _worldClockAlwaysOnTop);
         }
     }
 
@@ -238,34 +182,14 @@ public sealed partial class WorldClockOptionsControl : UserControl
     {
         if (!_updatingControls && _application is not null && !_busy)
         {
-            await SaveWindowPresentationAsync(_worldClockOpacityPercent, WorldClockShowInTaskbarSwitch.IsOn);
+            await SaveWindowPresentationAsync(_worldClockOpacityPercent, WorldClockShowInTaskbarSwitch.IsOn, _worldClockAlwaysOnTop);
         }
-    }
-
-    /// <summary>Persists taskbar visibility for the selected astronomy window.</summary>
-    private async void AstronomyShowInTaskbarSwitch_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_updatingControls || _application is null || _busy)
-        {
-            return;
-        }
-        var toggle = (ToggleSwitch)sender;
-        var key = ReferenceEquals(toggle, WorldMapShowInTaskbarSwitch)
-            ? "window.world_map.show_in_taskbar"
-            : "window.lunar_phase.show_in_taskbar";
-        await SaveWindowPresentationAsync(new SettingsPatch(new Dictionary<string, string?>
-        {
-            [key] = toggle.IsOn ? "true" : "false"
-        }));
     }
 
     /// <summary>Persists window presentation preferences and restores committed controls on failure.</summary>
-    private Task SaveWindowPresentationAsync(int opacityPercent, bool showInTaskbar) =>
-        SaveWindowPresentationAsync(new SettingsPatch(new Dictionary<string, string?>
-        {
-            ["window.world_clocks.opacity_percent"] = opacityPercent.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["window.world_clocks.show_in_taskbar"] = showInTaskbar ? "true" : "false"
-        }));
+    private Task SaveWindowPresentationAsync(int opacityPercent, bool showInTaskbar, bool alwaysOnTop) =>
+        SaveWindowPresentationAsync(WindowAppearanceSettings.CreatePatch(
+            WindowStateKeys.WorldClocks, new WindowAppearance(opacityPercent, showInTaskbar, alwaysOnTop)));
 
     /// <summary>Persists window presentation preferences and restores committed controls on failure.</summary>
     private async Task SaveWindowPresentationAsync(SettingsPatch patch)
@@ -287,9 +211,10 @@ public sealed partial class WorldClockOptionsControl : UserControl
         {
             // Closing the detached surface cancels the optional settings mutation.
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             RestoreWindowPresentation();
+            ApplicationErrorService.Record(exception, "WorldClockWindowPresentation");
             WarningRequested?.Invoke("Options.SaveError");
         }
         finally
@@ -305,8 +230,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _pendingWorldClockOpacityPercent = _worldClockOpacityPercent;
         WorldClockOpacitySlider.Value = _worldClockOpacityPercent;
         WorldClockShowInTaskbarSwitch.IsOn = _worldClockShowInTaskbar;
-        WorldMapShowInTaskbarSwitch.IsOn = _worldMapShowInTaskbar;
-        LunarPhaseShowInTaskbarSwitch.IsOn = _lunarPhaseShowInTaskbar;
+        AlwaysOnTopSwitch.IsOn = _worldClockAlwaysOnTop;
         _updatingControls = false;
     }
 
@@ -522,17 +446,9 @@ public sealed partial class WorldClockOptionsControl : UserControl
         AutomationProperties.SetName(WeatherStatusText, WeatherStatusText.Text);
         VisualStateManager.GoToState(this, presentation.VisualState, false);
         _weatherKeyConfigured = status?.IsProviderConfigured == true;
-        SetSaveWeatherKeyAction(status?.IsProviderConfigured == true
-            ? "WorldClock.Options.Weather.KeyAction.Change"
-            : "WorldClock.Options.Weather.KeyAction.Set");
-    }
-
-    /// <summary>Restores the committed weather value without triggering another save.</summary>
-    private void RestoreWeatherToggle(bool value)
-    {
-        _updatingControls = true;
-        WeatherEnabledSwitch.IsOn = value;
-        _updatingControls = false;
+        WeatherConfigurationText.Text = T(status is null ? "WorldClock.Options.Weather.ApiKeyStatus.Unavailable"
+            : _weatherKeyConfigured ? "WeatherSetup.SharedConfigured" : "WorldClock.Options.Weather.ApiKeyStatus.Missing");
+        SetWeatherSettingsAction();
     }
 
     /// <summary>Enables or disables preference controls during an application operation.</summary>
@@ -541,30 +457,25 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _busy = busy;
         BusyIndicator.IsActive = busy;
         BusyIndicator.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
-        WeatherEnabledSwitch.IsEnabled = !busy;
         WeatherProviderLinkButton.IsEnabled = !busy;
         SaveWeatherKeyButton.IsEnabled = !busy;
         AddClockButton.IsEnabled = !busy && _canAddClock;
         AlwaysOnTopSwitch.IsEnabled = !busy;
         WorldClockOpacitySlider.IsEnabled = !busy;
         WorldClockShowInTaskbarSwitch.IsEnabled = !busy;
-        WorldMapShowInTaskbarSwitch.IsEnabled = !busy;
-        LunarPhaseShowInTaskbarSwitch.IsEnabled = !busy;
     }
 
     /// <summary>Refreshes labels and accessible names using the active language.</summary>
     private void ApplyLocalizedPresentation()
     {
-        SetSaveWeatherKeyAction(_weatherKeyConfigured
-            ? "WorldClock.Options.Weather.KeyAction.Change"
-            : "WorldClock.Options.Weather.KeyAction.Set");
+        SetWeatherSettingsAction();
         AutomationProperties.SetName(WeatherProviderLinkButton, WeatherProviderLinkText.Text);
     }
 
     /// <summary>Updates the localized weather-key action label.</summary>
-    private void SetSaveWeatherKeyAction(string key)
+    private void SetWeatherSettingsAction()
     {
-        var label = T(key);
+        var label = T("Planner.WeatherSetup");
         SaveWeatherKeyButton.Content = label;
         AutomationProperties.SetName(SaveWeatherKeyButton, label);
     }

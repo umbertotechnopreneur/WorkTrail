@@ -127,3 +127,5 @@ Composition/framing: square asset, central diagonal flow fills middle 70 percent
 Lighting/mood: deep indigo-blue Earth contrast with gold, ivory, amber and restrained coral energy; alert but not alarming.
 Constraints: actual alpha-transparent background; no labels, text, letters, numbers, flags, logos, badges, UI, watermark, cartoon style, humanoids, spacecraft, fake aurora, or decorative scattered stars; all elements within the frame.
 ```
+
+The generic official-holiday illustration `holiday-calendar-v1.png` reuses the unchanged project-authored launcher watercolor `Assets/Launcher/calendar-v1.png`; see its adjacent launcher provenance.

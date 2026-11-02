@@ -35,23 +35,53 @@ LITCAL_REPOSITORY = "Liturgical-Calendar/LiturgicalCalendarAPI"
 LITCAL_COMMIT = "1bb2b7c503a701a9713b2f881795afe46044af3b"
 LITCAL_PREFIX = "jsondata/sourcedata/rite/roman"
 COUNTRIES = {
+    "AE": ("United Arab Emirates", "united_arab_emirates"),
+    "AR": ("Argentina", "argentina"),
+    "AT": ("Austria", "austria"),
     "AU": ("Australia", "australia"),
     "BD": ("Bangladesh", "bangladesh"),
+    "BE": ("Belgium", "belgium"),
+    "BG": ("Bulgaria", "bulgaria"),
+    "BR": ("Brazil", "brazil"),
+    "BY": ("Belarus", "belarus"),
     "CA": ("Canada", "canada"),
     "CN": ("China", "china"),
+    "CH": ("Switzerland", "switzerland"),
+    "CZ": ("Czechia", "czechia"),
     "DE": ("Germany", "germany"),
+    "DK": ("Denmark", "denmark"),
+    "ES": ("Spain", "spain"),
+    "FI": ("Finland", "finland"),
     "FR": ("France", "france"),
+    "GB": ("United Kingdom", "united_kingdom"),
+    "GR": ("Greece", "greece"),
+    "HU": ("Hungary", "hungary"),
+    "IE": ("Ireland", "ireland"),
     "IN": ("India", "india"),
     "IT": ("Italy", "italy"),
     "JP": ("Japan", "japan"),
     "KH": ("Cambodia", "cambodia"),
     "KR": ("South Korea", "south_korea"),
     "LA": ("Laos", "laos"),
+    "MX": ("Mexico", "mexico"),
+    "MY": ("Malaysia", "malaysia"),
+    "NL": ("Netherlands", "netherlands"),
+    "NO": ("Norway", "norway"),
     "NZ": ("New Zealand", "new_zealand"),
     "PL": ("Poland", "poland"),
+    "PH": ("Philippines", "philippines"),
+    "PT": ("Portugal", "portugal"),
+    "RO": ("Romania", "romania"),
+    "RU": ("Russia", "russia"),
+    "SA": ("Saudi Arabia", "saudi_arabia"),
+    "SE": ("Sweden", "sweden"),
     "SG": ("Singapore", "singapore"),
+    "SK": ("Slovakia", "slovakia"),
+    "TH": ("Thailand", "thailand"),
+    "TR": ("Turkey", "turkey"),
     "US": ("United States", "united_states"),
     "VN": ("Vietnam", "vietnam"),
+    "ZA": ("South Africa", "south_africa"),
 }
 
 
@@ -134,8 +164,8 @@ def build_saints(source: Path, cache: Path, refresh: bool) -> tuple[list[dict], 
 
 
 def build_holidays(holidays_module) -> tuple[list[dict], list[dict]]:
-    if holidays_module.__version__ != "0.105":
-        raise ValueError(f"Expected holidays 0.105, got {holidays_module.__version__}")
+    if holidays_module.__version__ != "0.107":
+        raise ValueError(f"Expected holidays 0.107, got {holidays_module.__version__}")
     rows: list[dict] = []
     countries: list[dict] = []
     for code, (name, module) in COUNTRIES.items():
@@ -143,7 +173,7 @@ def build_holidays(holidays_module) -> tuple[list[dict], list[dict]]:
         calendar = holidays_module.country_holidays(
             code, years=(2026, 2027, 2028), observed=True, expand=False,
             language="it" if code == "IT" else "en_US", categories=categories)
-        source = f"https://github.com/vacanza/holidays/blob/v0.105/holidays/countries/{module}.py"
+        source = f"https://github.com/vacanza/holidays/blob/v0.107/holidays/countries/{module}.py"
         countries.append({"code": code, "name": name, "sourceUrl": source,
                           "scope": "Federal baseline" if code == "CA" else "National baseline"})
         for day, label in sorted(calendar.items()):
@@ -176,7 +206,7 @@ def build_holidays(holidays_module) -> tuple[list[dict], list[dict]]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--saints-root", type=Path, required=True)
-    parser.add_argument("--vendor", type=Path, help="Directory containing the pinned holidays 0.105 package")
+    parser.add_argument("--vendor", type=Path, help="Directory containing the pinned holidays 0.107 package")
     parser.add_argument("--latin-cache", type=Path, required=True)
     parser.add_argument("--refresh-latin", action="store_true", help="Fetch Latin labels at the pinned revision")
     parser.add_argument("--output", type=Path, required=True)
@@ -188,7 +218,7 @@ def main() -> None:
     saints, saints_source = build_saints(args.saints_root, args.latin_cache, args.refresh_latin)
     holidays_rows, countries = build_holidays(holidays)
     output = {
-        "schemaVersion": 1,
+        "schemaVersion": 3,
         "coverageStart": START.isoformat(),
         "coverageEnd": END.isoformat(),
         "holidayLibrary": f"holidays {holidays.__version__}",
@@ -198,6 +228,7 @@ def main() -> None:
         "holidays": holidays_rows,
         "saints": saints,
     }
+    apply_official_updates(output)
     serialized = (json.dumps(output, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(serialized)
@@ -205,6 +236,33 @@ def main() -> None:
                       "sha256": hashlib.sha256(serialized).hexdigest(),
                       "countries": len(countries), "holidays": len(holidays_rows),
                       "saints": len(saints)}, ensure_ascii=False))
+
+
+def apply_official_updates(output: dict) -> None:
+    """Merge government dates and retain each country's actual publication coverage."""
+    official = json.loads((Path(__file__).parent / "official-holidays.json").read_text(encoding="utf-8"))
+    codes = {item["code"] for item in official["countries"]}
+    output["schemaVersion"] = 3
+    output["countries"] = [c for c in output["countries"] if c["code"] not in codes]
+    output["holidays"] = [h for h in output["holidays"] if h["country"] not in codes]
+    for holiday in output["holidays"]:
+        holiday.setdefault("artworkFileName", "new-year-v1.png" if holiday["name"] in ("New Year's Day", "Capodanno") else "holiday-calendar-v1.png")
+    for country in output["countries"]:
+        country["coverageStart"] = output["coverageStart"]
+        country["coverageEnd"] = output["coverageEnd"]
+    for country in official["countries"]:
+        years = sorted(country["years"])
+        output["countries"].append(dict(code=country["code"], name=country["name"], scope=country["scope"],
+            sourceUrl=country["years"][years[-1]]["sourceUrl"], coverageStart=years[0]+"-01-01", coverageEnd=years[-1]+"-12-31"))
+        for year, source in country["years"].items():
+            for day, name in source["days"]:
+                date = dt.date.fromisoformat(year+"-"+day)
+                if not START <= date <= END:
+                    raise ValueError("Official holiday outside catalog coverage")
+                output["holidays"].append(dict(date=date.isoformat(), country=country["code"], name=name,
+                    kind="holiday", quality="official", sourceUrl=source["sourceUrl"], artworkFileName="holiday-calendar-v1.png"))
+    output["countries"].sort(key=lambda c: c["code"])
+    output["holidays"].sort(key=lambda h: (h["date"], h["country"], h["kind"], h["name"]))
 
 
 if __name__ == "__main__":

@@ -41,7 +41,8 @@ internal sealed record CelestialCalendarDataset(
     IReadOnlyList<CelestialCalendarSaint> Saints);
 
 /// <summary>Source metadata for one national holiday calendar.</summary>
-internal sealed record CelestialCalendarCountrySource(string Code, string Name, string Scope, string SourceUrl);
+internal sealed record CelestialCalendarCountrySource(string Code, string Name, string Scope, string SourceUrl,
+    DateOnly CoverageStart, DateOnly CoverageEnd);
 
 /// <summary>Validates the fixed JSON asset before any catalog rows are persisted or displayed.</summary>
 internal static class CelestialCalendarCatalog
@@ -78,7 +79,7 @@ internal static class CelestialCalendarCatalog
         var bytes = buffer.ToArray();
         var raw = JsonSerializer.Deserialize<RawDataset>(bytes, JsonOptions)
             ?? throw new InvalidDataException("The celestial calendar catalog is empty.");
-        if (raw.SchemaVersion != 2 || raw.HolidayLibrary != "holidays 0.105"
+        if (raw.SchemaVersion != 3 || raw.HolidayLibrary != "holidays 0.107"
             || raw.SaintsSource.Revision != "1bb2b7c503a701a9713b2f881795afe46044af3b"
             || raw.Countries.Count != CelestialCalendarCountries.All.Count || raw.Saints.Count != 211
             || raw.Holidays.Count == 0)
@@ -102,7 +103,11 @@ internal static class CelestialCalendarCatalog
                 throw new InvalidDataException($"Invalid celestial calendar country: {item.Code}");
             }
 
-            return new CelestialCalendarCountrySource(item.Code, item.Name, item.Scope, item.SourceUrl);
+            var countryStart = ParseDate(item.CoverageStart);
+            var countryEnd = ParseDate(item.CoverageEnd);
+            if (countryStart < start || countryEnd > end || countryStart > countryEnd)
+                throw new InvalidDataException($"Invalid country coverage: {item.Code}");
+            return new CelestialCalendarCountrySource(item.Code, item.Name, item.Scope, item.SourceUrl, countryStart, countryEnd);
         }).ToArray();
         if (countries.Select(item => item.Code).Distinct(StringComparer.Ordinal).Count() != countries.Length)
         {
@@ -115,7 +120,7 @@ internal static class CelestialCalendarCatalog
             var date = ParseDate(item.Date);
             if (date < start || date > end || !validCodes.Contains(item.Country)
                 || item.Kind is not ("holiday" or "workday")
-                || item.Quality is not ("rule_based" or "estimated" or "provisional")
+                || item.Quality is not ("rule_based" or "estimated" or "provisional" or "official")
                 || string.IsNullOrWhiteSpace(item.Name) || !IsArtworkFileName(item.ArtworkFileName)
                 || !IsHttps(item.SourceUrl))
             {
@@ -180,7 +185,7 @@ internal static class CelestialCalendarCatalog
     /// <summary>Carries the source revision and coverage of the sanctoral catalog.</summary>
     private sealed record RawSaintSource(string Source, string Revision, string Scope, int DatesCovered, int Entries);
     /// <summary>Carries country scope and provenance from the calendar resource.</summary>
-    private sealed record RawCountry(string Code, string Name, string Scope, string SourceUrl);
+    private sealed record RawCountry(string Code, string Name, string Scope, string SourceUrl, string CoverageStart, string CoverageEnd);
     /// <summary>Carries an unvalidated national observance and its artwork reference.</summary>
     private sealed record RawHoliday(
         string Date, string Country, string Name, string Kind, string Quality,

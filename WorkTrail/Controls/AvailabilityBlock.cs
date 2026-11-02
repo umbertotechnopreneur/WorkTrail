@@ -14,18 +14,40 @@ public sealed class AvailabilityBlock : UserControl
     /// <summary>Displays a projected local interval and its source-backed reason.</summary>
     public void Apply(AvailabilityCell cell, string cityName, LocalizationService strings)
     {
-        var symbol = cell.State switch { AvailabilityState.Available => "", AvailabilityState.Reserve => "◐ ", AvailabilityState.Unknown => "? ", _ => "– " };
-        var time = cell.LocalStart.ToString(cell.LocalStart.TimeOfDay == TimeSpan.Zero ? "d MMM · HH:mm" : "HH:mm", strings.Culture);
-        var text = new TextBlock
+        var symbol = cell.State switch { AvailabilityState.Available => "✓", AvailabilityState.Reserve => "◐", AvailabilityState.Unknown => "ℹ", _ => "×" };
+        var content = new Grid { Padding = new Thickness(8, 0, 8, 0) };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+        content.Children.Add(new TextBlock
         {
-            Text = symbol + time,
+            Text = symbol,
+            FontFamily = new FontFamily("Segoe UI Symbol"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 13
-        };
+            FontSize = 15
+        });
+        var time = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        time.Children.Add(new TextBlock
+        {
+            Text = cell.LocalStart.ToString("HH:mm", strings.Culture),
+            TextAlignment = TextAlignment.Center,
+            FontSize = 15,
+            Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources[cell.IsNonWorkingDay ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"]
+        });
+        time.Children.Add(new TextBlock
+        {
+            Text = cell.LocalStart.ToString("ddd d MMM", strings.Culture),
+            TextAlignment = TextAlignment.Center,
+            FontSize = 12,
+            Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources[cell.IsNonWorkingDay ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"],
+            Opacity = 0.8
+        });
+        Grid.SetColumn(time, 1);
+        content.Children.Add(time);
         var border = new Border
         {
-            Child = text,
+            Child = content,
             BorderThickness = new Thickness(0, 0, 1, 1),
             BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(24, 128, 128, 128))
         };
@@ -41,6 +63,7 @@ public sealed class AvailabilityBlock : UserControl
         var description = $"{cityName}: {cell.LocalStart.ToString("ddd d MMM HH:mm zzz", strings.Culture)} – {cell.LocalEnd.ToString("HH:mm zzz", strings.Culture)}. "
             + strings.Translate($"Planner.State.{cell.State}") + ". " + strings.Translate(cell.ReasonKey)
             + (cell.Detail is null ? "" : $": {cell.Detail}");
+        if (cell.IsNonWorkingDay) description += ". " + strings.Translate("Planner.NonWorkingDay");
         ToolTipService.SetToolTip(this, description);
         AutomationProperties.SetName(this, description);
     }

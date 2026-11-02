@@ -173,7 +173,8 @@ public sealed record BuildInformation(
     string RuntimeIdentifier);
 
 /// <summary>Provides product metadata, build provenance and safe external links.</summary>
-public sealed record ProductInformation(string Name, string License, string RepositoryUrl, string AuthorUrl, BuildInformation Build);
+public sealed record ProductInformation(string Name, string License, string RepositoryUrl, string AuthorUrl, BuildInformation Build,
+    int CalendarCountryCount);
 
 /// <summary>Describes one city available to the world-clock selector.</summary>
 public sealed record WorldClockCitySummary(

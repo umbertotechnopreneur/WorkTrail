@@ -7,9 +7,9 @@ namespace WorkTrail.Application;
 internal static class AvailabilityPlannerService
 {
     /// <summary>Creates editable initial rules for a city.</summary>
-    internal static AvailabilitySchedule DefaultSchedule(string cityId, bool isHome) => new(cityId,
+    internal static AvailabilitySchedule DefaultSchedule(string cityId, bool isHome, string countryCode = "") => new(cityId,
         new TimeOnly(isHome ? 5 : 9, 0), new TimeOnly(isHome ? 23 : 18, 0),
-        isHome ? [] : [DayOfWeek.Saturday, DayOfWeek.Sunday]);
+        isHome ? [] : Enum.GetValues<DayOfWeek>().Where(day => RegionalWeekend.IsWeekend(countryCode, day)).ToArray());
 
     /// <summary>Rejects unsupported ranges before publishing or persisting a schedule.</summary>
     internal static bool IsValid(AvailabilitySchedule schedule) =>
@@ -29,14 +29,18 @@ internal static class AvailabilityPlannerService
         var day = DateOnly.FromDateTime(reference.LocalTime.DateTime);
         var first = StartOfDay(day.AddDays(-2), referenceZone);
         var last = StartOfDay(day.AddDays(3), referenceZone);
-        var cities = projection.Clocks.Select(clock => new AvailabilityPlannerCity(
-            clock with { Weather = current.Clocks.FirstOrDefault(c => c.CityId == clock.CityId)?.Weather },
-            settings.AvailabilitySchedules?.GetValueOrDefault(clock.CityId)
-                ?? DefaultSchedule(clock.CityId, clock.CityId == settings.HomeCityId))).ToArray();
-        var zones = cities.Select(c => TimeZoneInfo.FindSystemTimeZoneById(c.Clock.TimeZoneId)).ToArray();
         var calendar = CelestialCalendarCatalog.Current;
         var holidays = calendar.Holidays.GroupBy(h => (h.Country, h.Date)).ToDictionary(g => g.Key, g => g.ToArray());
-        var countries = calendar.Countries.Select(c => c.Code).ToHashSet(StringComparer.Ordinal);
+        var cities = projection.Clocks.Select(clock =>
+        {
+            var schedule = settings.AvailabilitySchedules?.GetValueOrDefault(clock.CityId)
+                ?? DefaultSchedule(clock.CityId, clock.CityId == settings.HomeCityId, clock.CountryCode);
+            return new AvailabilityPlannerCity(
+                clock with { Weather = current.Clocks.FirstOrDefault(c => c.CityId == clock.CityId)?.Weather },
+                schedule, IsNonWorking(clock.LocalTime, schedule, clock.CountryCode));
+        }).ToArray();
+        var zones = cities.Select(c => TimeZoneInfo.FindSystemTimeZoneById(c.Clock.TimeZoneId)).ToArray();
+        var countries = calendar.Countries.ToDictionary(c => c.Code, StringComparer.Ordinal);
         var rows = new List<AvailabilityRow>();
         for (var instant = first; instant < last; instant = instant.AddMinutes(step))
         {
@@ -54,7 +58,8 @@ internal static class AvailabilityPlannerService
                     var candidate = Evaluate(TimeZoneInfo.ConvertTime(sample, zones[index]), city.Schedule, city.Clock.CountryCode);
                     if (Rank(candidate.State) > Rank(result.State)) result = candidate;
                 }
-                cells[index] = new(local, TimeZoneInfo.ConvertTime(end, zones[index]), result.State, result.Key, result.Detail);
+                cells[index] = new(local, TimeZoneInfo.ConvertTime(end, zones[index]), result.State, result.Key, result.Detail,
+                    IsNonWorking(local, city.Schedule, city.Clock.CountryCode));
             }
             rows.Add(new(instant, end, cells));
         }
@@ -62,6 +67,14 @@ internal static class AvailabilityPlannerService
         return new(referenceId, reference.LocalTime, projection.InstantUtc, current.InstantUtc, step,
             cities, rows, current.WeatherStatus, projection.Map.MoonPhaseAngleDegrees,
             next.quarter, new DateTimeOffset(DateTime.SpecifyKind(next.time.ToUtcDateTime(), DateTimeKind.Utc)));
+
+        bool IsNonWorking(DateTimeOffset local, AvailabilitySchedule schedule, string country)
+        {
+            holidays.TryGetValue((country, DateOnly.FromDateTime(local.DateTime)), out var events);
+            if (events?.Any(e => e.Kind == "holiday") == true) return true;
+            if (events?.Any(e => e.Kind == "workday") == true) return false;
+            return schedule.RestDays.Contains(local.DayOfWeek) || RegionalWeekend.IsWeekend(country, local.DayOfWeek);
+        }
 
         (AvailabilityState State, string Key, string? Detail) Evaluate(DateTimeOffset local, AvailabilitySchedule schedule, string country)
         {
@@ -89,7 +102,7 @@ internal static class AvailabilityPlannerService
                     && local.DateTime < finish.AddMinutes(schedule.ReserveAfterMinutes);
             }
             if (!available && !reserve) return (AvailabilityState.Unavailable, "Planner.OutsideHours", null);
-            if (!countries.Contains(code) || date < calendar.CoverageStart || date > calendar.CoverageEnd)
+            if (!countries.TryGetValue(code, out var coverage) || date < coverage.CoverageStart || date > coverage.CoverageEnd)
                 return (AvailabilityState.Unknown, "Planner.CalendarUnknown", null);
             return available ? (AvailabilityState.Available, "Planner.WorkingHours", null)
                 : (AvailabilityState.Reserve, "Planner.Reserve", null);
