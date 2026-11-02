@@ -132,12 +132,36 @@ public sealed class AvailabilityPlannerServiceTests
         }
         foreach (var index in new[] { 1, 4 })
         {
-            Assert.Equal(AvailabilityState.Unknown, row.Cells[index].State);
-            Assert.Equal("Planner.CalendarUnknown", row.Cells[index].ReasonKey);
+            // The national calendars now cover both cities; this fixture explicitly has no rest days.
+            Assert.Equal(AvailabilityState.Available, row.Cells[index].State);
+            Assert.Equal("Planner.WorkingHours", row.Cells[index].ReasonKey);
             var midnight = result.Rows.Single(item => item.StartUtc == visible.AddHours(7)).Cells[index];
             Assert.Equal(new DateTime(2026, 11, visibleDay + 1), midnight.LocalStart.Date);
             Assert.Equal(TimeSpan.Zero, midnight.LocalStart.TimeOfDay);
         }
+    }
+
+    /// <summary>Official calendars stop granting verified availability after their published coverage ends.</summary>
+    [Theory]
+    [InlineData("ID")]
+    [InlineData("HK")]
+    public void OfficialCalendarDoesNotExtendIntoUnpublishedYear(string countryCode)
+    {
+        var instant = new DateTimeOffset(2028, 1, 10, 9, 0, 0, TimeSpan.Zero);
+        var projection = Snapshot(instant);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+        projection = projection with
+        {
+            Clocks = [projection.Clocks[0] with
+        {
+            CountryCode = countryCode, TimeZoneId = zone.Id, LocalTime = TimeZoneInfo.ConvertTime(instant, zone)
+        }]
+        };
+        var settings = new AppSettings(AvailabilitySchedules: new Dictionary<string, AvailabilitySchedule> { ["rome"] = Schedule() });
+        var result = AvailabilityPlannerService.Build(projection, projection, "rome", 30, settings, CancellationToken.None);
+        var cell = result.Rows.Single(row => row.StartUtc == instant).Cells[0];
+        Assert.Equal(AvailabilityState.Unknown, cell.State);
+        Assert.Equal("Planner.CalendarUnknown", cell.ReasonKey);
     }
 
     /// <summary>The two New York 01:00 slots on fall-back day are separate instants with distinct offsets.</summary>

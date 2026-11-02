@@ -249,7 +249,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains(options.Descendants(), element => element.Name.LocalName == "AdaptiveTrigger" && element.Attribute("MinWindowWidth")?.Value == "760");
         Assert.Contains("PatchSettingsAsync(", optionsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("[\"world_clocks.weather.enabled\"]", optionsSource, StringComparison.Ordinal);
-        Assert.Contains("[\"window.world_clocks.always_on_top\"]", optionsSource, StringComparison.Ordinal);
+        Assert.Contains("WindowAppearanceSettings.CreatePatch(", optionsSource, StringComparison.Ordinal);
         Assert.Contains("KeySetupRequested?.Invoke", optionsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("PasswordBox", options.ToString(), StringComparison.Ordinal);
         Assert.Contains("public event EventHandler? ProviderLinkRequested;", optionsSource, StringComparison.Ordinal);
