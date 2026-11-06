@@ -124,6 +124,17 @@ internal static class AvailabilityPdfRenderer
                             canvas.DrawRect(Margin, y, PageWidth - 2 * Margin, RowHeight, selection);
                         }
                     }
+                    // Day separators remain PDF strokes and use the Core's reference-zone boundary.
+                    // Draw them after all row fills so midnight lines also cover the UTC gutter.
+                    using var dayLine = new SKPaint { Color = SKColor.Parse("#607D8B"), StrokeWidth = 1.25f, IsStroke = true };
+                    for (var r = 0; r < pageRows.Length; r++)
+                    {
+                        var row = pageRows[r];
+                        if (row.ReferenceDayBoundary is not { } boundary) continue;
+                        var fraction = (boundary.InstantUtc - row.StartUtc).Ticks / (double)(row.EndUtc - row.StartUtc).Ticks;
+                        var y = TableTop + (r + (float)fraction) * RowHeight;
+                        canvas.DrawLine(Margin, y, PageWidth - Margin, y, dayLine);
+                    }
                     var observations = snapshot.Cities.Where(c => c.Clock.Weather is { IsFresh: true }).Select(c => c.Clock.Weather!.ObservedAtUtc).ToArray();
                     var observationText = observations.Length == 0 ? strings.Translate("WorldClock.WeatherNoData")
                         : strings.Format("Planner.WeatherObserved", observations.Min().ToString("dd/MM HH:mm", strings.Culture) + " UTC");

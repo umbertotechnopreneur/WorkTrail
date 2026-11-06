@@ -188,6 +188,119 @@ public sealed class AvailabilityPlannerServiceTests
         Assert.Equal(TimeSpan.FromHours(-5), second.Offset);
     }
 
+    /// <summary>Day separators follow the selected reference even when it is not the first city or a whole-hour offset.</summary>
+    [Theory]
+    [InlineData(15)]
+    [InlineData(30)]
+    [InlineData(60)]
+    public void DayBoundariesUseSelectedQuarterHourReference(int stepMinutes)
+    {
+        var instant = new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.Zero);
+        var snapshot = BuildForReference(instant, "Nepal Standard Time", stepMinutes);
+        var rows = snapshot.Rows.Where(row => row.ReferenceDayBoundary is not null).ToArray();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Nepal Standard Time");
+
+        Assert.Equal("rome", snapshot.Cities[0].Clock.CityId);
+        Assert.Equal("reference", snapshot.ReferenceCityId);
+        Assert.Equal(5, rows.Length);
+        Assert.All(rows, row =>
+        {
+            var boundary = row.ReferenceDayBoundary!;
+            var local = TimeZoneInfo.ConvertTime(boundary.InstantUtc, zone);
+            Assert.Equal(TimeSpan.Zero, local.TimeOfDay);
+            Assert.Equal(DateOnly.FromDateTime(local.DateTime), boundary.LocalDate);
+            Assert.Equal(18, boundary.InstantUtc.Hour);
+            Assert.Equal(15, boundary.InstantUtc.Minute);
+            Assert.NotEqual(TimeSpan.Zero, row.Cells[0].LocalStart.TimeOfDay);
+            Assert.Equal(row.StartUtc, boundary.InstantUtc);
+        });
+    }
+
+    /// <summary>Ordinary DST changes alter the distance between civil starts without adding transition lines.</summary>
+    [Theory]
+    [InlineData(2026, 3, 29, 23)]
+    [InlineData(2026, 10, 25, 25)]
+    public void DayBoundaryDistancesRespectShortAndLongCivilDays(int year, int month, int day, int expectedHours)
+    {
+        var snapshot = Build(new DateTimeOffset(year, month, day, 12, 0, 0, TimeSpan.Zero), Schedule());
+        var boundaries = snapshot.Rows.Select(row => row.ReferenceDayBoundary).OfType<AvailabilityDayBoundary>().ToArray();
+        var date = new DateOnly(year, month, day);
+        var start = boundaries.Single(boundary => boundary.LocalDate == date);
+        var end = boundaries.Single(boundary => boundary.LocalDate == date.AddDays(1));
+
+        Assert.Equal(5, boundaries.Length);
+        Assert.Equal(expectedHours, (end.InstantUtc - start.InstantUtc).TotalHours);
+        Assert.All(boundaries, boundary => Assert.Equal(TimeSpan.Zero,
+            TimeZoneInfo.ConvertTime(boundary.InstantUtc, TimeZoneInfo.FindSystemTimeZoneById("W. Europe Standard Time")).TimeOfDay));
+    }
+
+    /// <summary>Midnight DST uses the first valid instant and the first occurrence of a repeated midnight.</summary>
+    [Theory]
+    [InlineData(2025, 3, 9, 1, 5, 23)]
+    [InlineData(2025, 11, 2, 0, 4, 25)]
+    public void MidnightTransitionsHaveOneBoundaryPerCivilDay(int year, int month, int day, int localHour, int utcHour, int expectedHours)
+    {
+        // Historical Cuba rules: https://data.iana.org/time-zones/tzdb/northamerica
+        var snapshot = BuildForReference(new DateTimeOffset(year, month, day, 12, 0, 0, TimeSpan.Zero), "Cuba Standard Time", 30);
+        var boundaries = snapshot.Rows.Select(row => row.ReferenceDayBoundary).OfType<AvailabilityDayBoundary>().ToArray();
+        var date = new DateOnly(year, month, day);
+        var start = boundaries.Single(boundary => boundary.LocalDate == date);
+        var end = boundaries.Single(boundary => boundary.LocalDate == date.AddDays(1));
+
+        Assert.Equal(5, boundaries.Length);
+        Assert.Equal(5, boundaries.Select(boundary => boundary.LocalDate).Distinct().Count());
+        Assert.Equal(new DateTimeOffset(year, month, day, utcHour, 0, 0, TimeSpan.Zero), start.InstantUtc);
+        Assert.Equal(localHour, TimeZoneInfo.ConvertTime(start.InstantUtc, TimeZoneInfo.FindSystemTimeZoneById("Cuba Standard Time")).Hour);
+        Assert.Equal(expectedHours, (end.InstantUtc - start.InstantUtc).TotalHours);
+    }
+
+    /// <summary>A half-hour DST change places the following midnight inside its elapsed-hour row.</summary>
+    [Fact]
+    public void ReferenceBoundaryRetainsItsFractionalPositionInsideHourlyRow()
+    {
+        // Lord Howe's thirty-minute transition: https://data.iana.org/time-zones/tzdb/australasia
+        var snapshot = BuildForReference(new DateTimeOffset(2025, 10, 5, 0, 0, 0, TimeSpan.Zero), "Lord Howe Standard Time", 60);
+        var row = snapshot.Rows.Single(value => value.ReferenceDayBoundary?.LocalDate == new DateOnly(2025, 10, 6));
+        var boundary = row.ReferenceDayBoundary!;
+
+        Assert.Equal(new DateTimeOffset(2025, 10, 5, 13, 0, 0, TimeSpan.Zero), boundary.InstantUtc);
+        Assert.Equal(TimeSpan.FromMinutes(30), boundary.InstantUtc - row.StartUtc);
+        Assert.Equal(TimeSpan.FromMinutes(30), row.EndUtc - boundary.InstantUtc);
+        Assert.Equal(0.5, (boundary.InstantUtc - row.StartUtc).TotalMinutes / (row.EndUtc - row.StartUtc).TotalMinutes);
+        Assert.Equal(new TimeSpan(23, 30, 0), row.Cells[1].LocalStart.TimeOfDay);
+        Assert.Equal(new TimeSpan(0, 30, 0), row.Cells[1].LocalEnd.TimeOfDay);
+    }
+
+    /// <summary>A skipped date produces no fictitious or duplicate line at the date-line transition.</summary>
+    [Fact]
+    public void SkippedCivilDateDoesNotDuplicateBoundary()
+    {
+        // Samoa skipped 2011-12-30: https://data.iana.org/time-zones/tzdb/australasia
+        var snapshot = BuildForReference(new DateTimeOffset(2011, 12, 29, 12, 0, 0, TimeSpan.Zero), "Samoa Standard Time", 60);
+        var boundaries = snapshot.Rows.Select(row => row.ReferenceDayBoundary).OfType<AvailabilityDayBoundary>().ToArray();
+
+        Assert.Equal(4, boundaries.Length);
+        Assert.Equal(boundaries.Length, boundaries.Select(boundary => boundary.InstantUtc).Distinct().Count());
+        Assert.DoesNotContain(boundaries, boundary => boundary.LocalDate == new DateOnly(2011, 12, 30));
+        Assert.Contains(boundaries, boundary => boundary.LocalDate == new DateOnly(2011, 12, 31));
+        Assert.Equal(96, (snapshot.Rows[^1].EndUtc - snapshot.Rows[0].StartUtc).TotalHours);
+    }
+
+    /// <summary>Builds a second-column reference without relying on the displayed city order.</summary>
+    private static AvailabilityPlannerSnapshot BuildForReference(DateTimeOffset instant, string timeZoneId, int stepMinutes)
+    {
+        var projection = Snapshot(instant);
+        var reference = projection.Clocks[0] with
+        {
+            CityId = "reference",
+            CountryCode = "",
+            TimeZoneId = timeZoneId,
+            LocalTime = TimeZoneInfo.ConvertTime(instant, TimeZoneInfo.FindSystemTimeZoneById(timeZoneId))
+        };
+        projection = projection with { Clocks = [projection.Clocks[0], reference] };
+        return AvailabilityPlannerService.Build(projection, projection, reference.CityId, stepMinutes, new AppSettings(), CancellationToken.None);
+    }
+
     private static AvailabilityPlannerSnapshot Build(DateTimeOffset instant, AvailabilitySchedule schedule)
     {
         var snapshot = Snapshot(instant);

@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using WorkTrail.Application;
+using WorkTrail.Presentation;
 using WorkTrail.Services;
 
 namespace WorkTrail.Controls;
@@ -71,29 +72,94 @@ public sealed class AvailabilityBlock : UserControl
 
 /// <summary>Supplies a recycled row with presentation context.</summary>
 public sealed record AvailabilityRowPresentation(AvailabilityRow Row, IReadOnlyList<AvailabilityPlannerCity> Cities,
-    LocalizationService Strings, double RowHeight);
+    LocalizationService Strings, double RowHeight, TimelineColumnLayout? Columns = null, string? ReferenceCityName = null,
+    bool IsCurrentSlot = false);
 
 /// <summary>Reuses availability blocks inside a virtualized timeline row.</summary>
 public sealed class AvailabilityTimelineRowControl : UserControl
 {
+    private TimelineColumnLayout? _columns;
+    private Grid? _cells;
+    private bool _listening;
+
     /// <summary>Connects recycled item data to the passive row renderer.</summary>
     public AvailabilityTimelineRowControl()
     {
         DataContextChanged += (_, _) => Render();
+        Loaded += (_, _) => ListenForWidthChanges();
+        Unloaded += (_, _) => StopListeningForWidthChanges();
     }
 
     private void Render()
     {
-        if (DataContext is not AvailabilityRowPresentation item) return;
+        StopListeningForWidthChanges();
+        _columns = null;
+        _cells = null;
+        if (DataContext is not AvailabilityRowPresentation item) { Content = null; return; }
+        _columns = item.Columns;
         var grid = new Grid { Height = item.RowHeight };
         for (var i = 0; i < item.Row.Cells.Count; i++)
         {
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(AvailabilityTimelineGrid.CityWidth) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_columns?.ColumnWidth ?? TimelineColumnLayout.MinimumColumnWidth) });
             var cell = new AvailabilityBlock();
             cell.Apply(item.Row.Cells[i], item.Cities[i].Clock.CityName, item.Strings);
             Grid.SetColumn(cell, i);
             grid.Children.Add(cell);
         }
-        Content = grid;
+        _cells = grid;
+        var root = new Grid { Height = item.RowHeight };
+        root.Children.Add(grid);
+        if (item.IsCurrentSlot) AddCurrentSlotHighlight(root);
+        if (item.Row.ReferenceDayBoundary is { } boundary)
+        {
+            var fraction = (boundary.InstantUtc - item.Row.StartUtc).Ticks / (double)(item.Row.EndUtc - item.Row.StartUtc).Ticks;
+            var line = new Border
+            {
+                Height = 2,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, Math.Clamp(fraction * item.RowHeight, 0, item.RowHeight - 2), 0, 0),
+                Background = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["AccentFillColorDefaultBrush"],
+                IsHitTestVisible = false
+            };
+            var description = item.Strings.Format("Planner.ReferenceDayStarts", item.ReferenceCityName ?? "",
+                boundary.LocalDate.ToString("ddd d MMM", item.Strings.Culture));
+            AutomationProperties.SetName(line, description);
+            ToolTipService.SetToolTip(root, description);
+            root.Children.Add(line);
+        }
+        Content = root;
+        if (IsLoaded) ListenForWidthChanges();
+    }
+
+    /// <summary>Marks the current slot without changing the row's measured height or pointer behavior.</summary>
+    internal static void AddCurrentSlotHighlight(Grid row)
+    {
+        row.Children.Add(new Border
+        {
+            Margin = new Thickness(0, 2, 0, 2),
+            BorderThickness = new Thickness(0, 2, 0, 2),
+            BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorCriticalBrush"],
+            IsHitTestVisible = false
+        });
+    }
+
+    private void ListenForWidthChanges()
+    {
+        if (_columns is null || _listening) return;
+        _columns.Changed += ColumnWidthChanged;
+        _listening = true;
+        ColumnWidthChanged(this, EventArgs.Empty);
+    }
+
+    private void StopListeningForWidthChanges()
+    {
+        if (_columns is not null && _listening) _columns.Changed -= ColumnWidthChanged;
+        _listening = false;
+    }
+
+    private void ColumnWidthChanged(object? sender, EventArgs args)
+    {
+        if (_columns is null || _cells is null) return;
+        foreach (var column in _cells.ColumnDefinitions) column.Width = new GridLength(_columns.ColumnWidth);
     }
 }

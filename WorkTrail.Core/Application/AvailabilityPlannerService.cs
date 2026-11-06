@@ -29,6 +29,16 @@ internal static class AvailabilityPlannerService
         var day = DateOnly.FromDateTime(reference.LocalTime.DateTime);
         var first = StartOfDay(day.AddDays(-2), referenceZone);
         var last = StartOfDay(day.AddDays(3), referenceZone);
+        // Resolve civil starts only in the selected reference zone. A skipped date may share
+        // its resolved instant with a neighboring date; label the real date and draw one line.
+        var dayBoundaries = Enumerable.Range(-2, 6)
+            .Select(offset => StartOfDay(day.AddDays(offset), referenceZone))
+            .Where(instant => instant >= first && instant < last)
+            .Distinct()
+            .OrderBy(instant => instant)
+            .Select(instant => new AvailabilityDayBoundary(instant,
+                DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, referenceZone).DateTime)))
+            .ToArray();
         var calendar = CelestialCalendarCatalog.Current;
         var holidays = calendar.Holidays.GroupBy(h => (h.Country, h.Date)).ToDictionary(g => g.Key, g => g.ToArray());
         var cities = projection.Clocks.Select(clock =>
@@ -61,7 +71,9 @@ internal static class AvailabilityPlannerService
                 cells[index] = new(local, TimeZoneInfo.ConvertTime(end, zones[index]), result.State, result.Key, result.Detail,
                     IsNonWorking(local, city.Schedule, city.Clock.CountryCode));
             }
-            rows.Add(new(instant, end, cells));
+            // UTC slots remain equal elapsed intervals, so a civil boundary can fall inside a row.
+            var boundary = dayBoundaries.FirstOrDefault(value => value.InstantUtc >= instant && value.InstantUtc < end);
+            rows.Add(new(instant, end, cells, boundary));
         }
         var next = Astronomy.SearchMoonQuarter(new AstroTime(projection.InstantUtc.UtcDateTime));
         return new(referenceId, reference.LocalTime, projection.InstantUtc, current.InstantUtc, step,
@@ -117,8 +129,20 @@ internal static class AvailabilityPlannerService
     private static DateTimeOffset StartOfDay(DateOnly date, TimeZoneInfo zone)
     {
         var local = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
-        while (zone.IsInvalidTime(local)) local = local.AddMinutes(1);
-        if (zone.IsAmbiguousTime(local)) return new DateTimeOffset(local, zone.GetAmbiguousTimeOffsets(local).Max()).ToUniversalTime();
-        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zone));
+        while (true)
+        {
+            if (zone.IsInvalidTime(local)) { local = local.AddMinutes(1); continue; }
+            var instant = zone.IsAmbiguousTime(local)
+                ? new DateTimeOffset(local, zone.GetAmbiguousTimeOffsets(local).Max()).ToUniversalTime()
+                : new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zone));
+            // Historical date-line changes can map a skipped civil date to the previous
+            // real date instead of reporting an invalid wall time. Never start before it.
+            if (TimeZoneInfo.ConvertTime(instant, zone).DateTime < local)
+            {
+                local = local.AddMinutes(1);
+                continue;
+            }
+            return instant;
+        }
     }
 }

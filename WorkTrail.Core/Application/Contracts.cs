@@ -187,7 +187,7 @@ public sealed record WorldClockCitySummary(
     bool IsCapital);
 
 /// <summary>Contains the locally distributed city catalog and current selection limit.</summary>
-public sealed record WorldClockCityCatalog(IReadOnlyList<WorldClockCitySummary> Cities, int MaximumClocks, string? AddDeniedMessageKey = null,
+public sealed record WorldClockCityCatalog(IReadOnlyList<WorldClockCitySummary> Cities, int MaximumClocks,
     string? SuggestedCityId = null, string? WindowsTimeZoneName = null);
 
 /// <summary>Contains the persisted world-clock identifiers after a successful selection mutation.</summary>
@@ -354,9 +354,6 @@ public interface IWorkTrailApplication : IAsyncDisposable
 
     /// <summary>Returns the current immutable settings snapshot.</summary>
     Task<OperationResult<AppSettings>> GetSettingsAsync(CancellationToken cancellationToken);
-
-    /// <summary>Returns the runtime's current feature access state.</summary>
-    Task<OperationResult<FeatureAccessSnapshot>> GetFeatureAccessAsync(CancellationToken cancellationToken);
 
     /// <summary>Validates and serializes a settings update before publishing it.</summary>
     Task<OperationResult<AppSettings>> PatchSettingsAsync(SettingsPatch patch, CancellationToken cancellationToken);

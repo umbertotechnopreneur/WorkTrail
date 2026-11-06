@@ -94,7 +94,6 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _application = application ?? throw new ArgumentNullException(nameof(application));
         ArgumentNullException.ThrowIfNull(settings);
         _strings = strings ?? throw new ArgumentNullException(nameof(strings));
-        AddClockPremiumBadge.Text = _strings.Translate("Premium.Badge");
         _lifetimeToken = lifetimeToken;
         UiLocalization.Apply(this, _strings);
         ApplyLocalizedPresentation();
@@ -279,7 +278,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
-    // snapshot supplies the current clocks and their tier-dependent limit.
+    // snapshot supplies the current clocks and their shared limit.
     // referenceCityId identifies the reference clock, if selected.
 
     /// <summary>Builds localized city rows and their reference, move, and remove actions.</summary>
@@ -290,6 +289,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         {
             _canAddClock = false;
             AddClockButton.IsEnabled = false;
+            ClocksLimitText.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -382,9 +382,9 @@ public sealed partial class WorldClockOptionsControl : UserControl
             _updatingControls = false;
         }
 
-        // Free users can reach the shared upgrade prompt at their limit; Premium keeps its capacity limit.
-        _canAddClock = snapshot.Clocks.Count < snapshot.MaximumClocks || snapshot.MaximumClocks == 3;
+        _canAddClock = snapshot.Clocks.Count < snapshot.MaximumClocks;
         AddClockButton.IsEnabled = !_busy && _canAddClock;
+        ClocksLimitText.Visibility = _canAddClock ? Visibility.Collapsed : Visibility.Visible;
     }
 
     /// <summary>Creates an accessible icon action for a specific city.</summary>

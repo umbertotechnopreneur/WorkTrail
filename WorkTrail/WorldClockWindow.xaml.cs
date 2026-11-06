@@ -1094,9 +1094,9 @@ public sealed partial class WorldClockWindow : Window
             }
 
             var selectedIds = _snapshot?.Clocks.Select(clock => clock.CityId).ToHashSet(StringComparer.Ordinal) ?? [];
-            if (catalogResult.Value.AddDeniedMessageKey is { } deniedMessage)
+            if (selectedIds.Count >= catalogResult.Value.MaximumClocks)
             {
-                await _dialogs.ShowPremiumUpgradeAsync(_application, this, T, deniedMessage);
+                ShowFailure("WorldClocksMaximumReached");
                 return;
             }
             var options = catalogResult.Value.Cities.Where(city => !selectedIds.Contains(city.Id)).ToArray();

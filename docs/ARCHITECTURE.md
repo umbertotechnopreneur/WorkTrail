@@ -16,7 +16,7 @@ The app is a desktop launcher with independent world-clock and astronomy windows
 
 ## Startup and lifetime
 
-`Program` redirects repeated Windows launches to the current application. `App` acquires the existing hashed-installation runtime mutex before constructing `WorkTrailApplication`. Other clients connect through the same-user named pipe. Protocol version 8 exposes only widget, settings, window, startup, product-link and diagnostic operations.
+`Program` redirects repeated Windows launches to the current application. `App` acquires the existing hashed-installation runtime mutex before constructing `WorkTrailApplication`. Other clients connect through the same-user named pipe. Protocol version 9 exposes only widget, settings, window, startup, product-link and diagnostic operations.
 
 The factory does not construct capture services, input hooks, activity storage, search indexes, AI clients or timesheet workers. `LocalStore` reads and atomically saves preferences; it never opens existing activity databases. The astronomical agenda reads the bundled calendar catalog directly. The separate read-only world-city database remains in use.
 

@@ -23,6 +23,8 @@ Release history will begin with the first explicitly authorized tagged public pr
 
 ### Changed
 
+- World Timesheet marks the current time slot in red and provides a command to jump to it.
+- Timesheet city columns resize together from any header edge and can fill the available width. Reference-city midnight separators continue through the timeline and vector PDF.
 - Refresh .NET, Windows App SDK, rendering and test dependencies used by the source build.
 - Widget and tray navigation share all seven views, consistent commands and localized calendar-country selection with search. Window menus keep taskbar visibility, opacity and always-on-top preferences independent and persistent for each widget.
 - Timesheet duration and time-step preferences are saved, and both calendar city selectors retain the chosen city.
@@ -38,7 +40,7 @@ Release history will begin with the first explicitly authorized tagged public pr
 - Launcher tiles grow vertically with the viewport, clip at the scroll boundary and replace their small icons with larger watercolor artwork. Footer actions fill the available width.
 - First-party C# classes and methods have clearer documentation and responsibility regions; dense calculations and control flow use named steps and more readable spacing. Active PowerShell helpers include function documentation and expanded resource cleanup.
 - Widget startup reads preferences and bundled calendar data without opening existing activity history. Saved cities, window placement and the separate ExcelPlanner prototype are preserved.
-- Application services and IPC expose the retained widget operations only. The local runtime protocol is version 8.
+- Application services and IPC expose the retained widget operations only. The local runtime protocol is version 9.
 
 ### Fixed
 
@@ -58,6 +60,7 @@ Release history will begin with the first explicitly authorized tagged public pr
 
 ### Removed
 
+- Feature tiers and upgrade prompts. World Clock supports up to 12 saved clocks.
 - Activity tracking, input hooks, screenshots and gallery, AI connections, timesheets and reports, history search, activity calendar, CLI and their supporting projects, settings and UI.
 - The tracking taskbar widget, hardware sensor collection, CPU/GPU readings, LibreHardwareMonitor, bundled PawnIO installation and OCR processing.
 - Copilot instructions and repository prompts; development rules live in AGENTS.md.

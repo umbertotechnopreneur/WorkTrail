@@ -33,6 +33,7 @@ public sealed class AvailabilityPlannerControl : UserControl
     private readonly ToggleMenuFlyoutItem _step60 = new();
     private readonly Button _more = new() { Content = new SymbolIcon(Symbol.More), Width = 36, Height = 36, Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Top };
     private readonly Button _now = new();
+    private readonly TextBlock _nowLabel = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly Hyperlink _weatherSetup = new();
     private readonly MenuFlyoutItem _exportPdf = new() { IsEnabled = false };
     private readonly TextBlock _weatherStatus = new() { FontSize = 13, TextWrapping = TextWrapping.Wrap };
@@ -54,6 +55,12 @@ public sealed class AvailabilityPlannerControl : UserControl
 
     /// <summary>Requests persistence of the visible duration and time step.</summary>
     public event Action<int, int>? ViewPreferencesRequested;
+
+    /// <summary>Requests saving a completed equal-column resize or automatic fitting.</summary>
+    public event Action<double>? ColumnWidthRequested;
+
+    /// <summary>Applies a committed width preference without starting another save.</summary>
+    public void SetColumnWidthPreference(double width) => _timeline.SetColumnWidthPreference(width);
 
     /// <summary>Requests World Clock's city configuration surface.</summary>
     public event Action? OpenClocksRequested;
@@ -122,6 +129,11 @@ public sealed class AvailabilityPlannerControl : UserControl
         var root = new Grid { Padding = new Thickness(16, 12, 16, 12), RowSpacing = 10 };
         foreach (var height in new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
             root.RowDefinitions.Add(new RowDefinition { Height = height });
+        var nowContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        nowContent.Children.Add(new SymbolIcon(Symbol.Clock));
+        nowContent.Children.Add(_nowLabel);
+        _now.Content = nowContent;
+        _now.Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["AccentButtonStyle"];
         foreach (var element in new FrameworkElement[] { _cities, _date, _time, _now })
         { element.VerticalAlignment = VerticalAlignment.Bottom; _toolbar.Children.Add(element); }
         var moonPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 270 };
@@ -163,7 +175,11 @@ public sealed class AvailabilityPlannerControl : UserControl
         Grid.SetRow(_weatherStatus, 2); root.Children.Add(_weatherStatus);
         Grid.SetRow(_timeline, 3); root.Children.Add(_timeline);
         Grid.SetRow(_selection, 4); root.Children.Add(_selection);
-        _now.Click += (_, _) => Submit(true);
+        _now.Click += (_, _) =>
+        {
+            _timeline.ScrollToCurrentSlot();
+            Submit(true);
+        };
         _previousDay.Click += (_, _) => MoveDay(-1);
         _nextDay.Click += (_, _) => MoveDay(1);
         _hours16.Click += (_, _) => SetVisibleHours(16);
@@ -178,6 +194,7 @@ public sealed class AvailabilityPlannerControl : UserControl
         _date.DateChanged += (_, _) => ReferenceChanged();
         _time.TimeChanged += (_, _) => ReferenceChanged();
         _timeline.ScheduleRequested += city => ScheduleRequested?.Invoke(city);
+        _timeline.ColumnWidthRequested += width => ColumnWidthRequested?.Invoke(width);
         _timeline.SelectionChanged += row => ShowSelection(row);
         _weatherSetup.Click += (_, _) => WeatherSetupRequested?.Invoke();
         _exportPdf.Click += (_, _) =>
@@ -214,7 +231,7 @@ public sealed class AvailabilityPlannerControl : UserControl
         _step30.Text = strings.Translate("Planner.Minutes30");
         _step60.Text = strings.Translate("Planner.Minutes60");
         _exportPdf.Text = strings.Translate("Planner.ExportPdf");
-        _now.Content = strings.Translate("Planner.Restore");
+        _nowLabel.Text = strings.Translate("Planner.NowLabel");
         _weatherSetup.Inlines.Clear();
         _weatherSetup.Inlines.Add(new Run { Text = strings.Translate("Planner.ConfigureWeather") });
         Label(_cities, "Planner.City", "WorldClock.ReferenceCity");
@@ -232,7 +249,7 @@ public sealed class AvailabilityPlannerControl : UserControl
         Label(_step30, "Planner.Minutes30", "Planner.Minutes30");
         Label(_step60, "Planner.Minutes60", "Planner.Minutes60");
         Label(_more, "Planner.Options", "Planner.Options");
-        Label(_now, "Planner.Now", "Planner.Restore");
+        Label(_now, "Planner.Now", "Planner.GoToNow");
         Label(_previousDay, "Planner.PreviousDay", "WorldClock.PreviousDay");
         Label(_nextDay, "Planner.NextDay", "WorldClock.NextDay");
         Label(_weatherSetup, "Planner.WeatherSettings", "Planner.WeatherSetup");
@@ -266,8 +283,18 @@ public sealed class AvailabilityPlannerControl : UserControl
             + (status.IsProviderConfigured && status.State == "unavailable" ? strings.Translate("WeatherSetup.ConfiguredUnavailable") : strings.Translate(statusKey)) + "  "
         });
         _weatherStatus.Inlines.Add(_weatherSetup);
-        _legend.Text = string.Join("   ", new[] { "✓ " + strings.Translate("Planner.State.Available"), "◐ " + strings.Translate("Planner.State.Reserve"),
-            "× " + strings.Translate("Planner.State.Unavailable"), "ℹ " + strings.Translate("Planner.State.Unknown") });
+        _legend.Inlines.Clear();
+        _legend.Inlines.Add(new Run
+        {
+            Text = string.Join("   ", new[] { "✓ " + strings.Translate("Planner.State.Available"), "◐ " + strings.Translate("Planner.State.Reserve"),
+                "× " + strings.Translate("Planner.State.Unavailable"), "ℹ " + strings.Translate("Planner.State.Unknown") })
+        });
+        _legend.Inlines.Add(new Run
+        {
+            Text = "   ● " + strings.Translate("Planner.NowLabel"),
+            Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorCriticalBrush"],
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
         _dayLabel.Text = snapshot.ReferenceLocalTime.ToString("dddd d MMMM yyyy", strings.Culture);
         _dayLabel.Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources[snapshot.Cities.First(c => c.Clock.CityId == snapshot.ReferenceCityId).IsNonWorkingDay
             ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"];

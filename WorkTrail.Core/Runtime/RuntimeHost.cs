@@ -311,9 +311,6 @@ public sealed class RuntimeClient : IWorkTrailApplication
     /// <inheritdoc />
     public Task<OperationResult<AppSettings>> GetSettingsAsync(CancellationToken cancellationToken) => SendAsync<AppSettings>(RuntimeOperation.SettingsGet, null, cancellationToken);
     /// <inheritdoc />
-    public Task<OperationResult<FeatureAccessSnapshot>> GetFeatureAccessAsync(CancellationToken cancellationToken) =>
-        SendAsync<FeatureAccessSnapshot>(RuntimeOperation.FeatureAccessGetV1, null, cancellationToken);
-    /// <inheritdoc />
     public Task<OperationResult<AppSettings>> PatchSettingsAsync(SettingsPatch patch, CancellationToken cancellationToken) =>
         SendAsync<AppSettings>(RuntimeOperation.SettingsPatch, patch, cancellationToken);
     /// <inheritdoc />

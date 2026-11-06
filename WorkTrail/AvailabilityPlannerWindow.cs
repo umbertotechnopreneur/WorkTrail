@@ -30,6 +30,9 @@ internal sealed class AvailabilityPlannerWindow : Window
     private bool _savingViewPreferences;
     private DayOfWeek _firstDay = DayOfWeek.Monday;
     private int _stepMinutes = 30;
+    private double _columnWidth;
+    private double? _pendingColumnWidth;
+    private bool _savingColumnWidth;
 
     /// <summary>Requests World Clock's city configuration.</summary>
     internal event Action? OpenClocksRequested;
@@ -66,6 +69,7 @@ internal sealed class AvailabilityPlannerWindow : Window
         _planner.ExportPdfRequested += ExportPdf;
         _planner.FirstDayOfWeekRequested += SaveFirstDayOfWeek;
         _planner.ViewPreferencesRequested += SaveViewPreferences;
+        _planner.ColumnWidthRequested += SaveColumnWidth;
         _planner.OpenClocksRequested += OpenClocks;
         _root.Loaded += Loaded;
         Closed += OnClosed;
@@ -85,6 +89,8 @@ internal sealed class AvailabilityPlannerWindow : Window
         if (_snapshot is not null) _planner.Apply(_snapshot, _strings, false);
         _stepMinutes = settings.PlannerStepMinutes;
         _planner.SetViewPreferences(settings.PlannerVisibleHours, _stepMinutes);
+        _columnWidth = settings.PlannerColumnWidth;
+        _planner.SetColumnWidthPreference(_columnWidth);
         var appearance = WindowAppearanceSettings.Get(settings, WindowStateKeys.AvailabilityPlanner);
         _placement.ApplyTaskbarVisibility(appearance.ShowInTaskbar);
         _root.Opacity = appearance.OpacityPercent / 100d;
@@ -265,6 +271,48 @@ internal sealed class AvailabilityPlannerWindow : Window
         finally { _editing = false; if (!_closed) _planner.SetExportBusy(false); }
     }
 
+    /// <summary>Coalesces completed drags and publishes only the latest committed width.</summary>
+    private async void SaveColumnWidth(double width)
+    {
+        if (_closed) return;
+        if (!_savingColumnWidth && width == _columnWidth) return;
+        _pendingColumnWidth = width;
+        if (_savingColumnWidth) return;
+        _savingColumnWidth = true;
+        try
+        {
+            while (_pendingColumnWidth is { } requested && !_closed)
+            {
+                _pendingColumnWidth = null;
+                var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
+                {
+                    ["planner.column_width"] = requested.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+                }), _lifetime.Token);
+                if (_closed) return;
+                if (!result.Succeeded || result.Value is null)
+                {
+                    _planner.SetColumnWidthPreference(_columnWidth);
+                    _status.Message = _strings.Translate(result.MessageKey);
+                    _status.Severity = InfoBarSeverity.Error;
+                    _status.IsOpen = true;
+                    continue;
+                }
+                _columnWidth = result.Value.PlannerColumnWidth;
+                if (_pendingColumnWidth is null)
+                {
+                    ApplySettings(result.Value);
+                    SettingsSaved?.Invoke(result.Value);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            if (!_closed) { _planner.SetColumnWidthPreference(_columnWidth); Report(error); }
+        }
+        finally { _savingColumnWidth = false; }
+    }
+
     private void Report(Exception error)
     {
         // Shared reporting writes the durable log and displays the native error dialog.
@@ -279,6 +327,7 @@ internal sealed class AvailabilityPlannerWindow : Window
         _planner.ExportPdfRequested -= ExportPdf;
         _planner.FirstDayOfWeekRequested -= SaveFirstDayOfWeek; _planner.OpenClocksRequested -= OpenClocks;
         _planner.ViewPreferencesRequested -= SaveViewPreferences;
+        _planner.ColumnWidthRequested -= SaveColumnWidth;
         _root.Loaded -= Loaded; Closed -= OnClosed;
         _lifetime.Dispose();
     }

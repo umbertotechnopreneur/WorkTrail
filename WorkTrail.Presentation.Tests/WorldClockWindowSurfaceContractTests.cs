@@ -838,7 +838,7 @@ public sealed class WorldClockWindowSurfaceContractTests
         Assert.Contains("deferNativeClose: false", source, StringComparison.Ordinal);
         Assert.Contains("if (IsClosing || _isAdding)", source, StringComparison.Ordinal);
         Assert.Contains("CancelButton.IsEnabled = canInteract;", source, StringComparison.Ordinal);
-        Assert.Contains("CityPicker.IsEnabled = canInteract;", source, StringComparison.Ordinal);
+        Assert.Contains("CityPicker.IsEnabled = canInteract && !_clockLimitReached;", source, StringComparison.Ordinal);
         Assert.Contains("if (_allowClose)", source, StringComparison.Ordinal);
         Assert.Contains("internal void CloseForShutdown()", source, StringComparison.Ordinal);
         Assert.Contains("_lifetimeCancellation.Cancel();", source, StringComparison.Ordinal);

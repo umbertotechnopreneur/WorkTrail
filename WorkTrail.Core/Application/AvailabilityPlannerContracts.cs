@@ -23,9 +23,12 @@ public sealed record AvailabilityPlannerCity(WorldClockItem Clock, AvailabilityS
 public sealed record AvailabilityCell(DateTimeOffset LocalStart, DateTimeOffset LocalEnd,
     AvailabilityState State, string ReasonKey, string? Detail = null, bool IsNonWorkingDay = false);
 
-/// <summary>Represents the same UTC interval in all selected cities.</summary>
+/// <summary>Identifies the first real instant of a civil date in the selected reference city.</summary>
+public sealed record AvailabilityDayBoundary(DateTimeOffset InstantUtc, DateOnly LocalDate);
+
+/// <summary>Represents the same UTC interval in all selected cities, with an optional reference-day boundary.</summary>
 public sealed record AvailabilityRow(DateTimeOffset StartUtc, DateTimeOffset EndUtc,
-    IReadOnlyList<AvailabilityCell> Cells);
+    IReadOnlyList<AvailabilityCell> Cells, AvailabilityDayBoundary? ReferenceDayBoundary = null);
 
 /// <summary>Contains the complete planner projection; weather always describes current observations.</summary>
 public sealed record AvailabilityPlannerSnapshot(string ReferenceCityId, DateTimeOffset ReferenceLocalTime,

@@ -29,7 +29,7 @@
   "Planner.Time": "WorldClock.ReferenceTime",
   "Planner.Hours": "Planner.ViewHours",
   "Planner.Step": "Planner.StepMinutes",
-  "Planner.Now": "Planner.Restore",
+  "Planner.Now": "Planner.GoToNow",
   "Planner.PreviousDay": "WorldClock.PreviousDay",
   "Planner.NextDay": "WorldClock.NextDay",
   "Planner.WeatherSettings": "Planner.WeatherSetup",
