@@ -45,4 +45,7 @@ public sealed record AppSettings(
     bool AvailabilityPlannerWindowAlwaysOnTop = false,
     int PlannerVisibleHours = 24,
     int PlannerStepMinutes = 30,
-    double PlannerColumnWidth = 0);
+    double PlannerColumnWidth = 0,
+    bool WorldClockAutoGroupCities = false,
+    bool PlannerEmptyCells = true,
+    bool PlannerCompactHeaders = false);

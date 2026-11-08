@@ -84,7 +84,7 @@ public sealed class PlannerCityHeader : UserControl
     }
 
     /// <summary>Renders a city header from application DTOs.</summary>
-    public void Apply(AvailabilityPlannerCity city, string referenceId, LocalizationService strings)
+    public void Apply(AvailabilityPlannerCity city, string referenceId, LocalizationService strings, bool compact)
     {
         var clock = city.Clock;
         CityId = clock.CityId;
@@ -92,19 +92,23 @@ public sealed class PlannerCityHeader : UserControl
         UiLocalization.SetAccessibleLabel(_resize, clock.CityName + ". " + strings.Translate("Planner.ResizeColumns"));
         var panel = _panel;
         panel.Children.Clear();
-        panel.Children.Add(new Image
+        if (!compact)
         {
-            Source = new BitmapImage(new Uri("ms-appx:///" + clock.SkylineAssetPath.Replace('\\', '/'))),
-            Height = 94,
-            Stretch = Stretch.Uniform,
-            IsHitTestVisible = false
-        });
-        panel.Children.Add(Label((clock.CityId == referenceId ? "⌂ " : "") + clock.CityName, 18, true));
-        panel.Children.Add(Label($"{clock.CountryCode}  UTC{clock.LocalTime:zzz}", 12));
-        panel.Children.Add(Label(clock.LocalTime.ToString("HH:mm", strings.Culture), 25, true));
+            panel.Children.Add(new Image
+            {
+                Source = new BitmapImage(new Uri("ms-appx:///" + clock.SkylineAssetPath.Replace('\\', '/'))),
+                Height = 94,
+                Stretch = Stretch.Uniform,
+                IsHitTestVisible = false
+            });
+        }
+        panel.Children.Add(Label((clock.CityId == referenceId ? "⌂ " : "") + clock.CityName, compact ? 15 : 18, true));
+        if (!compact) panel.Children.Add(Label($"{clock.CountryCode}  UTC{clock.LocalTime:zzz}", 12));
+        panel.Children.Add(Label(clock.LocalTime.ToString("HH:mm", strings.Culture), compact ? 18 : 25, true));
         var localDate = Label(clock.LocalTime.ToString("ddd d MMM", strings.Culture), 13);
         if (city.IsNonWorkingDay) localDate.Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorCriticalBrush"];
         panel.Children.Add(localDate);
+        if (compact) return;
         var weather = clock.Weather;
         var weatherText = weather is { IsFresh: true }
             ? $"{WeatherGlyph(weather.ConditionKey)}  {weather.TemperatureCelsius.ToString("0", strings.Culture)}°C  {strings.Translate("WorldClock.WeatherCondition." + weather.ConditionKey)}"

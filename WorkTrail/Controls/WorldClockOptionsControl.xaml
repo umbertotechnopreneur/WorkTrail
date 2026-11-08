@@ -266,6 +266,11 @@ VBWR E -->
                                     Text="Add or remove up to 12 cities and choose the reference city."
                                     TextWrapping="Wrap" />
                             </StackPanel>
+                            <ToggleSwitch
+                                x:Name="AutoGroupCitiesSwitch"
+                                Header="Automatically group cities with the same local time"
+                                Tag="WorldClock.Options.AutoGroupCities"
+                                Toggled="AutoGroupCitiesSwitch_Toggled" />
                             <StackPanel
                                 x:Name="CitiesHost"
                                 Margin="0,2,0,0"

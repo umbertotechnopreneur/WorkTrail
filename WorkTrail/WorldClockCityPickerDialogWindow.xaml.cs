@@ -102,8 +102,8 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
             this,
             _appWindow,
             WindowStateKeys.WorldClockCityPicker,
-            LogicalWidth,
-            LogicalHeight,
+            welcome ? LogicalWidth : 560,
+            welcome ? LogicalHeight : 520,
             LogicalScreenMargin,
             ownerAppWindow.Id,
             deferNativeClose: false);
@@ -129,6 +129,11 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
             SuggestionText.Visibility = Visibility.Visible;
             CancelButton.Visibility = Visibility.Collapsed;
             AddAnotherButton.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            CityPicker.UseInlineList();
+            Grid.SetRowSpan(CityPicker, 2);
         }
         AutomationProperties.SetName(RootGrid, Title);
         AutomationProperties.SetName(DialogTitleText, Title);

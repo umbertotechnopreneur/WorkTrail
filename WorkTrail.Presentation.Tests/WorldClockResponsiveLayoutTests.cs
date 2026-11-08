@@ -153,20 +153,15 @@ public sealed class WorldClockResponsiveLayoutTests
         Assert.True(Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(3)).ResizeToPreferred);
     }
 
-    /// <summary>Defers city-count resizing while options are open and applies it on returning to clocks.</summary>
+    /// <summary>Keeps a city-count resize pending until the window accepts it.</summary>
     [Theory]
     [InlineData(1, 2)]
     [InlineData(2, 1)]
     [InlineData(2, 3)]
-    public void CityChangeInOptions_IsDeferredUntilReturningWithoutALiveRefresh(int before, int after)
+    public void CityCountChange_RemainsPendingUntilResizeIsAccepted(int before, int after)
     {
         var state = new WorldClockWindowLayoutState();
         state.AcceptWindowResizeRequest(Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(before)));
-        state.ShowSurface(WorldClockWindowSurface.Options);
-
-        Assert.Null(state.GetWindowResizeRequest(after));
-
-        state.ShowSurface(WorldClockWindowSurface.Clocks);
         var pending = Assert.IsType<WorldClockWindowResizeRequest>(state.GetWindowResizeRequest(after));
 
         Assert.True(pending.ResizeToPreferred);

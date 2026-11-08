@@ -21,16 +21,6 @@ using WorkTrail.Application;
 
 namespace WorkTrail.Presentation;
 
-/// <summary>Identifies the single top-level surface rendered by the detached world-clock window.</summary>
-public enum WorldClockWindowSurface
-{
-    /// <summary>The equal-column clock comparison is visible.</summary>
-    Clocks,
-
-    /// <summary>The world-clock options surface is visible.</summary>
-    Options
-}
-
 /// <summary>Describes the width projection for an equal-column world-clock surface.</summary>
 public sealed record WorldClockColumnsLayout(double MinimumWidth, double Width);
 
@@ -58,13 +48,7 @@ public enum WorldClockDetailLevel
     Essential
 }
 
-/// <summary>Describes the mode rollback required after a failed reference-time conversion.</summary>
-public sealed record WorldClockConversionFailureState(
-    bool IsLive,
-    bool CustomProjectionValid,
-    bool RestoreLastSnapshotControls);
-
-/// <summary>Owns the active world-clock surface and projects timer and viewport state.</summary>
+/// <summary>Projects timer and viewport layout for the world-clock window.</summary>
 public sealed class WorldClockWindowLayoutState
 {
     #region Fields
@@ -78,26 +62,7 @@ public sealed class WorldClockWindowLayoutState
 
     #endregion
 
-    #region Properties
-
-    /// <summary>Gets the currently active top-level surface.</summary>
-    public WorldClockWindowSurface Surface { get; private set; } = WorldClockWindowSurface.Clocks;
-
-    #endregion
-
     #region Implementation
-
-    /// <summary>Shows one top-level surface without resetting the current clock projection.</summary>
-    /// <param name="surface">Surface to make current.</param>
-    public void ShowSurface(WorldClockWindowSurface surface)
-    {
-        if (!Enum.IsDefined(surface))
-        {
-            throw new ArgumentOutOfRangeException(nameof(surface));
-        }
-
-        Surface = surface;
-    }
 
     /// <summary>Returns the remaining delay until the displayed snapshot's next UTC minute, refreshing immediately when overdue.</summary>
     /// <param name="instant">Reference instant of the currently displayed live snapshot.</param>
@@ -209,12 +174,12 @@ public sealed class WorldClockWindowLayoutState
     /// <summary>Preserves successfully restored manual bounds on the first populated snapshot.</summary>
     public void SetPlacementRestored(bool restored) => _preserveRestoredSize = restored;
 
-    /// <summary>Returns a pending sizing change, deferring it while options are visible.</summary>
+    /// <summary>Returns a pending sizing change when the clock count changes.</summary>
     public WorldClockWindowResizeRequest? GetWindowResizeRequest(int clockCount)
     {
         var sizing = CalculateWindowSizing(clockCount);
 
-        return Surface == WorldClockWindowSurface.Options || sizing == _appliedWindowSizing
+        return sizing == _appliedWindowSizing
             ? null
             : new(sizing, ResizeToPreferred: !_preserveRestoredSize);
     }
@@ -260,18 +225,6 @@ public sealed class WorldClockWindowLayoutState
 
         return WorldClockDetailLevel.Essential;
     }
-
-    /// <summary>Keeps an existing explicit projection, or transactionally restores a live projection.</summary>
-    public static WorldClockConversionFailureState ResolveConversionFailure(bool transitionStartedFromLive) =>
-        transitionStartedFromLive
-            ? new WorldClockConversionFailureState(
-                IsLive: true,
-                CustomProjectionValid: true,
-                RestoreLastSnapshotControls: true)
-            : new WorldClockConversionFailureState(
-                IsLive: false,
-                CustomProjectionValid: false,
-                RestoreLastSnapshotControls: false);
 
     #endregion
 }

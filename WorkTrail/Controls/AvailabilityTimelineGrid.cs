@@ -19,6 +19,8 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
     private int _visibleHours = 24;
     private double _rowHeight = 44;
     private bool _rendering;
+    private bool _emptyCells = true;
+    private bool _compactHeaders;
     private bool _resizingColumns;
     private int _widthRevision;
 
@@ -74,6 +76,18 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
         if (!_resizingColumns) _columns.SetPreferredWidth(width);
     }
 
+    /// <summary>Updates the table's visual density while keeping the same selected time and viewport.</summary>
+    public void SetDisplayOptions(bool emptyCells, bool compactHeaders)
+    {
+        if (_emptyCells == emptyCells && _compactHeaders == compactHeaders) return;
+        _emptyCells = emptyCells;
+        _compactHeaders = compactHeaders;
+        if (_snapshot is { } snapshot && _strings is { } strings)
+        {
+            Apply(snapshot, strings, _visibleHours, navigate: false);
+        }
+    }
+
     /// <summary>Updates city headers and rows while optionally retaining the explored scroll position.</summary>
     public void Apply(AvailabilityPlannerSnapshot snapshot, LocalizationService strings, int visibleHours, bool navigate)
     {
@@ -91,7 +105,7 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
         {
             var city = snapshot.Cities[index];
             var header = reuseHeaders ? (PlannerCityHeader)CityHeaders.Children[index] : CreateHeader(index);
-            header.Apply(city, snapshot.ReferenceCityId, strings);
+            header.Apply(city, snapshot.ReferenceCityId, strings, _compactHeaders);
             if (!reuseHeaders) CityHeaders.Children.Add(header);
         }
         UpdateColumnLayout();
@@ -190,7 +204,7 @@ public sealed partial class AvailabilityTimelineGrid : UserControl
         TimelineRows.ItemContainerStyle = style;
         var referenceCityName = _snapshot.Cities.Single(city => city.Clock.CityId == _snapshot.ReferenceCityId).Clock.CityName;
         var items = _snapshot.Rows.Select(row => new AvailabilityRowPresentation(row, _snapshot.Cities, _strings, _rowHeight,
-            _columns, referenceCityName, row.StartUtc <= _snapshot.NowUtc && _snapshot.NowUtc < row.EndUtc)).ToArray();
+            _columns, referenceCityName, row.StartUtc <= _snapshot.NowUtc && _snapshot.NowUtc < row.EndUtc, _emptyCells)).ToArray();
         TimelineRows.ItemsSource = items;
         TimelineRows.SelectedItem = items.FirstOrDefault(i => i.Row.StartUtc == selected);
         UtcLabels.Children.Clear();

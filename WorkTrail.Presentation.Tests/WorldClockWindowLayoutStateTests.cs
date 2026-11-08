@@ -27,33 +27,6 @@ public sealed class WorldClockWindowLayoutStateTests
 {
     #region Implementation
 
-    /// <summary>Defaults to clocks and switches surfaces without replacing their shared owner state.</summary>
-    [Fact]
-    public void Surface_DefaultsToClocksAndSwitchesWithoutLosingTheOwnerState()
-    {
-        var state = new WorldClockWindowLayoutState();
-
-        Assert.Equal(WorldClockWindowSurface.Clocks, state.Surface);
-
-        state.ShowSurface(WorldClockWindowSurface.Options);
-
-        Assert.Equal(WorldClockWindowSurface.Options, state.Surface);
-
-        state.ShowSurface(WorldClockWindowSurface.Clocks);
-
-        Assert.Equal(WorldClockWindowSurface.Clocks, state.Surface);
-    }
-
-    /// <summary>Rejects undefined surface identifiers before changing the active surface.</summary>
-    [Fact]
-    public void ShowSurface_RejectsUndefinedValues()
-    {
-        var state = new WorldClockWindowLayoutState();
-
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            state.ShowSurface((WorldClockWindowSurface)int.MaxValue));
-    }
-
     /// <summary>Schedules the next refresh just after the following UTC minute boundary.</summary>
     [Theory]
     [InlineData("2026-08-30T12:34:00.0000000+00:00", 60.1d)]
@@ -135,23 +108,6 @@ public sealed class WorldClockWindowLayoutStateTests
         Assert.Equal(preferredHeight, sizing.PreferredLogicalHeight);
         Assert.Equal(minimumWidth, sizing.MinimumLogicalWidth);
         Assert.Equal(minimumHeight, sizing.MinimumLogicalHeight);
-    }
-
-    /// <summary>Restores live controls only when the failed conversion began in live mode.</summary>
-    [Theory]
-    [InlineData(true, true, true, true)]
-    [InlineData(false, false, false, false)]
-    public void ResolveConversionFailure_RestoresOnlyATransitionThatStartedLive(
-        bool transitionStartedFromLive,
-        bool expectedLive,
-        bool expectedValid,
-        bool expectedRestoreControls)
-    {
-        var state = WorldClockWindowLayoutState.ResolveConversionFailure(transitionStartedFromLive);
-
-        Assert.Equal(expectedLive, state.IsLive);
-        Assert.Equal(expectedValid, state.CustomProjectionValid);
-        Assert.Equal(expectedRestoreControls, state.RestoreLastSnapshotControls);
     }
 
     #endregion

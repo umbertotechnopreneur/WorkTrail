@@ -125,7 +125,8 @@ public sealed partial class WorldClockColumnControl : UserControl
         WorldClockItem referenceClock,
         bool isReference,
         SpaceWeatherAlert? spaceWeatherAlert,
-        LocalizationService strings)
+        LocalizationService strings,
+        IReadOnlyList<WorldClockItem> cities)
     {
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(referenceClock);
@@ -137,6 +138,8 @@ public sealed partial class WorldClockColumnControl : UserControl
 
         var accent = clock.IsDaylight ? DayAccentResource.Background : NightAccentResource.Background;
         CityNameText.Text = clock.CityName.ToUpper(strings.Culture);
+        SharedCitiesText.Text = string.Join(" · ", cities.Where(city => city.CityId != clock.CityId).Select(city => city.CityName));
+        SharedCitiesText.Visibility = cities.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         LocalTimeText.Text = clock.LocalTime.ToString("HH:mm", strings.Culture);
         LocalTimeText.Foreground = accent;
         DayStateText.Text = strings.Translate(clock.IsDaylight ? "WorldClock.Day" : "WorldClock.Night");
@@ -177,6 +180,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         var accessibleDetails = new[]
         {
             clock.CityName,
+            SharedCitiesText.Text,
             LocalTimeText.Text,
             OffsetText.Text,
             DateRelationText.Text,
@@ -236,6 +240,7 @@ public sealed partial class WorldClockColumnControl : UserControl
         CityNameText.HorizontalAlignment = expanded ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
         CityNameText.FontSize = expanded ? 20d : 18d;
         CityNameText.TextAlignment = expanded ? TextAlignment.Center : TextAlignment.Left;
+        SharedCitiesText.TextAlignment = CityNameText.TextAlignment;
         Grid.SetColumnSpan(TimeInfo, sideBySide ? 1 : 2);
         TimeInfo.HorizontalAlignment = expanded ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
         LocalTimeText.FontSize = expanded ? 58d : 56d;

@@ -32,6 +32,9 @@ public sealed class AvailabilityPlannerControl : UserControl
     private readonly ToggleMenuFlyoutItem _step30 = new() { IsChecked = true };
     private readonly ToggleMenuFlyoutItem _step60 = new();
     private readonly Button _more = new() { Content = new SymbolIcon(Symbol.More), Width = 36, Height = 36, Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Top };
+    private readonly Button _toggleHeaders = new() { Width = 36, Height = 36, Padding = new Thickness(6) };
+    private readonly FontIcon _headersIcon = new() { FontFamily = new FontFamily("Segoe Fluent Icons") };
+    private readonly ToggleMenuFlyoutItem _emptyCellsOption = new() { Tag = "Planner.EmptyCells" };
     private readonly Button _now = new();
     private readonly TextBlock _nowLabel = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly Hyperlink _weatherSetup = new();
@@ -49,12 +52,34 @@ public sealed class AvailabilityPlannerControl : UserControl
     private int _visibleHours = 24;
     private int _stepMinutes = 30;
     private DayOfWeek _firstDay = DayOfWeek.Monday;
+    private bool _emptyCells = true;
+    private bool _compactHeaders;
 
     /// <summary>Requests persistence of the date calendar's first weekday.</summary>
     public event Action<DayOfWeek>? FirstDayOfWeekRequested;
 
     /// <summary>Requests persistence of the visible duration and time step.</summary>
     public event Action<int, int>? ViewPreferencesRequested;
+
+    /// <summary>Requests saving the timeline's cell and header display options.</summary>
+    public event Action<bool, bool>? TableDisplayRequested;
+
+    /// <summary>Renders the saved cell and header options.</summary>
+    public void SetTableDisplay(bool emptyCells, bool compactHeaders)
+    {
+        _emptyCells = emptyCells;
+        _compactHeaders = compactHeaders;
+        _emptyCellsOption.IsChecked = emptyCells;
+        UpdateHeaderToggle();
+        _timeline.SetDisplayOptions(emptyCells, compactHeaders);
+    }
+
+    /// <summary>Prevents overlapping changes while a display preference is being saved.</summary>
+    public void SetTableDisplayBusy(bool busy)
+    {
+        _emptyCellsOption.IsEnabled = !busy;
+        _toggleHeaders.IsEnabled = !busy;
+    }
 
     /// <summary>Requests saving a completed equal-column resize or automatic fitting.</summary>
     public event Action<double>? ColumnWidthRequested;
@@ -95,18 +120,23 @@ public sealed class AvailabilityPlannerControl : UserControl
     {
         ArgumentNullException.ThrowIfNull(menu);
         if (ReferenceEquals(_more.Flyout, menu)) return;
-        if (_more.Flyout is MenuFlyout previous) previous.Items.Clear();
+        if (_more.Flyout is MenuFlyout previous)
+        {
+            previous.Items.OfType<MenuFlyoutSubItem>().FirstOrDefault(item => Equals(item.Tag, "Window.Options"))
+                ?.Items.Remove(_emptyCellsOption);
+            previous.Items.Clear();
+        }
+        menu.Items.OfType<MenuFlyoutSubItem>().FirstOrDefault(item => Equals(item.Tag, "Window.Options"))
+            ?.Items.Add(_emptyCellsOption);
         MenuFlyoutItemBase[] commands = [_hours, _step, _weekStart, new MenuFlyoutSeparator(), _exportPdf, _openClocks, new MenuFlyoutSeparator()];
         for (var index = commands.Length - 1; index >= 0; index--) menu.Items.Insert(0, commands[index]);
         _more.Flyout = menu;
     }
 
-    /// <summary>Gets whether the reference follows the current time.</summary>
-    public bool IsLive { get; private set; } = true;
-    /// <summary>Gets whether pending reference edits must be protected from periodic refreshes.</summary>
-    public bool HasPendingEdits { get; private set; }
-    /// <summary>Requests a fresh application projection.</summary>
-    public event Action<AvailabilityPlannerRequest>? Requested;
+    /// <summary>Publishes input when the user edits the reference fields.</summary>
+    public event Action<string?, DateTime?, TimeSpan>? ReferenceEdited;
+    /// <summary>Requests a return to the current instant.</summary>
+    public event Action? CurrentTimeRequested;
     /// <summary>Requests a city's schedule editor.</summary>
     public event Action<AvailabilityPlannerCity>? ScheduleRequested;
     /// <summary>Requests the existing weather-key configuration surface.</summary>
@@ -145,7 +175,12 @@ public sealed class AvailabilityPlannerControl : UserControl
         commands.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         commands.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         commands.Children.Add(_toolbar);
-        Grid.SetColumn(_more, 1); commands.Children.Add(_more);
+        _toggleHeaders.Content = _headersIcon;
+        var headerActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        headerActions.Children.Add(_toggleHeaders);
+        headerActions.Children.Add(_more);
+        Grid.SetColumn(headerActions, 1);
+        commands.Children.Add(headerActions);
         _legend.HorizontalAlignment = HorizontalAlignment.Right;
         _legend.TextAlignment = TextAlignment.Right;
         Grid.SetRow(_legend, 1); Grid.SetColumnSpan(_legend, 2); commands.Children.Add(_legend);
@@ -178,7 +213,7 @@ public sealed class AvailabilityPlannerControl : UserControl
         _now.Click += (_, _) =>
         {
             _timeline.ScrollToCurrentSlot();
-            Submit(true);
+            CurrentTimeRequested?.Invoke();
         };
         _previousDay.Click += (_, _) => MoveDay(-1);
         _nextDay.Click += (_, _) => MoveDay(1);
@@ -190,6 +225,13 @@ public sealed class AvailabilityPlannerControl : UserControl
         _monday.Click += (_, _) => { SetFirstDayOfWeek(_firstDay); FirstDayOfWeekRequested?.Invoke(DayOfWeek.Monday); };
         _sunday.Click += (_, _) => { SetFirstDayOfWeek(_firstDay); FirstDayOfWeekRequested?.Invoke(DayOfWeek.Sunday); };
         _openClocks.Click += (_, _) => OpenClocksRequested?.Invoke();
+        _toggleHeaders.Click += (_, _) => TableDisplayRequested?.Invoke(_emptyCells, !_compactHeaders);
+        _emptyCellsOption.Click += (_, _) =>
+        {
+            var requested = _emptyCellsOption.IsChecked;
+            _emptyCellsOption.IsChecked = _emptyCells;
+            TableDisplayRequested?.Invoke(requested, _compactHeaders);
+        };
         _cities.SelectionChanged += (_, _) => ReferenceChanged();
         _date.DateChanged += (_, _) => ReferenceChanged();
         _time.TimeChanged += (_, _) => ReferenceChanged();
@@ -204,10 +246,6 @@ public sealed class AvailabilityPlannerControl : UserControl
         };
         Content = root;
     }
-
-    /// <summary>Gets a request preserving the user's selected reference and interval.</summary>
-    public AvailabilityPlannerRequest GetRequest() => new(_cities.SelectedValue as string,
-        IsLive || _date.Date is null ? null : _date.Date.Value.Date + _time.Time, _stepMinutes);
 
     /// <summary>Labels the controls even when the initial application query has failed.</summary>
     public void ApplyLocalization(LocalizationService strings)
@@ -249,6 +287,9 @@ public sealed class AvailabilityPlannerControl : UserControl
         Label(_step30, "Planner.Minutes30", "Planner.Minutes30");
         Label(_step60, "Planner.Minutes60", "Planner.Minutes60");
         Label(_more, "Planner.Options", "Planner.Options");
+        _emptyCellsOption.Text = _strings.Translate("Planner.EmptyCells");
+        Label(_emptyCellsOption, "Planner.EmptyCells", "Planner.EmptyCells");
+        UpdateHeaderToggle();
         Label(_now, "Planner.Now", "Planner.GoToNow");
         Label(_previousDay, "Planner.PreviousDay", "WorldClock.PreviousDay");
         Label(_nextDay, "Planner.NextDay", "WorldClock.NextDay");
@@ -257,15 +298,18 @@ public sealed class AvailabilityPlannerControl : UserControl
     }
 
     /// <summary>Applies a complete snapshot without executing application operations.</summary>
-    public void Apply(AvailabilityPlannerSnapshot snapshot, LocalizationService strings, bool navigate)
+    public void Apply(AvailabilityPlannerSnapshot snapshot, LocalizationService strings, bool navigate, bool updateReference = true)
     {
         _snapshot = snapshot; _strings = strings; _rendering = true;
         _exportPdf.IsEnabled = !_exportBusy;
         ApplyLocalization(strings);
-        _cities.ItemsSource = snapshot.Cities.Select(c => c.Clock).ToArray();
-        _cities.SelectedValue = snapshot.ReferenceCityId;
-        _date.Date = new DateTimeOffset(snapshot.ReferenceLocalTime.Date, TimeSpan.Zero);
-        _time.Time = snapshot.ReferenceLocalTime.TimeOfDay;
+        if (updateReference)
+        {
+            _cities.ItemsSource = snapshot.Cities.Select(c => c.Clock).ToArray();
+            _cities.SelectedValue = snapshot.ReferenceCityId;
+            _date.Date = new DateTimeOffset(snapshot.ReferenceLocalTime.Date, TimeSpan.Zero);
+            _time.Time = snapshot.ReferenceLocalTime.TimeOfDay;
+        }
         UpdateMenuSelection();
         var phase = LunarPhaseProjection.Create(snapshot.MoonPhaseAngleDegrees);
         _moon.MoonPhaseAngleDegrees = snapshot.MoonPhaseAngleDegrees;
@@ -300,7 +344,6 @@ public sealed class AvailabilityPlannerControl : UserControl
             ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"];
         _previousDay.IsEnabled = _date.Date > _date.MinDate;
         _nextDay.IsEnabled = _date.Date < _date.MaxDate;
-        HasPendingEdits = false;
         _rendering = false;
         _timeline.Apply(snapshot, strings, _visibleHours, navigate);
         if (navigate || string.IsNullOrEmpty(_selection.Text))
@@ -310,21 +353,11 @@ public sealed class AvailabilityPlannerControl : UserControl
         }
     }
 
-    private void Submit(bool live)
-    {
-        IsLive = live;
-        HasPendingEdits = false;
-        Requested?.Invoke(GetRequest());
-    }
-
     private void ReferenceChanged()
     {
-        // Snapshot rendering must never trigger another request. Incomplete date/time edits stay local.
+        // Only user edits publish input. Requests and refreshes use the session model.
         if (_rendering) return;
-        IsLive = false;
-        HasPendingEdits = true;
-        if (_cities.SelectedValue is string && _date.Date is not null && _time.Time >= TimeSpan.Zero)
-            Submit(false);
+        ReferenceEdited?.Invoke(_cities.SelectedValue as string, _date.Date?.Date, _time.Time);
     }
 
     private void SetVisibleHours(int hours)
@@ -352,6 +385,13 @@ public sealed class AvailabilityPlannerControl : UserControl
     {
         AutomationProperties.SetAutomationId(control, identifier);
         UiLocalization.SetAccessibleLabel(control, _strings.Translate(key));
+    }
+
+    private void UpdateHeaderToggle()
+    {
+        _headersIcon.Glyph = _compactHeaders ? "\uE70D" : "\uE70E";
+        Label(_toggleHeaders, "Planner.ToggleHeaders",
+            _compactHeaders ? "Planner.ExpandHeaders" : "Planner.CollapseHeaders");
     }
 
     private void MoveDay(int offset)

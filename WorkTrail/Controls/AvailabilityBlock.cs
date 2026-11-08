@@ -13,7 +13,34 @@ namespace WorkTrail.Controls;
 public sealed class AvailabilityBlock : UserControl
 {
     /// <summary>Displays a projected local interval and its source-backed reason.</summary>
-    public void Apply(AvailabilityCell cell, string cityName, LocalizationService strings)
+    public void Apply(AvailabilityCell cell, string cityName, LocalizationService strings, bool empty)
+    {
+        HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        VerticalContentAlignment = VerticalAlignment.Stretch;
+        var border = new Border
+        {
+            Child = empty ? null : CreateLabels(cell, strings),
+            BorderThickness = new Thickness(0, 0, 1, 1),
+            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(24, 128, 128, 128))
+        };
+        var color = cell.State switch
+        {
+            AvailabilityState.Available => Windows.UI.Color.FromArgb(42, 76, 175, 100),
+            AvailabilityState.Reserve => Windows.UI.Color.FromArgb(65, 230, 165, 40),
+            AvailabilityState.Unavailable => Windows.UI.Color.FromArgb(46, 190, 85, 85),
+            _ => Windows.UI.Color.FromArgb(35, 128, 128, 128)
+        };
+        border.Background = new SolidColorBrush(color);
+        Content = border;
+        var description = $"{cityName}: {cell.LocalStart.ToString("ddd d MMM HH:mm zzz", strings.Culture)} – {cell.LocalEnd.ToString("HH:mm zzz", strings.Culture)}. "
+            + strings.Translate($"Planner.State.{cell.State}") + ". " + strings.Translate(cell.ReasonKey)
+            + (cell.Detail is null ? "" : $": {cell.Detail}");
+        if (cell.IsNonWorkingDay) description += ". " + strings.Translate("Planner.NonWorkingDay");
+        ToolTipService.SetToolTip(this, description);
+        AutomationProperties.SetName(this, description);
+    }
+
+    private static Grid CreateLabels(AvailabilityCell cell, LocalizationService strings)
     {
         var symbol = cell.State switch { AvailabilityState.Available => "✓", AvailabilityState.Reserve => "◐", AvailabilityState.Unknown => "ℹ", _ => "×" };
         var content = new Grid { Padding = new Thickness(8, 0, 8, 0) };
@@ -46,34 +73,14 @@ public sealed class AvailabilityBlock : UserControl
         });
         Grid.SetColumn(time, 1);
         content.Children.Add(time);
-        var border = new Border
-        {
-            Child = content,
-            BorderThickness = new Thickness(0, 0, 1, 1),
-            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(24, 128, 128, 128))
-        };
-        var color = cell.State switch
-        {
-            AvailabilityState.Available => Windows.UI.Color.FromArgb(42, 76, 175, 100),
-            AvailabilityState.Reserve => Windows.UI.Color.FromArgb(65, 230, 165, 40),
-            AvailabilityState.Unavailable => Windows.UI.Color.FromArgb(46, 190, 85, 85),
-            _ => Windows.UI.Color.FromArgb(35, 128, 128, 128)
-        };
-        border.Background = new SolidColorBrush(color);
-        Content = border;
-        var description = $"{cityName}: {cell.LocalStart.ToString("ddd d MMM HH:mm zzz", strings.Culture)} – {cell.LocalEnd.ToString("HH:mm zzz", strings.Culture)}. "
-            + strings.Translate($"Planner.State.{cell.State}") + ". " + strings.Translate(cell.ReasonKey)
-            + (cell.Detail is null ? "" : $": {cell.Detail}");
-        if (cell.IsNonWorkingDay) description += ". " + strings.Translate("Planner.NonWorkingDay");
-        ToolTipService.SetToolTip(this, description);
-        AutomationProperties.SetName(this, description);
+        return content;
     }
 }
 
 /// <summary>Supplies a recycled row with presentation context.</summary>
 public sealed record AvailabilityRowPresentation(AvailabilityRow Row, IReadOnlyList<AvailabilityPlannerCity> Cities,
     LocalizationService Strings, double RowHeight, TimelineColumnLayout? Columns = null, string? ReferenceCityName = null,
-    bool IsCurrentSlot = false);
+    bool IsCurrentSlot = false, bool EmptyCells = true);
 
 /// <summary>Reuses availability blocks inside a virtualized timeline row.</summary>
 public sealed class AvailabilityTimelineRowControl : UserControl
@@ -102,7 +109,7 @@ public sealed class AvailabilityTimelineRowControl : UserControl
         {
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_columns?.ColumnWidth ?? TimelineColumnLayout.MinimumColumnWidth) });
             var cell = new AvailabilityBlock();
-            cell.Apply(item.Row.Cells[i], item.Cities[i].Clock.CityName, item.Strings);
+            cell.Apply(item.Row.Cells[i], item.Cities[i].Clock.CityName, item.Strings, item.EmptyCells);
             Grid.SetColumn(cell, i);
             grid.Children.Add(cell);
         }
