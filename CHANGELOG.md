@@ -25,6 +25,10 @@ Release history will begin with the first explicitly authorized tagged public pr
 
 - World Timesheet marks the current time slot in red and provides a command to jump to it.
 - Timesheet city columns resize together from any header edge and can fill the available width. Reference-city midnight separators continue through the timeline and vector PDF.
+- World Clock city settings open in a separate window from either World Clock or World Timesheet. The city picker shows a searchable list.
+- World Clock can group cities that share the displayed UTC offset into a single clock column. Expand a group in settings to manage its cities individually.
+- World Timesheet can collapse city headers and starts with empty cells. The UTC column, availability colors, hover details and selected interval summary remain visible.
+- World Timesheet and the city settings window use Acrylic. WorkTrail windows display the app icon.
 - Refresh .NET, Windows App SDK, rendering and test dependencies used by the source build.
 - Widget and tray navigation share all seven views, consistent commands and localized calendar-country selection with search. Window menus keep taskbar visibility, opacity and always-on-top preferences independent and persistent for each widget.
 - Timesheet duration and time-step preferences are saved, and both calendar city selectors retain the chosen city.
