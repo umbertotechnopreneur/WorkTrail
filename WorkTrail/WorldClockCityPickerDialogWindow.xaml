@@ -72,6 +72,7 @@ VBWR E -->
             </StackPanel>
             <controls:CityPickerControl x:Name="CityPicker" Grid.Row="1" SelectionChanged="CityPicker_SelectionChanged" />
             <TextBlock x:Name="SuggestionText" Grid.Row="2" TextWrapping="Wrap" Visibility="Collapsed"
+                       AutomationProperties.LiveSetting="Polite"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             <StackPanel
                 Grid.Row="3"

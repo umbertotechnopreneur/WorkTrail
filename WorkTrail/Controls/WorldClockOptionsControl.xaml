@@ -20,7 +20,7 @@ VBWR E -->
 <UserControl
     x:Class="WorkTrail.Controls.WorldClockOptionsControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:WorkTrail.Controls">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
         <Style x:Key="WorldClockOptionsSectionStyle" TargetType="Border">
             <Setter Property="Padding" Value="18" />
@@ -266,32 +266,40 @@ VBWR E -->
                                     Text="Add or remove up to 12 cities and choose the reference city."
                                     TextWrapping="Wrap" />
                             </StackPanel>
+                            <ToggleSwitch
+                                x:Name="AutoGroupCitiesSwitch"
+                                Header="Automatically group cities with the same local time"
+                                Tag="WorldClock.Options.AutoGroupCities"
+                                Toggled="AutoGroupCitiesSwitch_Toggled" />
                             <StackPanel
                                 x:Name="CitiesHost"
                                 Margin="0,2,0,0"
                                 Spacing="0" />
-                            <Grid ColumnSpacing="8">
-                              <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                              </Grid.ColumnDefinitions>
-                              <Button
-                                x:Name="AddClockButton"
-                                HorizontalAlignment="Left"
-                                Click="AddClockButton_Click"
-                                Tag="WorldClock.Add">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <SymbolIcon
-                                        AutomationProperties.AccessibilityView="Raw"
-                                        Symbol="Add" />
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        Tag="WorldClock.Add"
-                                        Text="Add clock" />
-                                </StackPanel>
-                              </Button>
-                              <controls:PremiumBadge x:Name="AddClockPremiumBadge" Grid.Column="1" HorizontalAlignment="Left" />
-                            </Grid>
+                            <StackPanel Spacing="6">
+                                <Button
+                                    x:Name="AddClockButton"
+                                    HorizontalAlignment="Left"
+                                    Click="AddClockButton_Click"
+                                    Tag="WorldClock.Add">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <SymbolIcon
+                                            AutomationProperties.AccessibilityView="Raw"
+                                            Symbol="Add" />
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            Tag="WorldClock.Add"
+                                            Text="Add clock" />
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock
+                                    x:Name="ClocksLimitText"
+                                    AutomationProperties.LiveSetting="Polite"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Tag="WorldClocksMaximumReached"
+                                    Text="Remove clocks until fewer than 12 remain before adding another."
+                                    TextWrapping="Wrap"
+                                    Visibility="Collapsed" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </Grid>

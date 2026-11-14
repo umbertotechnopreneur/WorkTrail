@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -13,6 +14,9 @@ public sealed partial class CityPickerControl : UserControl
     #region Fields
 
     private List<CityOption> _options = [];
+    private CompareInfo _searchComparer = CultureInfo.InvariantCulture.CompareInfo;
+    private bool _inline;
+    private CityOption? SelectedCity => (_inline ? CityList.SelectedItem : CityComboBox.SelectedItem) as CityOption;
 
     #endregion
 
@@ -33,21 +37,40 @@ public sealed partial class CityPickerControl : UserControl
     #region Implementation
 
     /// <summary>Gets the chosen identifier, or null until a catalog item is selected.</summary>
-    public string? SelectedCityId => (CityComboBox.SelectedItem as CityOption)?.Id;
+    public string? SelectedCityId => SelectedCity?.Id;
 
     /// <summary>Gets the chosen display name.</summary>
-    public string? SelectedDisplayName => (CityComboBox.SelectedItem as CityOption)?.DisplayName;
+    public string? SelectedDisplayName => SelectedCity?.DisplayName;
+
+    /// <summary>Displays a persistent result list for the full-size city picker.</summary>
+    public void UseInlineList()
+    {
+        _inline = true;
+        CityComboBox.Visibility = Visibility.Collapsed;
+        InlinePicker.Visibility = Visibility.Visible;
+    }
 
     /// <summary>Displays the supplied catalog and an optional suggestion that the user can replace.</summary>
     public void ApplyCities(IReadOnlyList<WorldClockCitySummary> cities, LocalizationService strings, string? selectedCityId = null)
     {
         var cityOptions = cities.Select(city => new CityOption(city.Id, $"{city.Name} · {city.CountryCode}"));
         var displayNameComparer = StringComparer.Create(strings.Culture, ignoreCase: true);
+        _searchComparer = strings.Culture.CompareInfo;
 
         _options = cityOptions
             .OrderBy(city => city.DisplayName, displayNameComparer)
             .ToList();
-        CityComboBox.PlaceholderText = strings.Translate("WorldClock.SearchCity");
+        var searchLabel = strings.Translate("WorldClock.SearchCity");
+        if (_inline)
+        {
+            CitySearchBox.PlaceholderText = searchLabel;
+            AutomationProperties.SetName(CitySearchBox, searchLabel);
+            AutomationProperties.SetName(CityList, strings.Translate("WorldClock.PickerTitle"));
+            FilterCities(selectedCityId);
+            return;
+        }
+
+        CityComboBox.PlaceholderText = searchLabel;
         AutomationProperties.SetName(CityComboBox, CityComboBox.PlaceholderText);
         CityComboBox.ItemsSource = _options;
         CityComboBox.SelectedItem = _options.FirstOrDefault(city => city.Id == selectedCityId);
@@ -57,13 +80,42 @@ public sealed partial class CityPickerControl : UserControl
     public void RemoveCity(string cityId)
     {
         _options.RemoveAll(city => city.Id == cityId);
+        if (_inline)
+        {
+            CityList.SelectedItem = null;
+            if (CitySearchBox.Text.Length == 0)
+            {
+                FilterCities(null);
+            }
+            else
+            {
+                CitySearchBox.Text = string.Empty;
+            }
+            return;
+        }
+
         CityComboBox.SelectedItem = null;
         CityComboBox.ItemsSource = null;
         CityComboBox.ItemsSource = _options;
     }
 
     /// <summary>Moves keyboard focus to the searchable catalog.</summary>
-    public void FocusPicker() => CityComboBox.Focus(FocusState.Programmatic);
+    public void FocusPicker()
+    {
+        var target = _inline ? (Control)CitySearchBox : CityComboBox;
+        target.Focus(FocusState.Programmatic);
+    }
+
+    private void CitySearchBox_TextChanged(object sender, TextChangedEventArgs args) => FilterCities(SelectedCityId);
+
+    private void FilterCities(string? selectedCityId)
+    {
+        var query = CitySearchBox.Text.Trim();
+        var results = _options.Where(city => query.Length == 0 || _searchComparer.IndexOf(
+            city.DisplayName, query, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0).ToArray();
+        CityList.ItemsSource = results;
+        CityList.SelectedItem = results.FirstOrDefault(city => city.Id == selectedCityId);
+    }
 
     /// <summary>Publishes the city selected in the picker.</summary>
     private void CityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs args) => SelectionChanged?.Invoke(this, args);

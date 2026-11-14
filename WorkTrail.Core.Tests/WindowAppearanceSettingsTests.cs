@@ -43,6 +43,9 @@ public sealed class WindowAppearanceSettingsTests
     [Theory]
     [InlineData("planner.visible_hours", "12")]
     [InlineData("planner.step_minutes", "5")]
+    [InlineData("planner.column_width", "139")]
+    [InlineData("planner.column_width", "NaN")]
+    [InlineData("planner.column_width", "Infinity")]
     public void InvalidTimetablePreferencesAreRejected(string key, string value)
     {
         var original = new AppSettings(PlannerVisibleHours: 16, PlannerStepMinutes: 15);
@@ -50,5 +53,19 @@ public sealed class WindowAppearanceSettingsTests
         Assert.False(result.Succeeded);
         Assert.Equal(16, original.PlannerVisibleHours);
         Assert.Equal(15, original.PlannerStepMinutes);
+    }
+
+    /// <summary>Column preferences support automatic fitting and fractional logical pixels.</summary>
+    [Theory]
+    [InlineData("0", 0)]
+    [InlineData("236.5", 236.5)]
+    public void ColumnPreferencesPreserveAutomaticAndManualWidths(string text, double expected)
+    {
+        var result = SettingsCatalog.Apply(new AppSettings(), new SettingsPatch(new Dictionary<string, string?>
+        {
+            ["planner.column_width"] = text
+        }));
+        Assert.True(result.Succeeded);
+        Assert.Equal(expected, result.Value!.PlannerColumnWidth);
     }
 }

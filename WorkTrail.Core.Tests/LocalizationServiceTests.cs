@@ -47,7 +47,8 @@ public sealed class LocalizationServiceTests
         foreach (var key in WindowViewCatalog.All.Select(view => view.LabelKey)
             .Concat(CelestialCalendarCountries.All.Select(country => "Calendar.Country." + country.Code))
             .Concat(new[] { "Window.Menu", "Window.OpenView", "Window.Options", "Window.AlwaysOnTop", "Window.Opacity",
-                "Window.AppSettings", "Window.ManageCities", "Window.CalendarSettings", "Window.ShowInTaskbar", "Calendar.SearchCountries" }))
+                "Window.AppSettings", "Window.ManageCities", "Window.CalendarSettings", "Window.ShowInTaskbar", "Calendar.SearchCountries",
+                "Planner.ResizeColumns", "Planner.ReferenceDayStarts", "Planner.GoToNow", "Planner.NowLabel" }))
         {
             Assert.NotEqual(key, strings.Translate(key));
             Assert.False(string.IsNullOrWhiteSpace(strings.Translate(key)));

@@ -64,7 +64,7 @@ public sealed class WelcomeSettingsTests
         }
     }
 
-    /// <summary>Choosing an already selected city preserves the other clocks and all saved window bounds.</summary>
+    /// <summary>Home city selection preserves all twelve saved clocks and cannot add a thirteenth.</summary>
     [Fact]
     public async Task Welcome_PreservesExistingCitiesAndWindowPlacement()
     {
@@ -73,15 +73,26 @@ public sealed class WelcomeSettingsTests
         {
             var store = new LocalStore(directory);
             var placement = new WindowState(20, 40, 600, 420, "display");
+            var clocks = new WorldClockService(CatalogPath());
+            var candidates = clocks.GetCatalog().Cities.Take(13).Select(city => city.Id).ToArray();
+            Assert.Equal(13, candidates.Length);
+            var existingCities = candidates.Take(12).ToArray();
             store.SaveSettings(store.LoadSettings() with
             {
-                WorldClockCityIds = ["tokyo", "rome", "london"],
+                WorldClockCityIds = existingCities,
                 WindowStates = new Dictionary<string, WindowState> { [WindowStateKeys.WorldClocks] = placement }
             });
-            await using var application = new WorkTrailApplication(store, worldClockService: new WorldClockService(CatalogPath()));
+            await using var application = new WorkTrailApplication(store, worldClockService: clocks);
 
-            Assert.True((await application.PatchSettingsAsync(Home("rome"), CancellationToken.None)).Succeeded);
-            Assert.Equal(new[] { "rome", "tokyo", "london" }, store.LoadSettings().WorldClockCityIds);
+            var full = await application.PatchSettingsAsync(Home(candidates[^1]), CancellationToken.None);
+            Assert.False(full.Succeeded);
+            Assert.Equal("WorldClocksMaximumReached", full.MessageKey);
+            Assert.Equal(existingCities, store.LoadSettings().WorldClockCityIds);
+            Assert.False(store.LoadSettings().WelcomeCompleted);
+
+            var home = existingCities[1];
+            Assert.True((await application.PatchSettingsAsync(Home(home), CancellationToken.None)).Succeeded);
+            Assert.Equal(new[] { home }.Concat(existingCities.Where(cityId => cityId != home)), store.LoadSettings().WorldClockCityIds);
             Assert.Equal(placement, store.LoadSettings().WindowStates![WindowStateKeys.WorldClocks]);
         }
         finally

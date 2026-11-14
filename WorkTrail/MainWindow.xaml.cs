@@ -77,7 +77,6 @@ public sealed partial class MainWindow : Window
         SystemBackdrop = new GlassBackdrop();
         var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         _appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(handle));
-        _appWindow.SetIcon(iconPath);
         _titleBar = new CustomTitleBarController(this, _appWindow, RootGrid, TitleBarDragRegion,
             TitleBarLeftInsetColumn, TitleBarRightInsetColumn, () => []);
         _placement = new WindowPlacementService(application, this, _appWindow, WindowStateKeys.Main, 520, 620, 24, deferNativeClose: false);

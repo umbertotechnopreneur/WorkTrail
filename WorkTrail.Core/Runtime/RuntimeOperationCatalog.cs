@@ -58,8 +58,6 @@ internal enum RuntimeOperation
     DiagnosticsLogShare,
     [RuntimeOperationWireName("settings.get")]
     SettingsGet,
-    [RuntimeOperationWireName("features.access.get.v1")]
-    FeatureAccessGetV1,
     [RuntimeOperationWireName("settings.patch")]
     SettingsPatch,
     [RuntimeOperationWireName("window.state.restore")]

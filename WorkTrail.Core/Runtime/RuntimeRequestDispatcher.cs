@@ -90,7 +90,6 @@ internal sealed class RuntimeRequestDispatcher
                 RuntimeOperation.DiagnosticsLogOpenFolder => ToResponse(request, await _application.OpenApplicationLogFolderAsync(cancellationToken)),
                 RuntimeOperation.DiagnosticsLogShare => ToResponse(request, await _application.ShareApplicationLogAsync(ReadInt64(request.Payload, "windowHandle"), cancellationToken)),
                 RuntimeOperation.SettingsGet => ToResponse(request, await _application.GetSettingsAsync(cancellationToken)),
-                RuntimeOperation.FeatureAccessGetV1 => ToResponse(request, await _application.GetFeatureAccessAsync(cancellationToken)),
                 RuntimeOperation.SettingsPatch => ToResponse(request, await _application.PatchSettingsAsync(Read<SettingsPatch>(request.Payload) ?? new SettingsPatch(new Dictionary<string, string?>()), cancellationToken)),
                 RuntimeOperation.WindowStateRestore => ToResponse(request, await _application.RestoreWindowStateAsync(ReadString(request.Payload, "windowKey"), ReadInt64(request.Payload, "windowHandle"), cancellationToken)),
                 RuntimeOperation.WindowRevealOpenV1 => ToResponse(request, await _application.RevealOpenWindowsAsync(Read<WindowRevealRequest>(request.Payload) ?? throw new ArgumentException("A window reveal request is required."), cancellationToken)),

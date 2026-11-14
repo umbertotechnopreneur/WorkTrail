@@ -38,7 +38,6 @@ VBWR E -->
                         <SolidColorBrush x:Key="WorldClockReferenceFlyoutBorderBrush" Color="#1F000000" />
                         <SolidColorBrush x:Key="WorldClockReferenceAccentBrush" Color="#FFE34A2C" />
                         <SolidColorBrush x:Key="WorldClockReferenceAccentTextBrush" Color="#FFFFFFFF" />
-                        <SolidColorBrush x:Key="WorldClockOptionsOverlayBrush" Color="#F2FAFAFA" />
                         <SolidColorBrush x:Key="WorldClockColumnDividerBrush" Color="#26000000" />
                     </ResourceDictionary>
                     <ResourceDictionary x:Key="Dark">
@@ -48,7 +47,6 @@ VBWR E -->
                         <SolidColorBrush x:Key="WorldClockReferenceFlyoutBorderBrush" Color="#34FFFFFF" />
                         <SolidColorBrush x:Key="WorldClockReferenceAccentBrush" Color="#FFFF7357" />
                         <SolidColorBrush x:Key="WorldClockReferenceAccentTextBrush" Color="#FF201F24" />
-                        <SolidColorBrush x:Key="WorldClockOptionsOverlayBrush" Color="#F2141518" />
                         <SolidColorBrush x:Key="WorldClockColumnDividerBrush" Color="#34FFFFFF" />
                     </ResourceDictionary>
                     <ResourceDictionary x:Key="HighContrast">
@@ -58,7 +56,6 @@ VBWR E -->
                         <StaticResource x:Key="WorldClockReferenceFlyoutBorderBrush" ResourceKey="SystemColorWindowTextColorBrush" />
                         <StaticResource x:Key="WorldClockReferenceAccentBrush" ResourceKey="SystemColorHighlightColorBrush" />
                         <StaticResource x:Key="WorldClockReferenceAccentTextBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
-                        <StaticResource x:Key="WorldClockOptionsOverlayBrush" ResourceKey="SystemColorWindowColorBrush" />
                         <StaticResource x:Key="WorldClockColumnDividerBrush" ResourceKey="SystemColorWindowTextColorBrush" />
                     </ResourceDictionary>
                 </ResourceDictionary.ThemeDictionaries>
@@ -125,47 +122,20 @@ VBWR E -->
                         VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Button
-                            x:Name="HeaderBackButton"
-                            Grid.Column="0"
-                            AutomationProperties.Name="Back to world clocks"
-                            Click="HeaderBackButton_Click"
-                            IsTabStop="True"
-                            AllowFocusOnInteraction="True"
-                            Style="{StaticResource WorkTrailTitleBarCommandButtonStyle}"
-                            Tag="WorldClock.Options.Back"
-                            ToolTipService.ToolTip="Back to world clocks"
-                            Visibility="Collapsed">
-                            <FontIcon
-                                AutomationProperties.AccessibilityView="Raw"
-                                FontFamily="Segoe Fluent Icons"
-                                FontSize="17"
-                                Glyph="&#xE72B;" />
-                        </Button>
                         <Image
                             x:Name="TitleBarLogo"
-                            Grid.Column="1"
                             Margin="8,0,10,0"
                             Style="{StaticResource WorkTrailTitleBarLogoStyle}" />
                         <TextBlock
                             x:Name="ReferenceInstantLabel"
-                            Grid.Column="2"
+                            Grid.Column="1"
                             CharacterSpacing="70"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Style="{StaticResource WorkTrailTitleBarLabelStyle}"
                             Tag="WorldClock.ReferenceInstant"
                             Text="REFERENCE INSTANT" />
-                        <TextBlock
-                            x:Name="OptionsHeaderLabel"
-                            Grid.Column="2"
-                            CharacterSpacing="70"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource WorkTrailTitleBarLabelStyle}"
-                            Text="WORLD CLOCK OPTIONS"
-                            Visibility="Collapsed" />
                     </Grid>
                 </Grid>
 
@@ -527,14 +497,6 @@ VBWR E -->
 
             </Grid>
 
-            <Border
-                x:Name="OptionsPanel"
-                Grid.Row="1"
-                Background="{ThemeResource WorldClockOptionsOverlayBrush}"
-                Canvas.ZIndex="50"
-                Visibility="Collapsed">
-                <ContentPresenter x:Name="OptionsHost" />
-            </Border>
         </Grid>
 
         <controls:TimedInfoBar

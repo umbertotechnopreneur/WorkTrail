@@ -4,17 +4,15 @@ using WorkTrail.Application;
 
 namespace WorkTrail.Services;
 
-/// <summary>Draws selectable text and vector timetable geometry into A4 landscape PDF pages.</summary>
+/// <summary>Draws selectable text and vector timetable geometry into PDF pages.</summary>
 internal static class AvailabilityPdfRenderer
 {
-    private const float PageWidth = 841.89f;
-    private const float PageHeight = 595.28f;
-    private const float Margin = 25;
     private const float Gutter = 46;
-    private const float TableTop = 240;
+    private const float FullTableTop = 240;
+    private const float CompactTableTop = 156;
+    private const float FooterSpace = 66;
     private const float RowHeight = 16;
-    private const int RowsPerPage = 18;
-    private const int CitiesPerPage = 7;
+
 
     /// <summary>Renders the visible logical interval, repeating headers across time and city page groups.</summary>
     internal static byte[] Render(AvailabilityPdfRequest request, string assetRoot, CancellationToken cancellationToken)
@@ -26,6 +24,35 @@ internal static class AvailabilityPdfRenderer
         var rows = snapshot.Rows.Where(r => r.StartUtc >= request.StartUtc && r.StartUtc < request.StartUtc.AddHours(request.Hours)).ToArray();
         if (rows.Length == 0 || rows.Any(r => r.Cells.Count != snapshot.Cities.Count))
             throw new ArgumentException("The selected interval is outside the planner data.");
+        var groups = snapshot.DisplayGroups ?? Enumerable.Range(0, snapshot.Cities.Count)
+            .Select(index => new AvailabilityPlannerGroup(index, [index])).ToArray();
+        if (groups.Count == 0 || groups.Any(group => group.CityIndices.Count == 0 ||
+            !group.CityIndices.Contains(group.PrimaryIndex) ||
+            group.CityIndices.Any(index => (uint)index >= (uint)snapshot.Cities.Count)) ||
+            (snapshot.DisplayGroups is not null && rows.Any(row => row.GroupedCells?.Count != groups.Count)))
+        {
+            throw new ArgumentException("The displayed groups do not match the planner data.");
+        }
+        var (shortSide, longSide) = request.PageSize switch
+        {
+            AvailabilityPdfPageSize.A4 => (595.28f, 841.89f),
+            AvailabilityPdfPageSize.A3 => (841.89f, 1190.55f),
+            AvailabilityPdfPageSize.Letter => (612f, 792f),
+            AvailabilityPdfPageSize.Legal => (612f, 1008f),
+            _ => throw new ArgumentException("Unsupported PDF paper size.")
+        };
+        if (!Enum.IsDefined(request.Orientation) || !Enum.IsDefined(request.Margins))
+            throw new ArgumentException("Unsupported PDF page options.");
+        var outerMargin = request.Margins == AvailabilityPdfMargins.None ? 0f : 14.17f;
+        var physicalWidth = request.Orientation == AvailabilityPdfOrientation.Landscape ? longSide : shortSide;
+        var physicalHeight = request.Orientation == AvailabilityPdfOrientation.Landscape ? shortSide : longSide;
+        var PageWidth = physicalWidth - 2 * outerMargin;
+        var PageHeight = physicalHeight - 2 * outerMargin;
+        const float Margin = 0;
+        var citiesPerPage = Math.Clamp((int)((PageWidth - Gutter) / 105), 1, 7);
+        var tableTop = request.CompactHeaders ? CompactTableTop : FullTableTop;
+        var rowsPerPage = (int)((PageHeight - FooterSpace - tableTop) / RowHeight);
+        var selectedInstant = request.SelectedStartUtc ?? snapshot.InstantUtc;
         var strings = new LocalizationService(request.Language);
         var family = request.Language.StartsWith("zh", StringComparison.Ordinal) ? "Microsoft YaHei UI"
             : request.Language.StartsWith("ko", StringComparison.Ordinal) ? "Malgun Gothic" : "Segoe UI";
@@ -37,17 +64,21 @@ internal static class AvailabilityPdfRenderer
         var images = new Dictionary<string, SKImage>(StringComparer.Ordinal);
         try
         {
-            foreach (var city in snapshot.Cities)
+            if (!request.CompactHeaders)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var path = Path.GetFullPath(Path.Combine(assetRoot, city.Clock.SkylineAssetPath));
                 var approved = Path.GetFullPath(Path.Combine(assetRoot, "Assets", "WorldClocks", "Skylines")) + Path.DirectorySeparatorChar;
-                if (!path.StartsWith(approved, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Unapproved skyline path.");
-                // Retain the shipped raster illustration; all surrounding text and geometry remain PDF primitives.
-                images[city.Clock.CityId] = SKImage.FromEncodedData(path) ?? throw new InvalidDataException("A skyline could not be decoded.");
+                foreach (var index in groups.SelectMany(group => group.CityIndices).Distinct())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var city = snapshot.Cities[index];
+                    var path = Path.GetFullPath(Path.Combine(assetRoot, city.Clock.SkylineAssetPath));
+                    if (!path.StartsWith(approved, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Unapproved skyline path.");
+                    // The skyline is raster artwork. The text and grid remain vector content.
+                    images[city.Clock.CityId] = SKImage.FromEncodedData(path) ?? throw new InvalidDataException("A skyline could not be decoded.");
+                }
             }
-            var cityPages = (snapshot.Cities.Count + CitiesPerPage - 1) / CitiesPerPage;
-            var timePages = (rows.Length + RowsPerPage - 1) / RowsPerPage;
+            var cityPages = (groups.Count + citiesPerPage - 1) / citiesPerPage;
+            var timePages = (rows.Length + rowsPerPage - 1) / rowsPerPage;
             var totalPages = cityPages * timePages;
             var page = 0;
             for (var timePage = 0; timePage < timePages; timePage++)
@@ -55,11 +86,12 @@ internal static class AvailabilityPdfRenderer
                 for (var cityPage = 0; cityPage < cityPages; cityPage++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var firstCity = cityPage * CitiesPerPage;
-                    var count = Math.Min(CitiesPerPage, snapshot.Cities.Count - firstCity);
+                    var firstGroup = cityPage * citiesPerPage;
+                    var count = Math.Min(citiesPerPage, groups.Count - firstGroup);
                     var width = (PageWidth - 2 * Margin - Gutter) / count;
-                    var pageRows = rows.Skip(timePage * RowsPerPage).Take(RowsPerPage).ToArray();
-                    var canvas = document.BeginPage(PageWidth, PageHeight);
+                    var pageRows = rows.Skip(timePage * rowsPerPage).Take(rowsPerPage).ToArray();
+                    var canvas = document.BeginPage(physicalWidth, physicalHeight);
+                    canvas.Translate(outerMargin, outerMargin);
                     canvas.Clear(SKColors.White);
                     Text(canvas, "WorkTrail", Margin, 35, 15, bold, SKColor.Parse("#E34A2C"));
                     Text(canvas, strings.Translate("Planner.Title"), Margin + 90, 35, 15, bold);
@@ -76,59 +108,123 @@ internal static class AvailabilityPdfRenderer
                     var legendX = Margin;
                     foreach (var state in Enum.GetValues<AvailabilityState>())
                     {
-                        using var fill = new SKPaint { Color = StateColor(state) };
+                        using var fill = new SKPaint { Color = StateColor(state, request.Palette) };
                         canvas.DrawRect(legendX, 86, 9, 9, fill);
                         Text(canvas, strings.Translate("Planner.State." + state), legendX + 14, 94, 8, regular);
                         legendX += (PageWidth - Margin * 2) / 4;
                     }
-                    Text(canvas, "UTC", Margin + 8, TableTop - 10, 10, bold);
+                    Text(canvas, "UTC", Margin + 8, tableTop - 10, 10, bold);
                     for (var i = 0; i < count; i++)
                     {
-                        var city = snapshot.Cities[firstCity + i];
+                        var group = groups[firstGroup + i];
+                        var city = snapshot.Cities[group.PrimaryIndex];
+                        var grouped = group.CityIndices.Count > 1;
+                        var names = string.Join(" · ", group.CityIndices.Select(index => snapshot.Cities[index].Clock.CityName));
                         var x = Margin + Gutter + i * width;
-                        var image = images[city.Clock.CityId];
-                        var imageScale = Math.Min(64f / image.Height, (width - 8) / image.Width);
-                        var imageWidth = image.Width * imageScale;
-                        var imageHeight = image.Height * imageScale;
-                        var imageLeft = x + (width - imageWidth) / 2;
-                        canvas.DrawImage(image, new SKRect(imageLeft, 169 - imageHeight, imageLeft + imageWidth, 169), new SKSamplingOptions(SKFilterMode.Linear));
-                        Wrap(canvas, city.Clock.CityName, x + 5, 183, width - 10, 10, bold, 1);
-                        Text(canvas, $"{city.Clock.LocalTime:HH:mm}  UTC{city.Clock.LocalTime:zzz}", x + 5, 198, 8.5f, regular);
+                        if (request.CompactHeaders)
+                        {
+                            Wrap(canvas, names, x + 5, 111, width - 10, 10, bold, 2);
+                            Text(canvas, city.Clock.LocalTime.ToString("HH:mm", strings.Culture), x + 5, 135, 10, bold);
+                            Wrap(canvas, city.Clock.LocalTime.ToString("ddd d MMM", strings.Culture), x + 5, 147, width - 10, 8, regular, 1);
+                            continue;
+                        }
+                        var memberWidth = (width - 8) / group.CityIndices.Count;
+                        for (var memberIndex = 0; memberIndex < group.CityIndices.Count; memberIndex++)
+                        {
+                            var member = snapshot.Cities[group.CityIndices[memberIndex]];
+                            var image = images[member.Clock.CityId];
+                            var imageScale = Math.Min(64f / image.Height, memberWidth / image.Width);
+                            var imageWidth = image.Width * imageScale;
+                            var imageHeight = image.Height * imageScale;
+                            var imageLeft = x + 4 + memberIndex * memberWidth + (memberWidth - imageWidth) / 2;
+                            canvas.DrawImage(image, new SKRect(imageLeft, 169 - imageHeight, imageLeft + imageWidth, 169), new SKSamplingOptions(SKFilterMode.Linear));
+                        }
+                        Wrap(canvas, names, x + 5, 181, width - 10, 10, bold, 2);
+                        Text(canvas, $"{city.Clock.LocalTime:HH:mm}  UTC{city.Clock.LocalTime:zzz}", x + 5, 205, 8.5f, regular);
                         var weather = city.Clock.Weather;
                         var weatherText = weather is { IsFresh: true }
                             ? $"{weather.TemperatureCelsius.ToString("0", strings.Culture)}°C · {strings.Translate("WorldClock.WeatherCondition." + weather.ConditionKey)}"
                             : strings.Translate("WorldClock.WeatherNoData");
-                        Wrap(canvas, weatherText, x + 5, 211, width - 10, 8, regular, 2);
-                        Text(canvas, $"{city.Schedule.Start:HH:mm} – {city.Schedule.End:HH:mm}", x + 5, 235, 8, regular);
+                        if (grouped)
+                        {
+                            var details = group.CityIndices.Select(index =>
+                            {
+                                var member = snapshot.Cities[index];
+                                var observation = member.Clock.Weather;
+                                var condition = observation is { IsFresh: true }
+                                    ? $"{observation.TemperatureCelsius.ToString("0", strings.Culture)}°C {strings.Translate("WorldClock.WeatherCondition." + observation.ConditionKey)}"
+                                    : strings.Translate("WorldClock.WeatherNoData");
+                                return $"{member.Clock.CityName}: {condition} {member.Schedule.Start:HH:mm}–{member.Schedule.End:HH:mm}";
+                            });
+                            Wrap(canvas, string.Join(" · ", details), x + 5, 216, width - 10, 8, regular, 2);
+                        }
+                        else
+                        {
+                            Wrap(canvas, weatherText, x + 5, 216, width - 10, 8, regular, 2);
+                            Text(canvas, $"{city.Schedule.Start:HH:mm} – {city.Schedule.End:HH:mm}", x + 5, 235, 8, regular);
+                        }
                     }
                     using var line = new SKPaint { Color = SKColor.Parse("#C7CDD0"), StrokeWidth = .35f, IsStroke = true };
+                    using var selection = new SKPaint { Color = SKColor.Parse("#373737"), StrokeWidth = 2, IsStroke = true };
+                    using var current = new SKPaint { Color = SKColor.Parse("#A5535C"), StrokeWidth = 1, IsStroke = true };
                     for (var r = 0; r < pageRows.Length; r++)
                     {
                         var row = pageRows[r];
-                        var y = TableTop + r * RowHeight;
-                        Text(canvas, row.StartUtc.ToString("HH:mm", strings.Culture), Margin + 6, y + 11, 9, regular);
+                        var y = tableTop + r * RowHeight;
+                        var isCurrent = row.StartUtc <= snapshot.NowUtc && snapshot.NowUtc < row.EndUtc;
+                        var isSelected = row.StartUtc <= selectedInstant && selectedInstant < row.EndUtc;
+                        var utcLabel = (isCurrent ? "● " : "") + row.StartUtc.ToString("HH:mm", strings.Culture);
+                        Text(canvas, utcLabel, Margin + 6, y + 11, 9, regular, isCurrent ? current.Color : null);
                         for (var i = 0; i < count; i++)
                         {
-                            var cell = row.Cells[firstCity + i];
+                            var cell = snapshot.DisplayGroups is null
+                                ? row.Cells[groups[firstGroup + i].PrimaryIndex]
+                                : row.GroupedCells![firstGroup + i];
                             var x = Margin + Gutter + i * width;
-                            using var fill = new SKPaint { Color = StateColor(cell.State) };
+                            using var fill = new SKPaint { Color = StateColor(cell.State, request.Palette) };
                             canvas.DrawRect(x, y, width, RowHeight, fill);
-                            var prefix = cell.State == AvailabilityState.Unknown ? "? " : cell.State == AvailabilityState.Reserve ? "~ " : "";
-                            Text(canvas, prefix + cell.LocalStart.ToString("ddd HH:mm", strings.Culture), x + 5, y + 11, 8.5f, regular,
-                                cell.IsNonWorkingDay ? SKColor.Parse("#B42318") : null);
+                            var isHome = groups[firstGroup + i].CityIndices.Any(index => snapshot.Cities[index].Clock.CityId == snapshot.HomeCityId);
+                            if (!request.EmptyCells || isSelected || isHome)
+                            {
+                                var prefix = isSelected ? "" : cell.State == AvailabilityState.Unknown ? "? " : cell.State == AvailabilityState.Reserve ? "~ " : "";
+                                Text(canvas, prefix + cell.LocalStart.ToString("ddd d MMM HH:mm", strings.Culture), x + 5, y + 11, 8.5f, regular,
+                                    isSelected ? SKColor.Parse("#505050") : cell.IsNonWorkingDay ? SKColor.Parse("#713544") : null);
+                            }
                             canvas.DrawRect(x, y, width, RowHeight, line);
                         }
-                        if (row.StartUtc <= snapshot.InstantUtc && snapshot.InstantUtc < row.EndUtc)
+                        if (isSelected)
                         {
-                            using var selection = new SKPaint { Color = SKColor.Parse("#E34A2C"), StrokeWidth = 1, IsStroke = true };
-                            canvas.DrawRect(Margin, y, PageWidth - 2 * Margin, RowHeight, selection);
+                            canvas.DrawLine(Margin, y + 1, PageWidth - Margin, y + 1, selection);
+                            canvas.DrawLine(Margin, y + RowHeight - 1, PageWidth - Margin, y + RowHeight - 1, selection);
+                        }
+                        if (isCurrent)
+                        {
+                            canvas.DrawLine(Margin, y + 1, PageWidth - Margin, y + 1, current);
+                            canvas.DrawLine(Margin, y + RowHeight - 1, PageWidth - Margin, y + RowHeight - 1, current);
                         }
                     }
-                    var observations = snapshot.Cities.Where(c => c.Clock.Weather is { IsFresh: true }).Select(c => c.Clock.Weather!.ObservedAtUtc).ToArray();
-                    var observationText = observations.Length == 0 ? strings.Translate("WorldClock.WeatherNoData")
-                        : strings.Format("Planner.WeatherObserved", observations.Min().ToString("dd/MM HH:mm", strings.Culture) + " UTC");
-                    Text(canvas, strings.Translate("Planner.CurrentWeather") + " · OpenWeather · " + observationText, Margin, PageHeight - 38, 8, regular);
-                    Text(canvas, strings.Translate("Planner.PdfNote"), Margin, PageHeight - 24, 8, regular);
+                    // Day separators remain PDF strokes and use the Core's reference-zone boundary.
+                    // Draw them after all row fills so midnight lines also cover the UTC gutter.
+                    using var dayLine = new SKPaint { Color = SKColor.Parse("#607D8B"), StrokeWidth = 1.25f, IsStroke = true };
+                    for (var r = 0; r < pageRows.Length; r++)
+                    {
+                        var row = pageRows[r];
+                        if (row.ReferenceDayBoundary is not { } boundary) continue;
+                        var fraction = (boundary.InstantUtc - row.StartUtc).Ticks / (double)(row.EndUtc - row.StartUtc).Ticks;
+                        var y = tableTop + (r + (float)fraction) * RowHeight;
+                        canvas.DrawLine(Margin, y, PageWidth - Margin, y, dayLine);
+                    }
+                    if (!request.CompactHeaders)
+                    {
+                        var observations = snapshot.Cities.Where(c => c.Clock.Weather is { IsFresh: true }).Select(c => c.Clock.Weather!.ObservedAtUtc).ToArray();
+                        var observationText = observations.Length == 0 ? strings.Translate("WorldClock.WeatherNoData")
+                            : strings.Format("Planner.WeatherObserved", observations.Min().ToString("dd/MM HH:mm", strings.Culture) + " UTC");
+                        Text(canvas, strings.Translate("Planner.CurrentWeather") + " · OpenWeather · " + observationText, Margin, PageHeight - 38, 8, regular);
+                    }
+                    if (!request.EmptyCells)
+                    {
+                        Text(canvas, strings.Translate("Planner.PdfNote"), Margin, PageHeight - 24, 8, regular);
+                    }
                     Text(canvas, $"{++page} / {totalPages}", PageWidth - 55, PageHeight - 24, 9, regular);
                     document.EndPage();
                 }
@@ -139,13 +235,11 @@ internal static class AvailabilityPdfRenderer
         finally { foreach (var image in images.Values) image.Dispose(); }
     }
 
-    private static SKColor StateColor(AvailabilityState state) => state switch
+    private static SKColor StateColor(AvailabilityState state, int palette)
     {
-        AvailabilityState.Available => SKColor.Parse("#E0EEDB"),
-        AvailabilityState.Reserve => SKColor.Parse("#FCE9BE"),
-        AvailabilityState.Unavailable => SKColor.Parse("#F2DADA"),
-        _ => SKColor.Parse("#EBEDF0")
-    };
+        var (red, green, blue) = AvailabilityPalette.GetFill(state, palette);
+        return new SKColor(red, green, blue);
+    }
 
     private static void Text(SKCanvas canvas, string text, float x, float baseline, float size, PdfFont face, SKColor? color = null)
     {

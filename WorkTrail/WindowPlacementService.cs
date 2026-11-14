@@ -137,6 +137,10 @@ internal sealed class WindowPlacementService : IDisposable
 
     #region Initialization
 
+    /// <summary>Applies the packaged WorkTrail icon to the native caption and switchers.</summary>
+    internal static void SetWorkTrailIcon(AppWindow appWindow) =>
+        appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WorkTrailIcon.ico"));
+
     /// <summary>Tracks native geometry and connects deferred persistence for this window.</summary>
     internal WindowPlacementService(
         IWorkTrailApplication application,
@@ -154,6 +158,7 @@ internal sealed class WindowPlacementService : IDisposable
         _root = window.Content as FrameworkElement
             ?? throw new ArgumentException("Window content must be a framework element.", nameof(window));
         _appWindow = appWindow ?? throw new ArgumentNullException(nameof(appWindow));
+        SetWorkTrailIcon(_appWindow);
         _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
         _windowKey = string.IsNullOrWhiteSpace(windowKey) ? throw new ArgumentException("A window key is required.", nameof(windowKey)) : windowKey;
         _logicalDefaultWidth = logicalDefaultWidth > 0 ? logicalDefaultWidth : throw new ArgumentOutOfRangeException(nameof(logicalDefaultWidth));

@@ -25,6 +25,10 @@ public partial class App : Microsoft.UI.Xaml.Application
     private readonly DispatcherQueue _dispatcherQueue;
     private MainWindow? _window;
     private WorldClockWindow? _worldClockWindow;
+    private WorldClockOptionsWindow? _worldClockOptionsWindow;
+    private WorldClockSession? _worldClockSession;
+    private readonly CancellationTokenSource _worldClockLifetime = new();
+    private bool _clockCityPickerOpening;
     private AvailabilityPlannerWindow? _availabilityPlannerWindow;
     private bool _availabilityPlannerOpening;
     private WorldMapWindow? _worldMapWindow;
@@ -238,7 +242,9 @@ public partial class App : Microsoft.UI.Xaml.Application
         {
             // Save open widget visibility before closing native windows for process shutdown.
             await WindowPlacementService.PrepareForShutdownAsync();
+            _worldClockLifetime.Cancel();
             _dialogs.CloseActive();
+            _worldClockOptionsWindow?.Close();
             foreach (var window in _celestialWindows.Values.ToArray())
             {
                 window.CloseForShutdown();
@@ -320,13 +326,13 @@ public partial class App : Microsoft.UI.Xaml.Application
                 return;
             }
 
-            _worldClockWindow = new WorldClockWindow(application, _dialogs, settings.Value);
-            _worldClockWindow.WeatherSettingsRequested += ShowWeatherSettings;
+            _worldClockWindow = new WorldClockWindow(application, _dialogs, settings.Value,
+                GetWorldClockSession(application), _worldClockLifetime.Token);
+            _worldClockWindow.ConfigurationRequested += ShowWorldClockOptions;
+            _worldClockWindow.AddCityRequested += ShowClockCityPicker;
             _worldClockWindow.WorldMapRequested += WorldClockWindow_WorldMapRequested;
             _worldClockWindow.LunarPhaseRequested += WorldClockWindow_LunarPhaseRequested;
             _worldClockWindow.CelestialWindowRequested += WorldClockWindow_CelestialWindowRequested;
-            _worldClockWindow.ProjectionChanged += WorldClockWindow_ProjectionChanged;
-            _worldClockWindow.SettingsSaved += SettingsSaved;
             _worldClockWindow.Closed += WorldClockWindow_Closed;
             AttachAstronomyContextMenu(_worldClockWindow, WindowStateKeys.WorldClocks);
             _worldClockWindow.Activate();
@@ -353,6 +359,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         _committedSettings = settings;
         ApplyTitleBarSettings(settings);
         _worldClockWindow?.ApplySettings(settings);
+        _worldClockOptionsWindow?.ApplySettings(settings);
         ApplyAstronomyWindowSettings(settings);
     }
 
@@ -439,9 +446,23 @@ public partial class App : Microsoft.UI.Xaml.Application
         await ShowAstronomyWindowAsync(isLunarPhase: true);
 
 
-    /// <summary>Shares the clock reference instant with open astronomy surfaces.</summary>
-    private void WorldClockWindow_ProjectionChanged(WorldClockSnapshot snapshot, bool isLive)
+    /// <summary>Creates the process-wide clock session independently of its windows.</summary>
+    private WorldClockSession GetWorldClockSession(IWorkTrailApplication application)
     {
+        if (_worldClockSession is null)
+        {
+            _worldClockSession = new WorldClockSession(application);
+            _worldClockSession.ProjectionChanged += ApplyClockProjection;
+            _worldClockSession.CitiesChanged += RefreshPlannerCities;
+        }
+
+        return _worldClockSession;
+    }
+
+    /// <summary>Shares the session's reference instant with open astronomy surfaces.</summary>
+    private void ApplyClockProjection(WorldClockSnapshot snapshot, bool updateSettings)
+    {
+        var isLive = _worldClockSession!.IsLive;
         _worldMapWindow?.ApplySnapshot(snapshot, isLive);
         _lunarPhaseWindow?.ApplySnapshot(snapshot, isLive);
         foreach (var window in _celestialWindows.Values)
@@ -543,14 +564,14 @@ public partial class App : Microsoft.UI.Xaml.Application
             if (!settings.Succeeded || settings.Value is null) throw new InvalidOperationException("Planner settings are unavailable.");
             var created = new AvailabilityPlannerWindow(application, settings.Value);
             created.WeatherSettingsRequested += ShowWeatherSettings;
-            created.OpenClocksRequested += OpenClocksFromPlanner;
+            created.OpenClocksRequested += ShowWorldClockOptions;
             created.SettingsSaved += SettingsSaved;
             AttachAstronomyContextMenu(created, WindowStateKeys.AvailabilityPlanner);
             _availabilityPlannerWindow = created;
             created.Closed += (sender, _) =>
             {
                 created.WeatherSettingsRequested -= ShowWeatherSettings;
-                created.OpenClocksRequested -= OpenClocksFromPlanner;
+                created.OpenClocksRequested -= ShowWorldClockOptions;
                 created.SettingsSaved -= SettingsSaved;
                 if (ReferenceEquals(sender, _availabilityPlannerWindow)) _availabilityPlannerWindow = null;
             };
@@ -566,10 +587,123 @@ public partial class App : Microsoft.UI.Xaml.Application
     /// <summary>Routes weather configuration to the launcher settings.</summary>
     private void ShowWeatherSettings() => _window?.ShowWeatherSettings();
 
-    private async void OpenClocksFromPlanner()
+    /// <summary>Opens the same settings window from either widget without opening another surface.</summary>
+    private async void ShowWorldClockOptions(Window openingWindow)
     {
-        await ShowWorldClockWindowAsync(StartOrConnectRuntime());
-        _worldClockWindow?.ShowConfiguration();
+        if (Volatile.Read(ref _shutdownStarted) != 0)
+        {
+            return;
+        }
+
+        WorldClockOptionsWindow? created = null;
+        try
+        {
+            if (_worldClockOptionsWindow is not null)
+            {
+                _worldClockOptionsWindow.Activate();
+                return;
+            }
+
+            var application = StartOrConnectRuntime();
+            created = new WorldClockOptionsWindow(application, GetWorldClockSession(application), _dialogs,
+                _committedSettings, _worldClockLifetime.Token);
+            created.AddCityRequested += ShowClockCityPicker;
+            created.SettingsSaved += SettingsSaved;
+            created.WeatherSettingsRequested += ShowWeatherSettings;
+            created.Closed += (_, _) =>
+            {
+                _worldClockOptionsWindow = null;
+            };
+            _worldClockOptionsWindow = created;
+            created.ShowCentered(openingWindow);
+            await created.RefreshAsync();
+        }
+        catch (Exception error)
+        {
+            created?.Close();
+            ApplicationErrorService.Report(error, "WorldClockOptionsOpening", _uiLanguage);
+        }
+    }
+
+    /// <summary>Uses the same modal picker and clock session from either clock entry point.</summary>
+    private async void ShowClockCityPicker(Window owner)
+    {
+        if (_clockCityPickerOpening || Volatile.Read(ref _shutdownStarted) != 0)
+        {
+            return;
+        }
+
+        _clockCityPickerOpening = true;
+        var ownerClosed = false;
+        void OwnerClosed(object sender, WindowEventArgs args) => ownerClosed = true;
+        owner.Closed += OwnerClosed;
+
+        try
+        {
+            var application = StartOrConnectRuntime();
+            var session = GetWorldClockSession(application);
+            var cancellationToken = _worldClockLifetime.Token;
+            var result = await session.GetAvailableCitiesAsync(cancellationToken);
+            if (ownerClosed || cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            if (!result.Succeeded || result.Value is not { } catalog)
+            {
+                ShowClockCityFailure(owner, result.MessageKey);
+                return;
+            }
+            if (catalog.Cities.Count == 0)
+            {
+                return;
+            }
+
+            var theme = (owner.Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default;
+            if (await _dialogs.ShowWorldClockCityPickerAsync(application, owner, catalog.Cities, theme, new LocalizationService(_uiLanguage)))
+            {
+                var projection = await session.RefreshCitiesAsync(cancellationToken);
+                if (!ownerClosed && (projection is { Succeeded: false } or { Value: null }))
+                {
+                    ShowClockCityFailure(owner, projection.MessageKey);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_worldClockLifetime.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            ApplicationErrorService.Record(error, "WorldClockCityPicker");
+            if (!ownerClosed)
+            {
+                ShowClockCityFailure(owner, "WorldClock.CatalogUnavailable");
+            }
+        }
+        finally
+        {
+            owner.Closed -= OwnerClosed;
+            _clockCityPickerOpening = false;
+        }
+    }
+
+    /// <summary>Reports a catalog or picker failure in its initiating window.</summary>
+    private static void ShowClockCityFailure(Window owner, string messageKey)
+    {
+        if (owner is WorldClockOptionsWindow settings)
+        {
+            settings.ShowFailure(messageKey);
+        }
+        else if (owner is WorldClockWindow clocks)
+        {
+            clocks.ShowCityPickerFailure(messageKey);
+        }
+    }
+
+    /// <summary>Refreshes the planner after the shared city selection changes.</summary>
+    private async void RefreshPlannerCities(WorldClockSnapshot snapshot)
+    {
+        if (_availabilityPlannerWindow is { } planner)
+        {
+            await planner.RefreshCitiesAsync(snapshot);
+        }
     }
 
     /// <summary>Refreshes open weather consumers after a verified credential change.</summary>
@@ -577,8 +711,25 @@ public partial class App : Microsoft.UI.Xaml.Application
     {
         try
         {
-            await Task.WhenAll(_worldClockWindow?.RefreshWeatherAsync() ?? Task.CompletedTask,
-                _availabilityPlannerWindow?.RefreshWeatherAsync() ?? Task.CompletedTask);
+            var plannerRefresh = _availabilityPlannerWindow?.RefreshWeatherAsync() ?? Task.CompletedTask;
+            if (_worldClockOptionsWindow is { } options)
+            {
+                await Task.WhenAll(options.RefreshAsync(), plannerRefresh);
+            }
+            else if (_worldClockSession is { } session)
+            {
+                var clockRefresh = session.RefreshAsync(_worldClockLifetime.Token);
+                await Task.WhenAll(clockRefresh, plannerRefresh);
+                var result = await clockRefresh;
+                if (result is { Succeeded: false } or { Value: null })
+                {
+                    _worldClockWindow?.ShowCityPickerFailure(result.MessageKey);
+                }
+            }
+            else
+            {
+                await plannerRefresh;
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { ApplicationErrorService.Report(error, "WeatherRefresh", _uiLanguage); }
@@ -628,9 +779,9 @@ public partial class App : Microsoft.UI.Xaml.Application
                     _celestialWindows.Remove(key);
                 }
             };
-            if (_worldClockWindow?.CurrentSnapshot is { } snapshot)
+            if (_worldClockSession?.Snapshot is { } snapshot)
             {
-                created.ApplySnapshot(snapshot, _worldClockWindow.IsLive);
+                created.ApplySnapshot(snapshot, _worldClockSession.IsLive);
             }
             created.Activate();
         }
@@ -712,9 +863,9 @@ public partial class App : Microsoft.UI.Xaml.Application
                         _lunarPhaseWindow = null;
                     }
                 };
-                if (_worldClockWindow?.CurrentSnapshot is { } snapshot)
+                if (_worldClockSession?.Snapshot is { } snapshot)
                 {
-                    _lunarPhaseWindow.ApplySnapshot(snapshot, _worldClockWindow.IsLive);
+                    _lunarPhaseWindow.ApplySnapshot(snapshot, _worldClockSession.IsLive);
                 }
 
                 _lunarPhaseWindow.Activate();
@@ -731,9 +882,9 @@ public partial class App : Microsoft.UI.Xaml.Application
                         _worldMapWindow = null;
                     }
                 };
-                if (_worldClockWindow?.CurrentSnapshot is { } snapshot)
+                if (_worldClockSession?.Snapshot is { } snapshot)
                 {
-                    _worldMapWindow.ApplySnapshot(snapshot, _worldClockWindow.IsLive);
+                    _worldMapWindow.ApplySnapshot(snapshot, _worldClockSession.IsLive);
                 }
 
                 _worldMapWindow.Activate();
@@ -788,11 +939,10 @@ public partial class App : Microsoft.UI.Xaml.Application
         {
             _worldClockWindow.Closed -= WorldClockWindow_Closed;
             _worldClockWindow.WorldMapRequested -= WorldClockWindow_WorldMapRequested;
-            _worldClockWindow.WeatherSettingsRequested -= ShowWeatherSettings;
+            _worldClockWindow.ConfigurationRequested -= ShowWorldClockOptions;
+            _worldClockWindow.AddCityRequested -= ShowClockCityPicker;
             _worldClockWindow.LunarPhaseRequested -= WorldClockWindow_LunarPhaseRequested;
             _worldClockWindow.CelestialWindowRequested -= WorldClockWindow_CelestialWindowRequested;
-            _worldClockWindow.ProjectionChanged -= WorldClockWindow_ProjectionChanged;
-            _worldClockWindow.SettingsSaved -= SettingsSaved;
             _worldClockWindow = null;
         }
     }

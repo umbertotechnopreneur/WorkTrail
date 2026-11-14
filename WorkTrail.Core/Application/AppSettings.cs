@@ -44,4 +44,8 @@ public sealed record AppSettings(
     bool AvailabilityPlannerWindowShowInTaskbar = true,
     bool AvailabilityPlannerWindowAlwaysOnTop = false,
     int PlannerVisibleHours = 24,
-    int PlannerStepMinutes = 30);
+    int PlannerStepMinutes = 30,
+    double PlannerColumnWidth = 0,
+    bool WorldClockAutoGroupCities = false,
+    bool PlannerEmptyCells = true,
+    bool PlannerCompactHeaders = false, int PlannerPalette = 0, double PlannerHomeColumnWidth = 0);

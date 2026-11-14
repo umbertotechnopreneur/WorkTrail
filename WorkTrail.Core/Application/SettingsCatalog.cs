@@ -28,6 +28,11 @@ public static class SettingsCatalog
         PlannerFirstDayOfWeek = settings.PlannerFirstDayOfWeek == DayOfWeek.Sunday ? DayOfWeek.Sunday : DayOfWeek.Monday,
         PlannerVisibleHours = settings.PlannerVisibleHours == 16 ? 16 : 24,
         PlannerStepMinutes = settings.PlannerStepMinutes is 15 or 60 ? settings.PlannerStepMinutes : 30,
+        PlannerPalette = Math.Clamp(settings.PlannerPalette, 0, 4),
+        PlannerHomeColumnWidth = !double.IsFinite(settings.PlannerHomeColumnWidth) || settings.PlannerHomeColumnWidth <= 0
+            ? 0 : Math.Clamp(settings.PlannerHomeColumnWidth, 140, 16384),
+        PlannerColumnWidth = !double.IsFinite(settings.PlannerColumnWidth) || settings.PlannerColumnWidth <= 0
+            ? 0 : Math.Clamp(settings.PlannerColumnWidth, 140, 16384),
         WelcomeCompleted = settings.WelcomeCompleted && !string.IsNullOrWhiteSpace(settings.HomeCityId),
         AstronomyAgendaCountryCodes = NormalizeCountries(settings.AstronomyAgendaCountryCodes ?? ["IT"])
     };
@@ -59,6 +64,12 @@ public static class SettingsCatalog
                     },
                     "planner.visible_hours" => current with { PlannerVisibleHours = value switch { "16" => 16, "24" => 24, _ => throw new ArgumentException() } },
                     "planner.step_minutes" => current with { PlannerStepMinutes = value switch { "15" => 15, "30" => 30, "60" => 60, _ => throw new ArgumentException() } },
+                    "planner.column_width" => current with { PlannerColumnWidth = ParseColumnWidth(value) },
+                    "planner.home_column_width" => current with { PlannerHomeColumnWidth = ParseColumnWidth(value) },
+                    "planner.palette" => current with { PlannerPalette = value switch { "0" => 0, "1" => 1, "2" => 2, "3" => 3, "4" => 4, _ => throw new ArgumentException() } },
+                    "planner.empty_cells" => current with { PlannerEmptyCells = ParseBoolean(value) },
+                    "planner.compact_headers" => current with { PlannerCompactHeaders = ParseBoolean(value) },
+                    "world_clocks.auto_group_cities" => current with { WorldClockAutoGroupCities = ParseBoolean(value) },
                     "window.world_clocks.opacity_percent" => current with { WorldClockWindowOpacityPercent = ParseOpacity(value) },
                     "window.world_clocks.show_in_taskbar" => current with { WorldClockWindowShowInTaskbar = ParseBoolean(value) },
                     "window.world_clocks.always_on_top" => current with { WorldClockWindowAlwaysOnTop = ParseBoolean(value) },
@@ -105,6 +116,10 @@ public static class SettingsCatalog
     /// <summary>Accepts an invariant integer opacity within the supported range.</summary>
     private static int ParseOpacity(string value) => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var result)
         && result is >= 25 and <= 100 ? result : throw new ArgumentException();
+
+    /// <summary>Accepts automatic fitting or a finite, readable width in logical pixels.</summary>
+    private static double ParseColumnWidth(string value) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result)
+        && double.IsFinite(result) && (result == 0 || result is >= 140 and <= 16384) ? result : throw new ArgumentException();
     /// <summary>Validates a comma-separated selection of distinct supported countries.</summary>
     private static IReadOnlyList<string> ParseCountries(string value)
     {

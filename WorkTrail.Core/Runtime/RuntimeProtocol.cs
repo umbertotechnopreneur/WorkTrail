@@ -30,7 +30,7 @@ public static class RuntimeProtocol
 
     #region Fields
     /// <summary>Gets the supported wire-protocol version.</summary>
-    public const int ProtocolVersion = 8;
+    public const int ProtocolVersion = 9;
 
     /// <summary>Gets the maximum accepted JSON envelope size in bytes.</summary>
     public const int MaximumMessageBytes = 16_777_216;

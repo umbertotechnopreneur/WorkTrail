@@ -38,7 +38,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     private readonly StartupService _startup = new();
     private readonly BuildInformationService _buildInformation = new();
     private readonly ApplicationLogService _applicationLogs = new();
-    private readonly FeatureAccessPolicy _featureAccess;
     private readonly ILogger<WorkTrailApplication> _logger;
     private readonly ObservabilityHealth _observability;
     private readonly SemaphoreSlim _mutations = new(1, 1);
@@ -57,7 +56,7 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
     /// <summary>Creates a widget runtime with no hooks, screenshot pipeline, AI client or history store.</summary>
     public WorkTrailApplication(LocalStore store, ILogger<WorkTrailApplication>? logger = null,
         ObservabilityHealth? observability = null, WorldClockService? worldClockService = null,
-        IFeatureLicenseSource? featureLicenseSource = null, UtilityService? utilities = null)
+        UtilityService? utilities = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _utilities = utilities ?? new UtilityService();
@@ -65,7 +64,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         _windowState = new WindowStateService(store);
         _logger = logger ?? NullLogger<WorkTrailApplication>.Instance;
         _observability = observability ?? new ObservabilityHealth(false, false, "disabled", false);
-        _featureAccess = new FeatureAccessPolicy(featureLicenseSource);
         _worldClockOperations = new WorldClockApplicationService(worldClockService ?? new WorldClockService(),
             _settingsSnapshot, _utilities.SetApiKey, PersistSettings);
     }
@@ -107,11 +105,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             if (!selected.Contains(next.HomeCityId) && selected.Count >= WorldClockSelection.MaximumClocks)
             {
                 return OperationResult<AppSettings>.Failure("world_clocks.limit", "WorldClocksMaximumReached");
-            }
-
-            if (!selected.Contains(next.HomeCityId) && _featureAccess.DeniedWorldClockCreation(selected.Count) is { } denied)
-            {
-                return OperationResult<AppSettings>.Failure(denied.Code, denied.MessageKey);
             }
 
             next = next with
@@ -284,13 +277,11 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
             return Task.FromResult(result);
         }
 
-        var count = WorldClockSelection.NormalizePersisted(_settingsSnapshot.Value.WorldClockCityIds).Count;
         var suggestion = HomeCitySuggestion.Resolve(result.Value.Cities, TimeZoneInfo.Local);
         return Task.FromResult(result with
         {
             Value = result.Value with
             {
-                AddDeniedMessageKey = _featureAccess.DeniedWorldClockCreation(count)?.MessageKey,
                 SuggestedCityId = suggestion,
                 WindowsTimeZoneName = TimeZoneInfo.Local.DisplayName
             }
@@ -380,19 +371,8 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         CancellationToken cancellationToken)
     {
         var normalizedId = _worldClockOperations.NormalizeAndValidateCityId(cityId);
-        return MutateAsync(
-            () =>
-            {
-                var selection = WorldClockSelection.NormalizePersisted(_settingsSnapshot.Value.WorldClockCityIds);
-                // Recheck under the same mutation lock as persistence; a previously opened picker is not an entitlement.
-                if (!selection.Contains(normalizedId) && _featureAccess.DeniedWorldClockCreation(selection.Count) is { } denied)
-                {
-                    return Task.FromResult(OperationResult<WorldClockSelectionState>.Failure("feature.clock_limit", denied.MessageKey, denied));
-                }
-
-                return Task.FromResult(_worldClockOperations.AddValidated(normalizedId));
-            },
-            cancellationToken);
+        // Capacity and duplicate checks use the same mutation lock as persistence.
+        return MutateAsync(() => Task.FromResult(_worldClockOperations.AddValidated(normalizedId)), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -420,13 +400,6 @@ public sealed partial class WorkTrailApplication : IWorkTrailApplication
         CancellationToken cancellationToken) => MutateAsync(
             () => _worldClockOperations.SetWeatherKeyAsync(secret, cancellationToken),
             cancellationToken);
-
-    /// <inheritdoc />
-    public Task<OperationResult<FeatureAccessSnapshot>> GetFeatureAccessAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(OperationResult<FeatureAccessSnapshot>.Success("features.loaded", "Premium.Status", _featureAccess.Snapshot));
-    }
 
     /// <inheritdoc />
     public Task<OperationResult<WindowState?>> RestoreWindowStateAsync(string windowKey, long windowHandle, CancellationToken cancellationToken) => MutateAsync(async () =>

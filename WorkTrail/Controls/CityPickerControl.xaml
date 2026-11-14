@@ -2,7 +2,24 @@
 <UserControl x:Class="WorkTrail.Controls.CityPickerControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ComboBox x:Name="CityComboBox" DisplayMemberPath="DisplayName" HorizontalAlignment="Stretch"
-              IsTextSearchEnabled="True" MaxDropDownHeight="320" SelectionChanged="CityComboBox_SelectionChanged"
-              AutomationProperties.AutomationId="CityPicker.City" />
+    <Grid>
+        <ComboBox x:Name="CityComboBox" DisplayMemberPath="DisplayName" HorizontalAlignment="Stretch"
+                  IsTextSearchEnabled="True" MaxDropDownHeight="320" SelectionChanged="CityComboBox_SelectionChanged"
+                  AutomationProperties.AutomationId="CityPicker.City" />
+        <Grid x:Name="InlinePicker" RowSpacing="12" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBox x:Name="CitySearchBox" TextChanged="CitySearchBox_TextChanged"
+                     AutomationProperties.AutomationId="CityPicker.Search" />
+            <Border Grid.Row="1" CornerRadius="8" Padding="4"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <ListView x:Name="CityList" DisplayMemberPath="DisplayName" SelectionMode="Single"
+                          SelectionChanged="CityComboBox_SelectionChanged"
+                          AutomationProperties.AutomationId="CityPicker.Results" />
+            </Border>
+        </Grid>
+    </Grid>
 </UserControl>

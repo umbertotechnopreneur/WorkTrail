@@ -38,7 +38,7 @@ On the first import of an external dependency, scan its archive and extracted fi
 ## Desktop tools
 
 - Compare availability across cities on a shared timeline, with 15-, 30- or 60-minute intervals and 16- or 24-hour views.
-- Convert a local date and time across saved cities, with their local dates and UTC offsets.
+- Convert a local date and time across up to 12 saved cities. See the local date and UTC offset for each city.
 - Save working hours, weekly rest days, reserve margins and personal day exceptions. Missing holiday coverage is shown explicitly.
 - Export the planner to A4 landscape PDF with repeated city headers, selectable text, vector cells and embedded skyline artwork.
 - Open the astronomical agenda with local solar and lunar events, national holidays and saints.

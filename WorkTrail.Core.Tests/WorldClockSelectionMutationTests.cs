@@ -145,6 +145,55 @@ public sealed class WorldClockSelectionMutationTests
         }
     }
 
+    /// <summary>Lets every installation fill twelve slots and protects the last slot from concurrent additions.</summary>
+    [Fact]
+    public async Task Add_AllTwelveSlotsAreAvailableAndConcurrentAddsRespectCapacity()
+    {
+        var dataDirectory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new LocalStore(dataDirectory);
+            var provider = new FailingWeatherProvider();
+            var clocks = new WorldClockService(
+                RepositoryFile("WorkTrail", "Assets", "WorldClocks", "world-clocks.sqlite3"), provider, TimeProvider.System);
+            await using var application = new WorkTrailApplication(store, worldClockService: clocks);
+            var catalog = await application.GetWorldClockCityCatalogAsync(CancellationToken.None);
+            Assert.True(catalog.Succeeded);
+            Assert.Equal(12, catalog.Value!.MaximumClocks);
+            var candidates = catalog.Value.Cities.Take(13).Select(city => city.Id).ToArray();
+            Assert.Equal(13, candidates.Length);
+
+            var firstEleven = candidates.Take(11).ToArray();
+            foreach (var cityId in firstEleven)
+            {
+                var added = await application.AddWorldClockAsync(cityId, CancellationToken.None);
+                Assert.True(added.Succeeded);
+                Assert.Equal(12, added.Value!.MaximumClocks);
+            }
+
+            var lastSlot = await Task.WhenAll(candidates.Skip(11).Select(cityId =>
+                Task.Run(() => application.AddWorldClockAsync(cityId, CancellationToken.None))));
+            var accepted = Assert.Single(lastSlot, result => result.Succeeded);
+            var rejected = Assert.Single(lastSlot, result => !result.Succeeded);
+            Assert.Equal("world_clocks.maximum_reached", rejected.Code);
+            Assert.Equal("WorldClocksMaximumReached", rejected.MessageKey);
+            var saved = store.LoadSettings().WorldClockCityIds!;
+            Assert.Equal(12, saved.Count);
+            Assert.Equal(firstEleven, saved.Take(11));
+            Assert.Equal(accepted.Value!.CityIds, saved);
+
+            var retry = await application.AddWorldClockAsync($" {saved[^1].ToUpperInvariant()} ", CancellationToken.None);
+            Assert.False(retry.Succeeded);
+            Assert.Equal("world_clocks.duplicate", retry.Code);
+            Assert.Equal(saved, store.LoadSettings().WorldClockCityIds);
+            Assert.Equal(0, provider.CallCount);
+        }
+        finally
+        {
+            await DeleteTemporaryDirectoryAsync(dataDirectory);
+        }
+    }
+
     #endregion
 
     #region Test doubles

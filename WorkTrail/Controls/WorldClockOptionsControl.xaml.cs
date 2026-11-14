@@ -43,6 +43,9 @@ public sealed partial class WorldClockOptionsControl : UserControl
     private int _pendingWorldClockOpacityPercent = 100;
     private bool _worldClockShowInTaskbar = true;
     private bool _worldClockAlwaysOnTop;
+    private bool _autoGroupCities;
+    private string _homeCityId = string.Empty;
+    private readonly List<RadioButton> _homeButtons = [];
 
     #endregion
 
@@ -94,7 +97,6 @@ public sealed partial class WorldClockOptionsControl : UserControl
         _application = application ?? throw new ArgumentNullException(nameof(application));
         ArgumentNullException.ThrowIfNull(settings);
         _strings = strings ?? throw new ArgumentNullException(nameof(strings));
-        AddClockPremiumBadge.Text = _strings.Translate("Premium.Badge");
         _lifetimeToken = lifetimeToken;
         UiLocalization.Apply(this, _strings);
         ApplyLocalizedPresentation();
@@ -115,9 +117,12 @@ public sealed partial class WorldClockOptionsControl : UserControl
             _pendingWorldClockOpacityPercent = _worldClockOpacityPercent;
             _worldClockShowInTaskbar = settings.WorldClockWindowShowInTaskbar;
             _worldClockAlwaysOnTop = settings.WorldClockWindowAlwaysOnTop;
+            _autoGroupCities = settings.WorldClockAutoGroupCities;
+            _homeCityId = settings.HomeCityId;
             WorldClockOpacitySlider.Value = _worldClockOpacityPercent;
             WorldClockShowInTaskbarSwitch.IsOn = _worldClockShowInTaskbar;
             AlwaysOnTopSwitch.IsOn = _worldClockAlwaysOnTop;
+            AutoGroupCitiesSwitch.IsOn = _autoGroupCities;
         }
         finally
         {
@@ -191,6 +196,18 @@ public sealed partial class WorldClockOptionsControl : UserControl
         SaveWindowPresentationAsync(WindowAppearanceSettings.CreatePatch(
             WindowStateKeys.WorldClocks, new WindowAppearance(opacityPercent, showInTaskbar, alwaysOnTop)));
 
+    /// <summary>Persists whether the selected cities share display columns at matching offsets.</summary>
+    private async void AutoGroupCitiesSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (!_updatingControls && _application is not null && !_busy)
+        {
+            await SaveWindowPresentationAsync(new SettingsPatch(new Dictionary<string, string?>
+            {
+                ["world_clocks.auto_group_cities"] = AutoGroupCitiesSwitch.IsOn ? "true" : "false"
+            }));
+        }
+    }
+
     /// <summary>Persists window presentation preferences and restores committed controls on failure.</summary>
     private async Task SaveWindowPresentationAsync(SettingsPatch patch)
     {
@@ -200,6 +217,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
             var result = await _application!.PatchSettingsAsync(patch, _lifetimeToken);
             if (result.Succeeded && result.Value is not null)
             {
+                _homeCityId = result.Value.HomeCityId;
                 SettingsSaved?.Invoke(result.Value);
                 return;
             }
@@ -231,6 +249,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         WorldClockOpacitySlider.Value = _worldClockOpacityPercent;
         WorldClockShowInTaskbarSwitch.IsOn = _worldClockShowInTaskbar;
         AlwaysOnTopSwitch.IsOn = _worldClockAlwaysOnTop;
+        AutoGroupCitiesSwitch.IsOn = _autoGroupCities;
         _updatingControls = false;
     }
 
@@ -279,102 +298,70 @@ public sealed partial class WorldClockOptionsControl : UserControl
         }
     }
 
-    // snapshot supplies the current clocks and their tier-dependent limit.
+    // snapshot supplies the current clocks and their shared limit.
     // referenceCityId identifies the reference clock, if selected.
 
     /// <summary>Builds localized city rows and their reference, move, and remove actions.</summary>
     private void RenderCities(WorldClockSnapshot? snapshot, string? referenceCityId)
     {
+        var expandedOffsets = CitiesHost.Children.OfType<Expander>()
+            .Where(group => group.IsExpanded).Select(group => group.Tag).OfType<TimeSpan>().ToHashSet();
         CitiesHost.Children.Clear();
+        _homeButtons.Clear();
         if (snapshot is null)
         {
             _canAddClock = false;
             AddClockButton.IsEnabled = false;
+            ClocksLimitText.Visibility = Visibility.Collapsed;
             return;
         }
 
         _updatingControls = true;
         try
         {
-            for (var index = 0; index < snapshot.Clocks.Count; index++)
+            var indexes = snapshot.Clocks.Select((clock, index) => (clock.CityId, index))
+                .ToDictionary(city => city.CityId, city => city.index, StringComparer.Ordinal);
+            foreach (var group in WorldClockGrouping.Create(snapshot.Clocks, _autoGroupCities, referenceCityId))
             {
-                var clock = snapshot.Clocks[index];
-                if (CitiesHost.Children.Count > 0)
+                if (group.Cities.Count == 1)
                 {
-                    CitiesHost.Children.Add(new Border
-                    {
-                        Style = (Style)Resources["WorldClockCitySeparatorStyle"]
-                    });
+                    var city = group.Primary;
+                    AddCityRow(CitiesHost, city, referenceCityId, indexes[city.CityId], snapshot.Clocks.Count, showTime: true);
+                    continue;
                 }
 
-                var row = new Grid
+                var rows = new StackPanel();
+                foreach (var city in group.Cities)
                 {
-                    MinHeight = 52,
-                    ColumnSpacing = 8,
-                    Padding = new Thickness(0, 4, 0, 4)
-                };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    AddCityRow(rows, city, referenceCityId, indexes[city.CityId], snapshot.Clocks.Count, showTime: false);
+                }
 
-                var cityContent = new StackPanel { Spacing = 1 };
-                cityContent.Children.Add(new TextBlock
+                var time = group.Primary.LocalTime.ToString("HH:mm · 'UTC'zzz", _strings.Culture);
+                var names = string.Join(" · ", group.Cities.Select(city => city.CityName));
+                var header = new StackPanel { Spacing = 2 };
+                header.Children.Add(new TextBlock
                 {
-                    Text = clock.CityName,
-                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                    TextTrimming = TextTrimming.CharacterEllipsis
+                    Text = time,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
                 });
-                cityContent.Children.Add(new TextBlock
+                header.Children.Add(new TextBlock
                 {
-                    Text = clock.LocalTime.ToString("HH:mm", _strings.Culture),
+                    Text = names,
+                    TextWrapping = TextWrapping.Wrap,
                     Style = (Style)Resources["WorldClockCityTimeTextStyle"]
                 });
-
-                var referenceButton = new RadioButton
+                var expander = new Expander
                 {
-                    Content = cityContent,
-                    GroupName = "WorldClockReferenceCity",
-                    MinHeight = 44,
+                    Header = header,
+                    Content = rows,
                     HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    IsChecked = string.Equals(clock.CityId, referenceCityId, StringComparison.Ordinal),
-                    Tag = clock
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Tag = group.Primary.LocalTime.Offset,
+                    IsExpanded = expandedOffsets.Contains(group.Primary.LocalTime.Offset)
                 };
-                var referenceName = _strings.Format("WorldClock.SetReference", clock.CityName);
-                AutomationProperties.SetName(referenceButton, referenceName);
-                ToolTipService.SetToolTip(referenceButton, referenceName);
-                referenceButton.Checked += ReferenceRadioButton_Checked;
-                row.Children.Add(referenceButton);
-
-                var actions = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 0,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                var moveUpButton = CreateCityActionButton(
-                    clock,
-                    "\uE70E",
-                    "WorldClock.MoveUp",
-                    index > 0,
-                    MoveUpClockButton_Click);
-                var moveDownButton = CreateCityActionButton(
-                    clock,
-                    "\uE70D",
-                    "WorldClock.MoveDown",
-                    index < snapshot.Clocks.Count - 1,
-                    MoveDownClockButton_Click);
-                var removeButton = CreateCityActionButton(
-                    clock,
-                    "\uE74D",
-                    "WorldClock.Remove",
-                    isEnabled: true,
-                    RemoveClockButton_Click);
-                actions.Children.Add(moveUpButton);
-                actions.Children.Add(moveDownButton);
-                actions.Children.Add(removeButton);
-                Grid.SetColumn(actions, 1);
-                row.Children.Add(actions);
-                CitiesHost.Children.Add(row);
+                AutomationProperties.SetName(expander, time + " · " + names);
+                CitiesHost.Children.Add(expander);
             }
         }
         finally
@@ -382,9 +369,112 @@ public sealed partial class WorldClockOptionsControl : UserControl
             _updatingControls = false;
         }
 
-        // Free users can reach the shared upgrade prompt at their limit; Premium keeps its capacity limit.
-        _canAddClock = snapshot.Clocks.Count < snapshot.MaximumClocks || snapshot.MaximumClocks == 3;
+        _canAddClock = snapshot.Clocks.Count < snapshot.MaximumClocks;
         AddClockButton.IsEnabled = !_busy && _canAddClock;
+        ClocksLimitText.Visibility = _canAddClock ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>Adds one city's reference, ordering and removal controls to its display group.</summary>
+    private void AddCityRow(StackPanel host, WorldClockItem clock, string? referenceCityId, int index, int cityCount, bool showTime)
+    {
+        if (host.Children.LastOrDefault() is Grid)
+        {
+            host.Children.Add(new Border { Style = (Style)Resources["WorldClockCitySeparatorStyle"] });
+        }
+
+        var row = new Grid
+        {
+            MinHeight = 52,
+            ColumnSpacing = 8,
+            Padding = new Thickness(0, 4, 0, 4)
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var cityContent = new StackPanel { Spacing = 1 };
+        cityContent.Children.Add(new TextBlock
+        {
+            Text = clock.CityName,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        if (showTime)
+        {
+            cityContent.Children.Add(new TextBlock
+            {
+                Text = clock.LocalTime.ToString("HH:mm", _strings.Culture),
+                Style = (Style)Resources["WorldClockCityTimeTextStyle"]
+            });
+        }
+
+        var referenceButton = new RadioButton
+        {
+            Content = cityContent,
+            GroupName = "WorldClockReferenceCity",
+            MinHeight = 44,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            IsChecked = string.Equals(clock.CityId, referenceCityId, StringComparison.Ordinal),
+            Tag = clock
+        };
+        var referenceName = _strings.Format("WorldClock.SetReference", clock.CityName);
+        AutomationProperties.SetName(referenceButton, referenceName);
+        ToolTipService.SetToolTip(referenceButton, referenceName);
+        referenceButton.Checked += ReferenceRadioButton_Checked;
+        row.Children.Add(referenceButton);
+
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 0,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var moveUpButton = CreateCityActionButton(
+            clock,
+            "\uE70E",
+            "WorldClock.MoveUp",
+            index > 0,
+            MoveUpClockButton_Click);
+        var moveDownButton = CreateCityActionButton(
+            clock,
+            "\uE70D",
+            "WorldClock.MoveDown",
+            index < cityCount - 1,
+            MoveDownClockButton_Click);
+        var removeButton = CreateCityActionButton(
+            clock,
+            "\uE74D",
+            "WorldClock.Remove",
+            isEnabled: true,
+            RemoveClockButton_Click);
+        var homeButton = new RadioButton
+        {
+            GroupName = "WorldClockHomeCity",
+            Content = _strings.Translate("WorldClock.HomeCity"),
+            IsChecked = string.Equals(clock.CityId, _homeCityId, StringComparison.Ordinal),
+            VerticalAlignment = VerticalAlignment.Center,
+            Tag = clock
+        };
+        AutomationProperties.SetName(homeButton, _strings.Translate("WorldClock.HomeCity") + " · " + clock.CityName);
+        _homeButtons.Add(homeButton);
+        homeButton.Checked += async (_, _) =>
+        {
+            if (_updatingControls || _busy || _application is null || clock.CityId == _homeCityId) return;
+            await SaveWindowPresentationAsync(new SettingsPatch(new Dictionary<string, string?> { ["home.city_id"] = clock.CityId }));
+            if (_homeCityId != clock.CityId)
+            {
+                _updatingControls = true;
+                foreach (var button in _homeButtons) button.IsChecked = button.Tag is WorldClockItem item && item.CityId == _homeCityId;
+                _updatingControls = false;
+            }
+        };
+        actions.Children.Add(homeButton);
+        actions.Children.Add(moveUpButton);
+        actions.Children.Add(moveDownButton);
+        actions.Children.Add(removeButton);
+        Grid.SetColumn(actions, 1);
+        row.Children.Add(actions);
+        host.Children.Add(row);
     }
 
     /// <summary>Creates an accessible icon action for a specific city.</summary>
@@ -461,6 +551,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         SaveWeatherKeyButton.IsEnabled = !busy;
         AddClockButton.IsEnabled = !busy && _canAddClock;
         AlwaysOnTopSwitch.IsEnabled = !busy;
+        AutoGroupCitiesSwitch.IsEnabled = !busy;
         WorldClockOpacitySlider.IsEnabled = !busy;
         WorldClockShowInTaskbarSwitch.IsEnabled = !busy;
     }

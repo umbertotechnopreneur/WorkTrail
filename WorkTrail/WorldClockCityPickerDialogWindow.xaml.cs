@@ -40,7 +40,6 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
     private readonly IWorkTrailApplication _application;
     private readonly bool _welcome;
     private readonly ToastNotificationService _notifications;
-    private readonly MicaDialogService _messages = new();
     private readonly LocalizationService _strings;
     private readonly AppWindow _appWindow;
     private readonly CustomTitleBarController _titleBar;
@@ -49,6 +48,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private bool _addedCity;
     private bool _isAdding;
+    private bool _clockLimitReached;
     private bool _isCompleting;
     private bool _allowClose;
     private bool _closed;
@@ -102,8 +102,8 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
             this,
             _appWindow,
             WindowStateKeys.WorldClockCityPicker,
-            LogicalWidth,
-            LogicalHeight,
+            welcome ? LogicalWidth : 560,
+            welcome ? LogicalHeight : 520,
             LogicalScreenMargin,
             ownerAppWindow.Id,
             deferNativeClose: false);
@@ -129,6 +129,11 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
             SuggestionText.Visibility = Visibility.Visible;
             CancelButton.Visibility = Visibility.Collapsed;
             AddAnotherButton.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            CityPicker.UseInlineList();
+            Grid.SetRowSpan(CityPicker, 2);
         }
         AutomationProperties.SetName(RootGrid, Title);
         AutomationProperties.SetName(DialogTitleText, Title);
@@ -231,7 +236,6 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
     private void WorldClockCityPickerDialogWindow_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
-        _messages.CloseActive();
         _lifetimeCancellation.Cancel();
         _appWindow.Closing -= AppWindow_Closing;
         Closed -= WorldClockCityPickerDialogWindow_Closed;
@@ -245,7 +249,7 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
     /// <summary>Persists the selected city and updates picker feedback before optional completion.</summary>
     private async Task AddSelectedCityAsync(bool closeWhenAdded)
     {
-        if (IsClosing || _isAdding || CityPicker.SelectedCityId is not { } cityId)
+        if (IsClosing || _isAdding || _clockLimitReached || CityPicker.SelectedCityId is not { } cityId)
         {
             return;
         }
@@ -284,9 +288,9 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
 
                 if (!result.Succeeded || result.Value is null)
                 {
-                    if (result.Code == "feature.clock_limit")
+                    if (result.Code == "world_clocks.maximum_reached")
                     {
-                        await _messages.ShowPremiumUpgradeAsync(_application, this, _strings.Translate, result.MessageKey);
+                        ShowClockLimit(result.MessageKey);
                         return;
                     }
                     // The picker remains usable after a rejected mutation so the user can select another city.
@@ -304,6 +308,10 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
                     PickerNotificationBanner,
                     _strings.Translate("WorldClock.AddedTitle"),
                     _strings.Format("WorldClock.AddedMessage", displayName));
+                if (!closeWhenAdded && result.Value.CityIds.Count >= result.Value.MaximumClocks)
+                {
+                    ShowClockLimit("WorldClocksMaximumReached");
+                }
 
                 shouldClose = closeWhenAdded;
             }
@@ -341,9 +349,24 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
             }
             else
             {
-                CityPicker.FocusPicker();
+                if (_clockLimitReached)
+                {
+                    _ = CancelButton.Focus(FocusState.Programmatic);
+                }
+                else
+                {
+                    CityPicker.FocusPicker();
+                }
             }
         }
+    }
+
+    /// <summary>Shows why another city cannot be added while keeping the picker dismissible.</summary>
+    private void ShowClockLimit(string messageKey)
+    {
+        _clockLimitReached = true;
+        SuggestionText.Text = ResultMessage(messageKey);
+        SuggestionText.Visibility = Visibility.Visible;
     }
 
     /// <summary>Formats localized feedback for the city-addition result.</summary>
@@ -362,8 +385,8 @@ internal sealed partial class WorldClockCityPickerDialogWindow : Window
 
         var canInteract = !IsClosing && !_isAdding;
         CancelButton.IsEnabled = canInteract;
-        CityPicker.IsEnabled = canInteract;
-        var canAdd = canInteract && CityPicker.SelectedCityId is not null;
+        CityPicker.IsEnabled = canInteract && !_clockLimitReached;
+        var canAdd = CityPicker.IsEnabled && CityPicker.SelectedCityId is not null;
         AddButton.IsEnabled = canAdd;
         AddAnotherButton.IsEnabled = canAdd;
     }

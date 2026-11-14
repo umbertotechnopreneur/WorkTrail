@@ -52,25 +52,18 @@ public sealed partial class WorldClockWindow : Window
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly DispatcherQueueTimer _refreshTimer;
     private string? _lastWeatherMessageKey;
-    private readonly SemaphoreSlim _currentRefreshGate = new(1, 1);
+    private readonly WorldClockSession _session;
     private readonly Dictionary<string, WorldClockColumnControl> _columns = new(StringComparer.Ordinal);
     private LocalizationService _strings = new("system");
-    private AppSettings _settings;
-    private WorldClockOptionsControl? _optionsControl;
+    private readonly CancellationToken _sessionLifetime;
     private SvgImageSource? _weatherAttributionLogoSource;
-    private WorldClockSnapshot? _snapshot;
     private XamlRoot? _xamlRoot;
-    private string? _referenceCityId;
     private bool _loaded;
     private bool _updatingReferenceControls;
-    private bool _isLive = true;
-    private bool _pendingLiveConversion;
-    private bool _customProjectionValid = true;
-    private string? _lastConversionErrorKey;
     private bool _closed;
     private bool _weatherProviderLinkOpening;
+    private bool _autoGroupCities;
     private bool _wasMinimized;
-    private int _requestVersion;
 
     #endregion
 
@@ -87,28 +80,14 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Requests opening a celestial work surface using its stable window identity.</summary>
     internal event Action<string>? CelestialWindowRequested;
 
-    /// <summary>Publishes the reference projection rendered by the clocks for other passive surfaces.</summary>
-    internal event Action<WorldClockSnapshot, bool>? ProjectionChanged;
+    /// <summary>Requests opening the shared city settings.</summary>
+    internal event Action<Window>? ConfigurationRequested;
 
-    /// <summary>Gets the last complete world-clock projection.</summary>
-    internal WorldClockSnapshot? CurrentSnapshot => _snapshot;
+    /// <summary>Requests adding a city to the shared selection.</summary>
+    internal event Action<Window>? AddCityRequested;
 
-    /// <summary>Gets whether the reference instant follows the current time.</summary>
-    internal bool IsLive => _isLive;
-
-    /// <summary>Notifies the composition root after world-clock options persist shared settings.</summary>
-    internal event Action<AppSettings>? SettingsSaved;
-
-    /// <summary>Requests the application's global weather settings.</summary>
-    internal event Action? WeatherSettingsRequested;
-
-    /// <summary>Refreshes shared credential status for live and fixed-time projections.</summary>
-    internal async Task RefreshWeatherAsync()
-    {
-        if (_lifetimeCancellation.IsCancellationRequested) return;
-        if (_isLive) await RefreshCurrentAsync();
-        else if (_customProjectionValid) await ConvertFromControlsAsync();
-    }
+    /// <summary>Displays feedback from the shared city picker.</summary>
+    internal void ShowCityPickerFailure(string messageKey) => ShowFailure(messageKey);
 
     #endregion
 
@@ -118,12 +97,15 @@ public sealed partial class WorldClockWindow : Window
     internal WorldClockWindow(
         IWorkTrailApplication application,
         MicaDialogService dialogs,
-        AppSettings settings)
+        AppSettings settings,
+        WorldClockSession session,
+        CancellationToken sessionLifetime)
     {
         _application = application ?? throw new ArgumentNullException(nameof(application));
         _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
         ArgumentNullException.ThrowIfNull(settings);
-        _settings = settings;
+        _session = session;
+        _sessionLifetime = sessionLifetime;
         InitializeComponent();
         WorldMapButton.Flyout = AstronomyWindowMenu.Create(() => _strings, OpenAstronomyWindow, WindowStateKeys.WorldClocks);
 
@@ -136,7 +118,7 @@ public sealed partial class WorldClockWindow : Window
             HeaderDragRegion,
             TitleBarLeftInsetColumn,
             TitleBarRightInsetColumn,
-            () => [HeaderBackButton, ReferenceInstantButton, WorldMapButton, LunarPhaseButton, OptionsButton],
+            () => [ReferenceInstantButton, WorldMapButton, LunarPhaseButton, OptionsButton],
             useTallTitleBar: true);
         _titleBar.ThemeChanged += TitleBar_ThemeChanged;
 
@@ -162,6 +144,7 @@ public sealed partial class WorldClockWindow : Window
         _appWindow.Changed += AppWindow_Changed;
         ApplySettings(settings);
         _placement.ApplyDefaultBounds(RootGrid);
+        _session.ProjectionChanged += Session_ProjectionChanged;
         Closed += WorldClockWindow_Closed;
     }
 
@@ -173,7 +156,7 @@ public sealed partial class WorldClockWindow : Window
     internal void ApplySettings(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        _settings = settings;
+        _autoGroupCities = settings.WorldClockAutoGroupCities;
         _strings = new LocalizationService(settings.UiLanguage);
         RootGrid.RequestedTheme = settings.Theme switch
         {
@@ -191,12 +174,10 @@ public sealed partial class WorldClockWindow : Window
         UiLocalization.Apply(RootGrid, _strings);
         UiLocalization.Apply(ReferenceInstantFlyoutContent, _strings);
         Title = T("WorldClock.Landmark");
-        OptionsHeaderLabel.Text = T("WorldClock.Options.Title").ToUpper(_strings.Culture);
-        UpdateHeaderForSurface();
+        UpdateHeaderLayout();
         NowButton.Content = T("WorldClock.RestoreNow");
         ApplyReferenceButton.Content = T("WorldClock.Apply");
         UiLocalization.SetAccessibleLabel(OptionsButton, T("Window.Menu"));
-        UiLocalization.SetAccessibleLabel(HeaderBackButton, T("WorldClock.Options.Back"));
         UiLocalization.SetAccessibleLabel(WorldMapButton, T("Window.OpenView"));
         ToolTipService.SetToolTip(WorldMapButton, T("Window.OpenView"));
         UiLocalization.SetAccessibleLabel(LunarPhaseButton, T("WorldClock.MoonPhase.Open"));
@@ -219,12 +200,10 @@ public sealed partial class WorldClockWindow : Window
         WeatherAttributionText.Text = weatherAttribution;
         AutomationProperties.SetName(WeatherAttributionButton, weatherAttribution);
         ToolTipService.SetToolTip(WeatherAttributionButton, weatherAttribution);
-        _optionsControl?.ApplyLanguage(_strings);
-        _optionsControl?.ApplyState(settings, _snapshot, _referenceCityId);
         _titleBar.ApplyTheme(RootGrid.RequestedTheme == ElementTheme.Default ? RootGrid.ActualTheme : RootGrid.RequestedTheme);
-        if (_snapshot is not null)
+        if (_session.Snapshot is { } snapshot)
         {
-            ApplySnapshot(_snapshot);
+            ApplySnapshot(snapshot);
         }
 
         _titleBar.QueueLayoutUpdate();
@@ -241,16 +220,10 @@ public sealed partial class WorldClockWindow : Window
         }
         ApplyLabel();
         menu.Opening += (_, _) => ApplyLabel();
-        manageCities.Click += (_, _) => ShowOptionsSurface();
+        manageCities.Click += (_, _) => ConfigurationRequested?.Invoke(this);
         menu.Items.Insert(0, manageCities);
         menu.Items.Insert(1, new MenuFlyoutSeparator());
         OptionsButton.Flyout = menu;
-    }
-
-    /// <summary>Returns from options to the clock surface.</summary>
-    private async void HeaderBackButton_Click(object sender, RoutedEventArgs e)
-    {
-        await ShowClocksSurfaceAsync();
     }
 
     /// <summary>Routes a clock-menu selection to the appropriate astronomy request.</summary>
@@ -273,134 +246,16 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Requests the independent lunar phase window.</summary>
     private void LunarPhaseButton_Click(object sender, RoutedEventArgs e) => LunarPhaseRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Opens city and schedule configuration from the timesheet menu.</summary>
-    internal void ShowConfiguration() => ShowOptionsSurface();
-
-    /// <summary>Shows preference controls and pauses clock-surface interaction.</summary>
-    private void ShowOptionsSurface()
-    {
-        var options = EnsureOptionsControl();
-        options.ApplyState(_settings, _snapshot, _referenceCityId);
-        ClocksSurface.IsHitTestVisible = false;
-        OptionsPanel.Visibility = Visibility.Visible;
-        _layoutState.ShowSurface(WorldClockWindowSurface.Options);
-        UpdateHeaderForSurface();
-        UpdateRefreshTimerState();
-        _dialogs.Notifications.Hide(WorldClockNotificationBanner);
-        UiTransitions.FadeIn(OptionsPanel);
-        _ = HeaderBackButton.Focus(FocusState.Programmatic);
-        _titleBar.QueueLayoutUpdate();
-    }
-
-    /// <summary>Restores the clock surface and refreshes its live projection when needed.</summary>
-    private async Task ShowClocksSurfaceAsync()
-    {
-        OptionsPanel.Visibility = Visibility.Collapsed;
-        ClocksSurface.Visibility = Visibility.Visible;
-        ClocksSurface.IsHitTestVisible = true;
-        _layoutState.ShowSurface(WorldClockWindowSurface.Clocks);
-        if (_snapshot is { Clocks.Count: > 0 } snapshot)
-        {
-            ApplySmartWindowSizing(snapshot.Clocks.Count);
-        }
-
-        UpdateHeaderForSurface();
-        UiTransitions.FadeIn(ClocksSurface);
-        _ = OptionsButton.Focus(FocusState.Programmatic);
-        _titleBar.QueueLayoutUpdate();
-        if (_isLive)
-        {
-            await RefreshCurrentAsync();
-            return;
-        }
-
-        UpdateRefreshTimerState();
-    }
-
-    /// <summary>Creates and wires the preference surface only on its first use.</summary>
-    private WorldClockOptionsControl EnsureOptionsControl()
-    {
-        if (_optionsControl is not null)
-        {
-            return _optionsControl;
-        }
-
-        var options = new WorldClockOptionsControl();
-        options.AddRequested += OptionsControl_AddRequested;
-        options.ReferenceRequested += OptionsControl_ReferenceRequested;
-        options.RemoveRequested += OptionsControl_RemoveRequested;
-        options.MoveUpRequested += OptionsControl_MoveUpRequested;
-        options.MoveDownRequested += OptionsControl_MoveDownRequested;
-        options.SettingsSaved += OptionsControl_SettingsSaved;
-        options.WarningRequested += OptionsControl_WarningRequested;
-        options.ProviderLinkRequested += OptionsControl_ProviderLinkRequested;
-        options.KeySetupRequested += OptionsControl_KeySetupRequested;
-        options.Initialize(
-            _application,
-            _settings,
-            _snapshot,
-            _referenceCityId,
-            _strings,
-            _lifetimeCancellation.Token);
-        OptionsHost.Content = options;
-        _optionsControl = options;
-        return options;
-    }
-
-    /// <summary>Opens the picker to add a clock city.</summary>
-    private async void OptionsControl_AddRequested(object? sender, EventArgs e) => await AddCityAsync();
-
     /// <summary>Opens the city picker from the empty clock workspace.</summary>
-    private async void EmptyStateAddButton_Click(object sender, RoutedEventArgs e) => await AddCityAsync();
+    private void EmptyStateAddButton_Click(object sender, RoutedEventArgs e) => AddCityRequested?.Invoke(this);
 
-    /// <summary>Selects the city used as the time-conversion reference.</summary>
-    private void OptionsControl_ReferenceRequested(object? sender, WorldClockCityEventArgs e) =>
-        SetReferenceCity(e.CityId);
-
-    /// <summary>Persists removal of the requested clock city.</summary>
-    private async void OptionsControl_RemoveRequested(object? sender, WorldClockCityEventArgs e) =>
-        await RemoveCityAsync(e);
-
-    /// <summary>Persists moving the city earlier in the clock order.</summary>
-    private async void OptionsControl_MoveUpRequested(object? sender, WorldClockCityEventArgs e) =>
-        await MoveCityAsync(e, WorldClockMoveDirection.Up);
-
-    /// <summary>Persists moving the city later in the clock order.</summary>
-    private async void OptionsControl_MoveDownRequested(object? sender, WorldClockCityEventArgs e) =>
-        await MoveCityAsync(e, WorldClockMoveDirection.Down);
-
-    /// <summary>Applies committed clock preferences and publishes them to the owner.</summary>
-    private void OptionsControl_SettingsSaved(AppSettings settings)
+    /// <summary>Adapts the reference label to the available header width.</summary>
+    private void UpdateHeaderLayout()
     {
-        ApplySettings(settings);
-        SettingsSaved?.Invoke(settings);
-    }
-
-    /// <summary>Displays a warning requested by the preference surface.</summary>
-    private void OptionsControl_WarningRequested(string messageKey) => ShowFailure(messageKey);
-
-    /// <summary>Opens the configured weather-provider information page.</summary>
-    private async void OptionsControl_ProviderLinkRequested(object? sender, EventArgs e) =>
-        await OpenWeatherProviderLinkAsync();
-
-    /// <summary>Reveals the shared weather editor in global settings.</summary>
-    private void OptionsControl_KeySetupRequested(object? sender, EventArgs e) => WeatherSettingsRequested?.Invoke();
-
-    /// <summary>Adapts header actions to the active surface and available width.</summary>
-    private void UpdateHeaderForSurface()
-    {
-        var optionsVisible = _layoutState.Surface == WorldClockWindowSurface.Options;
         var narrowHeader = RootGrid.ActualWidth < 880d;
         ReferenceInstantLabel.Text = T("WorldClock.ReferenceInstant");
-        ReferenceInstantLabel.Visibility = optionsVisible || narrowHeader ? Visibility.Collapsed : Visibility.Visible;
+        ReferenceInstantLabel.Visibility = narrowHeader ? Visibility.Collapsed : Visibility.Visible;
         ReferenceInstantText.FontSize = narrowHeader ? 12d : 13d;
-        OptionsHeaderLabel.Visibility = optionsVisible ? Visibility.Visible : Visibility.Collapsed;
-        HeaderBackButton.Visibility = optionsVisible ? Visibility.Visible : Visibility.Collapsed;
-        TitleBarLogo.Visibility = optionsVisible ? Visibility.Collapsed : Visibility.Visible;
-        ReferenceInstantButton.Visibility = optionsVisible ? Visibility.Collapsed : Visibility.Visible;
-        WorldMapButton.Visibility = optionsVisible ? Visibility.Collapsed : Visibility.Visible;
-        LunarPhaseButton.Visibility = optionsVisible ? Visibility.Collapsed : Visibility.Visible;
-        OptionsButton.Visibility = optionsVisible ? Visibility.Collapsed : Visibility.Visible;
     }
 
     /// <summary>Adapts content layout and caption hit testing to the new viewport size.</summary>
@@ -412,7 +267,7 @@ public sealed partial class WorldClockWindow : Window
             return;
         }
 
-        UpdateHeaderForSurface();
+        UpdateHeaderLayout();
         if (ReferenceInstantFlyout.IsOpen)
         {
             UpdateReferenceFlyoutConstraints();
@@ -478,152 +333,70 @@ public sealed partial class WorldClockWindow : Window
             ShowFailure("WorldClock.PlacementFailed");
         }
 
-        await RefreshCurrentAsync();
+        if (_session.Snapshot is { } snapshot)
+        {
+            ApplySnapshot(snapshot);
+        }
+
+        if (_session.Snapshot is null || _session.CanRefreshLive)
+        {
+            await RefreshCurrentAsync();
+        }
     }
 
-    /// <summary>Stops the current timer tick before requesting the next live projection.</summary>
+    /// <summary>Requests the next live projection without redrawing the settings editor.</summary>
     private async void RefreshTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         sender.Stop();
-        await RefreshCurrentAsync();
+        await RefreshCurrentAsync(periodic: true);
     }
 
-    /// <summary>Requests a current projection while guarding against concurrent refreshes and closure.</summary>
-    private async Task<bool> RefreshCurrentAsync()
+    /// <summary>Refreshes the live view and reports any application failure.</summary>
+    private async Task RefreshCurrentAsync(bool periodic = false)
     {
-        if (!_isLive)
+        if (IsClosing || !_session.CanRefreshLive)
         {
-            return false;
+            return;
         }
 
-        try
+        ShowLoading(_session.Snapshot is null || _session.Snapshot.Clocks.Count == 0);
+        var result = await _session.RefreshAsync(_lifetimeCancellation.Token, periodic);
+        if (IsClosing)
         {
-            await _currentRefreshGate.WaitAsync(_lifetimeCancellation.Token);
-        }
-        catch (OperationCanceledException) when (IsClosing)
-        {
-            return false;
+            return;
         }
 
-        var snapshotApplied = false;
-        try
+        ShowLoading(false);
+        if (result is { Succeeded: false } or { Value: null })
         {
-            if (!_isLive || IsClosing)
-            {
-                return false;
-            }
-
-            var version = Interlocked.Increment(ref _requestVersion);
-            ShowLoading(_snapshot is null || _snapshot.Clocks.Count == 0);
-            var result = await _application.GetWorldClocksAsync(_lifetimeCancellation.Token);
-            if (IsClosing || version != Volatile.Read(ref _requestVersion))
-            {
-                return false;
-            }
-
-            if (result.Succeeded && result.Value is not null)
-            {
-                ApplySnapshot(result.Value);
-                snapshotApplied = true;
-                return true;
-            }
-
             ShowFailure(result.MessageKey);
-            return false;
         }
-        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
-        {
-            // Closing the detached surface cancels optional presentation refreshes without a retry.
-            return false;
-        }
-        catch (Exception exception)
-        {
-            ApplicationErrorService.Record(exception, "WorldClockWindow");
-            if (!IsClosing)
-            {
-                ShowFailure("WorldClock.CatalogUnavailable");
-            }
 
-            return false;
-        }
-        finally
+        if (result?.Value is null && _session.CanRefreshLive)
         {
-            if (!IsClosing)
-            {
-                ShowLoading(false);
-            }
-
-            _currentRefreshGate.Release();
-            if (!IsClosing && _isLive && !snapshotApplied)
-            {
-                // A failed live refresh keeps the last complete projection and retries once after one minute.
-                ScheduleLiveRetry();
-            }
+            ScheduleLiveRetry();
         }
     }
 
-    /// <summary>Converts the selected local instant and rejects responses superseded by newer input.</summary>
-    private async Task<bool> ConvertFromControlsAsync()
+    /// <summary>Renders the shared session's latest complete projection.</summary>
+    private void Session_ProjectionChanged(WorldClockSnapshot snapshot, bool updateSettings)
     {
-        if (_updatingReferenceControls
-            || _referenceCityId is null
-            || ReferenceDatePicker.Date is not { } selectedDate)
+        if (!IsClosing)
         {
-            return false;
+            ApplySnapshot(snapshot);
         }
+    }
 
-        if (_isLive)
-        {
-            _pendingLiveConversion = true;
-        }
-
-        var transitionStartedFromLive = _pendingLiveConversion;
-        _isLive = false;
-        _customProjectionValid = false;
-        NowButton.IsEnabled = true;
+    /// <summary>Applies a fixed reference from the session input.</summary>
+    private async Task ConvertReferenceAsync()
+    {
+        var conversion = _session.ConvertAsync(_sessionLifetime);
         UpdateRefreshTimerState();
-        var localTime = DateTime.SpecifyKind(
-            selectedDate.Date + ReferenceTimePicker.Time,
-            DateTimeKind.Unspecified);
-        var version = Interlocked.Increment(ref _requestVersion);
-        try
+        var result = await conversion;
+        if (!IsClosing && (result is { Succeeded: false } or { Value: null }))
         {
-            var result = await _application.ConvertWorldClocksAsync(
-                new WorldClockConversionRequest(_referenceCityId, localTime),
-                _lifetimeCancellation.Token);
-            if (IsClosing || version != Volatile.Read(ref _requestVersion))
-            {
-                return false;
-            }
-
-            if (result.Succeeded && result.Value is not null)
-            {
-                _pendingLiveConversion = false;
-                _customProjectionValid = true;
-                _lastConversionErrorKey = null;
-                ApplySnapshot(result.Value);
-                return true;
-            }
-
-            HandleConversionFailure(transitionStartedFromLive, result.MessageKey);
-            return false;
-        }
-        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
-        {
-            // Window shutdown cancels this conversion; the last complete projection remains visible.
-            return false;
-        }
-        catch (Exception exception)
-        {
-            ApplicationErrorService.Record(exception, "WorldClockWindow");
-            if (!IsClosing)
-            {
-                HandleConversionFailure(
-                    transitionStartedFromLive,
-                    "WorldClock.CatalogUnavailable");
-            }
-
-            return false;
+            UpdateRefreshTimerState();
+            ShowFailure(result.MessageKey);
         }
     }
 
@@ -631,12 +404,9 @@ public sealed partial class WorldClockWindow : Window
     private void ApplySnapshot(WorldClockSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        UpdateWeatherAttribution(snapshot);
-        _snapshot = snapshot;
-        ProjectionChanged?.Invoke(snapshot, _isLive);
-        if (snapshot.Clocks.Count == 0)
+        if (_session.ReferenceClock is not { } referenceClock)
         {
-            _referenceCityId = null;
+            UpdateWeatherAttribution(snapshot, []);
             _updatingReferenceControls = true;
             try
             {
@@ -660,38 +430,35 @@ public sealed partial class WorldClockWindow : Window
             _layoutState.ResetWindowSizing();
             NowButton.Visibility = Visibility.Collapsed;
             UpdateWeatherStatus(snapshot.WeatherStatus);
-            _optionsControl?.ApplyState(_settings, snapshot, null);
             ShowLoading(false);
             UpdateRefreshTimerState();
             return;
         }
 
         ReferenceInstantButton.IsEnabled = true;
-        if (_referenceCityId is null || snapshot.Clocks.All(clock => clock.CityId != _referenceCityId))
-        {
-            _referenceCityId = snapshot.Clocks[0].CityId;
-        }
-
-        var referenceClock = snapshot.Clocks.Single(clock => clock.CityId == _referenceCityId);
         UpdateReferenceControls(snapshot.Clocks, referenceClock);
-        EnsureColumns(snapshot.Clocks);
-        foreach (var clock in snapshot.Clocks)
-        {
-            _columns[clock.CityId].Apply(
-                clock,
-                referenceClock,
-                clock.CityId == referenceClock.CityId,
-                clock.SpaceWeatherAlert,
-                _strings);
-        }
-
-        ApplySmartWindowSizing(snapshot.Clocks.Count);
-        UpdateClockColumnsLayout(snapshot.Clocks.Count, ClockColumnsScroller.ActualWidth);
+        RenderClockColumns(snapshot, referenceClock);
+        ApplySmartWindowSizing(_columns.Count);
+        UpdateClockColumnsLayout(_columns.Count, ClockColumnsScroller.ActualWidth);
 
         NowButton.Visibility = Visibility.Visible;
         UpdateWeatherStatus(snapshot.WeatherStatus);
-        _optionsControl?.ApplyState(_settings, snapshot, _referenceCityId);
         UpdateRefreshTimerState();
+    }
+
+    /// <summary>Renders one column per projected clock group.</summary>
+    private void RenderClockColumns(WorldClockSnapshot snapshot, WorldClockItem referenceClock)
+    {
+        var groups = WorldClockGrouping.Create(snapshot.Clocks, _autoGroupCities, referenceClock.CityId);
+        var primaryClocks = groups.Select(group => group.Primary).ToArray();
+        UpdateWeatherAttribution(snapshot, primaryClocks);
+        EnsureColumns(primaryClocks);
+        foreach (var group in groups)
+        {
+            var clock = group.Primary;
+            _columns[clock.CityId].Apply(clock, referenceClock, clock.CityId == referenceClock.CityId,
+                clock.SpaceWeatherAlert, _strings, group.Cities);
+        }
     }
 
     /// <summary>Shows a changed weather warning without restarting unchanged notifications.</summary>
@@ -729,11 +496,11 @@ public sealed partial class WorldClockWindow : Window
     }
 
     /// <summary>Shows provider attribution only when its fresh observations are displayed.</summary>
-    private void UpdateWeatherAttribution(WorldClockSnapshot snapshot)
+    private void UpdateWeatherAttribution(WorldClockSnapshot snapshot, IReadOnlyList<WorldClockItem> visibleClocks)
     {
         var displaysOpenWeatherObservation =
             string.Equals(snapshot.WeatherStatus.Provider, "openweather", StringComparison.Ordinal)
-            && snapshot.Clocks.Any(static clock => clock.Weather is { IsFresh: true });
+            && visibleClocks.Any(static clock => clock.Weather is { IsFresh: true });
         if (displaysOpenWeatherObservation)
         {
             EnsureWeatherAttributionLogo();
@@ -833,27 +600,6 @@ public sealed partial class WorldClockWindow : Window
         }
     }
 
-    /// <summary>Restores a valid reference state after the requested conversion fails.</summary>
-    private void HandleConversionFailure(bool transitionStartedFromLive, string messageKey)
-    {
-        var state = WorldClockWindowLayoutState.ResolveConversionFailure(transitionStartedFromLive);
-        _pendingLiveConversion = false;
-        _isLive = state.IsLive;
-        _customProjectionValid = state.CustomProjectionValid;
-        _lastConversionErrorKey = messageKey;
-        if (state.RestoreLastSnapshotControls && _snapshot is not null)
-        {
-            ApplySnapshot(_snapshot);
-        }
-        else
-        {
-            UpdateRefreshTimerState();
-        }
-
-        // Publish the conversion failure after refreshing the snapshot's weather status.
-        ShowFailure(messageKey);
-    }
-
     /// <summary>Updates reference fields without triggering another time conversion.</summary>
     private void UpdateReferenceControls(IReadOnlyList<WorldClockItem> clocks, WorldClockItem referenceClock)
     {
@@ -863,8 +609,9 @@ public sealed partial class WorldClockWindow : Window
             var options = clocks.Select(clock => new ReferenceCityOption(clock.CityId, clock.CityName)).ToArray();
             ReferenceCityComboBox.ItemsSource = options;
             ReferenceCityComboBox.SelectedItem = options.Single(option => option.CityId == referenceClock.CityId);
-            ReferenceDatePicker.Date = new DateTimeOffset(referenceClock.LocalTime.Date, referenceClock.LocalTime.Offset);
-            ReferenceTimePicker.Time = referenceClock.LocalTime.TimeOfDay;
+            var referenceInput = _session.ReferenceLocalTime ?? referenceClock.LocalTime.DateTime;
+            ReferenceDatePicker.Date = new DateTimeOffset(referenceInput.Date, referenceClock.LocalTime.Offset);
+            ReferenceTimePicker.Time = referenceInput.TimeOfDay;
             ReferenceTimeZoneText.Text = $"{T("WorldClock.LocalTime")} · UTC{referenceClock.LocalTime:zzz}";
             var referenceInstantText = referenceClock.LocalTime
                 .ToString("dd MMM yyyy · HH:mm", _strings.Culture)
@@ -934,9 +681,9 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Recalculates clock-column sizes after the viewport changes.</summary>
     private void ClockColumnsScroller_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (_snapshot is { Clocks.Count: > 0 })
+        if (_columns.Count > 0)
         {
-            UpdateClockColumnsLayout(_snapshot.Clocks.Count, e.NewSize.Width);
+            UpdateClockColumnsLayout(_columns.Count, e.NewSize.Width);
         }
     }
 
@@ -965,7 +712,7 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Adapts initial clock-window dimensions while respecting restored user placement.</summary>
     private void ApplySmartWindowSizing(int clockCount)
     {
-        if (!_loaded || _layoutState.Surface != WorldClockWindowSurface.Clocks)
+        if (!_loaded)
         {
             return;
         }
@@ -1002,22 +749,7 @@ public sealed partial class WorldClockWindow : Window
             return;
         }
 
-        SetReferenceCity(option.CityId);
-    }
-
-    /// <summary>Applies the selected reference city and updates the reference controls.</summary>
-    private void SetReferenceCity(string cityId)
-    {
-        if (_snapshot is null || _referenceCityId == cityId)
-        {
-            return;
-        }
-
-        _referenceCityId = cityId;
-        Interlocked.Increment(ref _requestVersion);
-        _customProjectionValid = true;
-        _lastConversionErrorKey = null;
-        ApplySnapshot(_snapshot);
+        _session.SelectReference(option.CityId);
     }
 
     /// <summary>Recalculates the selected reference instant after a date edit.</summary>
@@ -1028,244 +760,48 @@ public sealed partial class WorldClockWindow : Window
             return;
         }
 
-        if (args.NewDate is null)
+        if (args.NewDate is not { } date)
         {
-            if (_snapshot is not null && _referenceCityId is not null)
+            if (_session.Snapshot is { } snapshot && _session.ReferenceClock is { } referenceClock)
             {
-                var referenceClock = _snapshot.Clocks.Single(clock => clock.CityId == _referenceCityId);
-                _updatingReferenceControls = true;
-                try
-                {
-                    ReferenceDatePicker.Date = new DateTimeOffset(referenceClock.LocalTime.Date, referenceClock.LocalTime.Offset);
-                }
-                finally
-                {
-                    _updatingReferenceControls = false;
-                }
+                UpdateReferenceControls(snapshot.Clocks, referenceClock);
             }
 
             ShowFailure("WorldClock.ReferenceDateRequired");
             return;
         }
 
-        await ConvertFromControlsAsync();
+        _session.SetReferenceDate(date.Date);
+        await ConvertReferenceAsync();
     }
 
     /// <summary>Recalculates the selected reference instant after a time edit.</summary>
-    private async void ReferenceTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e) =>
-        await ConvertFromControlsAsync();
+    private async void ReferenceTimePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e)
+    {
+        if (!_updatingReferenceControls)
+        {
+            _session.SetReferenceTime(e.NewTime);
+            await ConvertReferenceAsync();
+        }
+    }
 
     /// <summary>Applies the requested fixed instant from the reference editor.</summary>
-    private async void ApplyReferenceButton_Click(object sender, RoutedEventArgs e) =>
-        await ConvertFromControlsAsync();
+    private async void ApplyReferenceButton_Click(object sender, RoutedEventArgs e) => await ConvertReferenceAsync();
 
     /// <summary>Returns the clock workspace to the current live instant.</summary>
     private async void NowButton_Click(object sender, RoutedEventArgs e)
     {
-        _pendingLiveConversion = false;
-        _isLive = true;
-        _customProjectionValid = true;
-        _lastConversionErrorKey = null;
+        _session.UseLive();
         UpdateRefreshTimerState();
         await RefreshCurrentAsync();
     }
 
-    /// <summary>Opens the city picker and refreshes the workspace after successful additions.</summary>
-    private async Task AddCityAsync()
-    {
-        try
-        {
-            if (!_isLive && !_customProjectionValid)
-            {
-                ShowFailure(_lastConversionErrorKey ?? "WorldClock.CatalogUnavailable");
-                return;
-            }
-
-            var catalogResult = await _application.GetWorldClockCityCatalogAsync(_lifetimeCancellation.Token);
-            if (IsClosing)
-            {
-                return;
-            }
-
-            if (!catalogResult.Succeeded || catalogResult.Value is null)
-            {
-                ShowFailure("WorldClock.CatalogUnavailable");
-                return;
-            }
-
-            var selectedIds = _snapshot?.Clocks.Select(clock => clock.CityId).ToHashSet(StringComparer.Ordinal) ?? [];
-            if (catalogResult.Value.AddDeniedMessageKey is { } deniedMessage)
-            {
-                await _dialogs.ShowPremiumUpgradeAsync(_application, this, T, deniedMessage);
-                return;
-            }
-            var options = catalogResult.Value.Cities.Where(city => !selectedIds.Contains(city.Id)).ToArray();
-            if (options.Length == 0)
-            {
-                return;
-            }
-
-            var addedCity = await _dialogs.ShowWorldClockCityPickerAsync(
-                _application,
-                this,
-                options,
-                RootGrid.RequestedTheme,
-                _strings);
-            if (IsClosing || !addedCity)
-            {
-                return;
-            }
-
-            Interlocked.Increment(ref _requestVersion);
-            _ = _isLive
-                ? await RefreshCurrentAsync()
-                : await ConvertFromControlsAsync();
-        }
-        catch (OperationCanceledException) when (IsClosing)
-        {
-            // Closing the detached surface cancels the optional picker or mutation.
-        }
-        catch (Exception exception)
-        {
-            ApplicationErrorService.Record(exception, "WorldClockWindow");
-            if (!IsClosing)
-            {
-                ShowFailure("WorldClock.CatalogUnavailable");
-            }
-        }
-    }
-
-    /// <summary>Removes a saved city through the application facade and refreshes the projection.</summary>
-    private async Task RemoveCityAsync(WorldClockCityEventArgs e)
-    {
-        try
-        {
-            if (!_isLive && !_customProjectionValid)
-            {
-                ShowFailure(_lastConversionErrorKey ?? "WorldClock.CatalogUnavailable");
-                return;
-            }
-
-            var previousSnapshot = _snapshot;
-            Interlocked.Increment(ref _requestVersion);
-            var result = await _application.RemoveWorldClockAsync(e.CityId, _lifetimeCancellation.Token);
-            if (IsClosing)
-            {
-                return;
-            }
-
-            Interlocked.Increment(ref _requestVersion);
-            if (!result.Succeeded || result.Value is null)
-            {
-                ShowFailure(result.MessageKey);
-                return;
-            }
-
-            if (_referenceCityId == e.CityId)
-            {
-                _referenceCityId = result.Value.CityIds.FirstOrDefault();
-                if (!_isLive && previousSnapshot is not null && _referenceCityId is not null)
-                {
-                    var replacement = previousSnapshot.Clocks.Single(clock => clock.CityId == _referenceCityId);
-                    _updatingReferenceControls = true;
-                    try
-                    {
-                        ReferenceDatePicker.Date = new DateTimeOffset(replacement.LocalTime.Date, replacement.LocalTime.Offset);
-                        ReferenceTimePicker.Time = replacement.LocalTime.TimeOfDay;
-                    }
-                    finally
-                    {
-                        _updatingReferenceControls = false;
-                    }
-                }
-            }
-
-            if (result.Value.CityIds.Count == 0)
-            {
-                _pendingLiveConversion = false;
-                _isLive = true;
-                _customProjectionValid = true;
-                _lastConversionErrorKey = null;
-            }
-
-            var projectionApplied = _isLive
-                ? await RefreshCurrentAsync()
-                : await ConvertFromControlsAsync();
-
-            if (projectionApplied && !IsClosing)
-            {
-                _dialogs.Notifications.ShowInfo(
-                    WorldClockNotificationBanner,
-                    T("WorldClock.RemovedTitle"),
-                    _strings.Format("WorldClock.RemovedMessage", e.CityName));
-            }
-        }
-        catch (OperationCanceledException) when (IsClosing)
-        {
-            // Closing the detached surface cancels the optional mutation.
-        }
-        catch (Exception exception)
-        {
-            ApplicationErrorService.Record(exception, "WorldClockWindow");
-            if (!IsClosing)
-            {
-                ShowFailure("WorldClock.CatalogUnavailable");
-            }
-        }
-    }
-
-    /// <summary>Persists a city's new position and refreshes the clock order.</summary>
-    private async Task MoveCityAsync(WorldClockCityEventArgs e, WorldClockMoveDirection direction)
-    {
-        try
-        {
-            if (!_isLive && !_customProjectionValid)
-            {
-                ShowFailure(_lastConversionErrorKey ?? "WorldClock.CatalogUnavailable");
-                return;
-            }
-
-            Interlocked.Increment(ref _requestVersion);
-            var result = await _application.MoveWorldClockAsync(e.CityId, direction, _lifetimeCancellation.Token);
-            if (IsClosing)
-            {
-                return;
-            }
-
-            Interlocked.Increment(ref _requestVersion);
-            if (!result.Succeeded || result.Value is null)
-            {
-                ShowFailure(result.MessageKey);
-                return;
-            }
-
-            _ = _isLive
-                ? await RefreshCurrentAsync()
-                : await ConvertFromControlsAsync();
-        }
-        catch (OperationCanceledException) when (IsClosing)
-        {
-            // Closing the detached surface cancels the optional reorder mutation.
-        }
-        catch (Exception exception)
-        {
-            ApplicationErrorService.Record(exception, "WorldClockWindow");
-            if (!IsClosing)
-            {
-                ShowFailure("WorldClock.CatalogUnavailable");
-            }
-        }
-    }
-
-    /// <summary>Presents a localized failure in the window's existing notification surface.</summary>
+    /// <summary>Presents a localized failure in the window's notification surface.</summary>
     private void ShowFailure(string messageKey)
     {
         if (!IsClosing)
         {
-            _dialogs.Notifications.ShowWarning(
-                WorldClockNotificationBanner,
-                T("WorldClock.ErrorTitle"),
-                T(messageKey));
+            _dialogs.Notifications.ShowWarning(WorldClockNotificationBanner, T("WorldClock.ErrorTitle"), T(messageKey));
         }
     }
 
@@ -1275,8 +811,8 @@ public sealed partial class WorldClockWindow : Window
         LoadingIndicator.IsActive = show;
         LoadingIndicator.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         LoadingState.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        var hasClocks = _snapshot is { Clocks.Count: > 0 };
-        var hasEmptySnapshot = _snapshot is { Clocks.Count: 0 };
+        var hasClocks = _session.Snapshot is { Clocks.Count: > 0 };
+        var hasEmptySnapshot = _session.Snapshot is { Clocks.Count: 0 };
         ClockColumnsScroller.Visibility = !show && hasClocks ? Visibility.Visible : Visibility.Collapsed;
         EmptyClocksState.Visibility = !show && hasEmptySnapshot ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -1287,11 +823,10 @@ public sealed partial class WorldClockWindow : Window
         _refreshTimer.Stop();
         var minimized = _appWindow.Presenter is OverlappedPresenter presenter
             && presenter.State == OverlappedPresenterState.Minimized;
-        if (_isLive
-            && _layoutState.Surface == WorldClockWindowSurface.Clocks
+        if (_session.CanRefreshLive
             && !minimized
             && !_lifetimeCancellation.IsCancellationRequested
-            && _snapshot is { Clocks.Count: > 0 } snapshot)
+            && _session.Snapshot is { Clocks.Count: > 0 } snapshot)
         {
             _refreshTimer.Interval = WorldClockWindowLayoutState.DelayUntilNextMinute(snapshot.InstantUtc, DateTimeOffset.UtcNow);
             _refreshTimer.Start();
@@ -1304,8 +839,7 @@ public sealed partial class WorldClockWindow : Window
         _refreshTimer.Stop();
         var minimized = _appWindow.Presenter is OverlappedPresenter presenter
             && presenter.State == OverlappedPresenterState.Minimized;
-        if (_isLive
-            && _layoutState.Surface == WorldClockWindowSurface.Clocks
+        if (_session.CanRefreshLive
             && !minimized
             && !_lifetimeCancellation.IsCancellationRequested)
         {
@@ -1329,8 +863,7 @@ public sealed partial class WorldClockWindow : Window
         _wasMinimized = minimized;
         UpdateRefreshTimerState();
         if (restored
-            && _isLive
-            && _layoutState.Surface == WorldClockWindowSurface.Clocks
+            && _session.CanRefreshLive
             && !IsClosing)
         {
             await RefreshCurrentAsync();
@@ -1340,7 +873,7 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Reapplies theme-dependent clock visuals after caption theme changes.</summary>
     private void TitleBar_ThemeChanged(ElementTheme effectiveTheme)
     {
-        if (_snapshot is not null)
+        if (_session.Snapshot is not null)
         {
             DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, ReapplyThemeAwareClockPresentation);
         }
@@ -1349,24 +882,12 @@ public sealed partial class WorldClockWindow : Window
     /// <summary>Renders the existing projection using the effective window theme.</summary>
     private void ReapplyThemeAwareClockPresentation()
     {
-        if (IsClosing || _snapshot is not { } snapshot || _referenceCityId is not { } referenceCityId)
+        if (IsClosing || _session.Snapshot is not { } snapshot || _session.ReferenceClock is not { } referenceClock)
         {
             return;
         }
 
-        var referenceClock = snapshot.Clocks.Single(clock => clock.CityId == referenceCityId);
-        foreach (var clock in snapshot.Clocks)
-        {
-            if (_columns.TryGetValue(clock.CityId, out var column))
-            {
-                column.Apply(
-                    clock,
-                    referenceClock,
-                    clock.CityId == referenceCityId,
-                    clock.SpaceWeatherAlert,
-                    _strings);
-            }
-        }
+        RenderClockColumns(snapshot, referenceClock);
     }
 
     /// <summary>Queues geometry updates after the XAML root's scale or layout changes.</summary>
@@ -1377,9 +898,9 @@ public sealed partial class WorldClockWindow : Window
             UpdateReferenceFlyoutConstraints();
         }
 
-        if (_snapshot is { Clocks.Count: > 0 } snapshot)
+        if (_columns.Count > 0)
         {
-            UpdateClockColumnsLayout(snapshot.Clocks.Count, ClockColumnsScroller.ActualWidth);
+            UpdateClockColumnsLayout(_columns.Count, ClockColumnsScroller.ActualWidth);
         }
 
         _titleBar.QueueLayoutUpdate();
@@ -1399,20 +920,7 @@ public sealed partial class WorldClockWindow : Window
             _weatherAttributionLogoSource = null;
         }
 
-        if (_optionsControl is not null)
-        {
-            _optionsControl.AddRequested -= OptionsControl_AddRequested;
-            _optionsControl.ReferenceRequested -= OptionsControl_ReferenceRequested;
-            _optionsControl.RemoveRequested -= OptionsControl_RemoveRequested;
-            _optionsControl.MoveUpRequested -= OptionsControl_MoveUpRequested;
-            _optionsControl.MoveDownRequested -= OptionsControl_MoveDownRequested;
-            _optionsControl.SettingsSaved -= OptionsControl_SettingsSaved;
-            _optionsControl.WarningRequested -= OptionsControl_WarningRequested;
-            _optionsControl.ProviderLinkRequested -= OptionsControl_ProviderLinkRequested;
-            _optionsControl.KeySetupRequested -= OptionsControl_KeySetupRequested;
-            OptionsHost.Content = null;
-            _optionsControl = null;
-        }
+        _session.ProjectionChanged -= Session_ProjectionChanged;
 
         _columns.Clear();
         if (_xamlRoot is not null)
