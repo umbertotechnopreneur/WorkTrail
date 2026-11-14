@@ -28,6 +28,9 @@ public static class SettingsCatalog
         PlannerFirstDayOfWeek = settings.PlannerFirstDayOfWeek == DayOfWeek.Sunday ? DayOfWeek.Sunday : DayOfWeek.Monday,
         PlannerVisibleHours = settings.PlannerVisibleHours == 16 ? 16 : 24,
         PlannerStepMinutes = settings.PlannerStepMinutes is 15 or 60 ? settings.PlannerStepMinutes : 30,
+        PlannerPalette = Math.Clamp(settings.PlannerPalette, 0, 4),
+        PlannerHomeColumnWidth = !double.IsFinite(settings.PlannerHomeColumnWidth) || settings.PlannerHomeColumnWidth <= 0
+            ? 0 : Math.Clamp(settings.PlannerHomeColumnWidth, 140, 16384),
         PlannerColumnWidth = !double.IsFinite(settings.PlannerColumnWidth) || settings.PlannerColumnWidth <= 0
             ? 0 : Math.Clamp(settings.PlannerColumnWidth, 140, 16384),
         WelcomeCompleted = settings.WelcomeCompleted && !string.IsNullOrWhiteSpace(settings.HomeCityId),
@@ -62,6 +65,8 @@ public static class SettingsCatalog
                     "planner.visible_hours" => current with { PlannerVisibleHours = value switch { "16" => 16, "24" => 24, _ => throw new ArgumentException() } },
                     "planner.step_minutes" => current with { PlannerStepMinutes = value switch { "15" => 15, "30" => 30, "60" => 60, _ => throw new ArgumentException() } },
                     "planner.column_width" => current with { PlannerColumnWidth = ParseColumnWidth(value) },
+                    "planner.home_column_width" => current with { PlannerHomeColumnWidth = ParseColumnWidth(value) },
+                    "planner.palette" => current with { PlannerPalette = value switch { "0" => 0, "1" => 1, "2" => 2, "3" => 3, "4" => 4, _ => throw new ArgumentException() } },
                     "planner.empty_cells" => current with { PlannerEmptyCells = ParseBoolean(value) },
                     "planner.compact_headers" => current with { PlannerCompactHeaders = ParseBoolean(value) },
                     "world_clocks.auto_group_cities" => current with { WorldClockAutoGroupCities = ParseBoolean(value) },

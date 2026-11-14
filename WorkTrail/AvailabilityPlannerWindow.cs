@@ -14,7 +14,7 @@ internal sealed class AvailabilityPlannerWindow : Window
 {
     private readonly IWorkTrailApplication _application;
     private readonly AvailabilityPlannerControl _planner = new();
-    private readonly Grid _root = new();
+    private readonly Grid _root = new() { Padding = new Thickness(12) };
     private readonly InfoBar _status = new() { IsClosable = true };
     private readonly ProgressBar _progress = new() { IsIndeterminate = true, Height = 3, Visibility = Visibility.Collapsed };
     private readonly WindowPlacementService _placement;
@@ -28,9 +28,11 @@ internal sealed class AvailabilityPlannerWindow : Window
     private bool _editing;
     private bool _savingViewPreferences;
     private bool _savingTableDisplay;
+    private bool _savingPalette;
     private DayOfWeek _firstDay = DayOfWeek.Monday;
     private double _columnWidth;
-    private double? _pendingColumnWidth;
+    private double _homeColumnWidth;
+    private (double Home, double Other)? _pendingColumnWidth;
     private bool _savingColumnWidth;
 
     /// <summary>Requests World Clock's city configuration.</summary>
@@ -83,6 +85,7 @@ internal sealed class AvailabilityPlannerWindow : Window
         _planner.FirstDayOfWeekRequested += SaveFirstDayOfWeek;
         _planner.ViewPreferencesRequested += SaveViewPreferences;
         _planner.TableDisplayRequested += SaveTableDisplay;
+        _planner.PaletteRequested += SavePalette;
         _planner.ColumnWidthRequested += SaveColumnWidth;
         _planner.OpenClocksRequested += OpenClocks;
         _root.Loaded += Loaded;
@@ -104,8 +107,10 @@ internal sealed class AvailabilityPlannerWindow : Window
         _session.StepMinutes = settings.PlannerStepMinutes;
         _planner.SetViewPreferences(settings.PlannerVisibleHours, _session.StepMinutes);
         _planner.SetTableDisplay(settings.PlannerEmptyCells, settings.PlannerCompactHeaders);
+        _planner.SetPalette(settings.PlannerPalette);
         _columnWidth = settings.PlannerColumnWidth;
-        _planner.SetColumnWidthPreference(_columnWidth);
+        _homeColumnWidth = settings.PlannerHomeColumnWidth;
+        _planner.SetColumnWidthPreferences(_homeColumnWidth, _columnWidth);
         var appearance = WindowAppearanceSettings.Get(settings, WindowStateKeys.AvailabilityPlanner);
         _placement.ApplyTaskbarVisibility(appearance.ShowInTaskbar);
         _root.Opacity = appearance.OpacityPercent / 100d;
@@ -316,6 +321,96 @@ internal sealed class AvailabilityPlannerWindow : Window
         }
     }
 
+    private async void SavePalette(int palette)
+    {
+        if (_savingPalette || _closed) return;
+        _savingPalette = true;
+        try
+        {
+            var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
+            {
+                ["planner.palette"] = palette.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            }), _lifetime.Token);
+            if (_closed) return;
+            if (result.Succeeded && result.Value is { } saved)
+            {
+                _planner.SetPalette(saved.PlannerPalette);
+                SettingsSaved?.Invoke(saved);
+            }
+            else
+            {
+                _status.Message = _strings.Translate(result.MessageKey);
+                _status.Severity = InfoBarSeverity.Error;
+                _status.IsOpen = true;
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception error) { if (!_closed) Report(error); }
+        finally { _savingPalette = false; }
+    }
+    private async Task<AvailabilityPdfRequest?> ChoosePdfOptionsAsync(AvailabilityPdfRequest request)
+    {
+        var fileName = new TextBox
+        {
+            Header = _strings.Translate("Planner.PdfFileName"),
+            Text = $"Capetime-{request.Snapshot.NowUtc:yyyy-MM-dd_HH-mm}-UTC",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var pageSize = new ComboBox { Header = _strings.Translate("Planner.PdfPageSize"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        foreach (var name in new[] { "A4", "A3", "Letter", "Legal" }) pageSize.Items.Add(name);
+        pageSize.SelectedIndex = 0;
+        var orientation = new ComboBox { Header = _strings.Translate("Planner.PdfOrientation"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        orientation.Items.Add(_strings.Translate("Planner.PdfLandscape"));
+        orientation.Items.Add(_strings.Translate("Planner.PdfPortrait"));
+        orientation.SelectedIndex = 0;
+        var margins = new ComboBox { Header = _strings.Translate("Planner.PdfMargins"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        margins.Items.Add(_strings.Translate("Planner.PdfNarrow"));
+        margins.Items.Add(_strings.Translate("Planner.PdfNoMargins"));
+        margins.SelectedIndex = 0;
+        var error = new TextBlock
+        {
+            Text = _strings.Translate("Planner.PdfInvalidName"),
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorCriticalBrush"],
+            TextWrapping = TextWrapping.Wrap,
+            Visibility = Visibility.Collapsed
+        };
+        var content = new StackPanel { Spacing = 12, MinWidth = 320 };
+        content.Children.Add(fileName);
+        content.Children.Add(error);
+        content.Children.Add(pageSize);
+        content.Children.Add(orientation);
+        content.Children.Add(margins);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = _root.XamlRoot,
+            RequestedTheme = _root.ActualTheme,
+            Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["WorkTrailDialogStyle"],
+            Title = _strings.Translate("Planner.PdfOptions"),
+            Content = content,
+            PrimaryButtonText = _strings.Translate("Planner.Save"),
+            CloseButtonText = _strings.Translate("Planner.Cancel"),
+            DefaultButton = ContentDialogButton.Primary
+        };
+        dialog.PrimaryButtonClick += (_, args) =>
+        {
+            var name = fileName.Text.Trim();
+            var stem = name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
+            if (string.IsNullOrWhiteSpace(stem) || stem.EndsWith('.') || stem.EndsWith(' ') ||
+                stem.IndexOfAny(['<', '>', ':', '"', '/', (char)92, '|', '?', '*']) >= 0 || stem.Any(char.IsControl))
+            {
+                args.Cancel = true;
+                error.Visibility = Visibility.Visible;
+            }
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary || _closed) return null;
+        return request with
+        {
+            FileName = fileName.Text.Trim(),
+            PageSize = (AvailabilityPdfPageSize)pageSize.SelectedIndex,
+            Orientation = (AvailabilityPdfOrientation)orientation.SelectedIndex,
+            Margins = (AvailabilityPdfMargins)margins.SelectedIndex
+        };
+    }
     private async void ExportPdf(AvailabilityPdfRequest request)
     {
         if (_editing || _closed) return;
@@ -323,11 +418,41 @@ internal sealed class AvailabilityPlannerWindow : Window
         _planner.SetExportBusy(true);
         try
         {
-            var result = await _application.ExportAvailabilityPdfAsync(_placement.OwnerWindowHandle, request, _lifetime.Token);
-            if (!_closed && result.Value is not null)
+            var options = await ChoosePdfOptionsAsync(request);
+            if (options is null || _closed) return;
+            var result = await _application.ExportAvailabilityPdfAsync(_placement.OwnerWindowHandle, options, _lifetime.Token);
+            if (_closed) return;
+            if (result.Succeeded && result.Value is not null)
+            {
+                var confirmation = new StackPanel { Spacing = 12, MinWidth = 300 };
+                var badge = new Border
+                {
+                    Background = (Microsoft.UI.Xaml.Media.Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorSuccessBrush"],
+                    CornerRadius = new CornerRadius(20),
+                    Width = 40,
+                    Height = 40,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Child = new SymbolIcon(Symbol.Accept)
+                };
+                confirmation.Children.Add(badge);
+                confirmation.Children.Add(new TextBlock { Text = _strings.Translate("Planner.PdfSavedDetail"), TextWrapping = TextWrapping.Wrap });
+                confirmation.Children.Add(new TextBlock { Text = result.Value, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Opacity = 0.75 });
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = _root.XamlRoot,
+                    RequestedTheme = _root.ActualTheme,
+                    Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["WorkTrailDialogStyle"],
+                    Title = _strings.Translate("Planner.PdfSaved"),
+                    Content = confirmation,
+                    CloseButtonText = _strings.Translate("Dialog.Ok"),
+                    DefaultButton = ContentDialogButton.Close
+                };
+                await dialog.ShowAsync();
+            }
+            else if (!result.Succeeded)
             {
                 _status.Message = _strings.Translate(result.MessageKey);
-                _status.Severity = result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error;
+                _status.Severity = InfoBarSeverity.Error;
                 _status.IsOpen = true;
             }
         }
@@ -337,11 +462,11 @@ internal sealed class AvailabilityPlannerWindow : Window
     }
 
     /// <summary>Coalesces completed drags and publishes only the latest committed width.</summary>
-    private async void SaveColumnWidth(double width)
+    private async void SaveColumnWidth(double homeWidth, double width)
     {
         if (_closed) return;
-        if (!_savingColumnWidth && width == _columnWidth) return;
-        _pendingColumnWidth = width;
+        if (!_savingColumnWidth && width == _columnWidth && homeWidth == _homeColumnWidth) return;
+        _pendingColumnWidth = (homeWidth, width);
         if (_savingColumnWidth) return;
         _savingColumnWidth = true;
         try
@@ -351,18 +476,20 @@ internal sealed class AvailabilityPlannerWindow : Window
                 _pendingColumnWidth = null;
                 var result = await _application.PatchSettingsAsync(new SettingsPatch(new Dictionary<string, string?>
                 {
-                    ["planner.column_width"] = requested.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+                    ["planner.column_width"] = requested.Other.ToString("R", System.Globalization.CultureInfo.InvariantCulture),
+                    ["planner.home_column_width"] = requested.Home.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
                 }), _lifetime.Token);
                 if (_closed) return;
                 if (!result.Succeeded || result.Value is null)
                 {
-                    _planner.SetColumnWidthPreference(_columnWidth);
+                    _planner.SetColumnWidthPreferences(_homeColumnWidth, _columnWidth);
                     _status.Message = _strings.Translate(result.MessageKey);
                     _status.Severity = InfoBarSeverity.Error;
                     _status.IsOpen = true;
                     continue;
                 }
                 _columnWidth = result.Value.PlannerColumnWidth;
+                _homeColumnWidth = result.Value.PlannerHomeColumnWidth;
                 if (_pendingColumnWidth is null)
                 {
                     ApplySettings(result.Value);
@@ -373,7 +500,7 @@ internal sealed class AvailabilityPlannerWindow : Window
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception error)
         {
-            if (!_closed) { _planner.SetColumnWidthPreference(_columnWidth); Report(error); }
+            if (!_closed) { _planner.SetColumnWidthPreferences(_homeColumnWidth, _columnWidth); Report(error); }
         }
         finally { _savingColumnWidth = false; }
     }
@@ -394,6 +521,7 @@ internal sealed class AvailabilityPlannerWindow : Window
         _planner.FirstDayOfWeekRequested -= SaveFirstDayOfWeek; _planner.OpenClocksRequested -= OpenClocks;
         _planner.ViewPreferencesRequested -= SaveViewPreferences;
         _planner.TableDisplayRequested -= SaveTableDisplay;
+        _planner.PaletteRequested -= SavePalette;
         _planner.ColumnWidthRequested -= SaveColumnWidth;
         _root.Loaded -= Loaded; Closed -= OnClosed;
         _lifetime.Dispose();

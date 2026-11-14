@@ -14,12 +14,16 @@ internal static class AvailabilityPdfExportService
     {
         ArgumentNullException.ThrowIfNull(request);
         if (ownerWindowHandle == 0) throw new ArgumentException("An owner window is required.", nameof(ownerWindowHandle));
+        var fileName = request.FileName.Trim();
+        if (fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) fileName = fileName[..^4];
+        if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || fileName.EndsWith('.') || fileName.EndsWith(' '))
+            throw new ArgumentException("Invalid PDF file name.", nameof(request));
         // Render before opening the picker so an unsuccessful render cannot create an empty destination file.
         var bytes = await Task.Run(() => AvailabilityPdfRenderer.Render(request, AppContext.BaseDirectory, cancellationToken), cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         var picker = new FileSavePicker
         {
-            SuggestedFileName = $"WorkTrail-{request.Snapshot.ReferenceLocalTime:yyyy-MM-dd}",
+            SuggestedFileName = fileName,
             SuggestedStartLocation = PickerLocationId.DocumentsLibrary
         };
         picker.FileTypeChoices.Add("PDF", new List<string> { ".pdf" });

@@ -84,51 +84,73 @@ public sealed class PlannerCityHeader : UserControl
     }
 
     /// <summary>Renders a city header from application DTOs.</summary>
-    public void Apply(AvailabilityPlannerCity city, string referenceId, LocalizationService strings, bool compact)
+    public void Apply(AvailabilityPlannerCity city, IReadOnlyList<AvailabilityPlannerCity> members, string referenceId, LocalizationService strings, bool compact)
     {
         var clock = city.Clock;
         CityId = clock.CityId;
         AutomationProperties.SetAutomationId(_resize, "Planner.ResizeColumns." + clock.CityId);
         UiLocalization.SetAccessibleLabel(_resize, clock.CityName + ". " + strings.Translate("Planner.ResizeColumns"));
         var panel = _panel;
+        panel.SizeChanged -= OnCityPanelSizeChanged;
         panel.Children.Clear();
-        if (!compact)
+        var cityPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        panel.Children.Add(cityPanel);
+        panel.SizeChanged += OnCityPanelSizeChanged;
+        foreach (var member in members)
         {
-            panel.Children.Add(new Image
+            var cityItem = new StackPanel { Width = members.Count > 1 ? 150 : double.NaN, Spacing = 3 };
+            cityPanel.Children.Add(cityItem);
+            if (!compact)
             {
-                Source = new BitmapImage(new Uri("ms-appx:///" + clock.SkylineAssetPath.Replace('\\', '/'))),
-                Height = 94,
-                Stretch = Stretch.Uniform,
-                IsHitTestVisible = false
-            });
+                cityItem.Children.Add(new Image
+                {
+                    Source = new BitmapImage(new Uri("ms-appx:///" + member.Clock.SkylineAssetPath.Replace('\\', '/'))),
+                    Height = members.Count > 1 ? 48 : 94,
+                    Stretch = Stretch.Uniform,
+                    IsHitTestVisible = false
+                });
+            }
+            var cityName = Label((member.Clock.CityId == referenceId ? "⌂ " : "") + member.Clock.CityName, compact ? 15 : 18, true);
+            cityName.TextWrapping = TextWrapping.Wrap;
+            cityItem.Children.Add(cityName);
         }
-        panel.Children.Add(Label((clock.CityId == referenceId ? "⌂ " : "") + clock.CityName, compact ? 15 : 18, true));
-        if (!compact) panel.Children.Add(Label($"{clock.CountryCode}  UTC{clock.LocalTime:zzz}", 12));
+        if (!compact) panel.Children.Add(Label($"{string.Join(" · ", members.Select(member => member.Clock.CountryCode).Distinct())}  UTC{clock.LocalTime:zzz}", 12));
         panel.Children.Add(Label(clock.LocalTime.ToString("HH:mm", strings.Culture), compact ? 18 : 25, true));
         var localDate = Label(clock.LocalTime.ToString("ddd d MMM", strings.Culture), 13);
         if (city.IsNonWorkingDay) localDate.Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorCriticalBrush"];
         panel.Children.Add(localDate);
         if (compact) return;
-        var weather = clock.Weather;
-        var weatherText = weather is { IsFresh: true }
-            ? $"{WeatherGlyph(weather.ConditionKey)}  {weather.TemperatureCelsius.ToString("0", strings.Culture)}°C  {strings.Translate("WorldClock.WeatherCondition." + weather.ConditionKey)}"
-            : strings.Translate("WorldClock.WeatherNoData");
-        var weatherLabel = Label(weatherText, 13);
-        weatherLabel.TextWrapping = TextWrapping.Wrap;
-        ToolTipService.SetToolTip(weatherLabel, weather is null ? weatherText
-            : strings.Format("Planner.WeatherObserved", weather.ObservedAtUtc.ToString("g", strings.Culture) + " UTC"));
-        panel.Children.Add(weatherLabel);
-        var hours = $"{city.Schedule.Start:HH:mm}–{city.Schedule.End:HH:mm}";
-        var edit = new Button
+        foreach (var member in members)
         {
-            Content = hours + "  ⚙",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Padding = new Thickness(6, 2, 6, 2),
-            FontSize = 13
-        };
-        UiLocalization.SetAccessibleLabel(edit, strings.Format("Planner.EditCity", clock.CityName));
-        edit.Click += (_, _) => ScheduleRequested?.Invoke(city);
-        panel.Children.Add(edit);
+            var weather = member.Clock.Weather;
+            var weatherText = weather is { IsFresh: true }
+                ? $"{WeatherGlyph(weather.ConditionKey)}  {weather.TemperatureCelsius.ToString("0", strings.Culture)}°C  {strings.Translate("WorldClock.WeatherCondition." + weather.ConditionKey)}"
+                : strings.Translate("WorldClock.WeatherNoData");
+            if (members.Count > 1) weatherText = member.Clock.CityName + " · " + weatherText;
+            var weatherLabel = Label(weatherText, 13);
+            weatherLabel.TextWrapping = TextWrapping.Wrap;
+            ToolTipService.SetToolTip(weatherLabel, weather is null ? weatherText
+                : strings.Format("Planner.WeatherObserved", weather.ObservedAtUtc.ToString("g", strings.Culture) + " UTC"));
+            panel.Children.Add(weatherLabel);
+            var hours = $"{member.Schedule.Start:HH:mm}–{member.Schedule.End:HH:mm}";
+            var edit = new Button
+            {
+                Content = (members.Count > 1 ? member.Clock.CityName + " " : "") + hours + "  ⚙",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Padding = new Thickness(6, 2, 6, 2),
+                FontSize = 13
+            };
+            UiLocalization.SetAccessibleLabel(edit, strings.Format("Planner.EditCity", member.Clock.CityName));
+            edit.Click += (_, _) => ScheduleRequested?.Invoke(member);
+            panel.Children.Add(edit);
+        }
+    }
+
+    private void OnCityPanelSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_panel.Children.FirstOrDefault() is StackPanel cities)
+            cities.Orientation = cities.Children.Count > 1 && e.NewSize.Width >= cities.Children.Count * 150 + _panel.Padding.Left + _panel.Padding.Right
+                ? Orientation.Horizontal : Orientation.Vertical;
     }
 
     private static TextBlock Label(string text, double size, bool strong = false) => new()

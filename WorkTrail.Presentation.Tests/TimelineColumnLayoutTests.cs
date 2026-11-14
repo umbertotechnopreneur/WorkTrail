@@ -4,82 +4,96 @@ using Xunit;
 
 namespace WorkTrail.Presentation.Tests;
 
-/// <summary>Protects equal city widths and resize geometry independently of native pointer handling.</summary>
+/// <summary>Checks independent home width and shared resizing of the other columns.</summary>
 public sealed class TimelineColumnLayoutTests
 {
-    /// <summary>Automatic columns fill a growing viewport without requiring a stored manual width.</summary>
+    /// <summary>Automatically fitted columns initially share the available viewport.</summary>
     [Fact]
-    public void AutomaticColumnsFollowViewportChanges()
+    public void AutomaticColumnsFitTheViewport()
     {
         var columns = new TimelineColumnLayout();
-        columns.UpdateViewport(1200, 5);
-        Assert.Equal(240, columns.ColumnWidth);
-        Assert.Equal(1200, columns.TotalWidth);
-
-        columns.UpdateViewport(1600, 5);
-        Assert.Equal(320, columns.ColumnWidth);
-        Assert.Equal(1600, columns.TotalWidth);
-        Assert.Equal(0, columns.PreferredWidth);
-    }
-
-    /// <summary>A temporary narrower viewport constrains geometry without erasing an existing manual preference.</summary>
-    [Fact]
-    public void SavedWidthSurvivesInitialMeasurementAndTemporaryConstraint()
-    {
-        var columns = new TimelineColumnLayout();
-        columns.SetPreferredWidth(220);
+        columns.SetHomeColumnPresent(true);
         columns.UpdateViewport(1200, 4);
-        Assert.Equal(220, columns.ColumnWidth);
-
-        columns.UpdateViewport(600, 4);
-        Assert.Equal(150, columns.ColumnWidth);
-        Assert.Equal(220, columns.PreferredWidth);
-        columns.SetPreferredWidth(220);
-        Assert.Equal(150, columns.ColumnWidth);
-        Assert.Equal(220, columns.PreferredWidth);
-
-        columns.UpdateViewport(1400, 4);
-        Assert.Equal(220, columns.ColumnWidth);
-        columns.FitColumns();
-        Assert.Equal(0, columns.PreferredWidth);
-        Assert.Equal(350, columns.ColumnWidth);
+        Assert.Equal(300, columns.GetColumnWidth(0));
+        Assert.Equal(300, columns.GetColumnWidth(1));
+        Assert.Equal(1200, columns.TotalWidth);
     }
 
-    /// <summary>Dragging an internal boundary moves that edge by the pointer delta while every column stays equal.</summary>
+    /// <summary>Moving the first edge changes home alone, including beyond the viewport.</summary>
     [Fact]
-    public void InternalBoundaryDeltaIsDistributedAcrossPrecedingColumns()
+    public void HomeEdgeChangesOnlyHome()
     {
         var columns = new TimelineColumnLayout();
-        columns.UpdateViewport(1000, 4);
-        columns.SetPreferredWidth(200);
-        var boundaryBefore = columns.ColumnWidth * 3;
+        columns.SetHomeColumnPresent(true);
+        columns.UpdateViewport(1200, 4);
+        columns.ResizeColumn(350, 0);
+        Assert.Equal(650, columns.GetColumnWidth(0));
+        Assert.Equal(300, columns.GetColumnWidth(1));
+        Assert.Equal(1550, columns.TotalWidth);
+        Assert.Equal(650, columns.PreferredHomeWidth);
+        Assert.Equal(300, columns.PreferredWidth);
+    }
 
+    /// <summary>Moving a later edge changes every preceding width while preserving the home difference.</summary>
+    [Fact]
+    public void LaterEdgeResizesAllColumnsAndFollowsThePointer()
+    {
+        var columns = new TimelineColumnLayout();
+        columns.SetHomeColumnPresent(true);
+        columns.UpdateViewport(1200, 4);
+        columns.SetPreferredWidths(400, 200);
+        var before = columns.GetColumnWidth(0) + 2 * columns.GetColumnWidth(1);
         columns.ResizeColumn(60, 2);
-
-        Assert.Equal(220, columns.ColumnWidth);
-        Assert.Equal(60, columns.ColumnWidth * 3 - boundaryBefore);
-        Assert.Equal(880, columns.TotalWidth);
-        columns.ResizeColumn(10000, 2);
-        Assert.Equal(250, columns.ColumnWidth);
-        Assert.Equal(1000, columns.TotalWidth);
-        Assert.Equal(0, columns.PreferredWidth);
-        columns.UpdateViewport(1200, 4);
-        Assert.Equal(300, columns.ColumnWidth);
-        Assert.Equal(1200, columns.TotalWidth);
+        Assert.Equal(420, columns.GetColumnWidth(0));
+        Assert.Equal(220, columns.GetColumnWidth(1));
+        Assert.Equal(60, columns.GetColumnWidth(0) + 2 * columns.GetColumnWidth(1) - before);
+        Assert.Equal(1080, columns.TotalWidth);
     }
 
-    /// <summary>Too many cities retain readable widths and expose an overflow extent for horizontal scrolling.</summary>
+    /// <summary>Fitting home leaves the other widths alone; fitting another edge resets both.</summary>
     [Fact]
-    public void InsufficientSpaceKeepsReadableMinimumInsteadOfCompressingCities()
+    public void FitRespectsTheSelectedEdge()
     {
         var columns = new TimelineColumnLayout();
-        columns.UpdateViewport(300, 4);
-        Assert.Equal(140, columns.ColumnWidth);
-        Assert.Equal(560, columns.TotalWidth);
+        columns.SetHomeColumnPresent(true);
+        columns.UpdateViewport(1200, 4);
+        columns.SetPreferredWidths(500, 200);
+        columns.FitColumn(0);
+        Assert.Equal(600, columns.GetColumnWidth(0));
+        Assert.Equal(200, columns.GetColumnWidth(1));
+        columns.FitColumn(2);
+        Assert.Equal(300, columns.GetColumnWidth(0));
+        Assert.Equal(300, columns.GetColumnWidth(1));
+        Assert.Equal(0, columns.PreferredHomeWidth);
+        Assert.Equal(0, columns.PreferredWidth);
+    }
 
-        columns.ResizeColumn(-1000, 0);
-        Assert.Equal(140, columns.ColumnWidth);
-        columns.ResizeColumn(1000, 3);
-        Assert.Equal(140, columns.ColumnWidth);
+    /// <summary>Manual widths survive temporary viewport changes and do not shrink below readability.</summary>
+    [Fact]
+    public void ManualWidthsSurviveViewportChanges()
+    {
+        var columns = new TimelineColumnLayout();
+        columns.SetHomeColumnPresent(true);
+        columns.UpdateViewport(1200, 4);
+        columns.SetPreferredWidths(400, 200);
+        columns.UpdateViewport(300, 4);
+        Assert.Equal(400, columns.GetColumnWidth(0));
+        Assert.Equal(200, columns.GetColumnWidth(1));
+        columns.ResizeColumn(-10000, 2);
+        Assert.Equal(340, columns.GetColumnWidth(0));
+        Assert.Equal(140, columns.GetColumnWidth(1));
+        Assert.Equal(760, columns.TotalWidth);
+    }
+
+    /// <summary>When home is absent, the first edge uses shared resizing instead of a phantom home column.</summary>
+    [Fact]
+    public void WithoutHomeAllColumnsShareTheFirstEdge()
+    {
+        var columns = new TimelineColumnLayout();
+        columns.UpdateViewport(900, 3);
+        columns.ResizeColumn(50, 0);
+        Assert.Equal(350, columns.GetColumnWidth(0));
+        Assert.Equal(350, columns.GetColumnWidth(1));
+        Assert.Equal(1050, columns.TotalWidth);
     }
 }

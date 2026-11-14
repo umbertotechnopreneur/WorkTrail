@@ -44,6 +44,8 @@ public sealed partial class WorldClockOptionsControl : UserControl
     private bool _worldClockShowInTaskbar = true;
     private bool _worldClockAlwaysOnTop;
     private bool _autoGroupCities;
+    private string _homeCityId = string.Empty;
+    private readonly List<RadioButton> _homeButtons = [];
 
     #endregion
 
@@ -116,6 +118,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
             _worldClockShowInTaskbar = settings.WorldClockWindowShowInTaskbar;
             _worldClockAlwaysOnTop = settings.WorldClockWindowAlwaysOnTop;
             _autoGroupCities = settings.WorldClockAutoGroupCities;
+            _homeCityId = settings.HomeCityId;
             WorldClockOpacitySlider.Value = _worldClockOpacityPercent;
             WorldClockShowInTaskbarSwitch.IsOn = _worldClockShowInTaskbar;
             AlwaysOnTopSwitch.IsOn = _worldClockAlwaysOnTop;
@@ -214,6 +217,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
             var result = await _application!.PatchSettingsAsync(patch, _lifetimeToken);
             if (result.Succeeded && result.Value is not null)
             {
+                _homeCityId = result.Value.HomeCityId;
                 SettingsSaved?.Invoke(result.Value);
                 return;
             }
@@ -303,6 +307,7 @@ public sealed partial class WorldClockOptionsControl : UserControl
         var expandedOffsets = CitiesHost.Children.OfType<Expander>()
             .Where(group => group.IsExpanded).Select(group => group.Tag).OfType<TimeSpan>().ToHashSet();
         CitiesHost.Children.Clear();
+        _homeButtons.Clear();
         if (snapshot is null)
         {
             _canAddClock = false;
@@ -442,6 +447,28 @@ public sealed partial class WorldClockOptionsControl : UserControl
             "WorldClock.Remove",
             isEnabled: true,
             RemoveClockButton_Click);
+        var homeButton = new RadioButton
+        {
+            GroupName = "WorldClockHomeCity",
+            Content = _strings.Translate("WorldClock.HomeCity"),
+            IsChecked = string.Equals(clock.CityId, _homeCityId, StringComparison.Ordinal),
+            VerticalAlignment = VerticalAlignment.Center,
+            Tag = clock
+        };
+        AutomationProperties.SetName(homeButton, _strings.Translate("WorldClock.HomeCity") + " · " + clock.CityName);
+        _homeButtons.Add(homeButton);
+        homeButton.Checked += async (_, _) =>
+        {
+            if (_updatingControls || _busy || _application is null || clock.CityId == _homeCityId) return;
+            await SaveWindowPresentationAsync(new SettingsPatch(new Dictionary<string, string?> { ["home.city_id"] = clock.CityId }));
+            if (_homeCityId != clock.CityId)
+            {
+                _updatingControls = true;
+                foreach (var button in _homeButtons) button.IsChecked = button.Tag is WorldClockItem item && item.CityId == _homeCityId;
+                _updatingControls = false;
+            }
+        };
+        actions.Children.Add(homeButton);
         actions.Children.Add(moveUpButton);
         actions.Children.Add(moveDownButton);
         actions.Children.Add(removeButton);

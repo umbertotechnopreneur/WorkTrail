@@ -81,6 +81,50 @@ public sealed class AvailabilityPlannerServiceTests
         Assert.NotEqual(result.InstantUtc, result.Cities[0].Clock.Weather!.ObservedAtUtc);
     }
 
+    /// <summary>Grouping retains each calendar and combines a slot using the most restrictive state.</summary>
+    [Fact]
+    public void GroupedCitiesKeepCalendarsAndUseRestrictiveAvailability()
+    {
+        var instant = new DateTimeOffset(2026, 11, 4, 2, 0, 0, TimeSpan.Zero);
+        var template = Snapshot(instant);
+        var hongKong = template.Clocks[0] with { CityId = "hk", CityName = "Hong Kong", CountryCode = "HK", TimeZoneId = "China Standard Time", LocalTime = TimeZoneInfo.ConvertTime(instant, TimeZoneInfo.FindSystemTimeZoneById("China Standard Time")) };
+        var kualaLumpur = template.Clocks[0] with { CityId = "kl", CityName = "Kuala Lumpur", CountryCode = "MY", TimeZoneId = "Singapore Standard Time", LocalTime = TimeZoneInfo.ConvertTime(instant, TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time")) };
+        var projection = template with { Clocks = [hongKong, kualaLumpur] };
+        var day = new DateOnly(2026, 11, 4);
+        var schedules = new Dictionary<string, AvailabilitySchedule>
+        {
+            ["hk"] = Schedule() with { CityId = "hk", Exceptions = [new(day, AvailabilityState.Available)] },
+            ["kl"] = Schedule() with { CityId = "kl", Exceptions = [new(day, AvailabilityState.Unavailable)] }
+        };
+        var result = AvailabilityPlannerService.Build(projection, projection, "hk", 30,
+            new AppSettings(WorldClockAutoGroupCities: true, AvailabilitySchedules: schedules), CancellationToken.None);
+        var group = Assert.Single(result.DisplayGroups!);
+        Assert.Equal(new[] { 0, 1 }, group.CityIndices);
+        var row = result.Rows.Single(item => item.StartUtc == instant);
+        Assert.Equal(AvailabilityState.Available, row.Cells[0].State);
+        Assert.Equal(AvailabilityState.Unavailable, row.Cells[1].State);
+        Assert.Equal(AvailabilityState.Unavailable, Assert.Single(row.GroupedCells!).State);
+        Assert.Equal("kl", result.Cities[1].Schedule.CityId);
+    }
+
+    /// <summary>Cities are not grouped when their time zones diverge during the displayed interval.</summary>
+    [Fact]
+    public void GroupingKeepsDstDivergenceSeparate()
+    {
+        var instant = new DateTimeOffset(2026, 10, 30, 12, 0, 0, TimeSpan.Zero);
+        var template = Snapshot(instant);
+        var newYorkZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        var caracasZone = TimeZoneInfo.FindSystemTimeZoneById("SA Western Standard Time");
+        var newYork = template.Clocks[0] with { CityId = "ny", TimeZoneId = newYorkZone.Id, LocalTime = TimeZoneInfo.ConvertTime(instant, newYorkZone) };
+        var caracas = template.Clocks[0] with { CityId = "ccs", TimeZoneId = caracasZone.Id, LocalTime = TimeZoneInfo.ConvertTime(instant, caracasZone) };
+        var projection = template with { Clocks = [newYork, caracas] };
+        var result = AvailabilityPlannerService.Build(projection, projection, "ny", 30,
+            new AppSettings(WorldClockAutoGroupCities: true), CancellationToken.None);
+        Assert.Equal(newYork.LocalTime.Offset, caracas.LocalTime.Offset);
+        Assert.Equal(2, result.DisplayGroups!.Count);
+        Assert.All(result.DisplayGroups, group => Assert.Single(group.CityIndices));
+    }
+
     /// <summary>Invalid preferences cannot be persisted as valid working schedules.</summary>
     [Fact]
     public void RejectsInvalidSchedule()
@@ -90,6 +134,42 @@ public sealed class AvailabilityPlannerServiceTests
         Assert.False(AvailabilityPlannerService.IsValid(Schedule() with { Exceptions = [new(new DateOnly(2026, 1, 1), AvailabilityState.Unknown)] }));
     }
 
+    /// <summary>Projects day, sunset and night at each slot for grouped cities with different locations.</summary>
+    [Fact]
+    public void SolarPhasesFollowEachCityAndSlot()
+    {
+        var instant = new DateTimeOffset(2026, 11, 10, 4, 0, 0, TimeSpan.Zero);
+        var template = Snapshot(instant);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+        var hongKong = template.Clocks[0] with
+        {
+            CityId = "hk",
+            CityName = "Hong Kong",
+            CountryCode = "HK",
+            TimeZoneId = zone.Id,
+            LocalTime = TimeZoneInfo.ConvertTime(instant, zone)
+        };
+        var denpasar = hongKong with
+        {
+            CityId = "denpasar",
+            CityName = "Denpasar",
+            CountryCode = "ID",
+            TimeZoneId = "Singapore Standard Time"
+        };
+        var projection = template with
+        {
+            Clocks = [hongKong, denpasar],
+            Map = template.Map with { Cities = [new("hk", "Hong Kong", 22.3193, 114.1694), new("denpasar", "Denpasar", -8.65, 115.2167)] }
+        };
+        var snapshot = AvailabilityPlannerService.Build(projection, projection, "hk", 30,
+            new AppSettings(HomeCityId: "hk", WorldClockAutoGroupCities: true), CancellationToken.None);
+        Assert.Single(snapshot.DisplayGroups!);
+        Assert.Equal(AvailabilitySolarPhase.Day, snapshot.Rows.Single(row => row.StartUtc == instant).Cells[0].SolarPhase);
+        Assert.Equal(AvailabilitySolarPhase.Sunset, snapshot.Rows.Single(row => row.StartUtc == instant.AddHours(5.5)).Cells[0].SolarPhase);
+        Assert.Equal(AvailabilitySolarPhase.Night, snapshot.Rows.Single(row => row.StartUtc == instant.AddHours(12)).Cells[0].SolarPhase);
+        Assert.Contains(snapshot.Rows, row => row.Cells.Any(cell => cell.SolarPhase == AvailabilitySolarPhase.Sunset)
+            && row.Cells.Any(cell => cell.SolarPhase == AvailabilitySolarPhase.Night));
+    }
     private static AvailabilitySchedule Schedule() => new("rome", new TimeOnly(9, 0), new TimeOnly(18, 0), []);
 
     /// <summary>The reported five-city case keeps the selected day distinct from later scrolled days.</summary>

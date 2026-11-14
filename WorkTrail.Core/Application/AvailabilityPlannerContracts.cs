@@ -19,20 +19,41 @@ public sealed record AvailabilityPlannerRequest(string? ReferenceCityId = null,
 /// <summary>Contains one passive city header with its saved working rules.</summary>
 public sealed record AvailabilityPlannerCity(WorldClockItem Clock, AvailabilitySchedule Schedule, bool IsNonWorkingDay = false);
 
+/// <summary>Identifies the solar phase at a slot's midpoint.</summary>
+public enum AvailabilitySolarPhase { Unknown, Day, Sunset, Night }
+
 /// <summary>Contains a local time slot and the reason for its availability.</summary>
 public sealed record AvailabilityCell(DateTimeOffset LocalStart, DateTimeOffset LocalEnd,
-    AvailabilityState State, string ReasonKey, string? Detail = null, bool IsNonWorkingDay = false);
+    AvailabilityState State, string ReasonKey, string? Detail = null, bool IsNonWorkingDay = false)
+{
+    /// <summary>Gets the solar phase at the midpoint of the slot.</summary>
+    public AvailabilitySolarPhase SolarPhase { get; init; } = AvailabilitySolarPhase.Unknown;
+}
 
 /// <summary>Identifies the first real instant of a civil date in the selected reference city.</summary>
 public sealed record AvailabilityDayBoundary(DateTimeOffset InstantUtc, DateOnly LocalDate);
 
+/// <summary>Identifies source cities sharing a single displayed timeline column.</summary>
+public sealed record AvailabilityPlannerGroup(int PrimaryIndex, IReadOnlyList<int> CityIndices);
+
 /// <summary>Represents the same UTC interval in all selected cities, with an optional reference-day boundary.</summary>
 public sealed record AvailabilityRow(DateTimeOffset StartUtc, DateTimeOffset EndUtc,
-    IReadOnlyList<AvailabilityCell> Cells, AvailabilityDayBoundary? ReferenceDayBoundary = null);
+    IReadOnlyList<AvailabilityCell> Cells, AvailabilityDayBoundary? ReferenceDayBoundary = null)
+{
+    /// <summary>Gets the conservative availability of the displayed groups, when grouping is enabled.</summary>
+    public IReadOnlyList<AvailabilityCell>? GroupedCells { get; init; }
+}
 
 /// <summary>Contains the complete planner projection; weather always describes current observations.</summary>
 public sealed record AvailabilityPlannerSnapshot(string ReferenceCityId, DateTimeOffset ReferenceLocalTime,
     DateTimeOffset InstantUtc, DateTimeOffset NowUtc, int StepMinutes,
     IReadOnlyList<AvailabilityPlannerCity> Cities, IReadOnlyList<AvailabilityRow> Rows,
     WorldClockWeatherStatus WeatherStatus, double MoonPhaseAngleDegrees,
-    int NextMoonQuarter, DateTimeOffset NextMoonPhaseUtc);
+    int NextMoonQuarter, DateTimeOffset NextMoonPhaseUtc)
+{
+    /// <summary>Gets the saved home city for the first planner column.</summary>
+    public string HomeCityId { get; init; } = string.Empty;
+
+    /// <summary>Gets the displayed groups without altering the source city calendars.</summary>
+    public IReadOnlyList<AvailabilityPlannerGroup>? DisplayGroups { get; init; }
+}

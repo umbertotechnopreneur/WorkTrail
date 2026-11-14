@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 using CosineKitty;
+using WorkTrail.Services;
 
 namespace WorkTrail.Application;
 
@@ -50,6 +51,7 @@ internal static class AvailabilityPlannerService
                 schedule, IsNonWorking(clock.LocalTime, schedule, clock.CountryCode));
         }).ToArray();
         var zones = cities.Select(c => TimeZoneInfo.FindSystemTimeZoneById(c.Clock.TimeZoneId)).ToArray();
+        var locations = projection.Map.Cities.ToDictionary(city => city.CityId, StringComparer.Ordinal);
         var countries = calendar.Countries.ToDictionary(c => c.Code, StringComparer.Ordinal);
         var rows = new List<AvailabilityRow>();
         for (var instant = first; instant < last; instant = instant.AddMinutes(step))
@@ -69,16 +71,38 @@ internal static class AvailabilityPlannerService
                     if (Rank(candidate.State) > Rank(result.State)) result = candidate;
                 }
                 cells[index] = new(local, TimeZoneInfo.ConvertTime(end, zones[index]), result.State, result.Key, result.Detail,
-                    IsNonWorking(local, city.Schedule, city.Clock.CountryCode));
+                    IsNonWorking(local, city.Schedule, city.Clock.CountryCode))
+                {
+                    SolarPhase = locations.TryGetValue(city.Clock.CityId, out var location)
+                        ? SolarPhaseAt(instant + (end - instant) / 2, zones[index], location)
+                        : AvailabilitySolarPhase.Unknown
+                };
             }
             // UTC slots remain equal elapsed intervals, so a civil boundary can fall inside a row.
             var boundary = dayBoundaries.FirstOrDefault(value => value.InstantUtc >= instant && value.InstantUtc < end);
             rows.Add(new(instant, end, cells, boundary));
         }
+        var groups = CreateDisplayGroups(cities, rows, settings.WorldClockAutoGroupCities, settings.HomeCityId);
+        var displayRows = rows.Select(row => row with
+        {
+            GroupedCells = groups.Select(group =>
+            {
+                var primary = row.Cells[group.PrimaryIndex];
+                var mostRestrictive = group.CityIndices.Select(index => row.Cells[index]).MaxBy(cell => Rank(cell.State))!;
+                return primary with
+                {
+                    State = mostRestrictive.State,
+                    ReasonKey = mostRestrictive.ReasonKey,
+                    Detail = mostRestrictive.Detail,
+                    IsNonWorkingDay = group.CityIndices.Any(index => row.Cells[index].IsNonWorkingDay)
+                };
+            }).ToArray()
+        }).ToArray();
         var next = Astronomy.SearchMoonQuarter(new AstroTime(projection.InstantUtc.UtcDateTime));
         return new(referenceId, reference.LocalTime, projection.InstantUtc, current.InstantUtc, step,
-            cities, rows, current.WeatherStatus, projection.Map.MoonPhaseAngleDegrees,
-            next.quarter, new DateTimeOffset(DateTime.SpecifyKind(next.time.ToUtcDateTime(), DateTimeKind.Utc)));
+            cities, displayRows, current.WeatherStatus, projection.Map.MoonPhaseAngleDegrees,
+            next.quarter, new DateTimeOffset(DateTime.SpecifyKind(next.time.ToUtcDateTime(), DateTimeKind.Utc)))
+        { DisplayGroups = groups, HomeCityId = settings.HomeCityId };
 
         bool IsNonWorking(DateTimeOffset local, AvailabilitySchedule schedule, string country)
         {
@@ -119,6 +143,41 @@ internal static class AvailabilityPlannerService
             return available ? (AvailabilityState.Available, "Planner.WorkingHours", null)
                 : (AvailabilityState.Reserve, "Planner.Reserve", null);
         }
+    }
+
+    /// <summary>Projects the actual local solar phase at a slot's midpoint.</summary>
+    private static AvailabilitySolarPhase SolarPhaseAt(DateTimeOffset instant, TimeZoneInfo zone, WorldClockMapCity location)
+    {
+        var events = LocalAstronomy.Calculate(location.Latitude, location.Longitude, zone, instant);
+        var local = TimeZoneInfo.ConvertTime(instant, zone);
+        var daylight = events.SunAltitudeDegrees >= -0.833;
+        var phase = WorldClockAtmosphereResolver.Resolve(local, events.Sunrise, events.Sunset, daylight).Phase;
+        if (phase == "sunset") return AvailabilitySolarPhase.Sunset;
+        return daylight ? AvailabilitySolarPhase.Day : AvailabilitySolarPhase.Night;
+    }
+    /// <summary>Groups only cities whose offsets agree throughout the displayed interval.</summary>
+    internal static IReadOnlyList<AvailabilityPlannerGroup> CreateDisplayGroups(
+        IReadOnlyList<AvailabilityPlannerCity> cities, IReadOnlyList<AvailabilityRow> rows, bool enabled, string referenceId)
+    {
+        if (!enabled || rows.Count == 0)
+            return Enumerable.Range(0, cities.Count).OrderBy(index => cities[index].Clock.CityId != referenceId)
+                .Select(index => new AvailabilityPlannerGroup(index, [index])).ToArray();
+        var boundaries = rows.SelectMany(row => new[] { row.StartUtc, row.EndUtc }).Distinct().ToArray();
+        return Enumerable.Range(0, cities.Count)
+            .GroupBy(index =>
+            {
+                var zone = TimeZoneInfo.FindSystemTimeZoneById(cities[index].Clock.TimeZoneId);
+                return string.Join(",", boundaries.Select(instant => zone.GetUtcOffset(instant).Ticks));
+            })
+            .Select(group =>
+            {
+                var indices = group.ToArray();
+                var primary = indices.FirstOrDefault(index => cities[index].Clock.CityId == referenceId, indices[0]);
+                return new AvailabilityPlannerGroup(primary, indices);
+            })
+            .OrderBy(group => !group.CityIndices.Any(index => cities[index].Clock.CityId == referenceId))
+            .ThenBy(group => group.CityIndices.Count == 1)
+            .ToArray();
     }
 
     /// <summary>Orders conservative slot outcomes without relying on enum serialization values.</summary>

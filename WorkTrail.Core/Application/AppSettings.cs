@@ -48,4 +48,4 @@ public sealed record AppSettings(
     double PlannerColumnWidth = 0,
     bool WorldClockAutoGroupCities = false,
     bool PlannerEmptyCells = true,
-    bool PlannerCompactHeaders = false);
+    bool PlannerCompactHeaders = false, int PlannerPalette = 0, double PlannerHomeColumnWidth = 0);
